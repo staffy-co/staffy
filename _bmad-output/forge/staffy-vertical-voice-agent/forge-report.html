@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Staffy — Forge Report: HARDENED</title>
+  <style>
+    :root{--ink:#17211b;--muted:#5c6b62;--paper:#f7f4ec;--card:#fffdf7;--line:#d9d3c4;--green:#174d38;--gold:#b58432;--red:#8b2f2a}
+    *{box-sizing:border-box} body{margin:0;background:linear-gradient(135deg,#e9efe9 0%,var(--paper) 45%,#eee6d7 100%);color:var(--ink);font:16px/1.55 Inter,system-ui,-apple-system,Segoe UI,sans-serif}
+    main{width:min(1120px,calc(100% - 32px));margin:32px auto 64px}.hero{position:relative;overflow:hidden;padding:48px;border:1px solid var(--line);border-radius:24px;background:rgba(255,253,247,.94);box-shadow:0 18px 55px rgba(37,50,40,.10)}
+    .eyebrow{color:var(--green);font-weight:800;letter-spacing:.12em;text-transform:uppercase;font-size:.75rem}h1{font-size:clamp(2.4rem,6vw,5rem);line-height:.95;margin:.25em 0 .3em;max-width:760px}h2{margin:0 0 14px;font-size:1.35rem}p{margin:.6em 0}.lead{max-width:720px;color:var(--muted);font-size:1.15rem}
+    .stamp{position:absolute;right:34px;top:28px;width:150px;height:150px;transform:rotate(8deg)}.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:18px;margin-top:18px}.card{grid-column:span 6;padding:25px;border:1px solid var(--line);border-radius:18px;background:rgba(255,253,247,.9)}.wide{grid-column:1/-1}.third{grid-column:span 4}
+    ul{margin:0;padding-left:1.2em}li+li{margin-top:.42em}.flow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.pill{padding:8px 12px;border-radius:999px;background:#e5eee8;color:var(--green);font-weight:700}.arrow{color:var(--gold);font-weight:900}.no{border-left:5px solid var(--red)}.yes{border-left:5px solid var(--green)}
+    .voices{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.voice{padding:16px;border-radius:14px;background:#f1eee5}.voice strong{display:block;color:var(--green)}.meta{margin-top:28px;color:var(--muted);font-size:.9rem}
+    @media(max-width:760px){.hero{padding:30px 24px 180px}.stamp{top:auto;bottom:20px;right:24px}.card,.third{grid-column:1/-1}.voices{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<main>
+  <section class="hero">
+    <div class="eyebrow">BMad Forge Idea · 12 сентября 2026</div>
+    <h1>Staffy</h1>
+    <p class="lead">Универсальная multi-tenant платформа управляемых голосовых и текстовых AI-сотрудников, глубоко интегрированных в процессы бизнеса без отдельного ядра для каждого клиента.</p>
+    <svg class="stamp" viewBox="0 0 160 160" role="img" aria-label="HARDENED">
+      <circle cx="80" cy="80" r="67" fill="none" stroke="#8b2f2a" stroke-width="6" stroke-dasharray="4 4"/>
+      <circle cx="80" cy="80" r="55" fill="#8b2f2a" opacity=".08" stroke="#8b2f2a" stroke-width="2"/>
+      <text x="80" y="73" text-anchor="middle" fill="#8b2f2a" font-size="15" font-weight="800">IDEA</text>
+      <text x="80" y="96" text-anchor="middle" fill="#8b2f2a" font-size="18" font-weight="900">HARDENED</text>
+    </svg>
+  </section>
+
+  <section class="grid">
+    <article class="card wide yes">
+      <h2>Решение</h2>
+      <div class="flow">
+        <span class="pill">Каналы</span><span class="arrow">→</span>
+        <span class="pill">AI-сотрудник Staffy</span><span class="arrow">→</span>
+        <span class="pill">Права и действия</span><span class="arrow">→</span>
+        <span class="pill">Системы бизнеса</span>
+      </div>
+      <p>Staffy владеет конфигурацией сотрудников, разговорным и task-контекстом, полномочиями, reusable capabilities/connectors, изменяющими операциями, аудитом и качеством. CRM, ABCP, 1С, телефония, платежи и human inbox остаются системами своих данных.</p>
+    </article>
+
+    <article class="card">
+      <h2>Продуктовые locks</h2>
+      <ul>
+        <li>Один AI-сотрудник — одна роль и единый контекст во всех каналах.</li>
+        <li>Свободный сложный диалог; исполнение только через разрешённые typed actions.</li>
+        <li>Assisted setup сейчас, self-service после доказанной повторяемости.</li>
+        <li>Bring your own inbox; при отсутствии — Staffy Inbox.</li>
+        <li>Один активный владелец ответа: бот или человек.</li>
+      </ul>
+    </article>
+
+    <article class="card">
+      <h2>Минимальная техника</h2>
+      <ul>
+        <li>Go — основной язык core и realtime runtime.</li>
+        <li>Voice/media/inbox — сменные компоненты.</li>
+        <li>Action Executor — модуль Go-приложения.</li>
+        <li>Operations — одна append-only таблица для mutating actions.</li>
+        <li>Конфигурация — immutable hash + eval gate + rollback.</li>
+      </ul>
+    </article>
+
+    <article class="card wide">
+      <h2>Два reference domain pack</h2>
+      <div class="voices">
+        <div class="voice"><strong>Автозапчасти / Олег</strong>Novofon + Yandex candidate; подбор и заказ через ABCP; существующий обмен в кастомную 1С; временная проверка перед отправкой поставщику.</div>
+        <div class="voice"><strong>Услуги / Montagio</strong>Квалификация обращения и структурированная заявка на существующем операционном контуре; тот же Staffy core, другие capabilities и policies.</div>
+        <div class="voice"><strong>Платформенный экзамен</strong>Третий клиент на готовых pack/connectors запускается без core changes, client fork и программиста максимум за рабочий день настройки.</div>
+      </div>
+    </article>
+
+    <article class="card third">
+      <h2>Каналы сейчас</h2>
+      <p>Web widget, Telegram, MAX, Jivo. Для Олега Jivo остаётся human inbox.</p>
+    </article>
+    <article class="card third">
+      <h2>Следом</h2>
+      <p>VK и Avito после account-level tests; Android/iOS через общий Staffy protocol.</p>
+    </article>
+    <article class="card third">
+      <h2>Spike</h2>
+      <p>Self-hosted Chatwoot за один день: web, Telegram, handoff, MAX bridge, egress и restore.</p>
+    </article>
+
+    <article class="card no">
+      <h2>Отвергнуто</h2>
+      <ul>
+        <li>Staffy как агент одной отрасли.</li>
+        <li>Клиентские форки ядра.</li>
+        <li>«Переписывание на 50-м клиенте из-за GIL».</li>
+        <li>Полный собственный SIP/WebRTC/PSTN stack с первого дня.</li>
+        <li>Model + RAG + MCP как гарантия надёжных side effects.</li>
+        <li>Microservices, workflow/vector platform и multi-agent hierarchy «на будущее».</li>
+      </ul>
+    </article>
+
+    <article class="card yes">
+      <h2>Коммерческая модель</h2>
+      <ul>
+        <li>Разовый запуск и интеграция.</li>
+        <li>Подписка за активного AI-сотрудника.</li>
+        <li>Фактическое voice/AI usage.</li>
+        <li>Новый reusable connector оценивается отдельно и становится частью Staffy.</li>
+      </ul>
+    </article>
+
+    <article class="card wide">
+      <h2>Сохранившиеся риски</h2>
+      <p>Novofon↔Yandex SIP/transfer/DTMF/data path; Russian PSTN latency; реальная экономика и качество пилотов; Chatwoot/MAX compatibility и data egress; юридические границы каналов и ПДн. Синтетические тесты не заменяют реальных операций.</p>
+    </article>
+
+    <article class="card wide">
+      <h2>Голоса, закалившие идею</h2>
+      <div class="voices">
+        <div class="voice"><strong>🏗️ Winston</strong>Сохранял архитектурные границы, но требовал доказательства перед усложнением.</div>
+        <div class="voice"><strong>📊 Mary · 📋 John · 🎨 Sally · 💻 Amelia</strong>Проверяли покупателя, измеримый результат, UX настройки, безопасность и воспроизводимость.</div>
+        <div class="voice"><strong>🔎 Внешние критики</strong>CTO realtime, интегратор, операционный директор, специалист по данным, инвестор и владелец малого бизнеса атаковали масштаб, внедрение и экономику.</div>
+      </div>
+    </article>
+  </section>
+  <p class="meta">Исходная идея восстановлена и уточнена: Staffy остаётся универсальной платформой, а первые вертикали служат доказательством переиспользуемости, не границей продукта.</p>
+</main>
+</body>
+</html>

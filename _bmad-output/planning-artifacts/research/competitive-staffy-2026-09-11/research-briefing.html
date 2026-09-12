@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Staffy — конкурентное исследование</title>
+  <style>
+    :root{color-scheme:light dark;--bg:#f4f7f6;--surface:#fff;--surface2:#edf3f1;--text:#17211f;--muted:#5d6c68;--line:#d6e0dd;--accent:#176b5b;--accent2:#0f5044;--good:#166534;--goodbg:#dcfce7;--med:#854d0e;--medbg:#fef3c7;--low:#9a3412;--lowbg:#ffedd5;--bad:#991b1b;--badbg:#fee2e2;--shadow:0 18px 50px rgba(25,55,48,.09)}
+    @media(prefers-color-scheme:dark){:root{--bg:#101615;--surface:#18201e;--surface2:#212b28;--text:#e7efed;--muted:#a7b5b1;--line:#34413e;--accent:#6ee7c8;--accent2:#a7f3d0;--good:#86efac;--goodbg:#153923;--med:#fde68a;--medbg:#443818;--low:#fdba74;--lowbg:#4a2919;--bad:#fca5a5;--badbg:#491e1e;--shadow:none}}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.58}a{color:var(--accent2)}
+    .page{width:min(1180px,calc(100% - 32px));margin:auto}.hero{padding:64px 0 34px}.eyebrow{font-size:.76rem;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--accent)}h1{font-size:clamp(2.15rem,5vw,4.7rem);line-height:1.02;letter-spacing:-.045em;margin:.5rem 0 1.1rem;max-width:970px}h2{font-size:clamp(1.55rem,3vw,2.25rem);line-height:1.14;letter-spacing:-.025em;margin:0 0 1rem}h3{font-size:1.05rem;margin:1.5rem 0 .45rem}p{margin:.45rem 0 .95rem}.sub{font-size:1.08rem;max-width:820px;color:var(--muted)}.meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:24px}.pill,.badge{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:999px;padding:5px 10px;font-size:.76rem;font-weight:750;background:var(--surface)}
+    .badge.verified{color:var(--good);background:var(--goodbg);border-color:transparent}.badge.medium{color:var(--med);background:var(--medbg);border-color:transparent}.badge.low,.badge.unverified{color:var(--low);background:var(--lowbg);border:2px solid currentColor}.badge.disputed{color:var(--bad);background:var(--badbg);border:2px solid currentColor}.cite{font-size:.75em;text-decoration:none;font-weight:800;vertical-align:.2em;margin-left:.15em}
+    .decision{background:linear-gradient(135deg,var(--surface),var(--surface2));border:1px solid var(--line);border-radius:28px;padding:clamp(24px,5vw,48px);box-shadow:var(--shadow);margin-bottom:30px}.decision-grid{display:grid;grid-template-columns:1.5fr .7fr;gap:32px}.verdict{font-size:clamp(1.45rem,3.3vw,2.65rem);line-height:1.13;letter-spacing:-.025em;font-weight:800;margin:.45rem 0 1.1rem}.score{display:grid;gap:10px}.score>div{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px}.score strong{display:block;font-size:1.45rem}.score small{color:var(--muted)}
+    .toc{position:sticky;top:0;z-index:10;background:color-mix(in srgb,var(--bg) 91%,transparent);backdrop-filter:blur(14px);border-block:1px solid var(--line);overflow:auto}.toc .page{display:flex;gap:20px;white-space:nowrap;padding-block:12px}.toc a{text-decoration:none;color:var(--muted);font-size:.84rem;font-weight:720}.toc a:hover{color:var(--accent)}main{padding:36px 0 80px}.section{scroll-margin-top:70px;padding:30px 0;border-bottom:1px solid var(--line)}.lead{font-size:1.08rem;max-width:870px}.callout{border-left:4px solid var(--accent);background:var(--surface2);padding:14px 18px;border-radius:0 14px 14px 0;margin:18px 0}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px}.card h3{margin-top:0}.compact p{margin:.3rem 0}.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:16px;background:var(--surface)}table{width:100%;border-collapse:collapse;font-size:.88rem}th,td{text-align:left;vertical-align:top;padding:12px 13px;border-bottom:1px solid var(--line)}th{font-size:.72rem;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);background:var(--surface2)}tr:last-child td{border-bottom:0}ul,ol{padding-left:1.25rem}li{margin:.35rem 0}.go{color:var(--good)}.nogo{color:var(--bad)}
+    details{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px 18px}summary{cursor:pointer;font-weight:800}.sources{margin-top:16px}.sources td:first-child{font-weight:800;white-space:nowrap}.sources td:nth-child(3){white-space:nowrap}.note{font-size:.84rem;color:var(--muted)}footer{padding:24px 0 48px;color:var(--muted);font-size:.8rem}.top{float:right;text-decoration:none}
+    @media(max-width:760px){.page{width:min(100% - 20px,1180px)}.hero{padding-top:40px}.decision-grid,.grid{grid-template-columns:1fr}.decision{border-radius:20px;padding:22px}.section{padding:25px 0}th,td{padding:10px;min-width:140px}.sources td:nth-child(2){min-width:260px}}
+    @media print{.toc{display:none}.page{width:100%}.decision,.card,details{box-shadow:none;break-inside:avoid}.section{break-before:auto}body{background:#fff;color:#111}}
+  </style>
+</head>
+<body>
+  <header class="page hero" id="top">
+    <div class="eyebrow">Competitive research · Staffy</div>
+    <h1>Голосовой ИИ-сотрудник: где у Staffy есть право на игру</h1>
+    <p class="sub">Решение: стоит ли выходить на российский рынок, с какой первой вертикалью и каким защищаемым преимуществом.</p>
+    <div class="meta"><span class="pill">11 сентября 2026</span><span class="pill">Standard depth</span><span class="pill">Normal verification</span><span class="pill">33 источника</span></div>
+  </header>
+
+  <section class="page decision" aria-labelledby="decision-title">
+    <div class="decision-grid">
+      <div>
+        <div class="eyebrow" id="decision-title">Решение</div>
+        <div class="verdict"><span class="go">GO</span> на проверку узкого вертикального продукта.<br><span class="nogo">NO-GO</span> на универсальную платформу и собственный медиадвижок.</div>
+        <p><strong>Первый кандидат — розничный подбор и продажа автозапчастей.</strong> Не найден хорошо подтверждённый российский синхронный телефонный агент, который завершает весь путь от VIN/OEM и совместимости до наличия, альтернатив и заказа. Это ограниченное отрицательное наблюдение данного поиска, а не доказательство пустого рынка. <span class="badge medium">Средняя–низкая уверенность</span></p>
+        <p><strong>Медицина — контрольный сегмент:</strong> бюджеты заметны, но ниша уже плотная и риск ошибки выше. <span class="badge medium">Средняя уверенность</span> <a class="cite" href="#src-22">[22]</a><a class="cite" href="#src-23">[23]</a><a class="cite" href="#src-24">[24]</a></p>
+      </div>
+      <div class="score">
+        <div><strong>18</strong><small>подтверждённых утверждений</small></div>
+        <div><strong>11</strong><small>неподтверждённых</small></div>
+        <div><strong>1</strong><small>спорное утверждение</small></div>
+      </div>
+    </div>
+  </section>
+
+  <nav class="toc" aria-label="Содержание"><div class="page">
+    <a href="#evidence">Доказательства</a><a href="#market">Рынок</a><a href="#prices">Цены</a><a href="#voice">Голос клиентов</a><a href="#vertical">Вертикаль</a><a href="#synthesis">Выводы</a><a href="#recommendations">Рекомендации</a><a href="#validation">Валидация</a><a href="#staleness">Актуальность</a><a href="#sources">Источники</a>
+  </div></nav>
+
+  <main class="page">
+    <section class="section" id="evidence">
+      <h2>Охват и качество доказательств</h2>
+      <p class="lead">Исследование опирается на документацию и договорные материалы поставщиков, независимые реестры, зеркала закупок, отзывы и отраслевые источники. <strong>Verified</strong> означает соответствие доступному источнику, а не независимый аудит продукта.</p>
+      <div class="grid">
+        <div class="card compact"><h3>Что подтверждено</h3><p>Горизонтальная категория уже занята. LLM, RAG, перебивания, российское размещение и вызов CRM/API/MCP заявлены несколькими независимыми поставщиками. <span class="badge verified">Высокая уверенность в наличии</span> <a class="cite" href="#src-1">[1]</a><a class="cite" href="#src-2">[2]</a><a class="cite" href="#src-9">[9]</a><a class="cite" href="#src-11">[11]</a><a class="cite" href="#src-12">[12]</a></p></div>
+        <div class="card compact"><h3>Что не измерено</h3><p>TAM, готовность платить, качество живых звонков и полная экономика внедрения. Большая часть продуктовых данных принадлежит поставщикам; отрицательный поиск показывает только отсутствие найденного публичного подтверждения. <span class="badge unverified">Требует field validation</span></p></div>
+      </div>
+    </section>
+
+    <section class="section" id="market">
+      <h2>1. Карта предложения</h2>
+      <p class="lead">Горизонтальная функциональность быстро коммодитизируется. Непроверенный слой — не наличие tool calling, а его эксплуатационная семантика: права, валидация, подтверждение опасных действий, идемпотентность, повтор, компенсация, аудит и handoff.</p>
+      <div class="table-wrap"><table><thead><tr><th>Игрок</th><th>Предложение</th><th>Цена / упаковка</th><th>Развёртывание</th><th>Значение для Staffy</th></tr></thead><tbody>
+        <tr><td>MTS Exolve</td><td>AI-агент, база знаний, перебивания, REST/webhooks/MCP, CRM/1С</td><td>6,5 ₽/мин; трафик отдельно <a class="cite" href="#src-1">[1]</a></td><td>Облако MTS, РФ</td><td>Телефония и базовый agent stack уже собраны</td></tr>
+        <tr><td>MANGO OFFICE</td><td>Сценарный и кастомный LLM/RAG «ИИ-сотрудник» <a class="cite" href="#src-2">[2]</a></td><td>4,5 ₽/мин относится к строке «Роботы», не доказанно к LLM; API отдельно <a class="cite" href="#src-3">[3]</a></td><td>Облачный контакт-центр</td><td>Категория «ИИ-сотрудник» уже занята</td></tr>
+        <tr><td>Tomoru</td><td>Managed-запуск сценарных/NLU-роботов, API</td><td>4,4–6,4 ₽/мин + запуск 79–299 тыс. ₽ <a class="cite" href="#src-4">[4]</a><a class="cite" href="#src-5">[5]</a></td><td>Российское облако</td><td>Конкурирует внедрением; LLM-native статус не установлен</td></tr>
+        <tr><td>TWIN</td><td>Сценарные боты и LLM-агенты: RAG, инструменты, перебивания, отчётность</td><td>По запросу</td><td>Cloud / On-Premise <a class="cite" href="#src-6">[6]</a></td><td>Production-функции; лидерство по релизам не доказано <a class="cite" href="#src-7">[7]</a></td></tr>
+        <tr><td>Just AI / Aimylogic</td><td>Low-code сценарии, NLU, SIP, квоты генеративных запросов</td><td>Около 3,5–5,45 ₽/мин <a class="cite" href="#src-8">[8]</a></td><td>SaaS, SIP клиента</td><td>Дешёвый слой; полный realtime voice-to-voice не доказан</td></tr>
+        <tr><td>Robovoice / ROBIN</td><td>No-code voice/text, GPT, корпоративная база знаний, CRM и RPA/BPM</td><td>По запросу</td><td>Cloud / On-Premise <a class="cite" href="#src-9">[9]</a></td><td>Действия в системах входят в enterprise-автоматизацию <a class="cite" href="#src-10">[10]</a></td></tr>
+        <tr><td>ZIAX</td><td>NLU/LLM, RAG, MCP/A2A, API/CRM, транзакционные сценарии</td><td>По запросу</td><td>Cloud / On-Premise <a class="cite" href="#src-11">[11]</a></td><td>Российский контур и MCP не уникальны</td></tr>
+        <tr><td>Yandex AI Studio</td><td>Realtime API, streaming voice, VAD, function tools, поиск, MCP <a class="cite" href="#src-12">[12]</a></td><td>Аудио отдельно от модели и инструментов <a class="cite" href="#src-14">[14]</a></td><td>Yandex Cloud</td><td>Build-platform угроза; SIP был Preview при запуске <a class="cite" href="#src-13">[13]</a></td></tr>
+        <tr><td>Replica</td><td>Managed голосовой/текстовый «сотрудник», CRM, поддержка</td><td>29 900 ₽/650 мин; 49 900 ₽/1 150; от 79 900 ₽/2 000+ <a class="cite" href="#src-15">[15]</a></td><td>Yandex Cloud, РФ</td><td>Прямой конкурент формулировке; performance-метрики рекламные</td></tr>
+        <tr><td>Voxagent</td><td>Managed анализ, интеграция, запуск, эксплуатация, поддержка</td><td>Тариф / спецификация</td><td>SaaS</td><td>Российский коммерческий конкурент <a class="cite" href="#src-16">[16]</a><a class="cite" href="#src-17">[17]</a></td></tr>
+      </tbody></table></div>
+      <div class="callout"><strong>Квалификация новых игроков.</strong> Replica и Voxagent подтверждены как коммерческие предложения. Stexa стоит отслеживать, но её claims о реестре ПО, ФСТЭК, SLA и масштабе не подтверждены и противоречат сообщению, что оформление юрлица ещё идёт. <span class="badge unverified">Unverified</span> <a class="cite" href="#src-18">[18]</a> Myrolit предлагает русскоязычные решения, но раскрывает украинского продавца; российский контрактный контур не подтверждён. <a class="cite" href="#src-19">[19]</a></div>
+    </section>
+
+    <section class="section" id="prices">
+      <h2>2. Цены и упаковка</h2>
+      <div class="grid">
+        <div class="card"><span class="badge verified">Публичные цены</span><h3>3,5–6,5 ₽ / мин</h3><p>Сценарные/NLU и платформенные минуты у Aimylogic, MANGO, Tomoru и Exolve. <a class="cite" href="#src-1">[1]</a><a class="cite" href="#src-3">[3]</a><a class="cite" href="#src-4">[4]</a><a class="cite" href="#src-8">[8]</a></p></div>
+        <div class="card"><span class="badge verified">Публичные цены</span><h3>Примерно 30–46 ₽ / мин</h3><p>Managed LLM-agent Replica плюс подключение. Пакет 49 900 ₽ / 1 150 минут даёт около 43,4 ₽/мин. <a class="cite" href="#src-15">[15]</a></p></div>
+      </div>
+      <p class="callout">Сравнение не like-for-like: различаются телефония, LLM-затраты, параллельность, поддержка, интеграции и настройка. Рабочая гипотеза Staffy — оплачиваемый запуск + плата за завершённые операции/доступность + прозрачная себестоимость трафика. <span class="badge medium">Стратегический вывод; готовность платить не подтверждена</span></p>
+    </section>
+
+    <section class="section" id="positioning">
+      <h2>3. Позиционирование и направление рынка</h2>
+      <p>«Робот, который звонит» превращается в агента, использующего знания и завершающего действия. Yandex поднялся от речевой инфраструктуры к voice-agent platform <a class="cite" href="#src-12">[12]</a><a class="cite" href="#src-13">[13]</a>; Robovoice связался с RPA/BPM-экосистемой ROBIN <a class="cite" href="#src-10">[10]</a>; TWIN добавляет производственные функции LLM-агента <a class="cite" href="#src-7">[7]</a>.</p>
+      <div class="grid compact">
+        <div class="card"><h3>Слишком широко</h3><p>«Универсальный ИИ-сотрудник для любого бизнеса» — уже занятая позиция.</p></div>
+        <div class="card"><h3>Не преимущество само по себе</h3><p>Собственный Go/Rust/Python-медиадвижок без измеримого выигрыша в цене, надёжности или конверсии.</p></div>
+        <div class="card"><h3>Входной билет</h3><p>1С/CRM-коннектор. Он обязателен, но не защищает продукт.</p></div>
+        <div class="card"><h3>Потенциальный moat</h3><p>Глубина операции, отраслевые evals, история транзакций и безопасное восстановление.</p></div>
+      </div>
+    </section>
+
+    <section class="section" id="voice">
+      <h2>4. Голос клиентов</h2>
+      <p>Отзывы Tomoru противоречивы: есть сообщения об окупаемости после сильного упрощения сценария, но также о срывах, качестве внедрения и поддержке. <span class="badge low">Средняя–низкая уверенность</span> <a class="cite" href="#src-20">[20]</a> В отзыве Exolve описаны несколько итераций до стабильной работы вместе с похвалой естественности, перебиваний и эскалации. <span class="badge low">Средняя–низкая уверенность</span> <a class="cite" href="#src-21">[21]</a></p>
+      <p>Анонимное форумное обсуждение даёт слабый, непроверенный независимо сигнал об ответах без достаточных данных и трудном переходе к человеку. <span class="badge low">Низкая уверенность</span> <a class="cite" href="#src-33">[33]</a> Вместе с отзывами это указывает на проблемы надёжности, эскалации, интеграции и сопровождения, но не доказывает, что покупатели ставят их выше естественности голоса. Исследование восприятия показывает, что естественность влияет на ощущение безопасности и ожидания. <a class="cite" href="#src-32">[32]</a></p>
+      <div class="callout"><strong>Практический вывод:</strong> голос должен пройти приемлемый порог; дифференциация строится на корректном завершении процесса. Конверсии, точность, задержка и ROI из лендингов не считаются доказанными фактами.</div>
+    </section>
+
+    <section class="section" id="vertical">
+      <h2>5. Выбор первой вертикали</h2>
+      <div class="table-wrap"><table><thead><tr><th>Кандидат</th><th>Спрос</th><th>Конкуренция</th><th>Защищаемость</th><th>Решение</th></tr></thead><tbody>
+        <tr><td>Универсальная первая линия / лидогенерация</td><td>Есть у множества поставщиков</td><td>Очень высокая</td><td>Низкая</td><td><strong class="nogo">Не входить</strong></td></tr>
+        <tr><td>Регистратура клиники</td><td>Среднее подтверждение закупками <a class="cite" href="#src-22">[22]</a><a class="cite" href="#src-23">[23]</a><a class="cite" href="#src-24">[24]</a></td><td>Высокая <a class="cite" href="#src-25">[25]</a><a class="cite" href="#src-26">[26]</a><a class="cite" href="#src-27">[27]</a></td><td>Средняя при глубокой МИС-интеграции; высокий риск ошибки</td><td>Сравнительный пилот, если есть партнёр</td></tr>
+        <tr><td>Запись в автосервис</td><td>Публичный покупательский спрос не подтверждён</td><td>Уже предлагается вертикальными агентами</td><td>Средняя</td><td>Не выбирать как широкую нишу</td></tr>
+        <tr><td>Розничный подбор автозапчастей</td><td>Спрос на полный голосовой цикл не подтверждён</td><td>Точный конкурент, ведущий звонок до заказа, не найден</td><td>Потенциально высокая: каталог, совместимость, поставщики, маржа, возвраты</td><td><strong class="go">Приоритет проверки спроса</strong></td></tr>
+      </tbody></table></div>
+      <p>Серьёзный подбор основан на структурированных связях vehicle-to-part, VIN/OEM/кроссах и API-каталогах, а не на загрузке прайса в векторную базу. <a class="cite" href="#src-28">[28]</a><a class="cite" href="#src-29">[29]</a> Кейс 1С использует внешний каталог свыше двух миллионов позиций и отдельную логику подбора. <a class="cite" href="#src-31">[31]</a></p>
+      <p>Близкий продукт «ДЕТАЛЬный Поиск» принимает голосовое сообщение и возвращает OEM/аналоги, но это не синхронный телефонный агент; прямые интеграции с дистрибьюторами заявлены как незавершённые. <span class="badge medium">Важный near-miss</span> <a class="cite" href="#src-30">[30]</a></p>
+      <div class="callout"><strong>Рекомендованный job:</strong> входящий звонок по известному автомобилю → безопасное уточнение VIN/модификации → варианты из авторитетного каталога и ERP → объяснение цены, срока и аналога → заказ либо передача менеджеру с контекстом. Не обещать полную замену менеджера до проверки точности на возвратах и неоднозначной совместимости.</div>
+    </section>
+
+    <section class="section" id="synthesis">
+      <h2>6–7. Синтез и контраргументы</h2>
+      <div class="grid">
+        <div class="card"><h3>Ценность — выше голосовой инфраструктуры</h3><p>Чем проще инфраструктурные игроки делают голосовые платформы реального времени, тем ценнее отраслевая интеграция.</p></div>
+        <div class="card"><h3>Бюджет против глубины</h3><p>Медицина лучше подтверждает бюджет; автозапчасти могут дать data/workflow moat, но спрос ещё нужно доказать.</p></div>
+        <div class="card"><h3>Managed service — часть продукта</h3><p>Разрыв цен и отзывы показывают, что настройка, поддержка и контроль качества входят в результат.</p></div>
+        <div class="card"><h3>Транзакция важнее модели</h3><p>Источник истины — каталог/ERP/МИС; LLM управляет диалогом, но не придумывает наличие, совместимость или слот.</p></div>
+      </div>
+      <h3>Что может опровергнуть решение</h3>
+      <ul><li>Крупные действующие игроки уже имеют телефонию, каналы, локальное развёртывание и коннекторы.</li><li>Медицина плотна и несёт повышенный риск чувствительных ошибок.</li><li>Отсутствие конкурента в автозапчастях может означать неудобный голосовой интерфейс, низкую готовность платить или плохую экономику.</li><li>Распространённость качественного синтеза делает естественность слабым кандидатом на долгосрочное преимущество — это рыночный синтез средней-низкой уверенности. При этом естественность влияет на восприятие, поэтому плохой голос может обнулить преимущество надёжной логики. <a class="cite" href="#src-32">[32]</a></li></ul>
+    </section>
+
+    <section class="section" id="recommendations">
+      <h2>8. Рекомендации</h2>
+      <p class="verdict"><span class="go">GO-DISCOVERY</span> / <span class="nogo">NO-GO-BUILD</span></p>
+      <p>Не начинать универсальную SaaS-платформу и не переписывать голосовую платформу. Сравнить два рабочих процесса: подбор автозапчастей по входящему звонку и запись/обработка переполнения линии клиники.</p>
+      <div class="grid">
+        <div class="card"><h3>Вход для Product Brief</h3><ul><li>Design partner: продавец запчастей с входящим потоком, 1С/ERP и структурированным каталогом.</li><li>Результат: больше корректно завершённых заказов при меньшем времени менеджера.</li><li>Агент не подбирает деталь из памяти LLM и не скрывает неопределённость.</li><li>Дифференциация: workflow, проверяемые действия, evals, эскалация и managed-внедрение.</li></ul></div>
+        <div class="card"><h3>Вход для PRD</h3><ul><li>Метрики: completion, корректность каталога, безопасная эскалация, p95 first audio, recovery, tool-call success, возвраты и конверсия.</li><li>Функции: trace, подтверждения, права, идемпотентность, retries/compensation, handoff, replay исторических звонков.</li><li>Источник истины: ERP/каталог/МИС; RAG — для инструкций и объяснений.</li></ul></div>
+        <div class="card"><h3>Вход для технического исследования</h3><ul><li>Сравнить готовые runtime на одном тестовом наборе.</li><li>Собственный движок — только при доказанном разрыве SLO/TCO.</li><li>Изолировать transport/STT/LLM/TTS адаптерами.</li><li>Приоритет: evaluation harness, интеграции, наблюдаемость транзакций.</li></ul></div>
+        <div class="card"><h3>Критерий перехода</h3><p>8–12 интервью в каждой вертикали, не менее трёх партнёров по пилоту суммарно — хотя бы по одному в каждом сегменте — и один оплачиваемый пилот. Это управленческий порог, не результат исследования.</p></div>
+      </div>
+    </section>
+
+    <section class="section" id="validation">
+      <h2>9. План валидации</h2>
+      <div class="table-wrap"><table><thead><tr><th>Неопределённость</th><th>Как проверить</th><th>Сигнал для решения</th></tr></thead><tbody>
+        <tr><td>Объём голосового подбора и доля запросов без схемы</td><td>8–12 интервью и разбор реальных обращений</td><td>Повторяемый поток для платного пилота</td></tr>
+        <tr><td>Ответственность за совместимость и автономность</td><td>Интервью владельца процесса, возвраты, теневое тестирование</td><td>Явные границы автодействия и подтверждения</td></tr>
+        <tr><td>Повторяемость 1С, каталогов и поставщиков</td><td>Обследование минимум трёх партнёров по пилоту</td><td>Общий контур вместо заказных проектов</td></tr>
+        <tr><td>Статус SIP Yandex AI Studio</td><td>Документация и запрос поставщику</td><td>Production-путь и поддержка</td></tr>
+        <tr><td>Качество голосовой платформы</td><td>Сравнительное тестирование: задержка, перебивания, галлюцинации, сбои инструментов, передача человеку</td><td>Готовая платформа проходит SLO либо обоснован свой слой</td></tr>
+        <tr><td>Полная себестоимость</td><td>TCO телефонии, STT/LLM/TTS, поддержки и резерва</td><td>Положительная unit-экономика</td></tr>
+        <tr><td>Надёжность против естественности</td><td>Сравнительные интервью и пилотные звонки</td><td>Голос выше порога принимается ради completion</td></tr>
+      </tbody></table></div>
+      <p class="callout"><strong>Критерий перехода к разработке:</strong> не менее трёх партнёров по пилоту суммарно, включая хотя бы одного в каждой вертикали, и один оплачиваемый пилот. Техническое сравнение не заменяет подтверждение спроса.</p>
+    </section>
+
+    <section class="section" id="staleness">
+      <h2>10. Карта актуальности</h2>
+      <div class="table-wrap"><table><thead><tr><th>Группа</th><th>Повторная проверка</th><th>Состояние</th></tr></thead><tbody>
+        <tr><td>Сахалинская закупка сопровождения</td><td>2026-05-01</td><td><span class="badge unverified">Требует проверки спроса</span></td></tr>
+        <tr><td>Yandex SIP после Preview</td><td>2026-08-01</td><td><span class="badge unverified">Проверить GA-статус</span></td></tr>
+        <tr><td>Robovoice → ROBIN</td><td>2026-10-01</td><td>Перепроверить релизы</td></tr>
+        <tr><td>Функции, цены, интеграции</td><td><strong>2026-12-01</strong></td><td>Ближайший полный срез</td></tr>
+        <tr><td>Клинические предложения</td><td>2027-02-01</td><td>Повторить supply-side проверку</td></tr>
+        <tr><td>Публичный gap автозапчастей</td><td>2027-03-01</td><td>Повторить поиск конкурентов и кейсов</td></tr>
+      </tbody></table></div>
+      <p class="note">Окна: функции/цены/позиционирование/интеграции — 3 месяца; trajectory/traction и квалификация — 6; customer sentiment и спрос — 12. Исторические факты не меняются, но их актуальность для текущего спроса снижается.</p>
+    </section>
+
+    <section class="section" id="sources">
+      <h2>11. Источники</h2>
+      <details><summary>Открыть полный реестр из 33 источников</summary>
+        <div class="table-wrap"><table class="sources"><thead><tr><th>[n]</th><th>Что подтверждает</th><th>Издатель</th><th>Публикация</th><th>Доступ</th><th>Уверенность</th></tr></thead><tbody><tr id="src-1"><td>[1]</td><td>Exolve: функции, MCP/CRM/1С и цены</td><td><a href="https://exolve.ru/products/robots/golosovoy-robot-dlya-biznesa/" target="_blank" rel="noopener">MTS Exolve</a></td><td>текущая страница</td><td>2026-09-11</td><td>высокая для предложения</td></tr><tr id="src-2"><td>[2]</td><td>MANGO: сценарный и LLM/RAG продукты</td><td><a href="https://retail.mango-office.ru/products/contact-center/ai/voice-robot/" target="_blank" rel="noopener">MANGO OFFICE</a></td><td>текущая страница</td><td>2026-09-11</td><td>средняя</td></tr><tr id="src-3"><td>[3]</td><td>MANGO: тарифы робота и API</td><td><a href="https://static.mango-office.ru/products/contact-center/tariffs/" target="_blank" rel="noopener">MANGO OFFICE</a></td><td>текущая страница</td><td>2026-09-11</td><td>высокая для цен</td></tr><tr id="src-4"><td>[4]</td><td>Tomoru: поминутные тарифы</td><td><a href="https://tomoru.ru/price" target="_blank" rel="noopener">Tomoru</a></td><td>текущая страница</td><td>2026-09-11</td><td>высокая</td></tr><tr id="src-5"><td>[5]</td><td>Tomoru: пакеты запуска</td><td><a href="https://tomoru.ru/plan" target="_blank" rel="noopener">Tomoru</a></td><td>текущая страница</td><td>2026-09-11</td><td>высокая</td></tr><tr id="src-6"><td>[6]</td><td>TWIN: cloud/on-prem упаковка</td><td><a href="https://twin24.ai/products/large-business/" target="_blank" rel="noopener">TWIN</a></td><td>текущая страница</td><td>2026-09-11</td><td>высокая</td></tr><tr id="src-7"><td>[7]</td><td>TWIN: последовательность релизов</td><td><a href="https://twin24.ai/company/news/" target="_blank" rel="noopener">TWIN</a></td><td>2026-06—2026-08</td><td>2026-09-11</td><td>средняя, один издатель</td></tr><tr id="src-8"><td>[8]</td><td>Aimylogic: пакеты и минуты</td><td><a href="https://aimylogic.com/ru/price" target="_blank" rel="noopener">Just AI / Aimylogic</a></td><td>текущая страница</td><td>2026-09-11</td><td>высокая</td></tr><tr id="src-9"><td>[9]</td><td>Robovoice: функции, коннекторы и on-prem</td><td><a href="https://slsoft.ru/products/robovoice/" target="_blank" rel="noopener">SL Soft</a></td><td>текущая страница</td><td>2026-09-11</td><td>средняя–высокая</td></tr><tr id="src-10"><td>[10]</td><td>Robovoice в экосистеме ROBIN</td><td><a href="https://slsoft.ru/news/robovoice-stanovitsya-chastyu-ekosistemy-robin-ot-sl-soft/" target="_blank" rel="noopener">SL Soft</a></td><td>2026-04-27</td><td>2026-09-11</td><td>высокая</td></tr><tr id="src-11"><td>[11]</td><td>ZIAX: LLM/RAG/MCP, API и on-prem</td><td><a href="https://ziax.ru/" target="_blank" rel="noopener">ZIAX</a></td><td>текущая страница</td><td>2026-09-11</td><td>средняя–высокая</td></tr><tr id="src-12"><td>[12]</td><td>Yandex realtime voice agents и tools</td><td><a href="https://aistudio.yandex.ru/ru/docs/ai-studio/concepts/agents/realtime" target="_blank" rel="noopener">Yandex AI Studio</a></td><td>текущая документация</td><td>2026-09-11</td><td>высокая</td></tr><tr id="src-13"><td>[13]</td><td>Yandex: запуск и SIP Preview</td><td><a href="https://yandex.ru/company/news/28-05-2026-04" target="_blank" rel="noopener">Yandex</a></td><td>2026-05-28</td><td>2026-09-11</td><td>высокая для статуса при запуске</td></tr><tr id="src-14"><td>[14]</td><td>Yandex: компонентная тарификация</td><td><a href="https://aistudio.yandex.ru/ru/docs/ai-studio/pricing" target="_blank" rel="noopener">Yandex AI Studio</a></td><td>текущая документация</td><td>2026-09-11</td><td>высокая</td></tr><tr id="src-15"><td>[15]</td><td>Replica: продукт, функции и тарифы</td><td><a href="https://thereplica.ru/" target="_blank" rel="noopener">Replica</a></td><td>текущая страница</td><td>2026-09-11</td><td>высокая для цен; низкая для performance claims</td></tr><tr id="src-16"><td>[16]</td><td>Voxagent: managed scope и договорные условия</td><td><a href="https://voxagent.ru/docs/public-offer" target="_blank" rel="noopener">Voxagent</a></td><td>2026-06-16</td><td>2026-09-11</td><td>высокая</td></tr><tr id="src-17"><td>[17]</td><td>Voxagent: независимая проверка ООО «НОУКОД»</td><td><a href="https://companies.rbc.ru/id/1237700304742-obschestvo-s-ogranichennoj-otvetstvennostyu-noukod/" target="_blank" rel="noopener">РБК Компании</a></td><td>актуально на 2026-09-03</td><td>2026-09-11</td><td>высокая</td></tr><tr id="src-18"><td>[18]</td><td>Stexa: внутренне противоречивые claims</td><td><a href="https://stexa.ru/about/" target="_blank" rel="noopener">Stexa</a></td><td>текущая страница</td><td>2026-09-11</td><td>высокая для противоречия; claims не проверены</td></tr><tr id="src-19"><td>[19]</td><td>Myrolit: украинский продавец</td><td><a href="https://myrolit.com/legal/terms/" target="_blank" rel="noopener">Myrolit</a></td><td>версия 2026-08-23</td><td>2026-09-11</td><td>высокая</td></tr><tr id="src-20"><td>[20]</td><td>Tomoru: противоречивые отзывы</td><td><a href="https://otzovik.com/reviews/tomoru_ru-servis_razrabotki_golosovih_robotov/" target="_blank" rel="noopener">Otzovik</a></td><td>2025-10—2026-03</td><td>2026-09-11</td><td>средне-низкая</td></tr><tr id="src-21"><td>[21]</td><td>Exolve: итерации сценария и эксплуатационные функции</td><td><a href="https://startpack.ru/application/exolve/reviews" target="_blank" rel="noopener">Startpack</a></td><td>2026-03-23</td><td>2026-09-11</td><td>средне-низкая</td></tr><tr id="src-22"><td>[22]</td><td>Забайкалье: закупка ИИ-контакт-центра</td><td><a href="https://www.sawda.ru/tender/32616213835" target="_blank" rel="noopener">SAWDA / зеркало ЕИС</a></td><td>2026-07-27</td><td>2026-09-11</td><td>средняя, один upstream</td></tr><tr id="src-23"><td>[23]</td><td>Сахалин: сопровождение голосового робота</td><td><a href="https://zakupki360.ru/tender/87188317" target="_blank" rel="noopener">Закупки 360 / зеркало ЕИС</a></td><td>2025-05-29</td><td>2026-09-11</td><td>средняя, один upstream</td></tr><tr id="src-24"><td>[24]</td><td>Гатчина: отдельные строки ПО, трафика и поддержки</td><td><a href="https://tendery-leningradskaja-oblast.tenderer.ru/tenders/3/tender85377657.html" target="_blank" rel="noopener">Tenderer / зеркало ЕИС</a></td><td>2025-04-18</td><td>2026-09-11</td><td>средняя, один upstream</td></tr><tr id="src-25"><td>[25]</td><td>Вертикальное предложение для клиник</td><td><a href="https://myrolit.com/ru/resheniya/kliniki/" target="_blank" rel="noopener">Myrolit</a></td><td>2026-08-10</td><td>2026-09-11</td><td>высокая для advertised offer</td></tr><tr id="src-26"><td>[26]</td><td>MIS booking, перенос и handoff</td><td><a href="https://neirostaff.ru/integraciya-mis" target="_blank" rel="noopener">NeiroStaff</a></td><td>текущая страница</td><td>2026-09-11</td><td>средняя</td></tr><tr id="src-27"><td>[27]</td><td>Голосовой бот клиники и MIS-коннекторы</td><td><a href="https://stexa.ru/klinika/" target="_blank" rel="noopener">Stexa</a></td><td>текущая страница</td><td>2026-09-11</td><td>низкая–средняя</td></tr><tr id="src-28"><td>[28]</td><td>Структура vehicle-to-part и API-каталога</td><td><a href="https://www.tecalliance.net/products?family=tecdoc&amp;solution=catalogue-ecommerce" target="_blank" rel="noopener">TecAlliance</a></td><td>текущая документация</td><td>2026-09-11</td><td>высокая</td></tr><tr id="src-29"><td>[29]</td><td>VIN/OEM/cross API-модель</td><td><a href="https://doc.laximo.ru/ru/uss/search_functions" target="_blank" rel="noopener">Laximo</a></td><td>2026-07-06</td><td>2026-09-11</td><td>высокая</td></tr><tr id="src-30"><td>[30]</td><td>Голосовой ввод для подбора VIN/OEM/аналогов</td><td><a href="https://vin-zapchasti.ru/" target="_blank" rel="noopener">ДЕТАЛЬный Поиск</a></td><td>текущая страница</td><td>2026-09-11</td><td>средняя</td></tr><tr id="src-31"><td>[31]</td><td>1С-кейс каталога свыше 2 млн позиций</td><td><a href="https://consulting.1c.ru/cases/396945.html" target="_blank" rel="noopener">1С Консалтинг</a></td><td>текущий кейс</td><td>2026-09-11</td><td>высокая для описанной архитектуры</td></tr><tr id="src-32"><td>[32]</td><td>Влияние естественности голоса на восприятие</td><td><a href="https://openresearch.surrey.ac.uk/esploro/outputs/journalArticle/Influence-of-Robots-Voice-Naturalness-on/991115568402346" target="_blank" rel="noopener">ACM / University of Surrey</a></td><td>2025-01-28</td><td>2026-09-11</td><td>средняя для переноса на этот рынок</td></tr><tr id="src-33"><td>[33]</td><td>Анонимный сигнал о фактической обоснованности ответов и передаче человеку</td><td><a href="https://www.reddit.com/r/RU_Talk/comments/1vy5vkq/16_%D0%BB%D0%B5%D1%82_%D0%B2_%D0%BA%D0%BE%D0%BB%D0%BB_%D1%86%D0%B5%D0%BD%D1%82%D1%80%D0%B5_%D1%80%D0%B0%D1%81%D1%81%D0%BA%D0%B0%D0%B7%D1%8B%D0%B2%D0%B0%D0%B5%D0%BC_%D0%BA%D0%B0%D0%BA_%D0%B2%D1%81%D0%B5_%D1%83%D1%81%D1%82%D1%80%D0%BE%D0%B5%D0%BD%D0%BE/" target="_blank" rel="noopener">Reddit / RU_Talk</a></td><td>2026-08</td><td>2026-09-11</td><td>низкая; страница недоступна при финальной проверке</td></tr></tbody></table></div>
+      </details>
+    </section>
+  </main>
+  <footer class="page"><a class="top" href="#top">Наверх ↑</a>Staffy competitive research · полный источник истины: research.md · обновлено 2026-09-11</footer>
+</body>
+</html>
