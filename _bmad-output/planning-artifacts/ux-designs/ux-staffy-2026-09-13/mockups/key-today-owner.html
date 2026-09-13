@@ -1,0 +1,617 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Staffy — Сегодня владельца</title>
+  <style>
+    /*
+      SPINE MAP — this mock illustrates, but never overrides, the UX spines.
+
+      DESIGN.md
+      - Brand & Style: calm trustworthy operations; human employee framing; one guided next step.
+      - Colors: confirmed light theme “Северный кедр”.
+      - Typography; Layout & Spacing; Elevation & Depth; Shapes; Motion.
+      - Components: App Shell; Role-Adaptive Today; Recommended Action Card;
+        AI Employee Card; Status Badge; Capability State; Result Metric; Budget Meter.
+
+      EXPERIENCE.md
+      - Foundation / Поверхности и роли: Владелец Tenant.
+      - Information Architecture / Today.
+      - Component Patterns: App Shell; Role-Adaptive Today; Recommended Action Card;
+        AI Employee Card; Status Badge; Capability State; Result Metric; Budget Meter.
+      - State Patterns: Connection Status; Employee Status; Business Action;
+        Surface/System (“stale view”).
+      - Surface × state contract / Today; Accessibility Floor; Responsive & Platform.
+      - Key Flows: UJ-A1 steps 6–7; UJ-A7 steps 1–3a/3b;
+        UJ-M1 failure/recovery before OQ-10 PASS.
+
+      Alternate state below the canonical screen demonstrates a localized stale Connector
+      capability plus the confirmed visible keyboard-focus treatment.
+    */
+
+    :root {
+      color-scheme: light;
+      --canvas: #F3F5F2;
+      --surface: #FFFFFF;
+      --text: #1E2925;
+      --muted: #66736D;
+      --border: #D7DED9;
+      --control-border: #6F7B75;
+      --primary: #315E4C;
+      --on-primary: #FFFFFF;
+      --success: #247A52;
+      --success-container: #E8F5EE;
+      --on-success-container: #185438;
+      --warning: #B56617;
+      --warning-text: #7A400B;
+      --warning-container: #FFF4E6;
+      --on-warning-container: #552A00;
+      --danger: #B4424B;
+      --danger-container: #FDEDEE;
+      --on-danger-container: #7B202A;
+      --info: #356C9B;
+      --info-container: #EAF2FA;
+      --on-info-container: #244E72;
+      --focus: #7C4DFF;
+      --shadow-card: 0 1px 2px rgba(30, 41, 37, .06);
+      --shadow-raised: 0 8px 24px rgba(30, 41, 37, .10);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      background: var(--canvas);
+      color: var(--text);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; max-width: 100%; overflow-x: hidden; }
+    body { min-width: 320px; background: #E8ECE9; }
+    button, a { font: inherit; }
+    a { color: inherit; }
+    button { min-height: 44px; }
+    :focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+
+    .skip-link {
+      position: fixed;
+      z-index: 20;
+      top: 8px;
+      left: 8px;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      transform: translateY(-160%);
+      padding: 10px 14px;
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: var(--shadow-raised);
+    }
+    .skip-link:focus { transform: translateY(0); }
+
+    .artifact {
+      width: min(1440px, calc(100% - 32px));
+      margin: 32px auto 56px;
+    }
+    .artifact-heading {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 24px;
+      margin: 0 0 12px;
+    }
+    .artifact-heading p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 18px;
+    }
+    .artifact-heading strong { color: var(--text); }
+
+    .browser-frame {
+      min-width: 0;
+      overflow: hidden;
+      border: 1px solid #BCC5BF;
+      border-radius: 14px;
+      background: var(--canvas);
+      box-shadow: 0 18px 48px rgba(30, 41, 37, .14);
+    }
+    .browser-bar {
+      height: 40px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 0 14px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .browser-dot { width: 9px; height: 9px; border-radius: 50%; background: #A8B2AC; }
+    .browser-label { margin-left: auto; color: var(--muted); font-size: 12px; }
+
+    .app-shell {
+      min-width: 0;
+      min-height: 860px;
+      display: grid;
+      grid-template-columns: 224px minmax(0, 1fr);
+      background: var(--canvas);
+    }
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      padding: 24px 16px 18px;
+      border-right: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .brand {
+      margin: 0 12px 28px;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -.02em;
+    }
+    .nav-list { margin: 0; padding: 0; list-style: none; }
+    .nav-link {
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      margin: 3px 0;
+      padding: 10px 12px;
+      border-radius: 8px;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 14px;
+    }
+    .nav-link::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      flex: 0 0 auto;
+      border: 1.5px solid currentColor;
+      border-radius: 3px;
+    }
+    .nav-link[aria-current="page"] {
+      background: #E6EEE9;
+      color: var(--primary);
+      font-weight: 650;
+    }
+    .nav-link[aria-current="page"]::before { background: var(--primary); }
+    .sidebar-foot {
+      margin-top: auto;
+      padding: 14px 12px 0;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 18px;
+    }
+    .sidebar-foot strong { display: block; color: var(--text); font-size: 13px; }
+    .mobile-bar { display: none; }
+
+    .workspace {
+      min-width: 0;
+      padding: 30px 32px 42px;
+    }
+    .page-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+    .page-head h1 {
+      margin: 0;
+      font-size: 32px;
+      line-height: 40px;
+      font-weight: 650;
+      letter-spacing: -.02em;
+    }
+    .page-head p { margin: 4px 0 0; color: var(--muted); font-size: 14px; line-height: 20px; }
+    .updated { color: var(--muted); font-size: 13px; line-height: 18px; text-align: right; }
+
+    .recommended-action {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: 44px minmax(0, 1fr) auto;
+      gap: 16px;
+      align-items: center;
+      padding: 20px;
+      border: 1px solid var(--control-border);
+      border-left: 5px solid var(--warning);
+      border-radius: 14px;
+      background: var(--surface);
+      box-shadow: var(--shadow-card);
+    }
+    .signal {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      border: 2px solid currentColor;
+      border-radius: 50%;
+      color: var(--warning-text);
+      font-weight: 750;
+    }
+    .action-copy { min-width: 0; }
+    .eyebrow {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--warning-text);
+      font-size: 12px;
+      line-height: 18px;
+      font-weight: 700;
+    }
+    .recommended-action h2 {
+      margin: 0 0 5px;
+      font-size: 22px;
+      line-height: 30px;
+      font-weight: 650;
+    }
+    .recommended-action p { margin: 0; color: var(--muted); font-size: 14px; line-height: 21px; }
+    .action-meta { margin-top: 8px; color: var(--text); font-size: 12px; line-height: 18px; }
+    .primary-button {
+      min-width: 176px;
+      padding: 10px 16px;
+      border: 1px solid var(--primary);
+      border-radius: 8px;
+      background: var(--primary);
+      color: var(--on-primary);
+      font-weight: 650;
+      cursor: pointer;
+    }
+
+    .metrics {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      margin: 18px 0;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+      box-shadow: var(--shadow-card);
+    }
+    .metric {
+      min-width: 0;
+      padding: 16px 18px;
+      border-right: 1px solid var(--border);
+    }
+    .metric:last-child { border-right: 0; }
+    .metric-label { min-height: 36px; color: var(--muted); font-size: 13px; line-height: 18px; }
+    .metric-value {
+      display: block;
+      margin-top: 4px;
+      font-size: 24px;
+      line-height: 30px;
+      font-weight: 650;
+      font-variant-numeric: tabular-nums;
+    }
+    .metric-note { color: var(--muted); font-size: 12px; line-height: 18px; }
+
+    .dashboard-grid {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(300px, .72fr);
+      gap: 18px;
+    }
+    .panel {
+      min-width: 0;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+      box-shadow: var(--shadow-card);
+    }
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+    .panel-head h2 { margin: 0; font-size: 17px; line-height: 24px; font-weight: 650; }
+    .panel-head span { color: var(--muted); font-size: 12px; line-height: 18px; }
+
+    .employee-list { min-width: 0; display: grid; grid-template-columns: 1fr 1fr; }
+    .employee-card { min-width: 0; padding: 18px; }
+    .employee-card + .employee-card { border-left: 1px solid var(--border); }
+    .employee-head { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 12px; }
+    .monogram {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      border-radius: 14px 14px 14px 5px;
+      background: var(--primary);
+      color: var(--on-primary);
+      font-weight: 750;
+    }
+    .employee-head h3 { margin: 0 0 2px; font-size: 15px; line-height: 22px; font-weight: 650; }
+    .employee-role { margin: 0; color: var(--muted); font-size: 12px; line-height: 18px; }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      max-width: 100%;
+      margin-top: 9px;
+      padding: 5px 8px;
+      border: 1px solid currentColor;
+      border-radius: 999px;
+      font-size: 12px;
+      line-height: 18px;
+      font-weight: 600;
+    }
+    .status-badge::before { content: ""; width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: currentColor; }
+    .status-warning { color: var(--warning-text); background: var(--warning-container); }
+    .status-info { color: var(--on-info-container); background: var(--info-container); }
+    .employee-facts {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin: 16px 0 0;
+    }
+    .employee-facts div { min-width: 0; padding: 10px; border-radius: 6px; background: var(--canvas); }
+    .employee-facts dt { color: var(--muted); font-size: 12px; line-height: 16px; }
+    .employee-facts dd { margin: 3px 0 0; font-size: 18px; line-height: 24px; font-weight: 650; font-variant-numeric: tabular-nums; }
+    .employee-next { margin: 14px 0 0; color: var(--text); font-size: 13px; line-height: 19px; }
+    .employee-next strong { display: block; margin-bottom: 2px; font-size: 12px; }
+    .local-lock {
+      margin-top: 14px;
+      padding: 12px;
+      border-left: 3px solid var(--danger);
+      border-radius: 6px;
+      background: var(--danger-container);
+      color: var(--on-danger-container);
+      font-size: 12px;
+      line-height: 18px;
+    }
+    .local-lock strong { display: block; margin-bottom: 3px; }
+    .local-lock small { display: block; margin-top: 5px; color: var(--on-danger-container); opacity: .82; }
+
+    .side-stack { min-width: 0; display: grid; gap: 18px; align-content: start; }
+    .next-list { margin: 0; padding: 0; list-style: none; }
+    .next-item { min-width: 0; padding: 15px 18px; border-bottom: 1px solid var(--border); }
+    .next-item:last-child { border-bottom: 0; }
+    .next-item strong { display: block; margin-bottom: 4px; font-size: 13px; line-height: 19px; }
+    .next-item p { margin: 0; color: var(--muted); font-size: 12px; line-height: 18px; }
+    .next-link {
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      margin-top: 6px;
+      color: var(--primary);
+      font-size: 13px;
+      font-weight: 650;
+      text-underline-offset: 3px;
+    }
+    .budget { padding: 17px 18px 18px; }
+    .budget-row { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+    .budget-row strong { font-size: 24px; line-height: 30px; font-variant-numeric: tabular-nums; }
+    .budget-row span { color: var(--muted); font-size: 12px; }
+    .budget-track { height: 8px; margin: 12px 0 8px; overflow: hidden; border-radius: 999px; background: #E4E9E6; }
+    .budget-track span { display: block; width: 48%; height: 100%; border-radius: inherit; background: var(--primary); }
+    .budget p { margin: 0; color: var(--muted); font-size: 12px; line-height: 18px; }
+
+    .alternate-wrap { margin-top: 28px; }
+    .alternate-title { margin: 0 0 10px; font-size: 17px; line-height: 24px; }
+    .alternate {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 20px;
+      align-items: center;
+      padding: 18px 20px;
+      border: 1px solid var(--warning);
+      border-left: 5px solid var(--warning);
+      border-radius: 10px;
+      background: var(--surface);
+      box-shadow: var(--shadow-card);
+    }
+    .alternate-copy { min-width: 0; display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 13px; align-items: start; }
+    .alternate h3 { margin: 0 0 4px; font-size: 15px; line-height: 22px; }
+    .alternate p { margin: 0; color: var(--muted); font-size: 13px; line-height: 19px; }
+    .alternate-meta { margin-top: 6px; color: var(--warning-text); font-size: 12px; line-height: 18px; }
+    .secondary-button {
+      min-width: 174px;
+      padding: 10px 14px;
+      border: 1px solid var(--control-border);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--text);
+      font-weight: 650;
+    }
+    .focus-example { outline: 3px solid var(--focus); outline-offset: 3px; }
+    .sample-note { margin: 9px 0 0; color: var(--muted); font-size: 12px; line-height: 18px; }
+
+    @media (max-width: 1100px) {
+      .dashboard-grid { grid-template-columns: 1fr; }
+      .side-stack { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 820px) {
+      .artifact { width: min(100% - 20px, 1440px); margin-top: 10px; }
+      .browser-bar { display: none; }
+      .browser-frame { border-radius: 10px; }
+      .app-shell { min-height: 0; grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .mobile-bar {
+        min-height: 56px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 16px;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface);
+      }
+      .mobile-bar strong { font-size: 18px; }
+      .mobile-bar span { color: var(--muted); font-size: 12px; }
+      .workspace { padding: 22px 18px 30px; }
+      .recommended-action { grid-template-columns: 40px minmax(0, 1fr); }
+      .primary-button { grid-column: 1 / -1; width: 100%; }
+      .metrics { grid-template-columns: 1fr 1fr; }
+      .metric:nth-child(2) { border-right: 0; }
+      .metric:nth-child(-n+2) { border-bottom: 1px solid var(--border); }
+      .employee-list { grid-template-columns: 1fr; }
+      .employee-card + .employee-card { border-left: 0; border-top: 1px solid var(--border); }
+      .side-stack { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 520px) {
+      .artifact { width: 100%; margin: 0 auto 32px; }
+      .artifact-heading { padding: 12px 16px; align-items: start; flex-direction: column; gap: 4px; }
+      .browser-frame { border-right: 0; border-left: 0; border-radius: 0; box-shadow: none; }
+      .workspace { padding: 20px 16px 28px; }
+      .page-head { align-items: start; flex-direction: column; gap: 6px; }
+      .page-head h1 { font-size: 28px; line-height: 36px; }
+      .updated { text-align: left; }
+      .recommended-action { padding: 16px; gap: 12px; }
+      .recommended-action h2 { font-size: 19px; line-height: 26px; }
+      .metrics { grid-template-columns: 1fr; }
+      .metric { border-right: 0; border-bottom: 1px solid var(--border); }
+      .metric:nth-child(2) { border-right: 0; }
+      .metric:nth-child(-n+2) { border-bottom: 1px solid var(--border); }
+      .metric:last-child { border-bottom: 0; }
+      .metric-label { min-height: 0; }
+      .employee-facts { grid-template-columns: 1fr; }
+      .panel-head { align-items: start; flex-direction: column; gap: 3px; }
+      .alternate { grid-template-columns: 1fr; margin: 0 16px; padding: 16px; }
+      .secondary-button { width: 100%; }
+      .alternate-title, .sample-note { margin-right: 16px; margin-left: 16px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#today-main">Перейти к главному</a>
+  <div class="artifact">
+    <header class="artifact-heading">
+      <p><strong>Ключевой экран</strong> · роль: владелец</p>
+      <p>Реалистичные демонстрационные данные двух пилотов</p>
+    </header>
+
+    <section class="browser-frame" aria-label="Staffy, экран Сегодня владельца">
+      <div class="browser-bar" aria-hidden="true">
+        <span class="browser-dot"></span><span class="browser-dot"></span><span class="browser-dot"></span>
+        <span class="browser-label">Staffy · Сегодня</span>
+      </div>
+
+      <div class="app-shell">
+        <aside class="sidebar">
+          <div class="brand">Staffy</div>
+          <nav aria-label="Основная навигация">
+            <ul class="nav-list">
+              <li><a class="nav-link" href="#today-main" aria-current="page">Сегодня</a></li>
+              <li><a class="nav-link" href="#employees">Сотрудники</a></li>
+              <li><a class="nav-link" href="#work">Работа</a></li>
+              <li><a class="nav-link" href="#connections">Подключения</a></li>
+              <li><a class="nav-link" href="#results">Результаты</a></li>
+              <li><a class="nav-link" href="#organization">Организация</a></li>
+            </ul>
+          </nav>
+          <div class="sidebar-foot" id="organization"><strong>Владелец</strong>Два сотрудника · одно решение ждёт вас</div>
+        </aside>
+
+        <div>
+          <div class="mobile-bar"><strong>Staffy</strong><span>Владелец · Сегодня</span></div>
+          <main class="workspace" id="today-main">
+            <header class="page-head">
+              <div><h1>Сегодня</h1><p>Главное для владельца — результат, риск и один следующий шаг</p></div>
+              <div class="updated">Обновлено сегодня в 14:12<br>из подтверждённых источников</div>
+            </header>
+
+            <section class="recommended-action" id="work" aria-labelledby="urgent-title">
+              <div class="signal" aria-hidden="true">!</div>
+              <div class="action-copy">
+                <span class="eyebrow">Нужно решение до 14:30</span>
+                <h2 id="urgent-title">Антон должен проверить заказ Сергея</h2>
+                <p>Передние тормозные колодки для Toyota Camry 2019. Клиент подтвердил подбор; заказ создан в ABCP и поставщику ещё не отправлен.</p>
+                <div class="action-meta">Ответственный: Антон · после принятия он станет единственным владельцем ответа клиенту</div>
+              </div>
+              <button class="primary-button" type="button">Открыть проверку</button>
+            </section>
+
+            <section class="metrics" id="results" aria-label="Результаты и расход за сегодня">
+              <article class="metric"><div class="metric-label">Целевые обращения</div><strong class="metric-value">18</strong><span class="metric-note">11 автозапчасти · 7 услуги</span></article>
+              <article class="metric"><div class="metric-label">Верные следующие шаги</div><strong class="metric-value">7</strong><span class="metric-note">подтверждены проверкой</span></article>
+              <article class="metric"><div class="metric-label">Заказы ждут проверки</div><strong class="metric-value">2</strong><span class="metric-note">оба в контуре автозапчастей</span></article>
+              <article class="metric"><div class="metric-label">Расход сегодня</div><strong class="metric-value">3 840 ₽</strong><span class="metric-note">48% дневного лимита</span></article>
+            </section>
+
+            <div class="dashboard-grid">
+              <section class="panel" id="employees" aria-labelledby="employees-title">
+                <header class="panel-head"><h2 id="employees-title">Ваши сотрудники</h2><span>состояние на 14:12</span></header>
+                <div class="employee-list">
+                  <article class="employee-card">
+                    <div class="employee-head">
+                      <div class="monogram" aria-hidden="true">О</div>
+                      <div>
+                        <h3>Менеджер магазина Олега</h3>
+                        <p class="employee-role">Mango Office · Jivo · ABCP</p>
+                        <span class="status-badge status-warning">Работает с ограничениями</span>
+                      </div>
+                    </div>
+                    <dl class="employee-facts">
+                      <div><dt>Обращения</dt><dd>11</dd></div>
+                      <div><dt>Заказы к проверке</dt><dd>2</dd></div>
+                    </dl>
+                    <p class="employee-next"><strong>Следующее действие</strong>Проверить совместимость заказа Сергея и вручную продолжить отправку поставщику либо связаться с клиентом для замены.</p>
+                  </article>
+
+                  <article class="employee-card">
+                    <div class="employee-head">
+                      <div class="monogram" aria-hidden="true">М</div>
+                      <div>
+                        <h3>Диспетчер Montagio</h3>
+                        <p class="employee-role">Novofon · чат сайта · услуги</p>
+                        <span class="status-badge status-info">На испытании</span>
+                      </div>
+                    </div>
+                    <dl class="employee-facts">
+                      <div><dt>Обращения</dt><dd>7</dd></div>
+                      <div><dt>Квалифицированы</dt><dd>5</dd></div>
+                    </dl>
+                    <p class="employee-next"><strong>Следующее действие</strong>Прослушать контрольный звонок: безопасность, перебивание, предварительная оценка и передача человеку.</p>
+                    <div class="local-lock"><strong>Публичный заказ пока закрыт</strong>Сотрудник может собирать и квалифицировать обращения, но не обещает договор, оплату, чек или гарантию Montagio до юридической готовности.<small>Контрольный вопрос OQ-10 · безопасный путь: закрытая проверка с участием сотрудника</small></div>
+                  </article>
+                </div>
+              </section>
+
+              <aside class="side-stack" aria-label="Следующие действия и бюджет">
+                <section class="panel" id="connections" aria-labelledby="next-title">
+                  <header class="panel-head"><h2 id="next-title">Следом</h2><span>после срочной проверки</span></header>
+                  <ol class="next-list">
+                    <li class="next-item"><strong>Прослушать звонок Montagio</strong><p>Проверить безопасную квалификацию и границу обещаний до следующего допуска.</p><a class="next-link" href="#employees">Открыть сотрудника</a></li>
+                    <li class="next-item"><strong>Mango Office ждёт проверки</strong><p>Перевод человеку не подтверждён. Пока сотрудник принимает обращение и согласует обратный звонок.</p><a class="next-link" href="#alternate-state">Посмотреть ограничение</a></li>
+                  </ol>
+                </section>
+
+                <section class="panel" aria-labelledby="budget-title">
+                  <header class="panel-head"><h2 id="budget-title">Бюджет</h2><span>сегодня</span></header>
+                  <div class="budget">
+                    <div class="budget-row"><strong>3 840 ₽</strong><span>из 8 000 ₽</span></div>
+                    <div class="budget-track" role="progressbar" aria-label="Использовано 48 процентов дневного бюджета" aria-valuemin="0" aria-valuemax="100" aria-valuenow="48"><span></span></div>
+                    <p>Расход в пределах лимита. Прогноз до конца дня — 6 900 ₽.</p>
+                  </div>
+                </section>
+              </aside>
+            </div>
+          </main>
+        </div>
+      </div>
+    </section>
+
+    <section class="alternate-wrap" id="alternate-state" aria-labelledby="alternate-title">
+      <h2 class="alternate-title" id="alternate-title">Альтернативное состояние · данные подключения устарели</h2>
+      <div class="alternate">
+        <div class="alternate-copy">
+          <div class="signal" aria-hidden="true">!</div>
+          <div>
+            <h3>Mango Office: проверка входящих звонков больше не актуальна</h3>
+            <p>Последнее подтверждение получено вчера в 18:20. До повторной проверки Staffy не считает перевод человеку доступным и использует согласованный обратный звонок. Jivo и ABCP доступны только в ранее подтверждённых ограниченных режимах.</p>
+            <div class="alternate-meta">Затронут только телефон магазина Олега · результаты выше остаются на последней подтверждённой версии</div>
+          </div>
+        </div>
+        <button class="secondary-button focus-example" type="button">Повторить проверку</button>
+      </div>
+      <p class="sample-note">Фиолетовая рамка показывает видимый фокус клавиатуры; в работающем интерфейсе она появляется при навигации клавишей Tab.</p>
+    </section>
+  </div>
+</body>
+</html>

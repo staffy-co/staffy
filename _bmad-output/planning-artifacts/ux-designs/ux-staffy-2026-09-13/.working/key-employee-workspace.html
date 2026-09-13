@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Staffy — рабочее место ИИ-сотрудника</title>
+  <style>
+    /*
+      SPINE MAPPING
+      DESIGN.md: Brand & Style; Colors / «Северный кедр»; Typography;
+      Layout & Spacing; Shapes; Components — App Shell, Status Badge,
+      Employee Brief, Launch Plan, Integration Card, Capability State,
+      Knowledge Source Row, Domain Slot, Test & Release Panel.
+      EXPERIENCE.md: Foundation / «Один продукт, разные бизнесы»;
+      Information Architecture / Employee; Component Patterns (same rows);
+      State Patterns — Connection Status, Employee Status, Admission,
+      Evidence/Freshness, Surface/System; Surface × state / Employee workspace;
+      Accessibility Floor; Responsive & Platform; UJ-P2 steps 2–6.
+      Canonical state: Oleg employee is in Trial. Connector evidence is scoped;
+      Mango Office, Jivo and ABCP are not presented as fully ready.
+    */
+    :root {
+      color-scheme: light;
+      --canvas: #F3F5F2;
+      --surface: #FFFFFF;
+      --text: #1E2925;
+      --muted: #66736D;
+      --border: #D7DED9;
+      --control-border: #6F7B75;
+      --primary: #315E4C;
+      --on-primary: #FFFFFF;
+      --success: #247A52;
+      --success-container: #E8F5EE;
+      --on-success-container: #185438;
+      --warning: #B56617;
+      --warning-text: #7A400B;
+      --warning-container: #FFF4E6;
+      --on-warning-container: #552A00;
+      --danger: #B4424B;
+      --danger-container: #FDEDEE;
+      --on-danger-container: #7B202A;
+      --info: #356C9B;
+      --info-container: #EAF2FA;
+      --on-info-container: #244E72;
+      --focus: #7C4DFF;
+      --shadow-1: 0 1px 2px rgba(30, 41, 37, .06);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      background: var(--canvas);
+      color: var(--text);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-width: 0; max-width: 100%; overflow-x: hidden; }
+    body { background: var(--canvas); font-size: 15px; line-height: 1.47; }
+    button, input, select { font: inherit; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    a { color: inherit; }
+    a:focus-visible, button:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--focus);
+      outline-offset: 3px;
+    }
+    button { min-height: 44px; }
+    .skip-link {
+      position: fixed; left: 16px; top: 10px; z-index: 20; min-height: 44px; display: flex; align-items: center; padding: 10px 14px;
+      border-radius: 6px; background: var(--primary); color: var(--on-primary);
+      transform: translateY(-150%);
+    }
+    .skip-link:focus { transform: none; }
+    .page { width: min(1480px, calc(100% - 32px)); margin: 0 auto; padding: 28px 0 56px; }
+    .artifact-head { display: flex; gap: 24px; align-items: end; justify-content: space-between; margin-bottom: 16px; }
+    .artifact-head h1 { margin: 0; font-size: 22px; line-height: 30px; letter-spacing: -.01em; }
+    .artifact-head p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+    .demo-note { max-width: 390px; text-align: right; color: var(--muted); font-size: 12px; }
+    .browser { overflow: hidden; border: 1px solid var(--control-border); border-radius: 14px; background: var(--surface); box-shadow: var(--shadow-1); }
+    .browser-bar { min-height: 38px; display: flex; align-items: center; gap: 7px; padding: 0 14px; border-bottom: 1px solid var(--border); background: #FAFBFA; }
+    .browser-dot { width: 9px; height: 9px; border-radius: 50%; background: #ABB6B0; }
+    .browser-label { margin-left: auto; color: var(--muted); font-size: 12px; }
+    .app { display: grid; grid-template-columns: 216px minmax(0, 1fr); min-height: 980px; }
+    .side { padding: 25px 16px; border-right: 1px solid var(--border); background: var(--surface); }
+    .brand { display: block; margin: 0 10px 29px; font-size: 20px; line-height: 28px; letter-spacing: -.03em; }
+    .tenant { margin: 0 8px 23px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--canvas); }
+    .tenant b { display: block; font-size: 13px; }
+    .tenant span { display: block; margin-top: 2px; color: var(--muted); font-size: 12px; }
+    .side nav { display: grid; gap: 4px; }
+    .nav-item { min-height: 44px; display: flex; align-items: center; padding: 9px 12px; border-radius: 8px; color: var(--muted); text-decoration: none; }
+    .nav-item.current { background: var(--success-container); color: var(--text); font-weight: 650; }
+    .side-foot { margin: 190px 9px 0; color: var(--muted); font-size: 12px; line-height: 18px; }
+    .main { min-width: 0; padding: 24px 28px 38px; background: var(--canvas); }
+    .crumbs { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 15px; color: var(--muted); font-size: 13px; }
+    .crumbs span::after { content: " /"; }
+    .crumbs span:last-child::after { content: ""; }
+    .employee-head { display: flex; gap: 20px; justify-content: space-between; align-items: start; margin-bottom: 20px; }
+    .identity { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 14px; align-items: center; min-width: 0; }
+    .avatar { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 14px 14px 14px 5px; background: var(--primary); color: var(--on-primary); font-size: 20px; font-weight: 700; }
+    h2 { margin: 0; font-size: 28px; line-height: 36px; letter-spacing: -.015em; }
+    .role { margin: 3px 0 0; color: var(--muted); }
+    .status-stack { display: flex; flex-wrap: wrap; justify-content: end; gap: 8px; }
+    .badge { display: inline-flex; min-height: 32px; align-items: center; gap: 7px; padding: 5px 10px; border: 1px solid currentColor; border-radius: 999px; font-size: 13px; font-weight: 600; }
+    .badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: 0 0 auto; }
+    .badge.info { color: var(--on-info-container); background: var(--info-container); }
+    .badge.warn { color: var(--warning-text); background: var(--warning-container); }
+    .core-strip { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 18px; padding: 13px 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+    .core-strip strong { margin-right: 4px; }
+    .core-part { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; color: var(--on-info-container); background: var(--info-container); border-radius: 6px; font-size: 12px; }
+    .core-part::before { content: "✓"; font-weight: 700; }
+    .domain-context { margin-left: auto; color: var(--muted); font-size: 12px; }
+    .layout { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(300px, .72fr); gap: 18px; align-items: start; }
+    .column { min-width: 0; display: grid; gap: 18px; }
+    .card { min-width: 0; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); box-shadow: var(--shadow-1); }
+    .card-head { display: flex; gap: 16px; justify-content: space-between; align-items: start; padding: 16px 18px 13px; border-bottom: 1px solid var(--border); }
+    .card-head h3 { margin: 0; font-size: 17px; line-height: 24px; }
+    .card-head p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+    .text-action { min-height: 44px; padding: 8px 10px; border: 1px solid var(--control-border); border-radius: 6px; background: var(--surface); color: var(--text); font-weight: 600; white-space: nowrap; }
+    .brief-body { padding: 4px 18px 17px; }
+    .brief-row { display: grid; grid-template-columns: 144px minmax(0, 1fr); gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+    .brief-row:last-child { border-bottom: 0; }
+    .brief-row dt { color: var(--muted); font-size: 13px; }
+    .brief-row dd { margin: 0; }
+    .brief-row strong { font-weight: 650; }
+    .brief-row small { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; }
+    .domain-slot { padding: 18px; border-left: 4px solid var(--primary); }
+    .domain-kicker { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; color: var(--muted); font-size: 12px; }
+    .domain-slot h3 { margin: 6px 0 5px; font-size: 17px; }
+    .domain-slot > p { margin: 0 0 15px; color: var(--muted); }
+    .domain-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+    .domain-item { padding: 11px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--canvas); }
+    .domain-item b { display: block; font-size: 13px; }
+    .domain-item span { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; }
+    .knowledge-list { padding: 0 18px; }
+    .knowledge-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center; min-height: 64px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .knowledge-row:last-child { border-bottom: 0; }
+    .knowledge-row b { display: block; font-size: 13px; }
+    .knowledge-row span { display: block; margin-top: 2px; color: var(--muted); font-size: 12px; }
+    .fresh { display: inline-flex !important; align-items: center; gap: 6px; color: var(--on-success-container) !important; white-space: nowrap; }
+    .fresh::before { content: "✓"; font-weight: 700; }
+    .plan { padding: 6px 18px 12px; }
+    .plan-step { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 11px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+    .plan-step:last-child { border-bottom: 0; }
+    .step-mark { width: 24px; height: 24px; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 50%; color: var(--muted); font-size: 12px; font-weight: 700; }
+    .plan-step.done .step-mark { border-color: var(--success); background: var(--success-container); color: var(--on-success-container); }
+    .plan-step.current .step-mark { border-color: var(--warning); background: var(--warning-container); color: var(--on-warning-container); }
+    .plan-step b { display: block; font-size: 13px; }
+    .plan-step p { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+    .plan-step .owner { margin-top: 5px; color: var(--text); }
+    .integration-list { padding: 0 18px; }
+    .integration { padding: 14px 0; border-bottom: 1px solid var(--border); }
+    .integration:last-child { border-bottom: 0; }
+    .integration-top { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
+    .integration-name { display: flex; gap: 10px; align-items: center; min-width: 0; }
+    .connector-mark { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 9px; background: var(--canvas); color: var(--primary); font-size: 12px; font-weight: 750; flex: 0 0 auto; }
+    .integration-name b { display: block; font-size: 13px; }
+    .integration-name span { display: block; color: var(--muted); font-size: 12px; }
+    .micro-status { display: inline-flex; align-items: center; gap: 6px; color: var(--warning-text); font-size: 12px; font-weight: 650; text-align: right; }
+    .micro-status::before { content: "!"; width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%; background: var(--warning-container); flex: 0 0 auto; }
+    .capabilities { display: grid; gap: 6px; margin-top: 10px; }
+    .capability { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 7px 9px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; }
+    .capability > span:last-child { color: var(--muted); text-align: right; }
+    .capability.limited { border-left: 3px solid var(--warning); }
+    .capability.unknown { border-left: 3px solid var(--danger); }
+    .fallback { margin: 9px 0 0; color: var(--warning-text); font-size: 12px; }
+    .release { overflow: hidden; }
+    .admission { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-bottom: 1px solid var(--border); }
+    .admission-step { min-height: 59px; padding: 10px 7px; border-right: 1px solid var(--border); color: var(--muted); font-size: 12px; text-align: center; }
+    .admission-step:last-child { border-right: 0; }
+    .admission-step b { display: block; margin: 0 auto 5px; width: 21px; height: 21px; line-height: 19px; border: 1px solid var(--border); border-radius: 50%; }
+    .admission-step.done { color: var(--on-success-container); background: var(--success-container); }
+    .admission-step.current { color: var(--on-info-container); background: var(--info-container); font-weight: 700; }
+    .release-body { padding: 15px 18px 18px; }
+    .test-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 13px; }
+    .test-metric { padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--canvas); }
+    .test-metric strong { display: block; font-size: 20px; font-variant-numeric: tabular-nums; }
+    .test-metric span { color: var(--muted); font-size: 12px; }
+    .blockers { margin: 0; padding: 12px 12px 12px 34px; border-left: 4px solid var(--warning); background: var(--warning-container); color: var(--on-warning-container); font-size: 12px; }
+    .blockers li + li { margin-top: 5px; }
+    .recommended { margin-top: 18px; padding: 18px; border: 1px solid var(--control-border); border-radius: 14px; background: var(--surface); }
+    .recommended-label { display: inline-flex; align-items: center; gap: 7px; color: var(--on-info-container); font-size: 12px; font-weight: 700; }
+    .recommended-label::before { content: "→"; }
+    .recommended h3 { margin: 8px 0 5px; font-size: 17px; }
+    .recommended p { margin: 0 0 14px; color: var(--muted); font-size: 13px; }
+    .primary { width: 100%; min-height: 44px; padding: 10px 14px; border: 1px solid var(--primary); border-radius: 8px; background: var(--primary); color: var(--on-primary); font-weight: 700; }
+    .alternate { margin-top: 22px; padding: 20px; border: 1px dashed var(--control-border); border-radius: 14px; background: #EDF0ED; }
+    .alternate > header { margin-bottom: 13px; }
+    .alternate h2 { font-size: 17px; line-height: 24px; }
+    .alternate header p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+    .alt-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .alt-card { min-width: 0; padding: 15px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+    .alt-card.danger { border-left: 4px solid var(--danger); }
+    .alt-card.warn { border-left: 4px solid var(--warning); }
+    .alt-card h3 { margin: 0 0 5px; font-size: 15px; }
+    .alt-card p { margin: 0; color: var(--muted); font-size: 12px; }
+    .alt-meta { margin-top: 9px !important; color: var(--text) !important; }
+    .alt-action { min-height: 44px; margin-top: 9px; padding: 8px 10px; border: 1px solid var(--control-border); border-radius: 6px; background: var(--surface); color: var(--text); font-weight: 650; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+    @media (max-width: 1120px) {
+      .app { grid-template-columns: 184px minmax(0, 1fr); }
+      .main { padding-inline: 20px; }
+      .layout { grid-template-columns: 1fr; }
+      .column.secondary { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+      .recommended { margin-top: 0; }
+    }
+    @media (max-width: 780px) {
+      .page { width: min(100% - 16px, 1480px); padding-top: 14px; }
+      .artifact-head { align-items: start; flex-direction: column; gap: 6px; }
+      .demo-note { text-align: left; }
+      .browser-bar { display: none; }
+      .app { display: block; min-height: 0; }
+      .side { padding: 10px 12px; border-right: 0; border-bottom: 1px solid var(--border); }
+      .brand { margin: 0 0 8px; }
+      .tenant, .side-foot { display: none; }
+      .side nav { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 2px; }
+      .nav-item { flex: 0 0 auto; }
+      .main { padding: 18px 14px 26px; }
+      .employee-head { flex-direction: column; }
+      .status-stack { justify-content: start; }
+      .core-strip { align-items: start; }
+      .domain-context { width: 100%; margin-left: 0; }
+      .column.secondary { grid-template-columns: 1fr; }
+      .brief-row { grid-template-columns: 1fr; gap: 3px; }
+      .domain-grid, .alt-grid { grid-template-columns: 1fr; }
+      .admission { grid-template-columns: 1fr; }
+      .admission-step { min-height: 44px; display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 9px; align-items: center; border-right: 0; border-bottom: 1px solid var(--border); text-align: left; }
+      .admission-step:last-child { border-bottom: 0; }
+      .admission-step b { margin: 0; text-align: center; }
+    }
+    @media (max-width: 420px) {
+      .page { width: 100%; padding: 0; }
+      .artifact-head { padding: 14px 16px; margin: 0; }
+      .browser { border-inline: 0; border-radius: 0; }
+      .main { padding-inline: 16px; }
+      h2 { font-size: 22px; line-height: 30px; }
+      .identity { grid-template-columns: 44px minmax(0, 1fr); }
+      .avatar { width: 44px; height: 44px; }
+      .card-head { flex-direction: column; }
+      .text-action { width: 100%; }
+      .knowledge-row, .integration-top, .capability { grid-template-columns: 1fr; display: grid; }
+      .micro-status, .capability > span:last-child { text-align: left; }
+      .test-summary { grid-template-columns: 1fr; }
+      .alternate { margin: 16px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#employee-main">К рабочему месту сотрудника</a>
+  <main class="page">
+    <header class="artifact-head">
+      <div><h1>Ключевой экран · Employee / readiness</h1><p>Один универсальный каркас Staffy, выбранный контекст — автозапчасти.</p></div>
+      <div class="demo-note">Демонстрационные данные · состояния отражают открытые проверки пилота, а не production-готовность</div>
+    </header>
+
+    <section class="browser" aria-label="Рабочее место ИИ-сотрудника магазина Олега">
+      <div class="browser-bar" aria-hidden="true"><i class="browser-dot"></i><i class="browser-dot"></i><i class="browser-dot"></i><span class="browser-label">Staffy · Магазин Олега · Настройщик</span></div>
+      <div class="app">
+        <aside class="side">
+          <strong class="brand">Staffy</strong>
+          <div class="tenant"><b>Магазин Олега</b><span>2 ИИ-сотрудника · пилот</span></div>
+          <nav aria-label="Основная навигация">
+            <a class="nav-item" href="#today">Сегодня</a>
+            <a class="nav-item current" href="#employee-main" aria-current="page">Сотрудники</a>
+            <a class="nav-item" href="#work">Работа</a>
+            <a class="nav-item" href="#integrations">Подключения</a>
+            <a class="nav-item" href="#results">Результаты</a>
+            <a class="nav-item" href="#organization">Организация</a>
+          </nav>
+          <div class="side-foot">Роль: настройщик<br>Секреты подключений скрыты<br>Версия сотрудника: 0.9.3</div>
+        </aside>
+
+        <div class="main" id="employee-main">
+          <div class="crumbs" aria-label="Хлебные крошки"><span>Сотрудники</span><span>Менеджер магазина Олега</span><span>Готовность</span></div>
+          <header class="employee-head">
+            <div class="identity"><div class="avatar" aria-hidden="true">О</div><div><h2>Менеджер магазина Олега</h2><p class="role">Подбор, продажа и сопровождение заказов автозапчастей</p></div></div>
+            <div class="status-stack" aria-label="Состояния сотрудника"><span class="badge info">На испытании</span><span class="badge warn">3 ограничения подключений</span></div>
+          </header>
+
+          <section class="core-strip" aria-label="Общее ядро и доменный контекст">
+            <strong>Общее ядро Staffy</strong>
+            <span class="core-part">Роль и диалог</span><span class="core-part">Единый Case</span><span class="core-part">Полномочия и человек</span><span class="core-part">Тест и допуск</span>
+            <span class="domain-context">Доменный пакет: <b>Автозапчасти</b></span>
+          </section>
+
+          <div class="layout">
+            <div class="column">
+              <section class="card" aria-labelledby="brief-title">
+                <header class="card-head"><div><h3 id="brief-title">Обязанности сотрудника</h3><p>Подтверждённое резюме роли · изменено Олегом 12 сентября</p></div><button class="text-action" type="button">Редактировать</button></header>
+                <dl class="brief-body">
+                  <div class="brief-row"><dt>Результат работы</dt><dd><strong>Подобрать применимые позиции и довести подтверждённый выбор до клиентского заказа ABCP.</strong><small>Поставщику заказ отправляет менеджер после отдельной проверки.</small></dd></div>
+                  <div class="brief-row"><dt>Каналы</dt><dd>Отдельная SIP-линия · Jivo · защищённая ссылка для VIN и документов</dd></div>
+                  <div class="brief-row"><dt>Можно</dt><dd>Уточнять автомобиль и запрос; проверять каталог; сравнивать оригинал и аналоги; создавать клиентский заказ после подтверждения.</dd></div>
+                  <div class="brief-row"><dt>Нельзя</dt><dd>Подбирать по догадке; обещать неподтверждённое наличие или срок; отправлять заказ поставщику; отвечать параллельно после принятой передачи человеку.</dd></div>
+                  <div class="brief-row"><dt>Человек</dt><dd>Антон проверяет точную версию заказа, применимость и спорные случаи; Олег меняет допуск класса.</dd></div>
+                </dl>
+              </section>
+
+              <section class="card domain-slot" aria-labelledby="domain-title">
+                <div class="domain-kicker"><span>Доменный слот внутри того же сотрудника</span><span>Пакет v0.7 · черновик пилота</span></div>
+                <h3 id="domain-title">Автозапчасти</h3>
+                <p>Общие правила Staffy остаются неизменными; пакет добавляет только доменные сущности, проверки и действия.</p>
+                <div class="domain-grid">
+                  <div class="domain-item"><b>Критические сущности</b><span>VIN · OEM/артикул · автомобиль · ось/сторона</span></div>
+                  <div class="domain-item"><b>Доказательство применимости</b><span>Разрешённый каталог + актуальная карточка позиции</span></div>
+                  <div class="domain-item"><b>Доменное действие</b><span>Создать клиентский заказ ABCP точной версии</span></div>
+                  <div class="domain-item"><b>Человеческий барьер</b><span>Проверка до формирования/отправки supplier order</span></div>
+                </div>
+              </section>
+
+              <section class="card" aria-labelledby="knowledge-title">
+                <header class="card-head"><div><h3 id="knowledge-title">Знания</h3><p>Источник, свежесть и происхождение каждого материального факта</p></div><button class="text-action" type="button">Все источники</button></header>
+                <div class="knowledge-list">
+                  <div class="knowledge-row"><div><b>Каталог применимости</b><span>Каталожные данные · проверяются перед каждой рекомендацией</span></div><span class="fresh">Актуально · 14:06</span></div>
+                  <div class="knowledge-row"><div><b>Правила магазина и ответы клиентам</b><span>Tenant policy · опубликованная версия 0.9.3</span></div><span class="fresh">Подтверждено · 12 сен.</span></div>
+                  <div class="knowledge-row"><div><b>Цена, наличие и срок</b><span>Только текущее чтение из разрешённого источника; старые ответы не переиспользуются</span></div><span class="fresh">По запросу</span></div>
+                </div>
+              </section>
+            </div>
+
+            <div class="column secondary">
+              <section class="card" aria-labelledby="plan-title">
+                <header class="card-head"><div><h3 id="plan-title">План запуска</h3><p>Шаги по готовности, а не линейный «процент»</p></div></header>
+                <div class="plan">
+                  <div class="plan-step done"><span class="step-mark">✓</span><div><b>Роль и ограничения подтверждены</b><p>Владелец: Олег · evidence сохранено</p></div></div>
+                  <div class="plan-step done"><span class="step-mark">✓</span><div><b>Демонстрационные сценарии пройдены</b><p>Без реальных заказов и внешних изменений</p></div></div>
+                  <div class="plan-step current"><span class="step-mark">3</span><div><b>Проверить подключения на аккаунте</b><p>Mango Office, Jivo и ABCP имеют отдельные незакрытые возможности.</p><p class="owner">Ответственные: Олег + интегратор Staffy</p></div></div>
+                  <div class="plan-step"><span class="step-mark">4</span><div><b>Завершить испытание</b><p>20 контролируемых голосовых и текстовых диалогов</p></div></div>
+                  <div class="plan-step"><span class="step-mark">5</span><div><b>Допустить ограниченную работу</b><p>Только доказанные классы; supplier-send остаётся за человеком</p></div></div>
+                </div>
+              </section>
+
+              <section class="card" id="integrations" aria-labelledby="integrations-title">
+                <header class="card-head"><div><h3 id="integrations-title">Подключения и возможности</h3><p>Авторизация не равна готовности</p></div></header>
+                <div class="integration-list">
+                  <article class="integration">
+                    <div class="integration-top"><div class="integration-name"><span class="connector-mark">SIP</span><div><b>Mango Office</b><span>Предполагаемый провайдер линии Олега</span></div></div><span class="micro-status">Ждёт проверки</span></div>
+                    <div class="capabilities"><div class="capability limited"><span>Приём тестового звонка</span><span>Требуется account-level evidence</span></div><div class="capability unknown"><span>Перевод человеку</span><span>Не подтверждён</span></div></div>
+                    <p class="fallback">Fallback: принять обращение и согласовать callback.</p>
+                  </article>
+                  <article class="integration">
+                    <div class="integration-top"><div class="integration-name"><span class="connector-mark">J</span><div><b>Jivo</b><span>Единственный записывающий Inbox после проверки</span></div></div><span class="micro-status">С ограничениями</span></div>
+                    <div class="capabilities"><div class="capability limited"><span>Текстовый диалог</span><span>Проверяется в пилоте</span></div><div class="capability unknown"><span>Media · handoff · return</span><span>Семантика аккаунта не доказана</span></div></div>
+                    <p class="fallback">Fallback: неподдерживаемый media — защищённая ссылка; передача без acknowledgement не считается состоявшейся.</p>
+                  </article>
+                  <article class="integration">
+                    <div class="integration-top"><div class="integration-name"><span class="connector-mark">A</span><div><b>ABCP + кастомная 1С</b><span>Owning systems заказа и учёта</span></div></div><span class="micro-status">С ограничениями</span></div>
+                    <div class="capabilities"><div class="capability limited"><span>Создание клиентского заказа</span><span>Только controlled test</span></div><div class="capability unknown"><span>ABCP → 1С · supplier status</span><span>Граница и reconciliation открыты</span></div></div>
+                    <p class="fallback">Fallback: ручная проверка exact version; Staffy не отправляет заказ поставщику и не показывает terminal success.</p>
+                  </article>
+                </div>
+              </section>
+
+              <section class="card release" aria-labelledby="release-title">
+                <header class="card-head"><div><h3 id="release-title">Испытание и допуск</h3><p>Версия 0.9.3 · текущий этап видим и обратим</p></div></header>
+                <div class="admission" aria-label="Лестница допуска">
+                  <div class="admission-step done"><b>✓</b>Демо</div>
+                  <div class="admission-step done"><b>✓</b>Конфигурация подключений</div>
+                  <div class="admission-step current"><b>3</b>Испытание</div>
+                  <div class="admission-step"><b>4</b>Ограниченная работа</div>
+                  <div class="admission-step"><b>5</b>Работа</div>
+                </div>
+                <div class="release-body">
+                  <div class="test-summary"><div class="test-metric"><strong>14 / 20</strong><span>контрольных диалогов</span></div><div class="test-metric"><strong>0</strong><span>критических ошибок</span></div><div class="test-metric"><strong>3</strong><span>открытых gate</span></div></div>
+                  <ul class="blockers"><li>Mango Office transfer и события звонка не доказаны.</li><li>Jivo handoff/return и media требуют проверки.</li><li>ABCP→1С и supplier status требуют reconciliation evidence.</li></ul>
+                </div>
+              </section>
+
+              <section class="recommended" aria-labelledby="next-title">
+                <span class="recommended-label">Рекомендуемый следующий шаг</span>
+                <h3 id="next-title">Проверить создание тестового заказа в ABCP</h3>
+                <p>Без отправки поставщику. Staffy сохранит точную версию, operation ID и результат повторного чтения; Антон подтвердит ручную проверку.</p>
+                <button class="primary" type="button">Начать контрольный сценарий</button>
+              </section>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="alternate" aria-labelledby="alternate-title">
+      <header><h2 id="alternate-title">Альтернативное состояние · права и устаревшие данные</h2><p>Те же компоненты fail-closed: введённое сохраняется, а недоказанный факт не разрешает действие.</p></header>
+      <div class="alt-grid">
+        <article class="alt-card danger"><h3>Нет права изменять полномочия сотрудника</h3><p>Раздел доступен только для просмотра. Нужна роль владельца организации; консультант Staffy не увидит секреты и не сможет повысить допуск.</p><p class="alt-meta"><b>Владелец доступа:</b> Олег · запрос ещё не отправлен</p><button class="alt-action" type="button">Запросить доступ</button></article>
+        <article class="alt-card warn"><h3>Данные ABCP устарели</h3><p>Последняя подтверждённая проверка: 11 сентября, 18:42. Создание заказа отключено до нового account-level теста; старый success не переиспользуется.</p><p class="alt-meta"><b>Безопасно сейчас:</b> сохранить черновик и передать Антону без внешнего действия</p><button class="alt-action" type="button">Повторить проверку</button></article>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

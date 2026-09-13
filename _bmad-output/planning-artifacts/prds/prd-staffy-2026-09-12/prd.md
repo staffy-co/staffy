@@ -997,13 +997,13 @@ Order должен предлагаться только допустимым и
 - reservation по `исполнитель × capability/service × окно × capacity` создаётся атомарно, имеет expiry и освобождается при отказе, timeout, отмене или переносе;
 - повтор и параллельный процесс не создают двух действующих назначений.
 
-#### FR-72: Два обязательства клиента Montagio
+#### FR-72: Два обязательства клиента Montagio для readiness-route
 
-Staffy должен отдельно получить Confirmation понятой задачи/предварительного маршрута и Confirmation именованного исполнителя/финальных условий.
+Для целевого подрядного route Staffy должен отдельно получить Confirmation понятой задачи/предварительного маршрута и Confirmation точной финальной версии после supply readiness. Договорной стороной клиента остаётся Montagio; назначенный специалист является субподрядчиком, а не стороной клиентского договора.
 
 **Проверяемые последствия:**
 
-- финальный шаг показывает исполнителя, итоговую цену/диапазон, payee, гарантийную роль и material delta;
+- финальный шаг показывает назначенного специалиста, итоговую цену/диапазон, Montagio как сторону договора/payee/issuer чека/владельца гарантии и material delta;
 - отмена/no-show/потеря допуска именованного исполнителя инвалидирует fulfilment Commitment, уведомляет клиента, запускает Recovery/fallback и требует нового Confirmation для замены;
 - полный scope доступен без повторного intake, а существенное изменение требует новой версии.
 
@@ -1025,15 +1025,28 @@ Staffy должен отдельно получить Confirmation понято�
 - Staffy называет партнёра при первом контакте и просит исправить данные;
 - спорное согласие включает `privacy/no_contact`, а партнёр получает только разрешённый статус.
 
-#### FR-75: Разделённое бизнес-закрытие Montagio
+#### FR-75: Разделённое бизнес-закрытие Montagio-подрядчика
 
-Order должен раздельно хранить подтверждение выполнения, клиентскую оплату и документ исполнителя, `fee_due`, `fee_collected`, contribution margin и претензионное окно, различая due, paid, partially paid, disputed, reversed/refunded и written-off/reconciled состояния.
+Для первых 3–5 допущенных стандартизированных услуг Order должен раздельно хранить подтверждение выполнения, клиентскую оплату Montagio, чек Montagio, обязательство/выплату субподрядчику, acceptance, refund/reversal, warranty/claim и contribution margin. Прямая схема клиент↔мастер и комиссионные `fee_due/fee_collected` допустимы только в отдельно маркированной `closed-validation-only` ветке и не являются публичным runtime default.
 
 **Проверяемые последствия:**
 
-- `work_completed` не считается фактически полученной комиссией;
-- contribution margin остаётся provisional до утверждённой settlement/claim точки и пересчитывается при reversal/refund;
+- `work_completed` не считается полученной оплатой, выданным чеком, принятой работой или завершённой выплатой субподрядчику;
+- contribution margin остаётся provisional до сверки клиентской оплаты, refund/reversal, выплаты субподрядчику и утверждённой settlement/claim точки;
 - заказ входит в бизнес-доказательство только с классифицированным финансовым и претензионным исходом.
+
+**Нормативная contractor-state table (target public route):**
+
+| Материальный факт | Сторона/владелец | Минимальные раздельные состояния |
+|---|---|---|
+| Client contract / Order | Montagio ↔ клиент | draft · confirmed exact version · cancelled · disputed · closed |
+| Client payment | Клиент → Montagio | due · authorized · paid · partially paid · failed · refunded/reversed · unknown/reconciling |
+| Receipt | Montagio | required · issued · corrected · cancelled · failed/unknown |
+| Subcontractor assignment | Montagio ↔ специалист | offered · accepted · expired · replaced · completed evidence pending/accepted |
+| Subcontractor payable/payout | Montagio → специалист | not earned · payable · held · paid · adjusted · disputed |
+| Acceptance | Клиент/Montagio по policy | pending · accepted · contested · remediation · closed |
+| Warranty/claim | Montagio | none · opened · acknowledged · investigating · resolved · reopened |
+| Margin | Montagio | provisional · reconciled; включает payment, refund, payout, повторный выезд, claim и ручную работу |
 
 #### FR-76: B2B полномочия и коммерческий gate
 
@@ -1159,7 +1172,7 @@ Order должен раздельно хранить подтверждение 
 - Полный self-service новой отрасли, визуальный конструктор произвольных агентов и автоматическая координация нескольких ИИ-ролей Tenant в MVP.
 - Автодиагностика неисправности автомобиля по симптому или инженерное проектирование сложной системы силами модели.
 - Автономная отправка заказа Олега поставщику во время пилотного manager-verification gate.
-- Приём Montagio всей оплаты клиента, автоматические возвраты/компенсации, escrow, аукцион мастеров и полноценные B2B multi-object/SLA до отдельных юридических и операционных гейтов.
+- Публичный приём Montagio оплаты, выпуск чека, гарантийное обязательство и contractor Order **до PASS OQ-10**; после PASS они входят только для допущенных 3–5 стандартизированных услуг. Автоматические нестандартные возвраты/компенсации, escrow, аукцион мастеров и полноценные B2B multi-object/SLA остаются вне MVP.
 - Демпинг цен Montagio ради конверсии либо скрытая персонализация цены по предполагаемому достатку, тревожности или внушаемости.
 
 ## 6. MVP Scope
@@ -1169,13 +1182,13 @@ Order должен раздельно хранить подтверждение 
 - Общее multi-tenant ядро FR-1–FR-49 и FR-78–FR-85: конфигурация ИИ-сотрудника, Domain Packs, Integration Catalog, управляемые Knowledge Sources/поведение/голос, мультимодальная Conversation, Business Actions, Confirmation, Handoff, Recovery, аудит, eval, Entitlement и rollback.
 - Один законченный коммерческий процесс в каждом из двух Domain Pack на одном ядре.
 - Магазин Олега: отдельная SIP-линия Staffy, Jivo, защищённая передача VIN/media, каталогически проверяемый подбор, подтверждённый клиентский Order ABCP, manager verification до поставщика и доступная связка результата с кастомной 1С.
-- Montagio: Novofon, чат собственного сайта, UJ-M1 и UJ-M2 как два обязательных доказательства, P1–P6, Safety Interrupt, верхнерыночная value-based продажа, supply readiness, независимый исполнитель, разделённое денежное закрытие и Recovery.
+- Montagio: Novofon, чат собственного сайта, UJ-M1 и UJ-M2 как два обязательных доказательства, P1–P6, Safety Interrupt, верхнерыночная value-based продажа, supply readiness, назначенный субподрядчик и разделённое подрядное закрытие. До PASS OQ-10 route остаётся `intake_only/no_promises`; закрытая direct-master проверка staff-mediated и не переиспользует публичный contractor UI.
 - Простые pilot-controls `accept`, `intake_only/no_promises`, `human_only`, `paused`, отдельные Autonomy Classes и доказательный откат.
 - 20 контролируемых сквозных диалогов и затем 100 целевых живых обращений под наблюдением в каждой отрасли.
 - Сопоставимая ручная/человеческая группа и сквозной расчёт бизнес-исхода.
 - Тест запуска третьего Tenant на существующих Domain Pack/Connectors без core changes, клиентского форка и программиста.
 - Для каждого пилота — утверждённый Operating Profile и проверенная human operator surface до живого трафика.
-- Для Montagio до live — supply drill и Stage-0 legal/payment tabletop; до scale — вручную сверенная микрокогорта оплаченных заказов с фактической комиссией и состоянием претензий. Упражнения могут быть ручными и не требуют нового подсистемного контура.
+- Для Montagio до public live — supply drill и OQ-10 legal/accounting/KKT/tax/insurance/quality/refund tabletop; до scale — вручную сверенная микрокогорта contractor Orders с оплатой Montagio, чеком, выплатой субподрядчику, acceptance, margin и claim. Упражнения могут быть ручными и не требуют нового подсистемного контура.
 
 ### 6.2 Out of Scope for MVP
 
@@ -1369,7 +1382,7 @@ VIN/OEM, артикулы, имена, телефоны, адреса, даты,
 
 - **SM-5 — Автозапчасти:** маржинальный доход на 100 целевых обращений Staffy после отмен, возвратов и переменных расходов не хуже сопоставимого потока человеческих менеджеров. Валидирует FR-46–FR-48 и FR-50–FR-63.
 - **SM-6 — Montagio next commitment:** доля целевых обращений, доведённых до корректного следующего Commitment, сравнивается с параллельной ручной обработкой; числовой допуск утверждается до живого этапа после baseline. Валидирует FR-18–FR-26 и FR-64–FR-74.
-- **SM-7 — Montagio contribution margin:** бизнес-завершённые Orders имеют положительную фактическую contribution margin с полученной комиссией и классифицированным претензионным исходом; агрегированный порог и минимальная выборка утверждаются до scale. Валидирует FR-68–FR-75.
+- **SM-7 — Montagio contribution margin:** бизнес-завершённые contractor Orders имеют положительную фактическую contribution margin после клиентской оплаты, refund/reversal, выплаты субподрядчику, повторных выездов, ручной работы и классифицированного claim outcome; агрегированный порог и минимальная выборка утверждаются до scale. Валидирует FR-68–FR-75.
 
 ### 9.3 Вторичные метрики
 
@@ -1382,7 +1395,7 @@ VIN/OEM, артикулы, имена, телефоны, адреса, даты,
 - **SM-14:** доля неопределённых Business Actions, успешно reconciled без дубля или ложного сообщения клиенту.
 - **SM-15:** время запуска третьего Tenant и число действий, потребовавших изменение кода/программиста.
 - **SM-16 — Operating Profile gate:** до controlled/live этапа каждого Tenant утверждена и сохранена версия Operating Profile; обращение вне профиля отчётливо исключается либо учитывается отдельной когортой. Валидирует FR-84.
-- **SM-17 — Montagio evidence exercises:** до live выполнены supply drill и Stage-0 legal/payment tabletop, а до scale вручную сверена оплаченная микрокогорта с выполнением, оплатой, документом, комиссией и претензионным состоянием. Размер и approvers фиксируются до упражнения. Валидирует FR-66–FR-76.
+- **SM-17 — Montagio evidence exercises:** до public live выполнены supply drill и OQ-10 contractor-readiness tabletop, а до scale вручную сверена оплаченная микрокогорта с выполнением, client payment, receipt, subcontractor payout, acceptance, margin и claim. Размер и approvers фиксируются до упражнения. Валидирует FR-66–FR-76.
 - **SM-18 — Recovery quality:** по владельцу, версии и root cause измеряются acknowledgement, time-to-named-owner, соблюдение обещанных обновлений, safe containment, resolution time, reopen, contest/acceptance и recurrence; пороги допуска устанавливаются после controlled baseline. Валидирует FR-35–FR-45 и FR-77.
 - **SM-19 — Коммерческое доказательство Staffy:** отдельно фиксируются достигнутый уровень `interest/design partner` → `paid pilot` → `continued paid use/expansion` → `repeatable external sale`, фактическая оплата/скидка/полная себестоимость и структурированная причина отказа. Технический success или внутренний Montagio без внешнего платёжного события не называется доказанным рыночным спросом. Валидирует FR-85 и §7.
 - **SM-20 — Разговорное качество:** отдельные voice/text отчёты показывают semantic task success, repair, repeated questions, critical-entity accuracy, первый полезный ответ, perceived effort/trust и human rating по версии. Валидирует FR-43, FR-48, FR-80–FR-82 и NFR-29–NFR-32.

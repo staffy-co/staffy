@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Staffy — проверка заказа ABCP</title>
+  <style>
+    /*
+      SPINE MAPPING
+      DESIGN.md: Brand & Style; Colors; Typography; Layout & Spacing; Elevation & Depth;
+      Shapes; Components — App Shell, Status Badge, Knowledge Source Row, Work Control Card,
+      Response Owner Control, Commitment Review, Action Preview, Action Receipt, Recovery Panel.
+      EXPERIENCE.md: Foundation / Pilot implementation cut; Open gates OQ-3, OQ-4, OQ-19;
+      Component Patterns for the components above; State Patterns — Response Ownership,
+      Evidence/Freshness, Business Action, Recovery Case; Interaction Primitives — Critical
+      readback, Versioned Confirmation, Material Action; Accessibility Floor; Responsive & Platform;
+      Key Flow UJ-A7 steps 1–5 and failure/recovery.
+      Canonical state: exact ABCP v4 review; alternate state: ABCP v5 mismatch / 1C unknown.
+      The spines win if this non-production reference conflicts with them.
+    */
+
+    :root {
+      color-scheme: light;
+      --canvas: #F3F5F2;
+      --surface: #FFFFFF;
+      --text: #1E2925;
+      --muted: #66736D;
+      --border: #D7DED9;
+      --control-border: #6F7B75;
+      --primary: #315E4C;
+      --on-primary: #FFFFFF;
+      --success: #247A52;
+      --success-container: #E8F5EE;
+      --on-success-container: #185438;
+      --warning: #B56617;
+      --warning-text: #7A400B;
+      --warning-container: #FFF4E6;
+      --on-warning-container: #552A00;
+      --danger: #B4424B;
+      --danger-container: #FDEDEE;
+      --on-danger-container: #7B202A;
+      --info: #356C9B;
+      --info-container: #EAF2FA;
+      --on-info-container: #244E72;
+      --focus: #7C4DFF;
+      --shadow-1: 0 1px 2px rgba(30, 41, 37, .06);
+      --shadow-2: 0 8px 24px rgba(30, 41, 37, .10);
+    }
+
+    * { box-sizing: border-box; }
+    html { background: #DDE3DF; }
+    body {
+      margin: 0;
+      color: var(--text);
+      background: #DDE3DF;
+      font: 15px/1.47 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    }
+    button, a, summary { font: inherit; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    button:focus-visible, a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--focus);
+      outline-offset: 3px;
+    }
+    .skip-link {
+      position: fixed;
+      z-index: 20;
+      left: 16px;
+      top: -80px;
+      min-height: 44px;
+      padding: 11px 16px;
+      border-radius: 6px;
+      color: var(--on-primary);
+      background: var(--primary);
+    }
+    .skip-link:focus { top: 16px; }
+    .browser {
+      width: min(1512px, calc(100% - 32px));
+      margin: 28px auto;
+      overflow: hidden;
+      border: 1px solid #B8C2BC;
+      border-radius: 14px;
+      background: var(--canvas);
+      box-shadow: 0 18px 48px rgba(30, 41, 37, .16);
+    }
+    .browser-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 46px;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--border);
+      background: #EEF1EE;
+    }
+    .browser-dot { width: 10px; height: 10px; border-radius: 50%; background: #A6B0AA; }
+    .browser-address {
+      width: min(520px, 54vw);
+      margin-left: 10px;
+      padding: 5px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--muted);
+      background: var(--surface);
+      font-size: 13px;
+    }
+    .app { display: grid; grid-template-columns: 220px minmax(0, 1fr); min-height: 1100px; }
+    .sidebar {
+      padding: 24px 16px;
+      border-right: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .brand { display: flex; align-items: center; gap: 10px; margin: 0 8px 28px; font-weight: 700; font-size: 19px; }
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      color: var(--on-primary);
+      background: var(--primary);
+      font-size: 15px;
+    }
+    .nav-label { margin: 20px 8px 8px; color: var(--muted); font-size: 12px; font-weight: 650; }
+    .nav-link {
+      display: flex;
+      align-items: center;
+      min-height: 44px;
+      margin: 2px 0;
+      padding: 10px 12px;
+      border-radius: 6px;
+      color: var(--text);
+      text-decoration: none;
+    }
+    .nav-link.active { color: var(--primary); background: var(--success-container); font-weight: 650; }
+    .nav-icon { width: 24px; color: var(--muted); }
+    .content { min-width: 0; padding: 24px 28px 48px; }
+    .topbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 18px; }
+    .crumb { color: var(--muted); font-size: 13px; }
+    .profile { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 5px 10px; border-radius: 6px; }
+    .avatar { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; color: var(--primary); background: var(--success-container); font-weight: 700; }
+    .headline { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; margin-bottom: 20px; }
+    h1 { margin: 2px 0 4px; font-size: 28px; line-height: 36px; letter-spacing: -.015em; }
+    h2 { margin: 0; font-size: 22px; line-height: 30px; }
+    h3 { margin: 0; font-size: 17px; line-height: 24px; }
+    p { margin: 0; }
+    .subtle { color: var(--muted); }
+    .mono { font: 500 14px/20px ui-monospace, SFMono-Regular, Consolas, monospace; overflow-wrap: anywhere; }
+    .tabular { font-variant-numeric: tabular-nums; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 30px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      font-size: 13px;
+      font-weight: 650;
+    }
+    .badge.warning { color: var(--on-warning-container); border-color: var(--warning); background: var(--warning-container); }
+    .badge.info { color: var(--on-info-container); border-color: var(--info); background: var(--info-container); }
+    .badge.danger { color: var(--on-danger-container); border-color: var(--danger); background: var(--danger-container); }
+    .layout { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(330px, .72fr); gap: 20px; align-items: start; }
+    .stack { display: grid; gap: 16px; min-width: 0; }
+    .card {
+      min-width: 0;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+      box-shadow: var(--shadow-1);
+    }
+    .card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 18px 20px; border-bottom: 1px solid var(--border); }
+    .card-body { padding: 20px; }
+    .notice {
+      display: grid;
+      grid-template-columns: 24px 1fr;
+      gap: 12px;
+      padding: 14px 16px;
+      border: 1px solid var(--warning);
+      border-radius: 10px;
+      color: var(--on-warning-container);
+      background: var(--warning-container);
+    }
+    .notice strong { display: block; margin-bottom: 3px; }
+    .icon { font-weight: 750; }
+    .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--border); }
+    .fact { min-width: 0; padding: 14px 16px; background: var(--surface); }
+    .label { display: block; margin-bottom: 5px; color: var(--muted); font-size: 13px; }
+    .fact-value { font-weight: 650; }
+    .evidence-list { margin-top: 14px; border-top: 1px solid var(--border); }
+    .evidence-row {
+      display: grid;
+      grid-template-columns: minmax(170px, .75fr) minmax(230px, 1.2fr) minmax(170px, .8fr) 130px;
+      gap: 14px;
+      align-items: center;
+      min-height: 58px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .evidence-row:last-child { border-bottom: 0; }
+    .source { font-weight: 650; }
+    .evidence-state { display: inline-flex; align-items: center; gap: 6px; color: var(--on-success-container); font-size: 13px; font-weight: 650; }
+    .evidence-state.info { color: var(--on-info-container); }
+    .order-item { display: grid; grid-template-columns: 84px minmax(0, 1fr) 92px 120px; gap: 14px; align-items: start; }
+    .part-thumb {
+      display: grid;
+      place-items: center;
+      width: 84px;
+      height: 72px;
+      border-radius: 10px;
+      color: var(--primary);
+      background: var(--canvas);
+      font-size: 25px;
+    }
+    .amount { text-align: right; font-weight: 650; font-variant-numeric: tabular-nums; }
+    .receipt {
+      display: grid;
+      grid-template-columns: 26px 1fr;
+      gap: 10px;
+      margin-top: 16px;
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+    }
+    .receipt .icon { color: var(--success); }
+    .receipt-meta { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 7px; color: var(--muted); font-size: 13px; }
+    .owner { padding: 18px; border: 1px solid var(--control-border); border-radius: 10px; background: var(--surface); }
+    .owner-person { display: flex; align-items: center; gap: 12px; margin: 12px 0 16px; }
+    .owner .avatar { width: 42px; height: 42px; }
+    .lifecycle { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 14px; }
+    .life-step { padding-top: 8px; border-top: 3px solid var(--border); color: var(--muted); font-size: 12px; }
+    .life-step.done { border-color: var(--success); color: var(--on-success-container); }
+    .life-step.active { border-color: var(--primary); color: var(--primary); font-weight: 700; }
+    .preview { border: 1px solid var(--warning); border-radius: 14px; color: var(--on-warning-container); background: var(--warning-container); overflow: hidden; }
+    .preview-inner { padding: 18px; }
+    .preview ul { margin: 12px 0 0; padding-left: 20px; }
+    .preview li + li { margin-top: 6px; }
+    .actions { display: grid; gap: 10px; padding: 16px 18px 18px; border-top: 1px solid rgba(181, 102, 23, .38); }
+    .button {
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 44px;
+      padding: 10px 15px;
+      border: 1px solid var(--control-border);
+      border-radius: 6px;
+      color: var(--text);
+      background: var(--surface);
+      font-weight: 650;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .button.primary { color: var(--on-primary); border-color: var(--primary); background: var(--primary); }
+    .button.danger { color: var(--on-danger-container); border-color: var(--danger); background: var(--danger-container); }
+    .button[disabled] { color: var(--muted); border-color: var(--border); background: var(--canvas); cursor: not-allowed; opacity: 1; }
+    .help { color: var(--muted); font-size: 13px; }
+    .recovery .help { color: var(--on-danger-container); }
+    .evidence-head { background: var(--canvas); font-weight: 650; }
+    .gate-list { display: grid; gap: 12px; padding: 18px; }
+    .gate { padding-left: 12px; border-left: 3px solid var(--warning); }
+    .gate-title { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-weight: 650; }
+    .gate p { margin-top: 4px; color: var(--muted); font-size: 13px; }
+    details { border-top: 1px solid var(--border); }
+    summary { min-height: 44px; padding: 12px 18px; cursor: pointer; font-weight: 650; }
+    .details-body { padding: 0 18px 18px; color: var(--muted); }
+    .recovery {
+      margin-top: 24px;
+      border: 1px solid var(--danger);
+      border-radius: 10px;
+      color: var(--on-danger-container);
+      background: var(--danger-container);
+      overflow: hidden;
+    }
+    .recovery-head { display: flex; justify-content: space-between; gap: 16px; padding: 18px 20px; border-bottom: 1px solid rgba(180, 66, 75, .35); }
+    .recovery-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(290px, .85fr); gap: 18px; padding: 20px; }
+    .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+    .compare-cell { padding: 12px; border: 1px solid rgba(123, 32, 42, .28); border-radius: 6px; background: rgba(255,255,255,.6); }
+    .recovery .button { color: var(--on-danger-container); border-color: var(--danger); background: var(--surface); }
+    .footer-note { margin: 24px 2px 0; color: var(--muted); font-size: 12px; }
+
+    @media (max-width: 1100px) {
+      .app { grid-template-columns: 76px minmax(0, 1fr); }
+      .sidebar { padding-inline: 10px; }
+      .brand { justify-content: center; margin-inline: 0; }
+      .brand span:last-child, .nav-label, .nav-link span:last-child { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+      .nav-link { justify-content: center; }
+      .nav-icon { width: auto; }
+      .layout { grid-template-columns: 1fr; }
+      .evidence-row { grid-template-columns: minmax(150px, .8fr) minmax(210px, 1.2fr) 150px 120px; }
+    }
+
+    @media (max-width: 767px) {
+      .browser { width: 100%; margin: 0; border: 0; border-radius: 0; box-shadow: none; }
+      .browser-bar, .sidebar { display: none; }
+      .app { display: block; min-height: 0; }
+      .content { padding: 16px 16px 36px; }
+      .topbar { margin-bottom: 12px; }
+      .crumb { max-width: 62vw; }
+      .profile span:not(.avatar) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+      .headline { display: block; }
+      .headline .badge { margin-top: 10px; }
+      h1 { font-size: 24px; line-height: 31px; }
+      h2 { font-size: 20px; line-height: 28px; }
+      .card-head, .recovery-head { display: grid; padding: 16px; }
+      .card-body { padding: 16px; }
+      .facts { grid-template-columns: 1fr; }
+      .evidence-list { border-top: 0; }
+      .evidence-row {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px 12px;
+        padding: 14px 0;
+      }
+      .evidence-row .source { grid-column: 1 / -1; }
+      .order-item { grid-template-columns: 64px minmax(0, 1fr); }
+      .part-thumb { width: 64px; height: 64px; }
+      .order-item .amount { text-align: left; }
+      .lifecycle { grid-template-columns: 1fr 1fr; }
+      .recovery-grid, .compare { grid-template-columns: 1fr; }
+      .gate-list { padding: 16px; }
+    }
+
+    @media (max-width: 360px) {
+      .content { padding-inline: 12px; }
+      .evidence-row { grid-template-columns: 1fr; }
+      .evidence-row .source { grid-column: auto; }
+      .order-item { grid-template-columns: 1fr; }
+      .part-thumb { display: none; }
+      .receipt-meta { display: grid; gap: 4px; }
+      .lifecycle { grid-template-columns: 1fr; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">К проверке заказа</a>
+  <div class="browser">
+    <div class="browser-bar" aria-hidden="true">
+      <span class="browser-dot"></span><span class="browser-dot"></span><span class="browser-dot"></span>
+      <span class="browser-address">staffy.local/work/orders/ABCP-10482/review</span>
+    </div>
+
+    <div class="app">
+      <nav class="sidebar" aria-label="Основная навигация">
+        <div class="brand"><span class="brand-mark">S</span><span>Staffy</span></div>
+        <div class="nav-label">РАБОТА</div>
+        <a class="nav-link" href="#"><span class="nav-icon">⌂</span><span>Сегодня</span></a>
+        <a class="nav-link" href="#"><span class="nav-icon">◉</span><span>Сотрудники</span></a>
+        <a class="nav-link active" href="#main" aria-current="page"><span class="nav-icon">▤</span><span>Работа</span></a>
+        <a class="nav-link" href="#"><span class="nav-icon">◇</span><span>Интеграции</span></a>
+        <a class="nav-link" href="#"><span class="nav-icon">↗</span><span>Результаты</span></a>
+        <div class="nav-label">КОМПАНИЯ</div>
+        <a class="nav-link" href="#"><span class="nav-icon">⚙</span><span>Организация</span></a>
+      </nav>
+
+      <main class="content" id="main">
+        <div class="topbar">
+          <p class="crumb">Работа / Автозапчасти / <span class="mono">ABCP-10482</span></p>
+          <div class="profile" aria-label="Текущий пользователь: Антон, менеджер">
+            <span class="avatar" aria-hidden="true">А</span><span>Антон</span>
+          </div>
+        </div>
+
+        <header class="headline">
+          <div>
+            <p class="subtle">Проверка заказа · пилот Олега</p>
+            <h1>Тормозные колодки для Сергея</h1>
+            <p class="subtle">Клиентский заказ <span class="mono">ABCP-10482</span> · создан Staffy сегодня в <span class="tabular">13:39</span></p>
+          </div>
+          <span class="badge warning"><span aria-hidden="true">!</span> Требуется ручная проверка</span>
+        </header>
+
+        <section class="notice" aria-label="Ограничение пилота">
+          <span class="icon" aria-hidden="true">!</span>
+          <div><strong>Заказ ещё не отправлен поставщику</strong>Проверьте текущую версию в ABCP. В пилоте отправку поставщику вручную выполняет менеджер — Staffy только фиксирует результат проверки.</div>
+        </section>
+
+        <div class="layout" style="margin-top: 20px;">
+          <div class="stack">
+            <section class="card" aria-labelledby="version-title">
+              <div class="card-head">
+                <div><h2 id="version-title">Текущая версия заказа</h2><p class="subtle">Повторно прочитана из ABCP сегодня в <span class="tabular">13:42:18</span></p></div>
+                <span class="badge info"><span aria-hidden="true">i</span> ABCP · версия 4</span>
+              </div>
+              <div class="card-body stack">
+                <div class="facts">
+                  <div class="fact"><span class="label">Автомобиль</span><span class="fact-value">Toyota Camry XV70, 2019</span></div>
+                  <div class="fact"><span class="label">VIN</span><span class="fact-value mono">XW7BF4FK10S123456</span></div>
+                  <div class="fact"><span class="label">Запрос клиента</span><span class="fact-value">Передние тормозные колодки · 1 комплект</span></div>
+                </div>
+
+                <div>
+                  <h3>Доказательства применимости</h3>
+                  <div class="evidence-list" role="table" aria-label="Доказательства применимости">
+                    <div class="evidence-row evidence-head" role="row">
+                      <span role="columnheader">Источник</span><span role="columnheader">Значение</span><span role="columnheader">Версия и время</span><span role="columnheader">Состояние</span>
+                    </div>
+                    <div class="evidence-row" role="row">
+                      <span class="source" role="cell"><span lang="en">VIN</span> клиента</span><span class="mono" role="cell">XW7BF4FK10S123456</span><span role="cell">Подтверждён клиентом</span><span class="evidence-state" role="cell"><span aria-hidden="true">✓</span> Совпадает</span>
+                    </div>
+                    <div class="evidence-row" role="row">
+                      <span class="source" role="cell">Каталог TecDoc</span><span role="cell">Camry XV70 · 2.5 · передняя ось</span><span role="cell">Проверено <span class="tabular">13:37:54</span></span><span class="evidence-state" role="cell"><span aria-hidden="true">✓</span> Применимо</span>
+                    </div>
+                    <div class="evidence-row" role="row">
+                      <span class="source" role="cell"><span lang="en">OEM</span> / кросс</span><span class="mono" role="cell">04465-33480 → ADBP420123</span><span role="cell">Источник: каталог</span><span class="evidence-state" role="cell"><span aria-hidden="true">✓</span> Разрешён</span>
+                    </div>
+                    <div class="evidence-row" role="row">
+                      <span class="source" role="cell"><span lang="en">ABCP</span></span><span role="cell">Цена, наличие и срок</span><span role="cell">Версия 4 · <span class="tabular">13:42:18</span></span><span class="evidence-state info" role="cell"><span aria-hidden="true">i</span> Текущие</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="card" aria-labelledby="position-title">
+              <div class="card-head"><div><h2 id="position-title">Подтверждённая позиция</h2><p class="subtle">Точная версия, которую слышал и подтвердил клиент</p></div></div>
+              <div class="card-body">
+                <div class="order-item">
+                  <div class="part-thumb" aria-hidden="true">▥</div>
+                  <div><strong>BLUE PRINT ADBP420123</strong><p class="subtle">Колодки дисковые, передняя ось · аналог OEM <span class="mono">04465-33480</span></p><p style="margin-top: 7px;"><span class="badge info"><span aria-hidden="true">i</span> Каталогически применимо</span></p></div>
+                  <div><span class="label">Количество</span><strong class="tabular">1 комплект</strong></div>
+                  <div class="amount"><span class="label">Цена клиенту</span><span class="tabular">8&nbsp;940&nbsp;₽</span><p class="subtle" style="font-weight: 400;">Срок: 2 дня</p></div>
+                </div>
+                <div class="receipt">
+                  <span class="icon" aria-hidden="true">✓</span>
+                  <div><strong>Клиент подтвердил версию 4</strong><p>Сергей: «Подтверждаю: один комплект BLUE PRINT за 8&nbsp;940 рублей, срок два дня».</p><div class="receipt-meta"><span>Телефон · услышано полностью</span><span class="tabular">Сегодня, 13:38:51</span><span class="mono">confirmation cf_8f31</span></div></div>
+                </div>
+              </div>
+            </section>
+
+            <section class="card" aria-labelledby="one-c-title">
+              <div class="card-head"><div><h2 id="one-c-title">ABCP → 1С</h2><p class="subtle">Сквозная сверка не завершена</p></div><span class="badge info"><span aria-hidden="true">i</span> Ожидает внешнего действия</span></div>
+              <div class="card-body">
+                <div class="facts">
+                  <div class="fact"><span class="label">Correlation ID</span><span class="fact-value mono">stf-ap-20260913-10482</span></div>
+                  <div class="fact"><span class="label">ABCP</span><span class="fact-value">Клиентский заказ создан · версия 4</span></div>
+                  <div class="fact"><span class="label">1С</span><span class="fact-value">Не подтверждено · сверка после ручной отправки</span></div>
+                </div>
+                <p class="help" style="margin-top: 12px;">Создание клиентского заказа в ABCP не доказывает отправку поставщику и не доказывает появление заказа в 1С.</p>
+              </div>
+            </section>
+          </div>
+
+          <aside class="stack" aria-label="Решение менеджера">
+            <section class="owner" aria-labelledby="owner-title">
+              <h3 id="owner-title">Ответственный за проверку</h3>
+              <div class="owner-person"><span class="avatar" aria-hidden="true">А</span><div><strong>Антон · менеджер</strong><p class="subtle">Принял задачу в <span class="tabular">13:41</span></p></div></div>
+              <div class="lifecycle" aria-label="Состояние задачи">
+                <div class="life-step done">✓ Создана<br><span class="tabular">13:39</span></div>
+                <div class="life-step done">✓ Назначена<br><span class="tabular">13:40</span></div>
+                <div class="life-step done">✓ Принята<br><span class="tabular">13:41</span></div>
+                <div class="life-step active">● Проверяется<br>сейчас</div>
+              </div>
+              <p class="subtle" style="margin-top: 10px;">Срок 14:30 · резервный владелец Олег · уведомление подтверждено принятием в 13:41</p>
+            </section>
+
+            <section class="preview" aria-labelledby="decision-title">
+              <div class="preview-inner">
+                <h2 id="decision-title">Решение по версии 4</h2>
+                <p style="margin-top: 6px;">Перед действием Staffy ещё раз сверит, что ABCP по-прежнему показывает версию 4.</p>
+                <ul>
+                  <li><strong>Одобрить:</strong> зафиксировать receipt Антона для версии 4.</li>
+                  <li><strong>Не произойдёт:</strong> заказ не будет автоматически отправлен поставщику.</li>
+                  <li><strong>Дальше:</strong> Антон вручную продолжит процесс в ABCP и вернёт подтверждённый результат.</li>
+                </ul>
+              </div>
+              <div class="actions">
+                <button class="button primary" type="button">Одобрить подбор версии 4</button>
+                <button class="button danger" type="button">Заблокировать подбор</button>
+                <button class="button" type="button" disabled aria-describedby="supplier-help">Отправить поставщику</button>
+                <p class="help" id="supplier-help">Недоступно Staffy в текущем пилоте. Отправка — вручную в ABCP.</p>
+              </div>
+            </section>
+
+            <section class="card" aria-labelledby="gates-title">
+              <div class="card-head"><h3 id="gates-title">Открытые границы пилота</h3></div>
+              <div class="gate-list">
+                <div class="gate"><div class="gate-title"><span class="badge warning">OQ-3</span> Статус и supplier fence ABCP</div><p><span class="mono">pending_manager_verification</span> — нейтральная проекция Staffy, не доказанное название статуса ABCP. Сейчас путь только ручной; будущая автономная отправка возможна лишь после доказанного fence и нового допуска класса.</p></div>
+                <div class="gate"><div class="gate-title"><span class="badge warning">OQ-4</span> Граница ABCP → 1С</div><p>Terminal success запрещён без operation/correlation ID, повторного чтения и сверки обеих систем.</p></div>
+              </div>
+              <details>
+                <summary>Показать технические сведения</summary>
+                <div class="details-body"><p>Owning System заказа: ABCP. Версия: <span class="mono">4</span>. Correlation ID: <span class="mono">stf-ap-20260913-10482</span>. Статус 1С: <span class="mono">unknown / not reconciled</span>.</p></div>
+              </details>
+            </section>
+          </aside>
+        </div>
+
+        <section class="recovery" aria-labelledby="alternate-title">
+          <div class="recovery-head"><div><h2 id="alternate-title">Альтернативное состояние: версия изменилась</h2><p>ABCP уже показывает версию 5, а клиент и Антон работали с версией 4.</p></div><span class="badge danger"><span aria-hidden="true">×</span> Действие заблокировано</span></div>
+          <div class="recovery-grid">
+            <div>
+              <h3>Обнаружено расхождение</h3>
+              <div class="compare">
+                <div class="compare-cell"><span class="label">Подтверждено клиентом · версия 4</span><strong>ADBP420123 · 8&nbsp;940&nbsp;₽ · 2 дня</strong><p class="mono" style="margin-top: 5px;">13:38:51</p></div>
+                <div class="compare-cell"><span class="label">Текущая ABCP · версия 5</span><strong>Цена 9&nbsp;260&nbsp;₽ · срок 3 дня</strong><p class="mono" style="margin-top: 5px;">прочитано 13:47:09</p></div>
+              </div>
+              <p style="margin-top: 14px;"><strong>Следствие:</strong> старое Confirmation и approval для отправки недействительны. Требуется показать клиенту дельту и получить новое подтверждение.</p>
+            </div>
+            <div class="stack">
+              <div><span class="label">ABCP → 1С</span><strong>Исход неизвестен</strong><p>В 1С запись по <span class="mono">stf-ap-20260913-10482</span> не подтверждена. Повторное создание заказа запрещено.</p></div>
+              <button class="button" type="button">Сверить ABCP и 1С</button>
+              <button class="button" type="button">Передать Антону для звонка клиенту</button>
+              <p class="help">Response Owner остаётся Антон. Staffy не отвечает клиенту параллельно и не отправляет заказ поставщику.</p>
+            </div>
+          </div>
+        </section>
+
+        <p class="footer-note">Непроизводственный UX-референс · данные вымышлены · точные названия ABCP и поведение интеграции требуют проверки OQ-3/OQ-4 на аккаунте Олега.</p>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Staffy — финальная UX-проверка</title>
+  <style>
+    :root{--canvas:#f3f5f2;--surface:#fff;--text:#1e2925;--muted:#66736d;--border:#d7ded9;--control:#6f7b75;--primary:#315e4c;--success:#185438;--success-bg:#e8f5ee;--warning:#7a400b;--warning-bg:#fff4e6;--focus:#7c4dff}
+    *{box-sizing:border-box}html,body{margin:0;max-width:100%;overflow-x:hidden}body{min-width:320px;background:var(--canvas);color:var(--text);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}a{color:var(--primary)}a:focus-visible{outline:3px solid var(--focus);outline-offset:3px}.wrap{width:min(1040px,calc(100% - 32px));margin:32px auto 64px}.head{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;margin-bottom:20px}.head h1{margin:0;font-size:28px;line-height:36px}.head p{margin:5px 0 0;color:var(--muted)}.pass{display:inline-flex;min-height:44px;align-items:center;padding:8px 14px;border:1px solid #247a52;border-radius:999px;background:var(--success-bg);color:var(--success);font-weight:700}.summary,.panel{border:1px solid var(--border);border-radius:14px;background:var(--surface)}.summary{padding:22px;margin-bottom:18px;border-left:5px solid #247a52}.summary h2,.panel h2{margin:0 0 8px;font-size:19px;line-height:27px}.summary p,.panel p{margin:6px 0}.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:18px}.metric{min-width:0;padding:15px;border:1px solid var(--border);border-radius:10px;background:var(--surface)}.metric span{display:block;color:var(--muted);font-size:13px}.metric strong{display:block;margin-top:4px;font-size:18px}.panel{padding:20px;margin-top:18px}.checks{display:grid;grid-template-columns:1fr 1fr;gap:8px 24px;margin:12px 0 0;padding:0;list-style:none}.checks li{position:relative;padding-left:24px}.checks li:before{content:"✓";position:absolute;left:0;color:#247a52;font-weight:800}.gates{width:100%;border-collapse:collapse}.gates th,.gates td{padding:12px;text-align:left;vertical-align:top;border-top:1px solid var(--border)}.gates th{font-size:13px;color:var(--muted)}.note{margin-top:18px;padding:16px;border:1px solid #b56617;border-radius:10px;background:var(--warning-bg);color:var(--warning)}.links{display:flex;flex-wrap:wrap;gap:8px}.links a{min-height:44px;display:inline-flex;align-items:center;padding:8px 12px;border:1px solid var(--control);border-radius:8px;background:var(--surface);text-decoration:none;font-weight:650}.foot{margin-top:28px;color:var(--muted);font-size:13px}@media(max-width:760px){.head{display:block}.pass{margin-top:14px}.grid{grid-template-columns:1fr 1fr}.checks{grid-template-columns:1fr}.gates,.gates tbody,.gates tr,.gates th,.gates td{display:block}.gates thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}.gates tr{padding:10px 0;border-top:1px solid var(--border)}.gates td{padding:4px 0;border:0}.gates td:first-child{font-weight:700}}@media(max-width:380px){.grid{grid-template-columns:1fr}.wrap{width:calc(100% - 24px);margin-top:20px}}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header class="head">
+      <div><h1>Финальная UX-проверка Staffy</h1><p>DESIGN.md + EXPERIENCE.md · 13 сентября 2026</p></div>
+      <span class="pass">PASS · готово к Architecture</span>
+    </header>
+
+    <section class="summary" aria-labelledby="verdict">
+      <h2 id="verdict">Открытых UX-дефектов не осталось</h2>
+      <p>Rubric, safety/operations, accessibility, structure и prose прошли повторную проверку после исправлений. Макеты не показывают ложный успех, неподтверждённые полномочия или преждевременные коммерческие обещания.</p>
+      <p><strong>Граница:</strong> это готовность UX-контракта, а не разрешение на live mutation и не доказательство WCAG 2.2 AA готового приложения.</p>
+    </section>
+
+    <section class="grid" aria-label="Итоги проверки">
+      <div class="metric"><span>Пользовательские маршруты</span><strong>19 / 19</strong></div>
+      <div class="metric"><span>Парные компоненты</span><strong>26 / 26</strong></div>
+      <div class="metric"><span>Ключевые макеты</span><strong>4 / 4</strong></div>
+      <div class="metric"><span>Открытые дефекты R2</span><strong>0</strong></div>
+    </section>
+
+    <section class="panel" aria-labelledby="coverage">
+      <h2 id="coverage">Что подтверждено</h2>
+      <ul class="checks">
+        <li>Machine-readable tokens и все ссылки разрешаются.</li>
+        <li>26 визуальных и поведенческих компонентов спарены.</li>
+        <li>State matrix охватывает все IA web-поверхности.</li>
+        <li>13 portable sources доступны внутри репозитория.</li>
+        <li>6 mockups и 5 wireframes связаны из spines.</li>
+        <li>Key screens автономны и перестраиваются на 320 CSS px.</li>
+        <li>Accessibility findings первого прохода закрыты.</li>
+        <li>Walking skeleton ограничен четырьмя Staffy-поверхностями.</li>
+      </ul>
+    </section>
+
+    <section class="panel" aria-labelledby="gates">
+      <h2 id="gates">Внешние gates, которые нельзя забыть</h2>
+      <table class="gates">
+        <thead><tr><th>Gate</th><th>Нужно доказать</th><th>До PASS</th></tr></thead>
+        <tbody>
+          <tr><td>OQ-2 · Jivo</td><td>Reply, assignment, acknowledgement, writer exclusion, timeout, return.</td><td>Human-only либо один доказанный composer.</td></tr>
+          <tr><td>OQ-3/4 · ABCP→1С</td><td>Права, supplier fence, correlation, reconciliation.</td><td>Exact-version manual-with-audit, без terminal success.</td></tr>
+          <tr><td>OQ-19 · Authority</td><td>State/Authority Matrix для каждого материального поля.</td><td>Неописанное состояние = unknown; действие запрещено.</td></tr>
+          <tr><td>OQ-10 · Montagio</td><td>Legal, accounting, ККТ/налоги, качество, резерв и возвраты.</td><td>Только intake/no promises; нет публичных заказа и оплаты.</td></tr>
+        </tbody>
+      </table>
+      <div class="note"><strong>Следующий этап:</strong> Architecture обязана начать с OQ-19 и не трактовать этот PASS как доказательство возможностей Jivo, ABCP→1С или коммерческой готовности Montagio.</div>
+    </section>
+
+    <section class="panel" aria-labelledby="evidence">
+      <h2 id="evidence">Материалы</h2>
+      <div class="links">
+        <a href="DESIGN.md">Визуальный контракт</a>
+        <a href="EXPERIENCE.md">Поведенческий контракт</a>
+        <a href="review-rubric-r2.md">Rubric R2</a>
+        <a href="review-safety-operations-r2.md">Safety R2</a>
+        <a href="review-accessibility-r2.md">Accessibility R2</a>
+        <a href="review-editorial.md">Editorial review</a>
+      </div>
+    </section>
+
+    <p class="foot">Полный перечень OQ и точные моменты их решения сохранены в EXPERIENCE.md.</p>
+  </main>
+</body>
+</html>

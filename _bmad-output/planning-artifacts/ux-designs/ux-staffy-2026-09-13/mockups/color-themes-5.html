@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Staffy — пять светлых цветовых систем</title>
+  <style>
+    *{box-sizing:border-box}
+    html,body{margin:0;max-width:100%;overflow-x:hidden}
+    body{background:#E7EBF0;color:#172033;font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    button{font:inherit}
+    .page{width:min(1540px,calc(100% - 32px));margin:0 auto;padding:42px 0 80px}
+    .page-head{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,520px);gap:28px;align-items:end;margin-bottom:34px}
+    .eyebrow{margin:0 0 9px;color:#586579;font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+    h1{margin:0;font-size:clamp(34px,5vw,64px);line-height:.98;letter-spacing:-.045em}
+    .lead{margin:0;color:#526073;font-size:16px;line-height:1.55}
+    .scope{grid-column:1/-1;padding:12px 15px;border-left:4px solid #55657A;background:#F6F8FA;color:#455267;font-size:13px}
+    .theme{min-width:0;margin:0 0 44px;padding:20px;border:1px solid #C6CED8;background:#F7F8FA;box-shadow:0 16px 40px rgba(24,36,54,.10)}
+    .theme-head{display:grid;grid-template-columns:68px minmax(0,1fr) auto;gap:18px;align-items:center;margin-bottom:16px}
+    .theme-number{color:#778293;font-size:32px;font-weight:850}
+    .theme-head h2{margin:0 0 3px;font-size:25px;letter-spacing:-.025em}
+    .theme-head p{margin:0;color:#5A6678;font-size:13px;line-height:1.5}
+    .light-only{padding:6px 9px;border:1px solid #BFC7D2;border-radius:999px;color:#576477;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
+    .tokens{display:grid;grid-template-columns:repeat(12,minmax(84px,1fr));gap:6px;margin:0 0 15px}
+    .token{min-width:0;display:grid;grid-template-columns:18px minmax(0,1fr);gap:3px 7px;align-items:center;padding:7px;border:1px solid #D4DAE2;background:#FFF;color:#222;font-size:10px}
+    .token i{grid-row:1/3;width:18px;height:26px;border:1px solid rgba(0,0,0,.14)}
+    .token span{overflow-wrap:anywhere;font-weight:700}
+    .token code{font:9px ui-monospace,SFMono-Regular,Consolas,monospace;color:inherit;opacity:.74}
+    /* 01 Северный кедр. HEX: canvas #F3F5F2; surface #FFFFFF; text #1E2925; muted #66736D; border #D7DED9; primary #315E4C; on-primary #FFFFFF; success #247A52; warning #B56617; danger #B4424B; info #356C9B; focus #7C4DFF. */
+.theme.cedar{--canvas:#F3F5F2;--surface:#FFFFFF;--text:#1E2925;--muted:#66736D;--border:#D7DED9;--primary:#315E4C;--on-primary:#FFFFFF;--success:#247A52;--warning:#B56617;--danger:#B4424B;--info:#356C9B;--focus:#7C4DFF;}
+/* 02 Тёплая глина. HEX: canvas #F8F1E8; surface #FFFDF9; text #342820; muted #796A60; border #E2D4C6; primary #A44F32; on-primary #FFFDFC; success #527A5B; warning #B06A16; danger #B23C46; info #376F8A; focus #6D4AFF. */
+.theme.clay{--canvas:#F8F1E8;--surface:#FFFDF9;--text:#342820;--muted:#796A60;--border:#E2D4C6;--primary:#A44F32;--on-primary:#FFFDFC;--success:#527A5B;--warning:#B06A16;--danger:#B23C46;--info:#376F8A;--focus:#6D4AFF;}
+/* 03 Ясный кобальт. HEX: canvas #EEF4FA; surface #FFFFFF; text #17283B; muted #63758A; border #CDDAE7; primary #245AA8; on-primary #FFFFFF; success #168267; warning #C06D16; danger #C23F4F; info #147D9C; focus #8B4DFF. */
+.theme.cobalt{--canvas:#EEF4FA;--surface:#FFFFFF;--text:#17283B;--muted:#63758A;--border:#CDDAE7;--primary:#245AA8;--on-primary:#FFFFFF;--success:#168267;--warning:#C06D16;--danger:#C23F4F;--info:#147D9C;--focus:#8B4DFF;}
+/* 04 Сливовый минерал. HEX: canvas #F5F1F7; surface #FFFCFF; text #2C2430; muted #756B79; border #DDD3E1; primary #6E3E6B; on-primary #FFFFFF; success #287B70; warning #A66D18; danger #B83E5A; info #4C68A9; focus #D34BFF. */
+.theme.plum{--canvas:#F5F1F7;--surface:#FFFCFF;--text:#2C2430;--muted:#756B79;--border:#DDD3E1;--primary:#6E3E6B;--on-primary:#FFFFFF;--success:#287B70;--warning:#A66D18;--danger:#B83E5A;--info:#4C68A9;--focus:#D34BFF;}
+/* 05 Графит и сигнал. HEX: canvas #F2F3F5; surface #FFFFFF; text #17191C; muted #656A73; border #D2D5DA; primary #262B31; on-primary #FFFFFF; success #087A46; warning #A85E00; danger #C12F3F; info #1768B2; focus #00A7C7. */
+.theme.graphite{--canvas:#F2F3F5;--surface:#FFFFFF;--text:#17191C;--muted:#656A73;--border:#D2D5DA;--primary:#262B31;--on-primary:#FFFFFF;--success:#087A46;--warning:#A85E00;--danger:#C12F3F;--info:#1768B2;--focus:#00A7C7;}
+    .mock{min-width:0;overflow:hidden;border:1px solid var(--border);background:var(--canvas);color:var(--text)}
+    .window{height:34px;display:flex;align-items:center;gap:6px;padding:0 12px;border-bottom:1px solid var(--border);background:var(--surface)}
+    .window>span{width:8px;height:8px;border-radius:50%;background:var(--border)}
+    .window small{margin-left:auto;color:var(--muted);font-size:10px}
+    .app{min-width:0;display:grid;grid-template-columns:178px minmax(0,1fr);min-height:650px}
+    .nav{min-width:0;padding:22px 14px;border-right:1px solid var(--border);background:var(--surface)}
+    .brand{display:block;margin:0 9px 29px;color:var(--text);font-size:18px;letter-spacing:-.03em}
+    .nav>span{display:block;margin:3px 0;padding:9px 10px;border-radius:9px;color:var(--muted);font-size:12px}
+    .nav>span.active{background:var(--primary);color:var(--on-primary);font-weight:750}
+    .nav-foot{margin:198px 10px 0;color:var(--muted);font-size:10px;line-height:1.55}
+    .content{min-width:0;padding:24px 27px 30px}
+    .today-head{display:flex;justify-content:space-between;gap:20px;align-items:end;margin-bottom:18px}
+    .today-head h3{margin:0;font-size:31px;letter-spacing:-.04em}
+    .today-head p{margin:3px 0 0;color:var(--muted);font-size:12px}
+    .date{color:var(--muted);font-size:11px}
+    .urgent{min-width:0;display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:14px;align-items:center;padding:17px;border:1px solid var(--warning);background:var(--surface);box-shadow:inset 4px 0 0 var(--warning)}
+    .signal{width:30px;height:30px;display:grid;place-items:center;border:1px solid currentColor;border-radius:50%;font-weight:850}
+    .signal.warning{color:var(--warning)}
+    .signal.info{color:var(--info)}
+    .overline{color:var(--warning);font-size:9px;font-weight:850;text-transform:uppercase;letter-spacing:.09em}
+    .urgent h4{margin:4px 0 3px;font-size:17px}
+    .urgent p{margin:0;color:var(--muted);font-size:11px;line-height:1.4}
+    .urgent small{display:block;margin-top:6px;color:var(--text);font-size:10px}
+    .urgent button{padding:10px 13px;border:1px solid var(--primary);border-radius:8px;background:var(--primary);color:var(--on-primary);font-weight:750;font-size:11px}
+    .urgent button:focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+    .kpis{min-width:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin:14px 0;border:1px solid var(--border);background:var(--surface)}
+    .kpis>div{min-width:0;padding:13px 15px;border-right:1px solid var(--border)}
+    .kpis>div:last-child{border-right:0}
+    .kpis span{display:block;min-height:26px;color:var(--muted);font-size:10px;line-height:1.3}
+    .kpis strong{display:block;font-size:22px;letter-spacing:-.035em}
+    .kpis small{color:var(--muted);font-size:9px}
+    .body-grid{min-width:0;display:grid;grid-template-columns:minmax(0,1.45fr) minmax(250px,.75fr);gap:14px}
+    .panel{min-width:0;border:1px solid var(--border);background:var(--surface)}
+    .panel-head{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:13px 15px;border-bottom:1px solid var(--border)}
+    .panel-head h4{margin:0;font-size:13px}
+    .panel-head span{color:var(--muted);font-size:10px}
+    .employee-grid{min-width:0;display:grid;grid-template-columns:1fr 1fr}
+    .employee{min-width:0;display:grid;grid-template-columns:38px minmax(0,1fr);gap:11px;padding:15px;border-right:1px solid var(--border)}
+    .employee:last-child{border-right:0}
+    .avatar{width:38px;height:38px;display:grid;place-items:center;border-radius:14px 14px 14px 5px;background:var(--primary);color:var(--on-primary);font-weight:850}
+    .employee-main{min-width:0}
+    .employee h5{margin:1px 0 3px;font-size:12px;overflow-wrap:anywhere}
+    .employee p{margin:0;color:var(--muted);font-size:9px;overflow-wrap:anywhere}
+    .state{display:inline-flex;max-width:100%;align-items:center;gap:5px;margin-top:9px;padding:4px 6px;border:1px solid currentColor;border-radius:999px;font-size:9px;overflow-wrap:anywhere}
+    .state i{width:6px;height:6px;border-radius:50%;background:currentColor}
+    .state-warning{color:var(--warning)}
+    .state-info{color:var(--info)}
+    dl{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:14px 0 0}
+    dl div{padding:8px;background:var(--canvas)}
+    dt{color:var(--muted);font-size:8px}
+    dd{margin:2px 0 0;font-size:17px;font-weight:800}
+    .ready-row{min-width:0;display:grid;grid-template-columns:30px minmax(0,1fr);gap:10px;padding:14px 15px;border-bottom:1px solid var(--border)}
+    .ready-row:last-child{border-bottom:0}
+    .ready-row b{display:block;margin-bottom:4px;font-size:11px;overflow-wrap:anywhere}
+    .ready-row p{margin:0;color:var(--muted);font-size:9px;line-height:1.45;overflow-wrap:anywhere}
+    .limited{box-shadow:inset 3px 0 0 var(--warning)}
+    .next{box-shadow:inset 3px 0 0 var(--info)}
+    @media(max-width:1180px){
+      .tokens{grid-template-columns:repeat(6,minmax(90px,1fr))}
+      .body-grid{grid-template-columns:1fr}
+    }
+    @media(max-width:800px){
+      .page-head,.theme-head{grid-template-columns:1fr}
+      .scope{grid-column:auto}
+      .light-only{justify-self:start}
+      .app{grid-template-columns:1fr}
+      .nav{display:flex;overflow-x:auto;gap:4px;padding:9px;border-right:0;border-bottom:1px solid var(--border)}
+      .brand,.nav-foot{display:none}
+      .nav>span{flex:0 0 auto;margin:0}
+      .content{padding:18px 14px 22px}
+      .today-head{align-items:start;flex-direction:column}
+      .urgent{grid-template-columns:32px minmax(0,1fr)}
+      .urgent button{grid-column:1/-1;width:100%}
+      .employee-grid{grid-template-columns:1fr}
+      .employee{border-right:0;border-bottom:1px solid var(--border)}
+      .employee:last-child{border-bottom:0}
+    }
+    @media(max-width:560px){
+      .page{width:calc(100% - 12px);padding-top:18px}
+      .theme{padding:7px;margin-bottom:24px}
+      .tokens{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .window{display:none}
+      .kpis{grid-template-columns:1fr 1fr}
+      .kpis>div{border-bottom:1px solid var(--border)}
+      .kpis>div:nth-child(2){border-right:0}
+      .kpis>div:nth-child(n+3){border-bottom:0}
+      .urgent small{overflow-wrap:anywhere}
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="page-head">
+      <div><p class="eyebrow">BMad UX · Color Themes</p><h1>Пять светлых систем Staffy</h1></div>
+      <p class="lead">Одинаковый экран «Сегодня» проверяет цвет на реальной семантике: две отрасли, срочное человеческое решение, ограниченный Connector, деловые исходы, расход и следующий шаг.</p>
+      <div class="scope">Композиционная основа: спокойная операционная система + человеческое ощущение команды + направляющий следующий шаг. Dark mode остаётся открытым решением и здесь намеренно не проектируется.</div>
+    </header>
+    <article class="theme cedar" aria-labelledby="cedar-title">
+    <header class="theme-head"><div class="theme-number">01</div><div><h2 id="cedar-title">Северный кедр</h2><p>Спокойный, надёжный, собранный — для ежедневной операционной работы без ощущения тревожной диспетчерской.</p></div><span class="light-only">Light only</span></header>
+    <div class="tokens" aria-label="Семантические цветовые токены"><div class="token"><i style="background:#F3F5F2"></i><span>Canvas</span><code>#F3F5F2</code></div><div class="token"><i style="background:#FFFFFF"></i><span>Surface</span><code>#FFFFFF</code></div><div class="token"><i style="background:#1E2925"></i><span>Text</span><code>#1E2925</code></div><div class="token"><i style="background:#66736D"></i><span>Muted</span><code>#66736D</code></div><div class="token"><i style="background:#D7DED9"></i><span>Border</span><code>#D7DED9</code></div><div class="token"><i style="background:#315E4C"></i><span>Primary</span><code>#315E4C</code></div><div class="token" style="background:#315E4C;color:#FFFFFF"><i style="background:#FFFFFF"></i><span>On primary</span><code>#FFFFFF</code></div><div class="token"><i style="background:#247A52"></i><span>Success</span><code>#247A52</code></div><div class="token"><i style="background:#B56617"></i><span>Warning</span><code>#B56617</code></div><div class="token"><i style="background:#B4424B"></i><span>Danger</span><code>#B4424B</code></div><div class="token"><i style="background:#356C9B"></i><span>Info</span><code>#356C9B</code></div><div class="token"><i style="background:#7C4DFF"></i><span>Focus</span><code>#7C4DFF</code></div></div>
+    <section class="mock" aria-label="Пример экрана Сегодня">
+    <div class="window"><span></span><span></span><span></span><small>Демо-данные · только светлая тема</small></div>
+    <div class="app">
+      <nav class="nav" aria-label="Основная навигация">
+        <b class="brand">Staffy</b>
+        <span class="active">Сегодня</span><span>Сотрудники</span><span>Работа</span><span>Подключения</span><span>Результаты</span><span>Организация</span>
+        <div class="nav-foot">2 сотрудника<br>1 решение ждёт вас</div>
+      </nav>
+      <div class="content">
+        <header class="today-head"><div><h3>Сегодня</h3><p>Главное для владельца — один следующий шаг</p></div><div class="date">13 сентября · 14:12</div></header>
+        <section class="urgent">
+          <div class="signal warning" aria-hidden="true">!</div>
+          <div><span class="overline">Нужно решение до 14:30</span><h4>Проверить заказ Сергея</h4><p>Camry 2018 · передние колодки. Заказ ABCP создан, поставщику ещё не отправлен.</p><small>После принятия Антон — единственный Response Owner. Staffy не пишет параллельно.</small></div>
+          <button>Открыть проверку</button>
+        </section>
+        <div class="kpis">
+          <div><span>Целевые обращения</span><strong>18</strong></div>
+          <div><span>Верные следующие шаги</span><strong>7</strong></div>
+          <div><span>Подтверждённые заказы</span><strong>3</strong></div>
+          <div><span>Расход сегодня</span><strong>3 840 ₽</strong><small>из 8 000 ₽</small></div>
+        </div>
+        <div class="body-grid">
+          <section class="panel employees">
+            <div class="panel-head"><h4>Ваши сотрудники</h4><span>за сегодня</span></div>
+            <div class="employee-grid">
+              <article class="employee">
+                <div class="avatar">О</div><div class="employee-main"><h5>Менеджер магазина Олега</h5><p>Телефон · Jivo · ABCP</p><span class="state state-warning"><i></i>Работает с ограничениями</span></div>
+                <dl><div><dt>Обращения</dt><dd>11</dd></div><div><dt>Заказы</dt><dd>2</dd></div></dl>
+              </article>
+              <article class="employee">
+                <div class="avatar">М</div><div class="employee-main"><h5>Диспетчер Montagio</h5><p>Novofon · чат сайта · услуги</p><span class="state state-info"><i></i>На испытании</span></div>
+                <dl><div><dt>Обращения</dt><dd>7</dd></div><div><dt>Заказы</dt><dd>1</dd></div></dl>
+              </article>
+            </div>
+          </section>
+          <aside class="panel readiness">
+            <div class="panel-head"><h4>Готовность и следом</h4><span>2 пункта</span></div>
+            <div class="ready-row limited"><span class="signal warning">!</span><div><b>Mango Office ждёт проверки transfer</b><p>До проверки безопасный fallback — callback. Jivo продолжает работать.</p></div></div>
+            <div class="ready-row next"><span class="signal info">→</span><div><b>Прослушать звонок Montagio</b><p>Проверить перебивание и подтверждение цены перед следующим допуском.</p></div></div>
+          </aside>
+        </div>
+      </div>
+    </div>
+  </section>
+  </article>
+<article class="theme clay" aria-labelledby="clay-title">
+    <header class="theme-head"><div class="theme-number">02</div><div><h2 id="clay-title">Тёплая глина</h2><p>Человечный и ремесленный регистр: Staffy ощущается командой сотрудников, а не холодной технологической панелью.</p></div><span class="light-only">Light only</span></header>
+    <div class="tokens" aria-label="Семантические цветовые токены"><div class="token"><i style="background:#F8F1E8"></i><span>Canvas</span><code>#F8F1E8</code></div><div class="token"><i style="background:#FFFDF9"></i><span>Surface</span><code>#FFFDF9</code></div><div class="token"><i style="background:#342820"></i><span>Text</span><code>#342820</code></div><div class="token"><i style="background:#796A60"></i><span>Muted</span><code>#796A60</code></div><div class="token"><i style="background:#E2D4C6"></i><span>Border</span><code>#E2D4C6</code></div><div class="token"><i style="background:#A44F32"></i><span>Primary</span><code>#A44F32</code></div><div class="token" style="background:#A44F32;color:#FFFDFC"><i style="background:#FFFDFC"></i><span>On primary</span><code>#FFFDFC</code></div><div class="token"><i style="background:#527A5B"></i><span>Success</span><code>#527A5B</code></div><div class="token"><i style="background:#B06A16"></i><span>Warning</span><code>#B06A16</code></div><div class="token"><i style="background:#B23C46"></i><span>Danger</span><code>#B23C46</code></div><div class="token"><i style="background:#376F8A"></i><span>Info</span><code>#376F8A</code></div><div class="token"><i style="background:#6D4AFF"></i><span>Focus</span><code>#6D4AFF</code></div></div>
+    <section class="mock" aria-label="Пример экрана Сегодня">
+    <div class="window"><span></span><span></span><span></span><small>Демо-данные · только светлая тема</small></div>
+    <div class="app">
+      <nav class="nav" aria-label="Основная навигация">
+        <b class="brand">Staffy</b>
+        <span class="active">Сегодня</span><span>Сотрудники</span><span>Работа</span><span>Подключения</span><span>Результаты</span><span>Организация</span>
+        <div class="nav-foot">2 сотрудника<br>1 решение ждёт вас</div>
+      </nav>
+      <div class="content">
+        <header class="today-head"><div><h3>Сегодня</h3><p>Главное для владельца — один следующий шаг</p></div><div class="date">13 сентября · 14:12</div></header>
+        <section class="urgent">
+          <div class="signal warning" aria-hidden="true">!</div>
+          <div><span class="overline">Нужно решение до 14:30</span><h4>Проверить заказ Сергея</h4><p>Camry 2018 · передние колодки. Заказ ABCP создан, поставщику ещё не отправлен.</p><small>После принятия Антон — единственный Response Owner. Staffy не пишет параллельно.</small></div>
+          <button>Открыть проверку</button>
+        </section>
+        <div class="kpis">
+          <div><span>Целевые обращения</span><strong>18</strong></div>
+          <div><span>Верные следующие шаги</span><strong>7</strong></div>
+          <div><span>Подтверждённые заказы</span><strong>3</strong></div>
+          <div><span>Расход сегодня</span><strong>3 840 ₽</strong><small>из 8 000 ₽</small></div>
+        </div>
+        <div class="body-grid">
+          <section class="panel employees">
+            <div class="panel-head"><h4>Ваши сотрудники</h4><span>за сегодня</span></div>
+            <div class="employee-grid">
+              <article class="employee">
+                <div class="avatar">О</div><div class="employee-main"><h5>Менеджер магазина Олега</h5><p>Телефон · Jivo · ABCP</p><span class="state state-warning"><i></i>Работает с ограничениями</span></div>
+                <dl><div><dt>Обращения</dt><dd>11</dd></div><div><dt>Заказы</dt><dd>2</dd></div></dl>
+              </article>
+              <article class="employee">
+                <div class="avatar">М</div><div class="employee-main"><h5>Диспетчер Montagio</h5><p>Novofon · чат сайта · услуги</p><span class="state state-info"><i></i>На испытании</span></div>
+                <dl><div><dt>Обращения</dt><dd>7</dd></div><div><dt>Заказы</dt><dd>1</dd></div></dl>
+              </article>
+            </div>
+          </section>
+          <aside class="panel readiness">
+            <div class="panel-head"><h4>Готовность и следом</h4><span>2 пункта</span></div>
+            <div class="ready-row limited"><span class="signal warning">!</span><div><b>Mango Office ждёт проверки transfer</b><p>До проверки безопасный fallback — callback. Jivo продолжает работать.</p></div></div>
+            <div class="ready-row next"><span class="signal info">→</span><div><b>Прослушать звонок Montagio</b><p>Проверить перебивание и подтверждение цены перед следующим допуском.</p></div></div>
+          </aside>
+        </div>
+      </div>
+    </div>
+  </section>
+  </article>
+<article class="theme cobalt" aria-labelledby="cobalt-title">
+    <header class="theme-head"><div class="theme-number">03</div><div><h2 id="cobalt-title">Ясный кобальт</h2><p>Чёткий деловой оптимизм: высокая различимость состояний, быстрый обзор и ощущение проверяемой готовности.</p></div><span class="light-only">Light only</span></header>
+    <div class="tokens" aria-label="Семантические цветовые токены"><div class="token"><i style="background:#EEF4FA"></i><span>Canvas</span><code>#EEF4FA</code></div><div class="token"><i style="background:#FFFFFF"></i><span>Surface</span><code>#FFFFFF</code></div><div class="token"><i style="background:#17283B"></i><span>Text</span><code>#17283B</code></div><div class="token"><i style="background:#63758A"></i><span>Muted</span><code>#63758A</code></div><div class="token"><i style="background:#CDDAE7"></i><span>Border</span><code>#CDDAE7</code></div><div class="token"><i style="background:#245AA8"></i><span>Primary</span><code>#245AA8</code></div><div class="token" style="background:#245AA8;color:#FFFFFF"><i style="background:#FFFFFF"></i><span>On primary</span><code>#FFFFFF</code></div><div class="token"><i style="background:#168267"></i><span>Success</span><code>#168267</code></div><div class="token"><i style="background:#C06D16"></i><span>Warning</span><code>#C06D16</code></div><div class="token"><i style="background:#C23F4F"></i><span>Danger</span><code>#C23F4F</code></div><div class="token"><i style="background:#147D9C"></i><span>Info</span><code>#147D9C</code></div><div class="token"><i style="background:#8B4DFF"></i><span>Focus</span><code>#8B4DFF</code></div></div>
+    <section class="mock" aria-label="Пример экрана Сегодня">
+    <div class="window"><span></span><span></span><span></span><small>Демо-данные · только светлая тема</small></div>
+    <div class="app">
+      <nav class="nav" aria-label="Основная навигация">
+        <b class="brand">Staffy</b>
+        <span class="active">Сегодня</span><span>Сотрудники</span><span>Работа</span><span>Подключения</span><span>Результаты</span><span>Организация</span>
+        <div class="nav-foot">2 сотрудника<br>1 решение ждёт вас</div>
+      </nav>
+      <div class="content">
+        <header class="today-head"><div><h3>Сегодня</h3><p>Главное для владельца — один следующий шаг</p></div><div class="date">13 сентября · 14:12</div></header>
+        <section class="urgent">
+          <div class="signal warning" aria-hidden="true">!</div>
+          <div><span class="overline">Нужно решение до 14:30</span><h4>Проверить заказ Сергея</h4><p>Camry 2018 · передние колодки. Заказ ABCP создан, поставщику ещё не отправлен.</p><small>После принятия Антон — единственный Response Owner. Staffy не пишет параллельно.</small></div>
+          <button>Открыть проверку</button>
+        </section>
+        <div class="kpis">
+          <div><span>Целевые обращения</span><strong>18</strong></div>
+          <div><span>Верные следующие шаги</span><strong>7</strong></div>
+          <div><span>Подтверждённые заказы</span><strong>3</strong></div>
+          <div><span>Расход сегодня</span><strong>3 840 ₽</strong><small>из 8 000 ₽</small></div>
+        </div>
+        <div class="body-grid">
+          <section class="panel employees">
+            <div class="panel-head"><h4>Ваши сотрудники</h4><span>за сегодня</span></div>
+            <div class="employee-grid">
+              <article class="employee">
+                <div class="avatar">О</div><div class="employee-main"><h5>Менеджер магазина Олега</h5><p>Телефон · Jivo · ABCP</p><span class="state state-warning"><i></i>Работает с ограничениями</span></div>
+                <dl><div><dt>Обращения</dt><dd>11</dd></div><div><dt>Заказы</dt><dd>2</dd></div></dl>
+              </article>
+              <article class="employee">
+                <div class="avatar">М</div><div class="employee-main"><h5>Диспетчер Montagio</h5><p>Novofon · чат сайта · услуги</p><span class="state state-info"><i></i>На испытании</span></div>
+                <dl><div><dt>Обращения</dt><dd>7</dd></div><div><dt>Заказы</dt><dd>1</dd></div></dl>
+              </article>
+            </div>
+          </section>
+          <aside class="panel readiness">
+            <div class="panel-head"><h4>Готовность и следом</h4><span>2 пункта</span></div>
+            <div class="ready-row limited"><span class="signal warning">!</span><div><b>Mango Office ждёт проверки transfer</b><p>До проверки безопасный fallback — callback. Jivo продолжает работать.</p></div></div>
+            <div class="ready-row next"><span class="signal info">→</span><div><b>Прослушать звонок Montagio</b><p>Проверить перебивание и подтверждение цены перед следующим допуском.</p></div></div>
+          </aside>
+        </div>
+      </div>
+    </div>
+  </section>
+  </article>
+<article class="theme plum" aria-labelledby="plum-title">
+    <header class="theme-head"><div class="theme-number">04</div><div><h2 id="plum-title">Сливовый минерал</h2><p>Сдержанный премиальный характер без демонстративной роскоши: спокойная глубина для дорогих обязательств и экспертной работы.</p></div><span class="light-only">Light only</span></header>
+    <div class="tokens" aria-label="Семантические цветовые токены"><div class="token"><i style="background:#F5F1F7"></i><span>Canvas</span><code>#F5F1F7</code></div><div class="token"><i style="background:#FFFCFF"></i><span>Surface</span><code>#FFFCFF</code></div><div class="token"><i style="background:#2C2430"></i><span>Text</span><code>#2C2430</code></div><div class="token"><i style="background:#756B79"></i><span>Muted</span><code>#756B79</code></div><div class="token"><i style="background:#DDD3E1"></i><span>Border</span><code>#DDD3E1</code></div><div class="token"><i style="background:#6E3E6B"></i><span>Primary</span><code>#6E3E6B</code></div><div class="token" style="background:#6E3E6B;color:#FFFFFF"><i style="background:#FFFFFF"></i><span>On primary</span><code>#FFFFFF</code></div><div class="token"><i style="background:#287B70"></i><span>Success</span><code>#287B70</code></div><div class="token"><i style="background:#A66D18"></i><span>Warning</span><code>#A66D18</code></div><div class="token"><i style="background:#B83E5A"></i><span>Danger</span><code>#B83E5A</code></div><div class="token"><i style="background:#4C68A9"></i><span>Info</span><code>#4C68A9</code></div><div class="token"><i style="background:#D34BFF"></i><span>Focus</span><code>#D34BFF</code></div></div>
+    <section class="mock" aria-label="Пример экрана Сегодня">
+    <div class="window"><span></span><span></span><span></span><small>Демо-данные · только светлая тема</small></div>
+    <div class="app">
+      <nav class="nav" aria-label="Основная навигация">
+        <b class="brand">Staffy</b>
+        <span class="active">Сегодня</span><span>Сотрудники</span><span>Работа</span><span>Подключения</span><span>Результаты</span><span>Организация</span>
+        <div class="nav-foot">2 сотрудника<br>1 решение ждёт вас</div>
+      </nav>
+      <div class="content">
+        <header class="today-head"><div><h3>Сегодня</h3><p>Главное для владельца — один следующий шаг</p></div><div class="date">13 сентября · 14:12</div></header>
+        <section class="urgent">
+          <div class="signal warning" aria-hidden="true">!</div>
+          <div><span class="overline">Нужно решение до 14:30</span><h4>Проверить заказ Сергея</h4><p>Camry 2018 · передние колодки. Заказ ABCP создан, поставщику ещё не отправлен.</p><small>После принятия Антон — единственный Response Owner. Staffy не пишет параллельно.</small></div>
+          <button>Открыть проверку</button>
+        </section>
+        <div class="kpis">
+          <div><span>Целевые обращения</span><strong>18</strong></div>
+          <div><span>Верные следующие шаги</span><strong>7</strong></div>
+          <div><span>Подтверждённые заказы</span><strong>3</strong></div>
+          <div><span>Расход сегодня</span><strong>3 840 ₽</strong><small>из 8 000 ₽</small></div>
+        </div>
+        <div class="body-grid">
+          <section class="panel employees">
+            <div class="panel-head"><h4>Ваши сотрудники</h4><span>за сегодня</span></div>
+            <div class="employee-grid">
+              <article class="employee">
+                <div class="avatar">О</div><div class="employee-main"><h5>Менеджер магазина Олега</h5><p>Телефон · Jivo · ABCP</p><span class="state state-warning"><i></i>Работает с ограничениями</span></div>
+                <dl><div><dt>Обращения</dt><dd>11</dd></div><div><dt>Заказы</dt><dd>2</dd></div></dl>
+              </article>
+              <article class="employee">
+                <div class="avatar">М</div><div class="employee-main"><h5>Диспетчер Montagio</h5><p>Novofon · чат сайта · услуги</p><span class="state state-info"><i></i>На испытании</span></div>
+                <dl><div><dt>Обращения</dt><dd>7</dd></div><div><dt>Заказы</dt><dd>1</dd></div></dl>
+              </article>
+            </div>
+          </section>
+          <aside class="panel readiness">
+            <div class="panel-head"><h4>Готовность и следом</h4><span>2 пункта</span></div>
+            <div class="ready-row limited"><span class="signal warning">!</span><div><b>Mango Office ждёт проверки transfer</b><p>До проверки безопасный fallback — callback. Jivo продолжает работать.</p></div></div>
+            <div class="ready-row next"><span class="signal info">→</span><div><b>Прослушать звонок Montagio</b><p>Проверить перебивание и подтверждение цены перед следующим допуском.</p></div></div>
+          </aside>
+        </div>
+      </div>
+    </div>
+  </section>
+  </article>
+<article class="theme graphite" aria-labelledby="graphite-title">
+    <header class="theme-head"><div class="theme-number">05</div><div><h2 id="graphite-title">Графит и сигнал</h2><p>Почти монохромная основа с точными смысловыми сигналами — строгая, доступная и особенно устойчивая при высокой плотности.</p></div><span class="light-only">Light only</span></header>
+    <div class="tokens" aria-label="Семантические цветовые токены"><div class="token"><i style="background:#F2F3F5"></i><span>Canvas</span><code>#F2F3F5</code></div><div class="token"><i style="background:#FFFFFF"></i><span>Surface</span><code>#FFFFFF</code></div><div class="token"><i style="background:#17191C"></i><span>Text</span><code>#17191C</code></div><div class="token"><i style="background:#656A73"></i><span>Muted</span><code>#656A73</code></div><div class="token"><i style="background:#D2D5DA"></i><span>Border</span><code>#D2D5DA</code></div><div class="token"><i style="background:#262B31"></i><span>Primary</span><code>#262B31</code></div><div class="token" style="background:#262B31;color:#FFFFFF"><i style="background:#FFFFFF"></i><span>On primary</span><code>#FFFFFF</code></div><div class="token"><i style="background:#087A46"></i><span>Success</span><code>#087A46</code></div><div class="token"><i style="background:#A85E00"></i><span>Warning</span><code>#A85E00</code></div><div class="token"><i style="background:#C12F3F"></i><span>Danger</span><code>#C12F3F</code></div><div class="token"><i style="background:#1768B2"></i><span>Info</span><code>#1768B2</code></div><div class="token"><i style="background:#00A7C7"></i><span>Focus</span><code>#00A7C7</code></div></div>
+    <section class="mock" aria-label="Пример экрана Сегодня">
+    <div class="window"><span></span><span></span><span></span><small>Демо-данные · только светлая тема</small></div>
+    <div class="app">
+      <nav class="nav" aria-label="Основная навигация">
+        <b class="brand">Staffy</b>
+        <span class="active">Сегодня</span><span>Сотрудники</span><span>Работа</span><span>Подключения</span><span>Результаты</span><span>Организация</span>
+        <div class="nav-foot">2 сотрудника<br>1 решение ждёт вас</div>
+      </nav>
+      <div class="content">
+        <header class="today-head"><div><h3>Сегодня</h3><p>Главное для владельца — один следующий шаг</p></div><div class="date">13 сентября · 14:12</div></header>
+        <section class="urgent">
+          <div class="signal warning" aria-hidden="true">!</div>
+          <div><span class="overline">Нужно решение до 14:30</span><h4>Проверить заказ Сергея</h4><p>Camry 2018 · передние колодки. Заказ ABCP создан, поставщику ещё не отправлен.</p><small>После принятия Антон — единственный Response Owner. Staffy не пишет параллельно.</small></div>
+          <button>Открыть проверку</button>
+        </section>
+        <div class="kpis">
+          <div><span>Целевые обращения</span><strong>18</strong></div>
+          <div><span>Верные следующие шаги</span><strong>7</strong></div>
+          <div><span>Подтверждённые заказы</span><strong>3</strong></div>
+          <div><span>Расход сегодня</span><strong>3 840 ₽</strong><small>из 8 000 ₽</small></div>
+        </div>
+        <div class="body-grid">
+          <section class="panel employees">
+            <div class="panel-head"><h4>Ваши сотрудники</h4><span>за сегодня</span></div>
+            <div class="employee-grid">
+              <article class="employee">
+                <div class="avatar">О</div><div class="employee-main"><h5>Менеджер магазина Олега</h5><p>Телефон · Jivo · ABCP</p><span class="state state-warning"><i></i>Работает с ограничениями</span></div>
+                <dl><div><dt>Обращения</dt><dd>11</dd></div><div><dt>Заказы</dt><dd>2</dd></div></dl>
+              </article>
+              <article class="employee">
+                <div class="avatar">М</div><div class="employee-main"><h5>Диспетчер Montagio</h5><p>Novofon · чат сайта · услуги</p><span class="state state-info"><i></i>На испытании</span></div>
+                <dl><div><dt>Обращения</dt><dd>7</dd></div><div><dt>Заказы</dt><dd>1</dd></div></dl>
+              </article>
+            </div>
+          </section>
+          <aside class="panel readiness">
+            <div class="panel-head"><h4>Готовность и следом</h4><span>2 пункта</span></div>
+            <div class="ready-row limited"><span class="signal warning">!</span><div><b>Mango Office ждёт проверки transfer</b><p>До проверки безопасный fallback — callback. Jivo продолжает работать.</p></div></div>
+            <div class="ready-row next"><span class="signal info">→</span><div><b>Прослушать звонок Montagio</b><p>Проверить перебивание и подтверждение цены перед следующим допуском.</p></div></div>
+          </aside>
+        </div>
+      </div>
+    </div>
+  </section>
+  </article>
+  </main>
+</body>
+</html>
