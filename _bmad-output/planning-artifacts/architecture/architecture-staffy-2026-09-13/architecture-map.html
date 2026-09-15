@@ -1,0 +1,517 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Staffy — понятная карта архитектуры</title>
+  <style>
+    :root {
+      --canvas: #f3f5f2;
+      --surface: #fff;
+      --text: #1e2925;
+      --muted: #66736d;
+      --border: #d7ded9;
+      --control: #6f7b75;
+      --primary: #315e4c;
+      --on-primary: #fff;
+      --success: #247a52;
+      --success-bg: #e8f5ee;
+      --success-text: #185438;
+      --warning: #b56617;
+      --warning-bg: #fff4e6;
+      --warning-text: #552a00;
+      --danger: #b4424b;
+      --danger-bg: #fdedee;
+      --danger-text: #7b202a;
+      --info: #356c9b;
+      --info-bg: #eaf2fa;
+      --info-text: #244e72;
+      --focus: #7c4dff;
+      --shadow: 0 8px 24px rgba(30, 41, 37, .08);
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --max: 1180px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--canvas);
+      color: var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      font-size: 16px;
+      line-height: 1.55;
+    }
+    a { color: var(--primary); }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--focus);
+      outline-offset: 3px;
+      border-radius: var(--radius-sm);
+    }
+    .skip {
+      position: absolute;
+      left: 16px;
+      top: -80px;
+      z-index: 20;
+      min-height: 44px;
+      padding: 10px 16px;
+      background: var(--text);
+      color: #fff;
+      border-radius: var(--radius-sm);
+    }
+    .skip:focus { top: 12px; }
+    .shell { width: min(calc(100% - 32px), var(--max)); margin-inline: auto; }
+    header {
+      padding: 18px 0 0;
+      background: linear-gradient(180deg, #e7eee9 0%, var(--canvas) 100%);
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 750; }
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 38px;
+      height: 38px;
+      border-radius: 50% 50% 46% 46%;
+      background: var(--primary);
+      color: #fff;
+      font-size: 20px;
+    }
+    .draft {
+      display: inline-flex;
+      align-items: center;
+      min-height: 32px;
+      padding: 4px 11px;
+      border: 1px solid var(--info);
+      border-radius: 999px;
+      color: var(--info-text);
+      background: var(--info-bg);
+      font-size: 13px;
+      font-weight: 650;
+    }
+    nav { margin-top: 18px; overflow-x: auto; padding-bottom: 8px; }
+    nav ul { display: flex; gap: 8px; list-style: none; margin: 0; padding: 0; }
+    nav a {
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+      padding: 8px 13px;
+      white-space: nowrap;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: rgba(255,255,255,.75);
+      color: var(--text);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    nav a:hover { border-color: var(--primary); }
+    .hero { display: grid; grid-template-columns: 1.35fr .65fr; gap: 24px; padding: 56px 0 48px; }
+    .eyebrow { margin: 0 0 10px; color: var(--primary); font-size: 13px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+    h1, h2, h3 { margin-top: 0; line-height: 1.2; }
+    h1 { max-width: 800px; margin-bottom: 18px; font-size: clamp(32px, 5vw, 56px); letter-spacing: -.035em; }
+    h2 { margin-bottom: 12px; font-size: clamp(25px, 3vw, 34px); letter-spacing: -.02em; }
+    h3 { margin-bottom: 8px; font-size: 18px; }
+    .lead { max-width: 760px; margin: 0; color: #45534d; font-size: clamp(18px, 2vw, 21px); }
+    .promise {
+      align-self: end;
+      padding: 22px;
+      border: 1px solid var(--control);
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+    .promise strong { display: block; margin-bottom: 6px; font-size: 18px; }
+    main { padding-bottom: 72px; }
+    section { padding: 46px 0; scroll-margin-top: 12px; }
+    .section-intro { max-width: 760px; margin: 0 0 24px; color: var(--muted); }
+    .panel {
+      padding: 24px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+      box-shadow: 0 1px 2px rgba(30, 41, 37, .05);
+    }
+    .flow {
+      display: grid;
+      grid-template-columns: 1fr 36px 1.15fr 36px 1fr;
+      align-items: stretch;
+      gap: 8px;
+    }
+    .flow-node {
+      min-width: 0;
+      padding: 20px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+    }
+    .flow-node.core { border: 2px solid var(--primary); background: #f8fbf9; }
+    .flow-node.output { border-color: var(--info); background: var(--info-bg); }
+    .arrow { display: grid; place-items: center; color: var(--primary); font-size: 26px; font-weight: 700; }
+    .mini-list { margin: 10px 0 0; padding-left: 19px; color: #4d5b55; }
+    .mini-list li + li { margin-top: 5px; }
+    .media-note {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 14px;
+      align-items: start;
+      margin-top: 16px;
+      padding: 16px 18px;
+      border-left: 4px solid var(--info);
+      background: var(--info-bg);
+      color: var(--info-text);
+      border-radius: var(--radius-sm);
+    }
+    .media-note b { font-size: 20px; }
+    .grid { display: grid; gap: 16px; }
+    .modules { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .module { position: relative; min-height: 178px; overflow: hidden; }
+    .module::after {
+      content: attr(data-num);
+      position: absolute;
+      right: 14px;
+      bottom: -18px;
+      color: #e1e7e3;
+      font-size: 72px;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .module p { position: relative; z-index: 1; margin-bottom: 0; color: var(--muted); }
+    .module code { color: var(--primary); font-weight: 700; }
+    .lanes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .lane { border-top: 5px solid var(--primary); }
+    .lane.services { border-top-color: var(--info); }
+    .tag-row { display: flex; flex-wrap: wrap; gap: 7px; margin: 14px 0 0; }
+    .tag { padding: 5px 9px; border-radius: 999px; background: var(--canvas); border: 1px solid var(--border); font-size: 13px; }
+    .equation {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 24px;
+    }
+    .step {
+      position: relative;
+      min-height: 148px;
+      padding: 15px 13px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+    }
+    .step-number { display: block; margin-bottom: 12px; color: var(--primary); font-size: 13px; font-weight: 750; }
+    .step strong { display: block; line-height: 1.3; }
+    .step small { display: block; margin-top: 7px; color: var(--muted); font-size: 13px; line-height: 1.4; }
+    .laws { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .law { padding: 18px; border-radius: var(--radius-md); background: #e9efeb; }
+    .law strong { display: block; margin-bottom: 5px; color: var(--primary); }
+    .two-col { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .allow { border-left: 5px solid var(--success); }
+    .deny { border-left: 5px solid var(--danger); }
+    .allow h3 { color: var(--success-text); }
+    .deny h3 { color: var(--danger-text); }
+    .truth-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .truth-card { padding: 18px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
+    .truth-card .owner { display: inline-block; margin-bottom: 8px; color: var(--primary); font-size: 13px; font-weight: 750; }
+    .truth-card p { margin: 0; color: var(--muted); }
+    .failure-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .failure { background: var(--warning-bg); border-color: #efd7b8; }
+    .failure b { color: var(--warning-text); }
+    .failure p { margin-bottom: 0; color: #6a4728; }
+    .topology {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr auto 1fr;
+      align-items: center;
+      gap: 12px;
+    }
+    .server { min-height: 180px; border: 2px solid var(--primary); }
+    .server.media { border-color: var(--info); }
+    .storage { border-color: var(--control); }
+    .server p { margin: 8px 0 0; color: var(--muted); }
+    .no-direct { margin-top: 16px; padding: 14px 16px; border-radius: var(--radius-md); background: var(--danger-bg); color: var(--danger-text); font-weight: 650; }
+    .gate-summary { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .gate { padding: 18px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
+    .gate .state { display: inline-flex; min-height: 28px; align-items: center; padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 750; }
+    .state.open { background: var(--warning-bg); color: var(--warning-text); }
+    .state.pass { background: var(--success-bg); color: var(--success-text); }
+    .state.defer { background: var(--info-bg); color: var(--info-text); }
+    .gate h3 { margin-top: 12px; }
+    .gate p { margin-bottom: 0; color: var(--muted); font-size: 14px; }
+    details { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
+    details + details { margin-top: 10px; }
+    summary { display: flex; align-items: center; min-height: 52px; padding: 12px 16px; cursor: pointer; font-weight: 700; }
+    .details-body { padding: 0 16px 16px; color: var(--muted); }
+    .details-body p { margin-top: 0; }
+    footer { padding: 28px 0 42px; border-top: 1px solid var(--border); color: var(--muted); font-size: 14px; }
+    code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .92em; }
+
+    @media (max-width: 980px) {
+      .equation { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .laws { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .gate-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 760px) {
+      .hero, .lanes, .two-col { grid-template-columns: 1fr; }
+      .hero { padding-top: 38px; }
+      .modules, .truth-grid, .failure-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .flow, .topology { grid-template-columns: 1fr; }
+      .arrow { min-height: 28px; transform: rotate(90deg); }
+      .equation { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .laws { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 480px) {
+      .shell { width: min(calc(100% - 24px), var(--max)); }
+      .topbar { align-items: flex-start; }
+      .draft { max-width: 150px; text-align: center; }
+      section { padding: 34px 0; }
+      .panel { padding: 18px; }
+      .modules, .truth-grid, .failure-grid, .equation, .laws, .gate-summary { grid-template-columns: 1fr; }
+      .step { min-height: 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+    }
+    @media print {
+      nav, .skip { display: none; }
+      body { background: #fff; }
+      section { break-inside: avoid; }
+      .panel, .flow-node, .truth-card, .gate, details { box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#main">К основному содержанию</a>
+  <header>
+    <div class="shell">
+      <div class="topbar">
+        <div class="brand"><span class="brand-mark" aria-hidden="true">S</span><span>Staffy</span></div>
+        <span class="draft">Архитектура v1 · согласованная основа</span>
+      </div>
+      <nav aria-label="Разделы карты">
+        <ul>
+          <li><a href="#idea">Идея</a></li>
+          <li><a href="#core">Ядро</a></li>
+          <li><a href="#journey">Путь обращения</a></li>
+          <li><a href="#ai">Граница AI</a></li>
+          <li><a href="#truth">Источники истины</a></li>
+          <li><a href="#reliability">Сбои</a></li>
+          <li><a href="#deployment">Развёртывание</a></li>
+          <li><a href="#gates">Гейты</a></li>
+        </ul>
+      </nav>
+      <div class="hero">
+        <div>
+          <p class="eyebrow">Одна универсальная платформа</p>
+          <h1>ИИ-сотрудники для разных бизнесов — без нового ядра под каждого клиента</h1>
+          <p class="lead">Staffy соединяет телефон, чаты, знания и рабочие системы бизнеса. Новый клиент получает своего настроенного сотрудника, Domain Pack и набор проверенных интеграций, а не отдельный программный продукт.</p>
+        </div>
+        <aside class="promise" aria-label="Главное обещание архитектуры">
+          <strong>Свободный разговор. Контролируемое действие.</strong>
+          Модель общается естественно, но цена, применимость, полномочия, заказ и его результат определяются проверяемыми правилами и системами бизнеса.
+        </aside>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" class="shell">
+    <section id="idea" aria-labelledby="idea-title">
+      <p class="eyebrow">Как устроен продукт</p>
+      <h2 id="idea-title">Каналы меняются. Case и правила остаются одни.</h2>
+      <p class="section-intro">Телефон, чат на сайте, Jivo или будущий мессенджер переводятся в единый язык Staffy. После этого одна и та же логика ведёт разговор, подтверждает обязательства и выполняет разрешённые действия.</p>
+      <div class="flow" aria-label="Поток от канала к бизнес-системе">
+        <article class="flow-node">
+          <h3>1. Каналы</h3>
+          <ul class="mini-list">
+            <li>Novofon — при подтверждении маршрута; провайдер Олега после OQ-1 (Mango — кандидат)</li>
+            <li>Сайт и Jivo</li>
+            <li>Будущие чаты через Connector</li>
+          </ul>
+        </article>
+        <div class="arrow" aria-hidden="true">→</div>
+        <article class="flow-node core">
+          <h3>2. Единое ядро Staffy</h3>
+          <ul class="mini-list">
+            <li>Один Case и один отвечающий</li>
+            <li>Диалог, факты и подтверждения</li>
+            <li>Полномочия и безопасные действия</li>
+          </ul>
+        </article>
+        <div class="arrow" aria-hidden="true">→</div>
+        <article class="flow-node output">
+          <h3>3. Системы бизнеса</h3>
+          <ul class="mini-list">
+            <li>ABCP и 1С Олега</li>
+            <li>Montagio Django/PostgreSQL</li>
+            <li>Другие системы через Connector</li>
+          </ul>
+        </article>
+      </div>
+      <div class="media-note"><b aria-hidden="true">↕</b><div><strong>Голосовой узел стоит рядом, а не внутри бизнеса.</strong><br>Он управляет аудио, прерыванием и распознаванием, но не может сам создать заказ, назначить мастера или обратиться к бизнес-системе.</div></div>
+    </section>
+
+    <section id="core" aria-labelledby="core-title">
+      <p class="eyebrow">Шесть модулей</p>
+      <h2 id="core-title">Небольшое ядро с ясными владельцами</h2>
+      <p class="section-intro">Это части одной Go-программы, а не шесть микросервисов. Каждая часть владеет своей истиной и не читает таблицы соседей напрямую.</p>
+      <div class="grid modules">
+        <article class="panel module" data-num="1"><h3><code>identity</code></h3><p>Компании, сотрудники, роли, вход, MFA, временные ссылки и права тарифа.</p></article>
+        <article class="panel module" data-num="2"><h3><code>employee</code></h3><p>Настройка ИИ-сотрудника, Domain Pack, Operating Profile, версии и автономность.</p></article>
+        <article class="panel module" data-num="3"><h3><code>case</code></h3><p>Разговор, факты, согласия, обещания, подтверждения, ответственный и восстановление.</p></article>
+        <article class="panel module" data-num="4"><h3><code>action</code></h3><p>Проверка и выполнение действий, защита от дублей, история попыток и результат.</p></article>
+        <article class="panel module" data-num="5"><h3><code>connector</code></h3><p>Подключения, фактические возможности аккаунта и перевод протоколов провайдера.</p></article>
+        <article class="panel module" data-num="6"><h3><code>evidence</code></h3><p>Знания, доказательства, тесты, качество, стоимость и бизнес-результаты.</p></article>
+      </div>
+      <div class="grid lanes" style="margin-top:16px">
+        <article class="panel lane">
+          <p class="eyebrow">Пилот 1</p>
+          <h3>Магазин автозапчастей Олега</h3>
+          <p>Общее ядро + Autoparts Domain Pack + кандидаты Connectors для фактического SIP-провайдера Олега, Jivo и ABCP. Каждый включается только после проверки аккаунта.</p>
+          <div class="tag-row"><span class="tag">VIN</span><span class="tag">Laximo/OEM</span><span class="tag">аналоги</span><span class="tag">заказ на проверку</span></div>
+        </article>
+        <article class="panel lane services">
+          <p class="eyebrow">Пилот 2</p>
+          <h3>Montagio</h3>
+          <p>То же ядро + кандидаты web и Montagio Connectors; Novofon — при подтверждении маршрута. Avito пока остаётся ручным или защищённым продолжением до отдельной проверки.</p>
+          <div class="tag-row"><span class="tag">квалификация</span><span class="tag">safety</span><span class="tag">цена</span><span class="tag">исполнитель</span></div>
+        </article>
+      </div>
+    </section>
+
+    <section id="journey" aria-labelledby="journey-title">
+      <p class="eyebrow">Единая последовательность</p>
+      <h2 id="journey-title">Что происходит с обращением</h2>
+      <p class="section-intro">Одинаковая цепочка работает в голосе и тексте. Если на любом шаге не хватает доказательства, затронутый маршрут останавливается или передаётся человеку.</p>
+      <div class="equation">
+        <article class="step"><span class="step-number">ШАГ 1</span><strong>Событие канала</strong><small>Проверка источника, Tenant и дубля.</small></article>
+        <article class="step"><span class="step-number">ШАГ 2</span><strong>Case и Work Item</strong><small>Канал меняется без повторного intake; разные темы не смешиваются.</small></article>
+        <article class="step"><span class="step-number">ШАГ 3</span><strong>Факты и режим</strong><small>Что известно, спорно и кто отвечает.</small></article>
+        <article class="step"><span class="step-number">ШАГ 4</span><strong>Обязательство</strong><small>Точный scope, цена, позиция или следующий шаг.</small></article>
+        <article class="step"><span class="step-number">ШАГ 5</span><strong>Confirmation</strong><small>Согласие именно с этой версией.</small></article>
+        <article class="step"><span class="step-number">ШАГ 6</span><strong>Action</strong><small>Повторная проверка и безопасное выполнение.</small></article>
+        <article class="step"><span class="step-number">ШАГ 7</span><strong>Receipt или recovery</strong><small>Результат доказан либо честно выясняется.</small></article>
+      </div>
+      <div class="grid laws" style="margin-top:16px">
+        <div class="law"><strong>Persist before emit</strong>Сначала сохранить обещание.</div>
+        <div class="law"><strong>Confirm before mutate</strong>Сначала подтвердить точную версию.</div>
+        <div class="law"><strong>Revalidate before dispatch</strong>Снова проверить прямо перед вызовом.</div>
+        <div class="law"><strong>Acknowledge before handoff</strong>Назначение ещё не принятие.</div>
+        <div class="law"><strong>Reconcile before retry</strong>Сначала установить правду.</div>
+      </div>
+    </section>
+
+    <section id="ai" aria-labelledby="ai-title">
+      <p class="eyebrow">Роль искусственного интеллекта</p>
+      <h2 id="ai-title">Модель предлагает. Staffy разрешает и доказывает.</h2>
+      <div class="grid two-col">
+        <article class="panel allow">
+          <h3>AI разрешено</h3>
+          <ul class="mini-list">
+            <li>понимать свободную речь и контекст;</li>
+            <li>задавать прогрессивные вопросы;</li>
+            <li>объяснять ценность и работать с возражением;</li>
+            <li>предлагать чтение данных или тип действия;</li>
+            <li>формулировать естественный ответ в утверждённых границах.</li>
+          </ul>
+        </article>
+        <article class="panel deny">
+          <h3>AI не разрешено</h3>
+          <ul class="mini-list">
+            <li>самостоятельно вызывать write-tools;</li>
+            <li>придумывать цену, наличие или применимость;</li>
+            <li>считать API acceptance завершённым заказом;</li>
+            <li>читать секреты или произвольные данные Tenant;</li>
+            <li>обучаться на правке оператора без нового release.</li>
+          </ul>
+        </article>
+      </div>
+      <div class="media-note"><b aria-hidden="true">✓</b><div><strong>Почему разговор остаётся сложным и естественным?</strong><br>Conversation Planner возвращает типизированное предложение, но внутри безопасной области свободно выбирает формулировки, порядок вопросов, тон и работу с возражениями. Детерминированными становятся не все слова, а факты, обещания и действия.</div></div>
+    </section>
+
+    <section id="truth" aria-labelledby="truth-title">
+      <p class="eyebrow">Источники истины</p>
+      <h2 id="truth-title">Staffy не создаёт скрытую вторую CRM</h2>
+      <p class="section-intro">Для каждого важного поля заранее назначается владелец. Staffy хранит проверенную ссылку, версию и доказательство, но не объявляет себя владельцем чужой бизнес-записи.</p>
+      <div class="grid truth-grid">
+        <article class="truth-card"><span class="owner">Staffy</span><h3>Разговор и действие</h3><p>Case, provenance, consent, Commitment, Confirmation, Response Owner и Operation evidence.</p></article>
+        <article class="truth-card"><span class="owner">ABCP / 1С Олега</span><h3>Автозапчасти</h3><p>Заказ и версия — ABCP; подтверждённые учётные и fulfillment-факты — фактическая 1С-граница.</p></article>
+        <article class="truth-card"><span class="owner">Цель после OQ-10 PASS</span><h3>Montagio как подрядчик</h3><p>Тогда Montagio владеет Order, Offer, Price, Master Assignment, Payment, выполнением, гарантией и претензией. До этого закрытая проверка честно фиксирует фактические стороны и не включает публичное обещание подрядчика или оплату.</p></article>
+        <article class="truth-card"><span class="owner">Провайдер канала</span><h3>Доставка</h3><p>Создано, отправлено провайдеру и подтверждено/оценено воспроизведение — разные состояния. Только клиент может подтвердить, что понял и согласился.</p></article>
+        <article class="truth-card"><span class="owner">Knowledge Source</span><h3>Справочное знание</h3><p>Версия, происхождение и срок актуальности; не заменяет живые цены и наличие.</p></article>
+        <article class="truth-card"><span class="owner">Staffy, только при выборе</span><h3>Минимальный Work Record</h3><p>Для бизнеса без своей системы: запрос, статус, ответственный и результат — не полный CRM/склад.</p></article>
+      </div>
+    </section>
+
+    <section id="reliability" aria-labelledby="reliability-title">
+      <p class="eyebrow">Честное поведение при сбое</p>
+      <h2 id="reliability-title">Отказ не превращается в ложный успех</h2>
+      <div class="grid failure-grid">
+        <article class="panel failure"><b>AI недоступен</b><p>Сохранить intake и предложить человека или callback — без придуманного ответа.</p></article>
+        <article class="panel failure"><b>ABCP/Montagio недоступны</b><p>Не обещать цену, наличие или результат; перейти в intake-only или human.</p></article>
+        <article class="panel failure"><b>Timeout после отправки</b><p>Статус unknown/reconciling. Новый заказ «на всякий случай» запрещён.</p></article>
+        <article class="panel failure"><b>STT/TTS или звонок</b><p>Текст, DTMF или callback с тем же Case и перепроверкой незавершённого.</p></article>
+        <article class="panel failure"><b>Человек не принял</b><p>Назначение не считается handoff; запускается резервный владелец или честное ожидание.</p></article>
+        <article class="panel failure"><b>Один Connector сломан</b><p>Останавливается только этот Tenant/канал/Capability, а не вся платформа.</p></article>
+      </div>
+    </section>
+
+    <section id="deployment" aria-labelledby="deployment-title">
+      <p class="eyebrow">Пилотная topology</p>
+      <h2 id="deployment-title">Два узла приложения и управляемые данные</h2>
+      <div class="topology">
+        <article class="panel server media"><h3>Realtime / Media Node</h3><p>SIP, RTP, VAD, barge-in, STT/TTS или realtime. Масштабируется по одновременным звонкам.</p></article>
+        <div class="arrow" aria-hidden="true">↔</div>
+        <article class="panel server"><h3>Application Node</h3><p><code>staffy-core</code> для API и каналов; <code>staffy-worker</code> для действий и reconciliation. Один Go build, но отдельные процессы с собственными лимитами.</p></article>
+        <div class="arrow" aria-hidden="true">↔</div>
+        <article class="panel server storage"><h3>Managed data</h3><p>PostgreSQL 18, российский S3 и SecretStore. Резервное копирование и restore drill до live.</p></article>
+      </div>
+      <div class="no-direct">Media Node не имеет прямого доступа к PostgreSQL, ABCP, 1С или Montagio. Все бизнес-действия проходят через core и Action Gateway.</div>
+    </section>
+
+    <section id="gates" aria-labelledby="gates-title">
+      <p class="eyebrow">Неизвестность под контролем</p>
+      <h2 id="gates-title">Открытый вопрос не маскируется зелёным статусом</h2>
+      <p class="section-intro">Каждый OQ имеет владельца, доказательство, крайний этап и безопасный fallback. Полный реестр находится рядом с архитектурным spine.</p>
+      <div class="grid gate-summary">
+        <article class="gate"><span class="state open">Проверить сейчас</span><h3>OQ-1–OQ-5</h3><p>Фактический SIP Олега (Mango — кандидат), Jivo, ABCP→1С и путь подбора ABCP/Laximo.</p></article>
+        <article class="gate"><span class="state open">До обязательств</span><h3>OQ-6 и OQ-15</h3><p>Коммерческие границы пилота Олега и повторяемое предложение Staffy.</p></article>
+        <article class="gate"><span class="state open">До повышения режима</span><h3>OQ-7A/7B и OQ-14</h3><p>План контролируемой когорты, затем измеренная база и пороги автономности.</p></article>
+        <article class="gate"><span class="state open">До production/live</span><h3>OQ-8–OQ-12</h3><p>Владельцы Montagio, цены, legal-модель, обработка данных и реальная голосовая задержка.</p></article>
+        <article class="gate"><span class="state open">Политика выбрана, доказательство открыто</span><h3>OQ-13A / OQ-13B</h3><p>Montagio принят как best effort без SLA; формулировка для Олега ещё согласуется. Восстановление, перепривязка и замена media должны пройти реальную тренировку.</p></article>
+        <article class="gate"><span class="state defer">По триггеру</span><h3>OQ-16–OQ-18</h3><p>Cross-case профиль, Staffy Inbox и новые каналы появляются только при доказанной потребности.</p></article>
+        <article class="gate"><span class="state open">До мутации</span><h3>OQ-19</h3><p>Матрица истины и полномочий обязательна для каждого важного поля и действия конкретной интеграции.</p></article>
+        <article class="gate"><span class="state open">До реальных секретов</span><h3>AG-4</h3><p>Выбор и проверка SecretStore, российского хранилища, безопасной обработки файлов и зависимостей.</p></article>
+        <article class="gate"><span class="state open">До контролируемого трафика</span><h3>AG-1 / AG-2</h3><p>Доказанная нагрузочная граница и доступность всех затронутых интерфейсов и альтернативных путей.</p></article>
+        <article class="gate"><span class="state defer">До заявления универсальности</span><h3>AG-3</h3><p>Третий внешний бизнес подключается за рабочий день без правки ядра и клиентского форка.</p></article>
+      </div>
+      <div style="margin-top:20px">
+        <details>
+          <summary>Что обязательно до изменения заказа или назначения?</summary>
+          <div class="details-body"><p>State/Authority Matrix OQ-19, актуальная Capability конкретного аккаунта, точная версия данных, Confirmation и возможность доказать внешний результат.</p></div>
+        </details>
+        <details>
+          <summary>Может ли Staffy сам отправить заказ Олега поставщику?</summary>
+          <div class="details-body"><p>Нет в контролируемом пилоте. Staffy создаёт подтверждённый клиентом заказ в статусе подготовки; назначенный менеджер заново проверяет текущую версию и применимость, отдельно одобряет или блокирует и вручную отправляет поставщику. Изменение VIN, позиции, количества, цены или применимости отменяет прежнее подтверждение.</p></div>
+        </details>
+        <details>
+          <summary>Что намеренно не строится в V1?</summary>
+          <div class="details-body"><p>Микросервисы, Kubernetes, Kafka/Redis, отдельная vector DB, полный собственный SIP/PSTN core, dynamic plugin marketplace, SPA и отдельное ядро для каждого бизнеса.</p></div>
+        </details>
+        <details>
+          <summary>Как поймём, что архитектура действительно универсальна?</summary>
+          <div class="details-body"><p>Третий независимый Tenant должен пройти контролируемое подключение за один рабочий день с поддерживаемыми Domain Pack и Connectors, реальными входными данными и администратором, журналом участников и доказательством отсутствия правок core/клиентского форка. Внутренний Montagio сам по себе этого не доказывает.</p></div>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="shell">Staffy · «Северный кедр» · Понятная карта к нормативному ARCHITECTURE-SPINE.md и GATE-REGISTRY.md · 15 сентября 2026</div>
+  </footer>
+</body>
+</html>

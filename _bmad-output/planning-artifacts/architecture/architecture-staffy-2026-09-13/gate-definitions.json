@@ -1,0 +1,398 @@
+{
+  "schema_version": 1,
+  "definitions": [
+    {
+      "definition_id": "OQ-1",
+      "criticality": "high",
+      "blocks_stages": [
+        "controlled_real_customer"
+      ],
+      "required_approver_roles": [
+        "OlegOwner",
+        "TechnicalLead"
+      ],
+      "approval_mode": "all_required_roles",
+      "allow_role_coincidence": false,
+      "evidence_requirement": "Account and recorded SIP capability/failure tests",
+      "safe_state": "awaiting_verification/limited"
+    },
+    {
+      "definition_id": "OQ-2",
+      "criticality": "high",
+      "blocks_stages": [
+        "controlled_real_customer"
+      ],
+      "required_approver_roles": [
+        "OlegOwner",
+        "IntegrationLead"
+      ],
+      "approval_mode": "all_required_roles",
+      "allow_role_coincidence": false,
+      "evidence_requirement": "Jivo account writer-exclusion, receipt, timeout and takeover tests",
+      "safe_state": "human_only shared inbox"
+    },
+    {
+      "definition_id": "OQ-3",
+      "criticality": "critical",
+      "blocks_stages": [
+        "controlled_real_customer"
+      ],
+      "required_approver_roles": [
+        "OlegOwner",
+        "ABCPIntegrator"
+      ],
+      "approval_mode": "all_required_roles",
+      "allow_role_coincidence": false,
+      "evidence_requirement": "ABCP prepared-order mapping and enforceable human supplier-send fence",
+      "safe_state": "pending_manager_verification"
+    },
+    {
+      "definition_id": "OQ-4",
+      "criticality": "critical",
+      "blocks_stages": [
+        "controlled_real_customer"
+      ],
+      "required_approver_roles": [
+        "OlegOwner",
+        "OneCIntegrator"
+      ],
+      "approval_mode": "all_required_roles",
+      "allow_role_coincidence": false,
+      "evidence_requirement": "ABCP-to-1C mapping, duplicate, reconcile and terminal-evidence tests",
+      "safe_state": "manual reconciliation; no terminal success"
+    },
+    {
+      "definition_id": "OQ-5",
+      "criticality": "critical",
+      "blocks_stages": [
+        "controlled_real_customer"
+      ],
+      "required_approver_roles": [
+        "OlegOwner",
+        "FitmentExpert",
+        "IntegrationLead"
+      ],
+      "approval_mode": "all_required_roles",
+      "allow_role_coincidence": false,
+      "evidence_requirement": "Recorded account workflow and representative VIN/catalog/OEM/cross/offer tests",
+      "safe_state": "human fitment task or licensed reusable connector"
+    },
+    {
+      "definition_id": "OQ-6",
+      "criticality": "medium",
+      "blocks_stages": [
+        "commercial_commitment"
+      ],
+      "required_approver_roles": [
+        "ProductOwner",
+        "OlegOwner"
+      ],
+      "approval_mode": "all_required_roles",
+      "allow_role_coincidence": false,
+      "evidence_requirement": "Signed price, duration, budget, responsibilities, data, success and exit terms",
+      "safe_state": "indicative proposal only"
+    },
+    {
+      "definition_id": "OQ-7A",
+      "criticality": "high",
+      "blocks_stages": [
+        "controlled_real_customer"
+      ],
+      "required_approver_roles": [
+        "ProductOwner",
+        "MontagioOperations"
+      ],
+      "approval_mode": "all_required_roles",
+      "allow_role_coincidence": true,
+      "evidence_requirement": "Pre-registered UJ-M1/UJ-M2 cohort and measurement plan",
+      "safe_state": "simulation only"
+    },
+    {
+      "definition_id": "OQ-7B",
+      "criticality": "high",
+      "blocks_stages": [
+        "live",
+        "scale"
+      ],
+      "required_approver_roles": [
+        "ProductOwner",
+        "MontagioOperations"
+      ],
+      "approval_mode": "all_required_roles",
+      "allow_role_coincidence": true,
+      "evidence_requirement": "Baseline-derived route thresholds and sample sufficiency",
+      "safe_state": "controlled learning only"
+    },
+    {
+      "definition_id": "OQ-8",
+      "criticality": "critical",
+      "blocks_stages": [
+        "controlled_real_customer"
+      ],
+      "required_approver_roles": [
+        "MontagioOperations"
+      ],
+      "approval_mode": "all_required_roles",
+      "allow_role_coincidence": true,
+      "evidence_requirement": "Named fallback owners, acknowledgement windows and drill",
+      "safe_state": "honest intake/callback"
+    },
+    {
+      "definition_id": "OQ-9",
+      "criticality": "critical",
+      "blocks_stages": [
+        "controlled_real_customer"
+      ],
+      "required_approver_roles": [
+        "ProductOwner",
+        "PricingOperations"
+      ],
+      "approval_mode": "all_required_roles",
+      "allow_role_coincidence": true,
+      "evidence_requirement": "Approved fresh service-by-market pricing rule and examples",
+      "safe_state": "range/measurement/human route"
+    },
+    {
+      "definition_id": "OQ-10",
+      "criticality": "critical",
+      "blocks_stages": [
+        "commercial_commitment",
+        "live"
+      ],
+      "required_approver_roles": [
+        "ProductOwner",
+        "LegalFinanceOperations"
+      ],
+      "approval_mode": "all_required_roles",
+      "allow_role_coincidence": false,
+      "evidence_requirement": "Written contractor, payment, tax, receipt, insurance, warranty and claims model",
+      "safe_state": "intake_only/no_promises"
+    },
+    {
+      "definition_id": "OQ-11",
+      "criticality": "critical",
+      "blocks_stages": [
+        "controlled_real_customer",
+        "live",
+        "scale"
+      ],
+      "required_approver_roles": [
+        "SecurityPrivacy",
+        "TechnicalLead"
+      ],
+      "approval_mode": "all_required_roles",
+      "allow_role_coincidence": false,
+      "evidence_requirement": "Provider-route-artifact-purpose perimeter, basis, retention/deletion and fallback evidence",
+      "safe_state": "synthetic/non-PII only"
+    },
+    {
+      "definition_id": "OQ-12",
+      "criticality": "high",
+      "blocks_stages": [
+        "controlled_real_customer",
+        "live",
+        "scale"
+      ],
+      "required_approver_roles": [
+        "VoiceTechnicalLead"
+      ],
+      "approval_mode": "all_required_roles",
+      "allow_role_coincidence": true,
+      "evidence_requirement": "Measured route latency, interruption, reconnect, quality and cost",
+      "safe_state": "no numeric immediacy promise"
+    },
+    {
+      "definition_id": "OQ-13A",
+      "criticality": "medium",
+      "blocks_stages": [
+        "commercial_commitment"
+      ],
+      "required_approver_roles": [
+        "ProductOwner",
+        "TenantOwner"
+      ],
+      "approval_mode": "all_required_roles",
+      "allow_role_coincidence": true,
+      "evidence_requirement": "Approved best-effort/no-SLA wording",
+      "safe_state": "no contractual uptime claim"
+    },
+    {
+      "definition_id": "OQ-13B",
+      "criticality": "critical",
+      "blocks_stages": [
+        "controlled_real_customer",
+        "live",
+        "scale"
+      ],
+      "required_approver_roles": [
+        "TechnicalLead",
+        "Operations"
+      ],
+      "approval_mode": "all_required_roles",
+      "allow_role_coincidence": false,
+      "evidence_requirement": "Dated restore/rebind/reconcile/media replacement drill",
+      "safe_state": "synthetic or closed-account test only"
+    },
+    {
+      "definition_id": "OQ-14",
+      "criticality": "critical",
+      "blocks_stages": [
+        "live",
+        "scale"
+      ],
+      "required_approver_roles": [
+        "ProductOwner",
+        "OperationsQA"
+      ],
+      "approval_mode": "all_required_roles",
+      "allow_role_coincidence": false,
+      "evidence_requirement": "Versioned quantitative admission thresholds and evidence",
+      "safe_state": "manual scoped promotion"
+    },
+    {
+      "definition_id": "OQ-15",
+      "criticality": "medium",
+      "blocks_stages": [
+        "commercial_commitment"
+      ],
+      "required_approver_roles": [
+        "ProductOwner"
+      ],
+      "approval_mode": "all_required_roles",
+      "allow_role_coincidence": true,
+      "evidence_requirement": "Repeatable pricing/full-cost/WTP evidence",
+      "safe_state": "pilot-specific pricing"
+    },
+    {
+      "definition_id": "OQ-16",
+      "criticality": "high",
+      "blocks_stages": [
+        "controlled_real_customer",
+        "live",
+        "scale"
+      ],
+      "required_approver_roles": [
+        "ProductOwner",
+        "PrivacyUX"
+      ],
+      "approval_mode": "all_required_roles",
+      "allow_role_coincidence": false,
+      "evidence_requirement": "Cross-case purpose, identity, rights, retention and evaluation",
+      "safe_state": "Case-scoped memory only"
+    },
+    {
+      "definition_id": "OQ-17",
+      "criticality": "high",
+      "blocks_stages": [
+        "controlled_real_customer"
+      ],
+      "required_approver_roles": [
+        "Architecture",
+        "ProductOwner"
+      ],
+      "approval_mode": "all_required_roles",
+      "allow_role_coincidence": false,
+      "evidence_requirement": "Minimal Inbox human-surface and accessibility proof",
+      "safe_state": "verified external Inbox required"
+    },
+    {
+      "definition_id": "OQ-18",
+      "criticality": "high",
+      "blocks_stages": [
+        "controlled_real_customer",
+        "live",
+        "scale"
+      ],
+      "required_approver_roles": [
+        "ProductOwner",
+        "PartnershipsArchitecture"
+      ],
+      "approval_mode": "all_required_roles",
+      "allow_role_coincidence": false,
+      "evidence_requirement": "Demand, official API/terms, residency, failure semantics and reuse fit",
+      "safe_state": "not shown available"
+    },
+    {
+      "definition_id": "OQ-19",
+      "criticality": "critical",
+      "blocks_stages": [
+        "closed_account_test",
+        "controlled_real_customer",
+        "live",
+        "scale"
+      ],
+      "required_approver_roles": [
+        "Architecture",
+        "OwningSystemOwner"
+      ],
+      "approval_mode": "all_required_roles",
+      "allow_role_coincidence": false,
+      "evidence_requirement": "Per-field State/Authority Matrix and contract tests",
+      "safe_state": "unknown; no mutation or terminal success"
+    },
+    {
+      "definition_id": "AG-1",
+      "criticality": "critical",
+      "blocks_stages": [
+        "controlled_real_customer",
+        "live",
+        "scale"
+      ],
+      "required_approver_roles": [
+        "TechnicalLead",
+        "Operations"
+      ],
+      "approval_mode": "all_required_roles",
+      "allow_role_coincidence": false,
+      "evidence_requirement": "Pilot Load Envelope tested at approved safety factor",
+      "safe_state": "simulation/load test only"
+    },
+    {
+      "definition_id": "AG-2",
+      "criticality": "critical",
+      "blocks_stages": [
+        "controlled_real_customer",
+        "live",
+        "scale"
+      ],
+      "required_approver_roles": [
+        "ProductOwner",
+        "UXQA"
+      ],
+      "approval_mode": "all_required_roles",
+      "allow_role_coincidence": false,
+      "evidence_requirement": "Automated and manual WCAG 2.2 AA evidence",
+      "safe_state": "affected route does not publish"
+    },
+    {
+      "definition_id": "AG-3",
+      "criticality": "high",
+      "blocks_stages": [
+        "universality_claim"
+      ],
+      "required_approver_roles": [
+        "ProductOwner",
+        "Architecture"
+      ],
+      "approval_mode": "all_required_roles",
+      "allow_role_coincidence": false,
+      "evidence_requirement": "Third external tenant one-day no-core-change controlled proof",
+      "safe_state": "universality remains a hypothesis"
+    },
+    {
+      "definition_id": "AG-4",
+      "criticality": "high",
+      "blocks_stages": [
+        "credential_bearing_build"
+      ],
+      "required_approver_roles": [
+        "TechnicalLead",
+        "Security"
+      ],
+      "approval_mode": "all_required_roles",
+      "allow_role_coincidence": false,
+      "evidence_requirement": "Concrete protected dependencies plus compatibility, license, SBOM, vulnerability and rollback evidence",
+      "safe_state": "local synthetic implementation only"
+    }
+  ]
+}

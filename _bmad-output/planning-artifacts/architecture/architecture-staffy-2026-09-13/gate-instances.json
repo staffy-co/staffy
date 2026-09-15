@@ -1,0 +1,1243 @@
+{
+  "schema_version": 1,
+  "instances": [
+    {
+      "schema_version": 1,
+      "instance_id": "oq-1-oleg-voice",
+      "definition_id": "OQ-1",
+      "scope": {
+        "tenant_id": "tenant:oleg",
+        "provider": "candidate:actual-oleg-sip",
+        "route": "voice",
+        "environment": "controlled_real_customer"
+      },
+      "state": "open",
+      "evidence": [],
+      "dependencies": [],
+      "tested_at": null,
+      "expiry_conditions": [
+        {
+          "kind": "provider_change",
+          "value": "Oleg SIP provider/account/config changes"
+        }
+      ],
+      "approved_by": [],
+      "permits": [],
+      "control_generation": 0,
+      "rationale": null,
+      "supersedes_instance_id": null,
+      "decision_history": [
+        {
+          "from": null,
+          "to": "open",
+          "at": "2026-09-15T00:00:00Z",
+          "actor_id": "architecture-session"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "instance_id": "oq-2-oleg-jivo",
+      "definition_id": "OQ-2",
+      "scope": {
+        "tenant_id": "tenant:oleg",
+        "provider": "jivo",
+        "route": "text",
+        "environment": "controlled_real_customer"
+      },
+      "state": "open",
+      "evidence": [],
+      "dependencies": [],
+      "tested_at": null,
+      "expiry_conditions": [
+        {
+          "kind": "account_change",
+          "value": "Jivo tariff/account/API changes"
+        }
+      ],
+      "approved_by": [],
+      "permits": [],
+      "control_generation": 0,
+      "rationale": null,
+      "supersedes_instance_id": null,
+      "decision_history": [
+        {
+          "from": null,
+          "to": "open",
+          "at": "2026-09-15T00:00:00Z",
+          "actor_id": "architecture-session"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "instance_id": "oq-3-oleg-abcp",
+      "definition_id": "OQ-3",
+      "scope": {
+        "tenant_id": "tenant:oleg",
+        "provider": "abcp",
+        "capability": "prepared_client_order",
+        "environment": "controlled_real_customer"
+      },
+      "state": "open",
+      "evidence": [],
+      "dependencies": [
+        "oq-5-oleg-fitment",
+        "oq-19-oleg"
+      ],
+      "tested_at": null,
+      "expiry_conditions": [
+        {
+          "kind": "account_change",
+          "value": "ABCP account/version/status changes"
+        }
+      ],
+      "approved_by": [],
+      "permits": [],
+      "control_generation": 0,
+      "rationale": null,
+      "supersedes_instance_id": null,
+      "decision_history": [
+        {
+          "from": null,
+          "to": "open",
+          "at": "2026-09-15T00:00:00Z",
+          "actor_id": "architecture-session"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "instance_id": "oq-4-oleg-abcp-1c",
+      "definition_id": "OQ-4",
+      "scope": {
+        "tenant_id": "tenant:oleg",
+        "provider": "abcp+custom-1c",
+        "capability": "order_reconcile",
+        "environment": "controlled_real_customer"
+      },
+      "state": "open",
+      "evidence": [],
+      "dependencies": [
+        "oq-3-oleg-abcp",
+        "oq-19-oleg"
+      ],
+      "tested_at": null,
+      "expiry_conditions": [
+        {
+          "kind": "config_change",
+          "value": "ABCP-to-1C integration changes"
+        }
+      ],
+      "approved_by": [],
+      "permits": [],
+      "control_generation": 0,
+      "rationale": null,
+      "supersedes_instance_id": null,
+      "decision_history": [
+        {
+          "from": null,
+          "to": "open",
+          "at": "2026-09-15T00:00:00Z",
+          "actor_id": "architecture-session"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "instance_id": "oq-5-oleg-fitment",
+      "definition_id": "OQ-5",
+      "scope": {
+        "tenant_id": "tenant:oleg",
+        "provider": "abcp+laximo",
+        "capability": "fitment",
+        "environment": "controlled_real_customer"
+      },
+      "state": "open",
+      "evidence": [],
+      "dependencies": [],
+      "tested_at": null,
+      "expiry_conditions": [
+        {
+          "kind": "account_change",
+          "value": "Catalog/tariff/supplier mapping changes"
+        }
+      ],
+      "approved_by": [],
+      "permits": [],
+      "control_generation": 0,
+      "rationale": null,
+      "supersedes_instance_id": null,
+      "decision_history": [
+        {
+          "from": null,
+          "to": "open",
+          "at": "2026-09-15T00:00:00Z",
+          "actor_id": "architecture-session"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "instance_id": "oq-6-oleg-paid-pilot",
+      "definition_id": "OQ-6",
+      "scope": {
+        "tenant_id": "tenant:oleg",
+        "action": "paid_pilot_contract"
+      },
+      "state": "open",
+      "evidence": [],
+      "dependencies": [],
+      "tested_at": null,
+      "expiry_conditions": [
+        {
+          "kind": "policy_change",
+          "value": "Commercial terms change"
+        }
+      ],
+      "approved_by": [],
+      "permits": [],
+      "control_generation": 0,
+      "rationale": null,
+      "supersedes_instance_id": null,
+      "decision_history": [
+        {
+          "from": null,
+          "to": "open",
+          "at": "2026-09-15T00:00:00Z",
+          "actor_id": "architecture-session"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "instance_id": "oq-7a-montagio",
+      "definition_id": "OQ-7A",
+      "scope": {
+        "tenant_id": "tenant:montagio",
+        "route": "UJ-M1+UJ-M2-cohort",
+        "environment": "controlled_real_customer"
+      },
+      "state": "open",
+      "evidence": [],
+      "dependencies": [],
+      "tested_at": null,
+      "expiry_conditions": [
+        {
+          "kind": "config_change",
+          "value": "Operating Profile or cohort changes"
+        }
+      ],
+      "approved_by": [],
+      "permits": [],
+      "control_generation": 0,
+      "rationale": null,
+      "supersedes_instance_id": null,
+      "decision_history": [
+        {
+          "from": null,
+          "to": "open",
+          "at": "2026-09-15T00:00:00Z",
+          "actor_id": "architecture-session"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "instance_id": "oq-7b-montagio",
+      "definition_id": "OQ-7B",
+      "scope": {
+        "tenant_id": "tenant:montagio",
+        "route": "UJ-M1+UJ-M2-live-scale",
+        "environment": "live"
+      },
+      "state": "open",
+      "evidence": [],
+      "dependencies": [
+        "oq-7a-montagio"
+      ],
+      "tested_at": null,
+      "expiry_conditions": [
+        {
+          "kind": "config_change",
+          "value": "Baseline/profile/route changes"
+        }
+      ],
+      "approved_by": [],
+      "permits": [],
+      "control_generation": 0,
+      "rationale": null,
+      "supersedes_instance_id": null,
+      "decision_history": [
+        {
+          "from": null,
+          "to": "open",
+          "at": "2026-09-15T00:00:00Z",
+          "actor_id": "architecture-session"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "instance_id": "oq-8-montagio",
+      "definition_id": "OQ-8",
+      "scope": {
+        "tenant_id": "tenant:montagio",
+        "capability": "fallback_ownership",
+        "environment": "controlled_real_customer"
+      },
+      "state": "open",
+      "evidence": [],
+      "dependencies": [],
+      "tested_at": null,
+      "expiry_conditions": [
+        {
+          "kind": "config_change",
+          "value": "Owner/acknowledgement/fallback changes"
+        }
+      ],
+      "approved_by": [],
+      "permits": [],
+      "control_generation": 0,
+      "rationale": null,
+      "supersedes_instance_id": null,
+      "decision_history": [
+        {
+          "from": null,
+          "to": "open",
+          "at": "2026-09-15T00:00:00Z",
+          "actor_id": "architecture-session"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "instance_id": "oq-9-montagio-first-service",
+      "definition_id": "OQ-9",
+      "scope": {
+        "tenant_id": "tenant:montagio",
+        "capability": "first_service_price",
+        "environment": "controlled_real_customer"
+      },
+      "state": "open",
+      "evidence": [],
+      "dependencies": [],
+      "tested_at": null,
+      "expiry_conditions": [
+        {
+          "kind": "time",
+          "value": "Price-source freshness expires"
+        }
+      ],
+      "approved_by": [],
+      "permits": [],
+      "control_generation": 0,
+      "rationale": null,
+      "supersedes_instance_id": null,
+      "decision_history": [
+        {
+          "from": null,
+          "to": "open",
+          "at": "2026-09-15T00:00:00Z",
+          "actor_id": "architecture-session"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "instance_id": "oq-10-montagio-public",
+      "definition_id": "OQ-10",
+      "scope": {
+        "tenant_id": "tenant:montagio",
+        "action": "public_contractor_order",
+        "environment": "live"
+      },
+      "state": "open",
+      "evidence": [],
+      "dependencies": [],
+      "tested_at": null,
+      "expiry_conditions": [
+        {
+          "kind": "policy_change",
+          "value": "Legal/commercial model changes"
+        }
+      ],
+      "approved_by": [],
+      "permits": [],
+      "control_generation": 0,
+      "rationale": null,
+      "supersedes_instance_id": null,
+      "decision_history": [
+        {
+          "from": null,
+          "to": "open",
+          "at": "2026-09-15T00:00:00Z",
+          "actor_id": "architecture-session"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "instance_id": "oq-11-yandex-text",
+      "definition_id": "OQ-11",
+      "scope": {
+        "provider": "yandex",
+        "route": "text-ai",
+        "artifact_class": "prompts+responses+logs",
+        "purpose": "service",
+        "environment": "controlled_real_customer"
+      },
+      "state": "open",
+      "evidence": [],
+      "dependencies": [],
+      "tested_at": null,
+      "expiry_conditions": [
+        {
+          "kind": "provider_change",
+          "value": "Terms/route/artifact/purpose changes"
+        }
+      ],
+      "approved_by": [],
+      "permits": [],
+      "control_generation": 0,
+      "rationale": null,
+      "supersedes_instance_id": null,
+      "decision_history": [
+        {
+          "from": null,
+          "to": "open",
+          "at": "2026-09-15T00:00:00Z",
+          "actor_id": "architecture-session"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "instance_id": "oq-11-yandex-voice",
+      "definition_id": "OQ-11",
+      "scope": {
+        "provider": "yandex",
+        "route": "realtime-voice",
+        "artifact_class": "audio+transcript+logs",
+        "purpose": "service",
+        "environment": "controlled_real_customer"
+      },
+      "state": "open",
+      "evidence": [],
+      "dependencies": [],
+      "tested_at": null,
+      "expiry_conditions": [
+        {
+          "kind": "provider_change",
+          "value": "Terms/route/artifact/purpose changes"
+        }
+      ],
+      "approved_by": [],
+      "permits": [],
+      "control_generation": 0,
+      "rationale": null,
+      "supersedes_instance_id": null,
+      "decision_history": [
+        {
+          "from": null,
+          "to": "open",
+          "at": "2026-09-15T00:00:00Z",
+          "actor_id": "architecture-session"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "instance_id": "oq-11-novofon",
+      "definition_id": "OQ-11",
+      "scope": {
+        "provider": "novofon",
+        "route": "carrier+sip",
+        "artifact_class": "audio+call-metadata+provider-logs",
+        "purpose": "service",
+        "environment": "controlled_real_customer"
+      },
+      "state": "open",
+      "evidence": [],
+      "dependencies": [],
+      "tested_at": null,
+      "expiry_conditions": [
+        {
+          "kind": "provider_change",
+          "value": "Terms/route/artifact/purpose changes"
+        }
+      ],
+      "approved_by": [],
+      "permits": [],
+      "control_generation": 0,
+      "rationale": null,
+      "supersedes_instance_id": null,
+      "decision_history": [
+        {
+          "from": null,
+          "to": "open",
+          "at": "2026-09-15T00:00:00Z",
+          "actor_id": "architecture-session"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "instance_id": "oq-11-oleg-sip",
+      "definition_id": "OQ-11",
+      "scope": {
+        "tenant_id": "tenant:oleg",
+        "provider": "candidate:actual-oleg-sip",
+        "route": "carrier+sip",
+        "artifact_class": "audio+call-metadata+provider-logs",
+        "purpose": "service",
+        "environment": "controlled_real_customer"
+      },
+      "state": "open",
+      "evidence": [],
+      "dependencies": [],
+      "tested_at": null,
+      "expiry_conditions": [
+        {
+          "kind": "provider_change",
+          "value": "Provider/account/terms/artifact changes"
+        }
+      ],
+      "approved_by": [],
+      "permits": [],
+      "control_generation": 0,
+      "rationale": null,
+      "supersedes_instance_id": null,
+      "decision_history": [
+        {
+          "from": null,
+          "to": "open",
+          "at": "2026-09-15T00:00:00Z",
+          "actor_id": "architecture-session"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "instance_id": "oq-11-jivo",
+      "definition_id": "OQ-11",
+      "scope": {
+        "tenant_id": "tenant:oleg",
+        "provider": "jivo",
+        "route": "text",
+        "artifact_class": "messages+attachments+provider-logs",
+        "purpose": "service",
+        "environment": "controlled_real_customer"
+      },
+      "state": "open",
+      "evidence": [],
+      "dependencies": [],
+      "tested_at": null,
+      "expiry_conditions": [
+        {
+          "kind": "provider_change",
+          "value": "Terms/account/artifact/purpose changes"
+        }
+      ],
+      "approved_by": [],
+      "permits": [],
+      "control_generation": 0,
+      "rationale": null,
+      "supersedes_instance_id": null,
+      "decision_history": [
+        {
+          "from": null,
+          "to": "open",
+          "at": "2026-09-15T00:00:00Z",
+          "actor_id": "architecture-session"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "instance_id": "oq-11-abcp-1c",
+      "definition_id": "OQ-11",
+      "scope": {
+        "tenant_id": "tenant:oleg",
+        "provider": "abcp+custom-1c",
+        "route": "business-system",
+        "artifact_class": "identifiers+order-payload+logs",
+        "purpose": "order",
+        "environment": "controlled_real_customer"
+      },
+      "state": "open",
+      "evidence": [],
+      "dependencies": [],
+      "tested_at": null,
+      "expiry_conditions": [
+        {
+          "kind": "provider_change",
+          "value": "Terms/account/artifact/purpose changes"
+        }
+      ],
+      "approved_by": [],
+      "permits": [],
+      "control_generation": 0,
+      "rationale": null,
+      "supersedes_instance_id": null,
+      "decision_history": [
+        {
+          "from": null,
+          "to": "open",
+          "at": "2026-09-15T00:00:00Z",
+          "actor_id": "architecture-session"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "instance_id": "oq-11-montagio",
+      "definition_id": "OQ-11",
+      "scope": {
+        "tenant_id": "tenant:montagio",
+        "provider": "montagio-web+application",
+        "route": "web+business-system",
+        "artifact_class": "customer-facts+media+order-data+logs",
+        "purpose": "service-fulfillment",
+        "environment": "controlled_real_customer"
+      },
+      "state": "open",
+      "evidence": [],
+      "dependencies": [],
+      "tested_at": null,
+      "expiry_conditions": [
+        {
+          "kind": "config_change",
+          "value": "Application/route/artifact/purpose changes"
+        }
+      ],
+      "approved_by": [],
+      "permits": [],
+      "control_generation": 0,
+      "rationale": null,
+      "supersedes_instance_id": null,
+      "decision_history": [
+        {
+          "from": null,
+          "to": "open",
+          "at": "2026-09-15T00:00:00Z",
+          "actor_id": "architecture-session"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "instance_id": "oq-11-staffy-data",
+      "definition_id": "OQ-11",
+      "scope": {
+        "tenant_id": "platform:staffy",
+        "provider": "staffy-managed-data",
+        "route": "postgres+s3+backup+telemetry+support",
+        "artifact_class": "all-retained",
+        "purpose": "declared-service-purposes",
+        "environment": "controlled_real_customer"
+      },
+      "state": "open",
+      "evidence": [],
+      "dependencies": [],
+      "tested_at": null,
+      "expiry_conditions": [
+        {
+          "kind": "config_change",
+          "value": "Infrastructure/retention/support path changes"
+        }
+      ],
+      "approved_by": [],
+      "permits": [],
+      "control_generation": 0,
+      "rationale": null,
+      "supersedes_instance_id": null,
+      "decision_history": [
+        {
+          "from": null,
+          "to": "open",
+          "at": "2026-09-15T00:00:00Z",
+          "actor_id": "architecture-session"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "instance_id": "oq-12-novofon-yandex",
+      "definition_id": "OQ-12",
+      "scope": {
+        "tenant_id": "tenant:montagio",
+        "provider": "novofon+yandex",
+        "route": "voice",
+        "environment": "controlled_real_customer"
+      },
+      "state": "open",
+      "evidence": [],
+      "dependencies": [
+        "oq-11-novofon",
+        "oq-11-yandex-voice",
+        "oq-11-montagio",
+        "oq-11-staffy-data"
+      ],
+      "tested_at": null,
+      "expiry_conditions": [
+        {
+          "kind": "release_change",
+          "value": "Provider/model/media build changes"
+        }
+      ],
+      "approved_by": [],
+      "permits": [],
+      "control_generation": 0,
+      "rationale": null,
+      "supersedes_instance_id": null,
+      "decision_history": [
+        {
+          "from": null,
+          "to": "open",
+          "at": "2026-09-15T00:00:00Z",
+          "actor_id": "architecture-session"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "instance_id": "oq-12-oleg-voice",
+      "definition_id": "OQ-12",
+      "scope": {
+        "tenant_id": "tenant:oleg",
+        "provider": "candidate:actual-oleg-sip+yandex",
+        "route": "voice",
+        "environment": "controlled_real_customer"
+      },
+      "state": "open",
+      "evidence": [],
+      "dependencies": [
+        "oq-11-oleg-sip",
+        "oq-11-yandex-voice",
+        "oq-11-staffy-data"
+      ],
+      "tested_at": null,
+      "expiry_conditions": [
+        {
+          "kind": "release_change",
+          "value": "Provider/model/media build changes"
+        }
+      ],
+      "approved_by": [],
+      "permits": [],
+      "control_generation": 0,
+      "rationale": null,
+      "supersedes_instance_id": null,
+      "decision_history": [
+        {
+          "from": null,
+          "to": "open",
+          "at": "2026-09-15T00:00:00Z",
+          "actor_id": "architecture-session"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "instance_id": "oq-13a-montagio",
+      "definition_id": "OQ-13A",
+      "scope": {
+        "tenant_id": "tenant:montagio",
+        "action": "best_effort_pilot_wording"
+      },
+      "state": "pass",
+      "evidence": [
+        {
+          "artifact_id": "oq-13a-montagio-best-effort",
+          "uri": "evidence/oq-13a-montagio-best-effort.md",
+          "sha256": "d8a058dc15545b3b24f7702b288bb1fdaf55881db76da11b1e3fbd7bfa2a662a"
+        }
+      ],
+      "dependencies": [],
+      "tested_at": "2026-09-15T00:00:00Z",
+      "expiry_conditions": [
+        {
+          "kind": "policy_change",
+          "value": "Commercial SLA or wording changes"
+        }
+      ],
+      "approved_by": [
+        {
+          "principal_id": "founder",
+          "role": "ProductOwner",
+          "approved_at": "2026-09-15T00:00:00Z"
+        },
+        {
+          "principal_id": "founder",
+          "role": "TenantOwner",
+          "approved_at": "2026-09-15T00:00:00Z"
+        }
+      ],
+      "permits": [
+        "commercial.wording.best_effort.no_sla"
+      ],
+      "control_generation": 0,
+      "rationale": null,
+      "supersedes_instance_id": null,
+      "decision_history": [
+        {
+          "from": null,
+          "to": "open",
+          "at": "2026-09-15T00:00:00Z",
+          "actor_id": "founder"
+        },
+        {
+          "from": "open",
+          "to": "in_test",
+          "at": "2026-09-15T00:00:00Z",
+          "actor_id": "founder"
+        },
+        {
+          "from": "in_test",
+          "to": "pass",
+          "at": "2026-09-15T00:00:00Z",
+          "actor_id": "founder"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "instance_id": "oq-13a-oleg",
+      "definition_id": "OQ-13A",
+      "scope": {
+        "tenant_id": "tenant:oleg",
+        "action": "best_effort_pilot_wording"
+      },
+      "state": "open",
+      "evidence": [],
+      "dependencies": [],
+      "tested_at": null,
+      "expiry_conditions": [
+        {
+          "kind": "policy_change",
+          "value": "Commercial terms or wording changes"
+        }
+      ],
+      "approved_by": [],
+      "permits": [],
+      "control_generation": 0,
+      "rationale": null,
+      "supersedes_instance_id": null,
+      "decision_history": [
+        {
+          "from": null,
+          "to": "open",
+          "at": "2026-09-15T00:00:00Z",
+          "actor_id": "architecture-session"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "instance_id": "oq-13b-pilots",
+      "definition_id": "OQ-13B",
+      "scope": {
+        "tenant_id": "platform:staffy",
+        "capability": "pilot_recoverability",
+        "environment": "controlled_real_customer"
+      },
+      "state": "open",
+      "evidence": [],
+      "dependencies": [
+        "ag-4-runtime"
+      ],
+      "tested_at": null,
+      "expiry_conditions": [
+        {
+          "kind": "config_change",
+          "value": "Infrastructure/storage/runbook changes"
+        }
+      ],
+      "approved_by": [],
+      "permits": [],
+      "control_generation": 0,
+      "rationale": null,
+      "supersedes_instance_id": null,
+      "decision_history": [
+        {
+          "from": null,
+          "to": "open",
+          "at": "2026-09-15T00:00:00Z",
+          "actor_id": "architecture-session"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "instance_id": "oq-14-first-promotion",
+      "definition_id": "OQ-14",
+      "scope": {
+        "tenant_id": "platform:staffy",
+        "capability": "first_autonomy_live_scale_promotion",
+        "environment": "live"
+      },
+      "state": "open",
+      "evidence": [],
+      "dependencies": [
+        "oq-7b-montagio"
+      ],
+      "tested_at": null,
+      "expiry_conditions": [
+        {
+          "kind": "release_change",
+          "value": "Release/profile/threshold changes"
+        }
+      ],
+      "approved_by": [],
+      "permits": [],
+      "control_generation": 0,
+      "rationale": null,
+      "supersedes_instance_id": null,
+      "decision_history": [
+        {
+          "from": null,
+          "to": "open",
+          "at": "2026-09-15T00:00:00Z",
+          "actor_id": "architecture-session"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "instance_id": "oq-15-staffy-offer",
+      "definition_id": "OQ-15",
+      "scope": {
+        "tenant_id": "platform:staffy",
+        "action": "repeatable_commercial_offer"
+      },
+      "state": "open",
+      "evidence": [],
+      "dependencies": [],
+      "tested_at": null,
+      "expiry_conditions": [
+        {
+          "kind": "policy_change",
+          "value": "Packaging/cost/market evidence changes"
+        }
+      ],
+      "approved_by": [],
+      "permits": [],
+      "control_generation": 0,
+      "rationale": null,
+      "supersedes_instance_id": null,
+      "decision_history": [
+        {
+          "from": null,
+          "to": "open",
+          "at": "2026-09-15T00:00:00Z",
+          "actor_id": "architecture-session"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "instance_id": "oq-16-cross-case",
+      "definition_id": "OQ-16",
+      "scope": {
+        "tenant_id": "platform:staffy",
+        "capability": "cross_case_customer_profile",
+        "environment": "controlled_real_customer"
+      },
+      "state": "open",
+      "evidence": [],
+      "dependencies": [],
+      "tested_at": null,
+      "expiry_conditions": [
+        {
+          "kind": "policy_change",
+          "value": "Purpose/legal/design changes"
+        }
+      ],
+      "approved_by": [],
+      "permits": [],
+      "control_generation": 0,
+      "rationale": null,
+      "supersedes_instance_id": null,
+      "decision_history": [
+        {
+          "from": null,
+          "to": "open",
+          "at": "2026-09-15T00:00:00Z",
+          "actor_id": "architecture-session"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "instance_id": "oq-17-third-tenant",
+      "definition_id": "OQ-17",
+      "scope": {
+        "tenant_id": "tenant:third-external",
+        "capability": "staffy_operator_surface",
+        "environment": "controlled_real_customer"
+      },
+      "state": "open",
+      "evidence": [],
+      "dependencies": [
+        "ag-2-first-release"
+      ],
+      "tested_at": null,
+      "expiry_conditions": [
+        {
+          "kind": "release_change",
+          "value": "Surface/UX/accessibility changes"
+        }
+      ],
+      "approved_by": [],
+      "permits": [],
+      "control_generation": 0,
+      "rationale": null,
+      "supersedes_instance_id": null,
+      "decision_history": [
+        {
+          "from": null,
+          "to": "open",
+          "at": "2026-09-15T00:00:00Z",
+          "actor_id": "architecture-session"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "instance_id": "oq-18-post-pilot",
+      "definition_id": "OQ-18",
+      "scope": {
+        "tenant_id": "platform:staffy",
+        "capability": "post_pilot_connector",
+        "environment": "scale"
+      },
+      "state": "open",
+      "evidence": [],
+      "dependencies": [],
+      "tested_at": null,
+      "expiry_conditions": [
+        {
+          "kind": "provider_change",
+          "value": "Demand/API/terms/provider changes"
+        }
+      ],
+      "approved_by": [],
+      "permits": [],
+      "control_generation": 0,
+      "rationale": null,
+      "supersedes_instance_id": null,
+      "decision_history": [
+        {
+          "from": null,
+          "to": "open",
+          "at": "2026-09-15T00:00:00Z",
+          "actor_id": "architecture-session"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "instance_id": "oq-19-oleg",
+      "definition_id": "OQ-19",
+      "scope": {
+        "tenant_id": "tenant:oleg",
+        "provider": "abcp+custom-1c",
+        "capability": "material_fields+mutations",
+        "environment": "closed_account_test"
+      },
+      "state": "open",
+      "evidence": [],
+      "dependencies": [],
+      "tested_at": null,
+      "expiry_conditions": [
+        {
+          "kind": "config_change",
+          "value": "Field/API/status/account changes"
+        }
+      ],
+      "approved_by": [],
+      "permits": [],
+      "control_generation": 0,
+      "rationale": null,
+      "supersedes_instance_id": null,
+      "decision_history": [
+        {
+          "from": null,
+          "to": "open",
+          "at": "2026-09-15T00:00:00Z",
+          "actor_id": "architecture-session"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "instance_id": "oq-19-montagio",
+      "definition_id": "OQ-19",
+      "scope": {
+        "tenant_id": "tenant:montagio",
+        "provider": "montagio-application",
+        "capability": "material_fields+mutations",
+        "environment": "closed_account_test"
+      },
+      "state": "open",
+      "evidence": [],
+      "dependencies": [],
+      "tested_at": null,
+      "expiry_conditions": [
+        {
+          "kind": "config_change",
+          "value": "Domain/API/legal model changes"
+        }
+      ],
+      "approved_by": [],
+      "permits": [],
+      "control_generation": 0,
+      "rationale": null,
+      "supersedes_instance_id": null,
+      "decision_history": [
+        {
+          "from": null,
+          "to": "open",
+          "at": "2026-09-15T00:00:00Z",
+          "actor_id": "architecture-session"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "instance_id": "ag-1-first-controlled",
+      "definition_id": "AG-1",
+      "scope": {
+        "tenant_id": "platform:staffy",
+        "capability": "pilot_voice+text_load",
+        "environment": "controlled_real_customer"
+      },
+      "state": "open",
+      "evidence": [],
+      "dependencies": [
+        "ag-4-runtime"
+      ],
+      "tested_at": null,
+      "expiry_conditions": [
+        {
+          "kind": "release_change",
+          "value": "Load/provider/topology/profile changes"
+        }
+      ],
+      "approved_by": [],
+      "permits": [],
+      "control_generation": 0,
+      "rationale": null,
+      "supersedes_instance_id": null,
+      "decision_history": [
+        {
+          "from": null,
+          "to": "open",
+          "at": "2026-09-15T00:00:00Z",
+          "actor_id": "architecture-session"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "instance_id": "ag-2-first-release",
+      "definition_id": "AG-2",
+      "scope": {
+        "tenant_id": "platform:staffy",
+        "capability": "customer+operator_surfaces",
+        "environment": "controlled_real_customer"
+      },
+      "state": "open",
+      "evidence": [],
+      "dependencies": [
+        "ag-4-runtime"
+      ],
+      "tested_at": null,
+      "expiry_conditions": [
+        {
+          "kind": "release_change",
+          "value": "Affected UX/runtime changes"
+        }
+      ],
+      "approved_by": [],
+      "permits": [],
+      "control_generation": 0,
+      "rationale": null,
+      "supersedes_instance_id": null,
+      "decision_history": [
+        {
+          "from": null,
+          "to": "open",
+          "at": "2026-09-15T00:00:00Z",
+          "actor_id": "architecture-session"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "instance_id": "ag-3-third-tenant",
+      "definition_id": "AG-3",
+      "scope": {
+        "tenant_id": "tenant:third-external",
+        "capability": "platform_reuse_proof",
+        "environment": "controlled_real_customer"
+      },
+      "state": "open",
+      "evidence": [],
+      "dependencies": [],
+      "tested_at": null,
+      "expiry_conditions": [
+        {
+          "kind": "release_change",
+          "value": "Pack/Connector/core changes"
+        }
+      ],
+      "approved_by": [],
+      "permits": [],
+      "control_generation": 0,
+      "rationale": null,
+      "supersedes_instance_id": null,
+      "decision_history": [
+        {
+          "from": null,
+          "to": "open",
+          "at": "2026-09-15T00:00:00Z",
+          "actor_id": "architecture-session"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "instance_id": "ag-4-runtime",
+      "definition_id": "AG-4",
+      "scope": {
+        "tenant_id": "platform:staffy",
+        "capability": "credential_bearing_v1_runtime"
+      },
+      "state": "open",
+      "evidence": [],
+      "dependencies": [],
+      "tested_at": null,
+      "expiry_conditions": [
+        {
+          "kind": "config_change",
+          "value": "Dependency/provider/security changes"
+        }
+      ],
+      "approved_by": [],
+      "permits": [],
+      "control_generation": 0,
+      "rationale": null,
+      "supersedes_instance_id": null,
+      "decision_history": [
+        {
+          "from": null,
+          "to": "open",
+          "at": "2026-09-15T00:00:00Z",
+          "actor_id": "architecture-session"
+        }
+      ]
+    }
+  ]
+}

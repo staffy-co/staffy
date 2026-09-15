@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://staffy.local/schemas/gate-definition.v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["definition_id", "criticality", "blocks_stages", "required_approver_roles", "approval_mode", "allow_role_coincidence", "evidence_requirement", "safe_state"],
+  "properties": {
+    "definition_id": { "type": "string", "pattern": "^(OQ-[0-9]+[A-Z]?|AG-[1-4])$" },
+    "criticality": { "enum": ["critical", "high", "medium", "low"] },
+    "blocks_stages": { "type": "array", "items": { "enum": ["synthetic", "closed_account_test", "controlled_real_customer", "live", "scale", "commercial_commitment", "universality_claim", "credential_bearing_build"] }, "minItems": 1, "uniqueItems": true },
+    "required_approver_roles": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1, "uniqueItems": true },
+    "approval_mode": { "const": "all_required_roles" },
+    "allow_role_coincidence": { "type": "boolean" },
+    "evidence_requirement": { "type": "string", "minLength": 1 },
+    "safe_state": { "type": "string", "minLength": 1 }
+  }
+}
