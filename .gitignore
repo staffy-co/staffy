@@ -1,0 +1,2 @@
+# Graphify's run-local accounting is not shared project state.
+graphify-out/cost.json

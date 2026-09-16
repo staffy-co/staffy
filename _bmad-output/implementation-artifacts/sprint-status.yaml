@@ -1,0 +1,133 @@
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created, ready for development
+#   - in-progress: Developer actively working on implementation
+#   - review: Implementation complete, ready for review
+#   - done: Story completed
+
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+
+# Action Item Status:
+#   - open: Committed during a retrospective, not yet addressed
+#   - in-progress: Actively being worked on
+#   - done: Completed
+
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when its first story starts (via build's sprint sync)
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates the next story after the previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+# - Retrospective appends its action items to action_items; the status view surfaces open ones
+generated: 09-16-2026 16:47
+last_updated: 09-16-2026 16:47
+project: staffy
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+development_status:
+  epic-1: backlog
+  1-1-создание-защищённого-пространства-tenant: backlog
+  1-2-управление-участниками-и-полномочиями-tenant: backlog
+  1-3-создание-черновика-ии-сотрудника-через-guided-setup: backlog
+  1-4-подключение-версионированного-domain-pack: backlog
+  1-5-управление-жизненным-циклом-knowledge-sources: backlog
+  1-6-безопасная-настройка-поведения-ии-сотрудника: backlog
+  1-7-настройка-голоса-и-произношения: backlog
+  1-8-выбор-и-безопасное-подключение-интеграций: backlog
+  1-9-проверка-capabilities-конкретного-подключения: backlog
+  1-10-управление-периметром-данных-сроками-хранения-и-правами-субъ: backlog
+  1-11-entitlement-лимиты-и-прозрачность-usage: backlog
+  1-12-версии-конфигурации-и-release-manifest: backlog
+  1-13-утверждение-operating-profile-и-правил-измерения: backlog
+  1-14-readiness-проверка-и-контролируемая-публикация: backlog
+  epic-1-retrospective: optional
+
+  epic-2: backlog
+  2-1-приём-channel-event-и-создание-единого-case: backlog
+  2-2-work-items-факты-и-provenance-внутри-case: backlog
+  2-3-проверка-личности-и-безопасное-связывание-каналов: backlog
+  2-4-единственный-response-owner-и-записывающий-inbox: backlog
+  2-5-conversation-mode-и-обязательное-ai-раскрытие: backlog
+  2-6-progressive-intake-и-детерминированный-policy-outcome: backlog
+  2-7-актуальные-данные-owning-system-и-обработка-неопределённости: backlog
+  2-8-консультативная-продажа-и-этичная-работа-с-возражениями: backlog
+  2-9-версионированный-commitment-и-точное-confirmation: backlog
+  2-10-защищённое-мультимодальное-продолжение: backlog
+  2-11-равноправные-альтернативные-пути-обслуживания: backlog
+  2-12-degraded-mode-сбой-канала-и-согласованный-callback: backlog
+  2-13-безусловный-запрос-человека-и-lifecycle-handoff: backlog
+  2-14-decision-ready-контекст-и-операторская-поверхность: backlog
+  2-15-исправление-и-оспаривание-ai-резюме: backlog
+  2-16-правдивые-обновления-и-явный-возврат-из-handoff: backlog
+  epic-2-retrospective: optional
+
+  epic-3: backlog
+  3-1-каталог-разрешённых-business-actions: backlog
+  3-2-scoped-controls-и-аварийное-ограничение-работы: backlog
+  3-3-надёжное-сохранение-внешнего-commitment-до-отправки: backlog
+  3-4-подготовка-и-проверка-action-preview: backlog
+  3-5-авторизация-и-идемпотентное-резервирование-operation: backlog
+  3-6-execute-time-revalidation-dispatch-и-action-receipt: backlog
+  3-7-reconciliation-неопределённых-и-частичных-результатов: backlog
+  3-8-создание-связанного-recovery-case: backlog
+  3-9-ограниченные-действия-staffy-во-время-recovery: backlog
+  epic-3-retrospective: optional
+
+  epic-4: backlog
+  4-1-допуск-каналов-и-систем-пилота-магазина-олега: backlog
+  4-2-структурированная-идентификация-автомобиля-и-защищённая-пере: backlog
+  4-3-классификация-запроса-детали-и-граница-диагностики: backlog
+  4-4-каталогическое-доказательство-применимости: backlog
+  4-5-актуальные-предложения-и-сравнение-вариантов: backlog
+  4-6-создание-одного-клиентского-заказа-в-abcp: backlog
+  4-7-decision-ready-проверка-заказа-менеджером: backlog
+  4-8-коррекция-подбора-до-закупки: backlog
+  4-9-правдивый-статус-abcp-1с-и-поставщика: backlog
+  4-10-безопасное-обслуживание-существующего-заказа: backlog
+  4-11-сквозной-бизнес-результат-пилота-автозапчастей: backlog
+  epic-4-retrospective: optional
+
+  epic-5: backlog
+  5-1-допуск-каналов-и-маршрутов-montagio: backlog
+  5-2-нормализация-источников-обращения-в-единый-case: backlog
+  5-3-квалификация-услуги-и-независимых-work-items: backlog
+  5-4-safety-triage-до-коммерческого-предложения: backlog
+  5-5-детерминированный-выбор-policy-outcome-p1-p6: backlog
+  5-6-версионированная-верхнерыночная-ценовая-политика: backlog
+  5-7-управление-пулом-и-допуском-исполнителей: backlog
+  5-8-первое-подтверждение-и-подготовка-order-montagio: backlog
+  5-9-supply-readiness-до-обещания-клиенту: backlog
+  5-10-decision-ready-предложение-исполнителю: backlog
+  5-11-последовательное-атомарное-предварительное-назначение-исполн: backlog
+  5-12-финальное-подтверждение-и-активация-order-montagio: backlog
+  5-13-согласование-дополнительной-работы-на-объекте: backlog
+  5-14-версионированный-контракт-партнёрской-заявки: backlog
+  5-15-b2b-полномочия-и-коммерческое-одобрение: backlog
+  5-16-подтверждение-выполнения-и-приёмка-клиентом: backlog
+  5-17-клиентская-оплата-и-кассовый-чек: backlog
+  5-18-расчёт-с-исполнителем-и-окончательное-бизнес-закрытие: backlog
+  5-19-единая-претензионная-точка-montagio: backlog
+  epic-5-retrospective: optional
+
+  epic-6: backlog
+  6-1-независимые-режимы-автономности-по-классам-задач: backlog
+  6-2-версионированные-eval-наборы-по-domain-pack-и-autonomy-class: backlog
+  6-3-мультимодальное-adversarial-и-регрессионное-покрытие-eval: backlog
+  6-4-version-bound-telemetry-и-измерительный-фундамент: backlog
+  6-5-evidence-gate-повышения-автономности: backlog
+  6-6-мгновенный-точечный-откат-автономности: backlog
+  6-7-раздельные-release-стадии-и-когорты: backlog
+  6-8-сопоставимое-сравнение-staffy-и-человека: backlog
+  6-9-операционная-наблюдаемость-алерты-и-экспорт-доказательств: backlog
+  6-10-инструменты-доказуемого-no-code-onboarding-и-reuse: backlog
+  epic-6-retrospective: optional

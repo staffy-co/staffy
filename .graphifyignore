@@ -1,0 +1,14 @@
+# Development-assistant and BMAD Method implementation files are tooling,
+# not Staffy product knowledge. Project artifacts under _bmad-output/ remain
+# intentionally included.
+/.agents/
+/_bmad/
+/.codex/
+/AGENTS.md
+/чат с ии-поисковиком.md
+
+# Generated Graphify outputs must never become graph input.
+/graphify-out/
+
+# Graph query feedback is useful to agents but is not Staffy source material.
+/.graphify-memory/
