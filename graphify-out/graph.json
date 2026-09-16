@@ -3407,7 +3407,7 @@
         "title": "Story 1.1 \u2014 \u0421\u043e\u0437\u0434\u0430\u043d\u0438\u0435 \u0437\u0430\u0449\u0438\u0449\u0451\u043d\u043d\u043e\u0433\u043e \u043f\u0440\u043e\u0441\u0442\u0440\u0430\u043d\u0441\u0442\u0432\u0430 Tenant",
         "type": "feature",
         "created": "2026-09-16",
-        "status": "in-review",
+        "status": "done",
         "route": "dispatch",
         "review_loop_iteration": "0",
         "baseline_commit": "4f4ed350068f1f55755ecffd1c11d40a4a204545"
@@ -7677,6 +7677,18 @@
       "type": "external"
     },
     {
+      "id": "go_pkg_unicode",
+      "label": "go_pkg_unicode",
+      "_origin": "semantic",
+      "community": 24,
+      "community_name": "service_test.go",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "go_pkg_unicode",
+      "source_file": "",
+      "type": "external"
+    },
+    {
       "id": "go_pkg_unicode_utf8",
       "label": "go_pkg_unicode_utf8",
       "_origin": "semantic",
@@ -7745,6 +7757,18 @@
       "external": true,
       "file_type": "concept",
       "norm_label": "go_pkg_html_template",
+      "source_file": "",
+      "type": "external"
+    },
+    {
+      "id": "go_pkg_mime",
+      "label": "go_pkg_mime",
+      "_origin": "semantic",
+      "community": 26,
+      "community_name": "server.go",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "go_pkg_mime",
       "source_file": "",
       "type": "external"
     },
@@ -7829,6 +7853,18 @@
       "external": true,
       "file_type": "concept",
       "norm_label": "go_pkg_go_token",
+      "source_file": "",
+      "type": "external"
+    },
+    {
+      "id": "go_pkg_gopkg_in_yaml_v3",
+      "label": "go_pkg_gopkg_in_yaml_v3",
+      "_origin": "semantic",
+      "community": 27,
+      "community_name": "testing.T",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "go_pkg_gopkg_in_yaml_v3",
       "source_file": "",
       "type": "external"
     },
@@ -8045,39 +8081,6 @@
       "external": true,
       "file_type": "concept",
       "norm_label": "go_pkg_embed",
-      "source_file": "",
-      "type": "external"
-    },
-    {
-      "id": "go_pkg_unicode",
-      "label": "go_pkg_unicode",
-      "community": 24,
-      "community_name": "service_test.go",
-      "external": true,
-      "file_type": "concept",
-      "norm_label": "go_pkg_unicode",
-      "source_file": "",
-      "type": "external"
-    },
-    {
-      "id": "go_pkg_mime",
-      "label": "go_pkg_mime",
-      "community": 26,
-      "community_name": "server.go",
-      "external": true,
-      "file_type": "concept",
-      "norm_label": "go_pkg_mime",
-      "source_file": "",
-      "type": "external"
-    },
-    {
-      "id": "go_pkg_gopkg_in_yaml_v3",
-      "label": "go_pkg_gopkg_in_yaml_v3",
-      "community": 27,
-      "community_name": "testing.T",
-      "external": true,
-      "file_type": "concept",
-      "norm_label": "go_pkg_gopkg_in_yaml_v3",
       "source_file": "",
       "type": "external"
     }
@@ -19950,5 +19953,5 @@
       "source_file": "_bmad-output/planning-artifacts/research/technical-staffy-voice-architecture-2026-09-11/research.md"
     }
   ],
-  "built_at_commit": "4f4ed350068f1f55755ecffd1c11d40a4a204545"
+  "built_at_commit": "20f0de8d882e75b18ecf21c0ab14c1c88d25e7b5"
 }

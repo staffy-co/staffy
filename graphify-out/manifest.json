@@ -882,9 +882,9 @@
     "semantic_hash": "c6d307a2fcc1f1986fdc4c98fc025864"
   },
   "_bmad-output/implementation-artifacts/sprint-status.yaml": {
-    "mtime": 1789594085.3913362,
-    "seen": 1789595649.014089,
-    "ast_hash": "6041ae53ff9e2a7eb64bc83b3847e32d",
+    "mtime": 1789597396.6482434,
+    "seen": 1789597429.4659011,
+    "ast_hash": "cc50dae8408a41f557377cc836a2fabf",
     "semantic_hash": ""
   },
   "cmd/staffy-core/main.go": {
@@ -1044,9 +1044,9 @@
     "semantic_hash": ""
   },
   "_bmad-output/implementation-artifacts/spec-1-1-tenant-workspace.md": {
-    "mtime": 1789597259.0024123,
-    "seen": 1789597287.4875176,
-    "ast_hash": "ecfbf02e8d9b3111201608b555a90510",
+    "mtime": 1789597396.4132369,
+    "seen": 1789597429.4658961,
+    "ast_hash": "01bbedab6f45f46de0d079471498d6ac",
     "semantic_hash": ""
   },
   "contracts/openapi/staffy.yaml": {

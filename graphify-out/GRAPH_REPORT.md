@@ -1,7 +1,7 @@
 # Graph Report - staffy  (2026-09-16)
 
 ## Corpus Check
-- 158 files · ~343,075 words
+- 158 files · ~343,083 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 14 file(s) not represented in the graph (top: .excalidraw 10, (none) 3, .css 1)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `4f4ed350`
+- Built from commit: `20f0de8d`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -276,14 +276,14 @@ Cohesion: 0.67
 Nodes (3): pattern, type, instance_id
 
 ## Knowledge Gaps
-- **221 isolated node(s):** `$schema`, `$id`, `type`, `additionalProperties`, `required` (+216 more)
+- **221 isolated node(s):** `Goal`, `Stories`, `Requirements & Constraints`, `Technical Decisions`, `UX & Interaction Patterns` (+216 more)
   These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 266 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
 - **5 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **What connects `$schema`, `$id`, `type` to the rest of the system?**
+- **What connects `Goal`, `Stories`, `Requirements & Constraints` to the rest of the system?**
   _221 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `properties` be split into smaller, more focused modules?**
   _Cohesion score 0.05714285714285714 - nodes in this community are weakly interconnected._
