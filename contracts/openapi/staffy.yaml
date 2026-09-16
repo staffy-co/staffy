@@ -1,0 +1,74 @@
+openapi: 3.1.0
+info:
+  title: Staffy API
+  version: 0.1.0
+  description: >-
+    Application contract behind a trusted PrincipalResolver. The external login/session
+    transport is intentionally deployment-neutral and is not defined by Story 1.1.
+paths:
+  /v1/tenants:
+    post:
+      operationId: createTenant
+      summary: Создать изолированное пространство Tenant
+      description: Требует principal, проверенный доверенным PrincipalResolver до вызова application API.
+      x-staffy-principal-required: true
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema: { type: string, minLength: 8, maxLength: 200 }
+        - in: header
+          name: X-Correlation-ID
+          required: false
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name]
+              properties:
+                name: { type: string, minLength: 2, maxLength: 160 }
+      responses:
+        '201':
+          description: Tenant создан либо идемпотентно воспроизведён
+          headers:
+            Location: { schema: { type: string } }
+            Idempotency-Replayed: { schema: { type: string, enum: ['true'] } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TenantCreated' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+        '415': { $ref: '#/components/responses/Problem' }
+components:
+  schemas:
+    TenantCreated:
+      type: object
+      additionalProperties: false
+      required: [tenant_id, name, role, workspace_url]
+      properties:
+        tenant_id: { type: string, format: uuid }
+        name: { type: string }
+        role: { type: string, const: Owner }
+        workspace_url: { type: string }
+    Problem:
+      type: object
+      additionalProperties: false
+      required: [code, message, correlation_id, retryable]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        correlation_id: { type: string, format: uuid }
+        retryable: { type: boolean }
+        field_errors: { type: object, additionalProperties: { type: string } }
+  responses:
+    Problem:
+      description: Безопасная ошибка
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }

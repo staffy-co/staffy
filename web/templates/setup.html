@@ -1,0 +1,29 @@
+{{define "setup"}}
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Создать пространство · Staffy</title>
+  <link rel="stylesheet" href="/assets/app.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">К основному содержанию</a>
+  <header class="topbar"><a class="brand" href="/app" aria-label="Staffy, главная">Staffy</a></header>
+  <main id="main" class="setup-layout">
+    <section class="panel" aria-labelledby="setup-title">
+      <p class="eyebrow">Начало работы</p>
+      <h1 id="setup-title">Создайте пространство компании</h1>
+      <p class="lede">Данные компании будут изолированы от других организаций. ИИ-сотрудник и интеграции пока не создаются.</p>
+      {{if .Error}}<div class="alert" role="alert">{{.Error}}</div>{{end}}
+      <form method="post" action="/app/tenants">
+        <input type="hidden" name="idempotency_key" value="{{.IdempotencyKey}}">
+        <label for="company-name">Название компании</label>
+        <input id="company-name" name="name" minlength="2" maxlength="160" required autocomplete="organization" value="{{.Name}}">
+        <button class="primary" type="submit">Создать пространство</button>
+      </form>
+    </section>
+  </main>
+</body>
+</html>
+{{end}}

@@ -1,0 +1,18 @@
+import { defineConfig } from '@playwright/test';
+
+export default defineConfig({
+  testDir: '.',
+  testMatch: '*.spec.ts',
+  fullyParallel: false,
+  reporter: 'line',
+  use: {
+    baseURL: 'http://127.0.0.1:18081',
+    trace: 'retain-on-failure'
+  },
+  webServer: {
+    command: 'cd ../.. && go run ./tests/journeys/fixture_server.go',
+    url: 'http://127.0.0.1:18081/healthz',
+    reuseExistingServer: false,
+    timeout: 120_000
+  }
+});
