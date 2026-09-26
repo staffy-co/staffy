@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"mime"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/artemiosu/staffy/internal/identity/api"
@@ -36,7 +37,10 @@ type Server struct {
 }
 
 func New(identity api.Service, resolver port.PrincipalResolver, ids IDGenerator, clock Clock, logger *slog.Logger) (*Server, error) {
-	templates, err := template.ParseFS(staffyweb.Assets, "templates/*.html")
+	templates, err := template.New("staffy").Funcs(template.FuncMap{
+		"hasRole":  func(roles []domain.Role, role string) bool { return slices.Contains(roles, domain.Role(role)) },
+		"hasScope": func(scopes []domain.Scope, scope string) bool { return slices.Contains(scopes, domain.Scope(scope)) },
+	}).ParseFS(staffyweb.Assets, "templates/*.html")
 	if err != nil {
 		return nil, err
 	}
@@ -51,6 +55,17 @@ func New(identity api.Service, resolver port.PrincipalResolver, ids IDGenerator,
 	s.mux.HandleFunc("POST /app/tenants", s.createTenantForm)
 	s.mux.HandleFunc("GET /app/tenants/{tenant_id}", s.workspace)
 	s.mux.HandleFunc("POST /v1/tenants", s.createTenantAPI)
+	s.mux.HandleFunc("GET /v1/tenants/{tenant_id}/members", s.listMembersAPI)
+	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/invitations", s.inviteMemberAPI)
+	s.mux.HandleFunc("POST /v1/invitations/accept", s.acceptInvitationAPI)
+	s.mux.HandleFunc("PATCH /v1/tenants/{tenant_id}/members/{principal_id}", s.changeMemberAPI)
+	s.mux.HandleFunc("DELETE /v1/tenants/{tenant_id}/members/{principal_id}", s.revokeMemberAPI)
+	s.mux.HandleFunc("GET /app/tenants/{tenant_id}/people", s.people)
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/people", s.inviteMemberForm)
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/people/change", s.changeMemberForm)
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/people/revoke", s.revokeMemberForm)
+	s.mux.HandleFunc("GET /app/invitations/accept", s.acceptInvitationPage)
+	s.mux.HandleFunc("POST /app/invitations/accept", s.acceptInvitationForm)
 	return s, nil
 }
 
@@ -158,11 +173,11 @@ func (s *Server) workspace(w http.ResponseWriter, r *http.Request) {
 		s.problem(w, r, http.StatusInternalServerError, "internal_error", "Не удалось открыть пространство. Повторите позднее.", true, nil)
 		return
 	}
-	role := "Неизвестна"
-	if workspace.Role == "owner" {
-		role = "Owner"
+	role := map[string]string{"owner": "Owner", "configurator": "Configurator", "operator": "Operator", "expert_qa": "Expert/QA", "integration_admin": "Integration Admin"}[workspace.Role]
+	if role == "" {
+		role = "Неизвестна"
 	}
-	s.render(w, "workspace", map[string]any{"TenantID": workspace.Tenant.ID, "TenantName": workspace.Tenant.Name, "Role": role})
+	s.render(w, "workspace", map[string]any{"TenantID": workspace.Tenant.ID, "TenantName": workspace.Tenant.Name, "Role": role, "CanManage": workspace.Role == "owner"})
 }
 
 func (s *Server) principal(w http.ResponseWriter, r *http.Request) (domain.Principal, bool) {

@@ -26,6 +26,27 @@ type Service interface {
 	Workspace(context.Context, domain.Principal, id.UUID) (domain.Workspace, error)
 }
 
+type MembershipService interface {
+	ListMembers(context.Context, domain.Principal, id.UUID) ([]domain.Membership, error)
+	InviteMember(context.Context, MembershipCommand) (domain.Membership, string, error)
+	AcceptInvitation(context.Context, domain.Principal, string, id.UUID) (domain.Membership, error)
+	ChangeMember(context.Context, MembershipCommand) (domain.Membership, error)
+	RevokeMember(context.Context, MembershipCommand) error
+	Authorize(context.Context, domain.Principal, id.UUID, domain.Scope) error
+}
+
+type MembershipCommand struct {
+	Actor           domain.Principal
+	TenantID        id.UUID
+	TargetID        id.UUID
+	Email           string
+	Roles           []domain.Role
+	Scopes          []domain.Scope
+	ExpectedVersion int64
+	Reason          domain.ReasonCode
+	CorrelationID   id.UUID
+}
+
 type Clock interface {
 	Now() time.Time
 }

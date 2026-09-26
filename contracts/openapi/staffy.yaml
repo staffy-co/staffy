@@ -6,6 +6,119 @@ info:
     Application contract behind a trusted PrincipalResolver. The external login/session
     transport is intentionally deployment-neutral and is not defined by Story 1.1.
 paths:
+  /v1/tenants/{tenant_id}/members:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+    get:
+      operationId: listMembers
+      summary: Список участников Tenant для Owner
+      x-staffy-principal-required: true
+      responses:
+        '200':
+          description: Участники и ожидающие приглашения
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [members]
+                properties:
+                  members: { type: array, items: { $ref: '#/components/schemas/Membership' } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/invitations:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+    post:
+      operationId: inviteMember
+      summary: Создать или обновить приглашение
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InviteInput' }
+      responses:
+        '201':
+          description: Новая одноразовая ссылка
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [membership, invitation_url]
+                properties:
+                  membership: { $ref: '#/components/schemas/Membership' }
+                  invitation_url: { type: string }
+        '400': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /v1/invitations/accept:
+    post:
+      operationId: acceptInvitation
+      summary: Принять приглашение подтверждённым адресом
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [token]
+              properties:
+                token: { type: string }
+      responses:
+        '200':
+          description: Активное membership
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Membership' }
+        '404': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/members/{principal_id}:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - name: principal_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      operationId: changeMember
+      summary: Изменить роли и области с повторным подтверждением
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChangeInput' }
+      responses:
+        '200':
+          description: Изменённое membership
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Membership' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+    delete:
+      operationId: revokeMember
+      summary: Отозвать доступ с повторным подтверждением
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [version, reason]
+              properties:
+                version: { type: integer, minimum: 1 }
+                reason: { $ref: '#/components/schemas/RevokeReason' }
+      responses:
+        '204': { description: Доступ отозван }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
   /v1/tenants:
     post:
       operationId: createTenant
@@ -46,7 +159,46 @@ paths:
         '409': { $ref: '#/components/responses/Problem' }
         '415': { $ref: '#/components/responses/Problem' }
 components:
+  parameters:
+    TenantID:
+      name: tenant_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
   schemas:
+    Role: { type: string, enum: [owner, configurator, operator, expert_qa, integration_admin] }
+    Scope: { type: string, enum: [configuration, integrations, operations, review, technical_expertise, claims, audit] }
+    ChangeReason: { type: string, enum: [access_adjustment, security_response] }
+    RevokeReason: { type: string, enum: [offboarding, security_response] }
+    Membership:
+      type: object
+      required: [tenant_id, roles, scopes, status, version]
+      properties:
+        tenant_id: { type: string, format: uuid }
+        principal_id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        roles: { type: array, items: { $ref: '#/components/schemas/Role' } }
+        scopes: { type: array, items: { $ref: '#/components/schemas/Scope' } }
+        status: { type: string, enum: [pending, expired, active, revoked] }
+        version: { type: integer, minimum: 1 }
+        expires_at: { type: string, format: date-time }
+    InviteInput:
+      type: object
+      additionalProperties: false
+      required: [email, roles, scopes]
+      properties:
+        email: { type: string, format: email }
+        roles: { type: array, items: { $ref: '#/components/schemas/Role' } }
+        scopes: { type: array, items: { $ref: '#/components/schemas/Scope' } }
+    ChangeInput:
+      type: object
+      additionalProperties: false
+      required: [roles, scopes, version, reason]
+      properties:
+        roles: { type: array, items: { $ref: '#/components/schemas/Role' } }
+        scopes: { type: array, items: { $ref: '#/components/schemas/Scope' } }
+        version: { type: integer, minimum: 1 }
+        reason: { $ref: '#/components/schemas/ChangeReason' }
     TenantCreated:
       type: object
       additionalProperties: false

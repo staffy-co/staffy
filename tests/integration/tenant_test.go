@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/url"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -67,6 +68,13 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 	if _, err = adminPool.Exec(ctx, string(migration)); err != nil {
+		panic(err)
+	}
+	membershipMigration, err := os.ReadFile("../../migrations/identity/00002_identity_membership.sql")
+	if err != nil {
+		panic(err)
+	}
+	if _, err = adminPool.Exec(ctx, strings.Split(string(membershipMigration), "-- +goose Down")[0]); err != nil {
 		panic(err)
 	}
 	if _, err = adminPool.Exec(ctx, "alter role staffy_app login password 'staffy-runtime-test'"); err != nil {
