@@ -16,14 +16,18 @@
     </div>
   </header>
   <div class="shell">
-    <nav aria-label="Основная навигация"><a aria-current="page" href="#main">Сегодня</a>{{if .CanManage}}<a href="/app/tenants/{{.TenantID}}/people">Участники</a>{{end}}</nav>
+    <nav aria-label="Основная навигация"><a aria-current="page" href="#main">Сегодня</a>{{if .CanConfigure}}<a href="/app/tenants/{{.TenantID}}/employees">Сотрудники</a>{{end}}{{if .CanManage}}<a href="/app/tenants/{{.TenantID}}/people">Участники</a>{{end}}</nav>
     <main id="main">
       <section class="panel empty-state" aria-labelledby="workspace-title">
         <p class="status"><span aria-hidden="true">○</span> Пространство создано</p>
         <h1 id="workspace-title">Начните с ИИ-сотрудника</h1>
+        {{if .Employees}}
+        <p>Продолжите настройку черновика. Каналы и публикация пока заблокированы.</p>
+        {{range .Employees}}<article class="employee-card"><h2>{{if .Brief.Name}}{{.Brief.Name}}{{else}}Новый ИИ-сотрудник{{end}}</h2><p>Владелец настройки: {{.OwnerID}} · Черновик · настройка не завершена</p><a class="primary" href="/app/tenants/{{$.TenantID}}/employees/{{.EmployeeID}}">{{if eq .CurrentStep "launch_plan"}}Просмотреть план запуска{{else}}Продолжить Brief{{end}}</a></article>{{end}}
+        {{else if .CanConfigure}}
         <p>Сотрудники, каналы и интеграции ещё не настроены. Следующий шаг создаст только безопасный черновик.</p>
-        <button class="primary" type="button" disabled aria-describedby="employee-next-note">Создать ИИ-сотрудника</button>
-        <p id="employee-next-note" class="next-note">Станет доступно на следующем шаге настройки.</p>
+        <form method="post" action="/app/tenants/{{.TenantID}}/employees"><input type="hidden" name="idempotency_key" value="{{.EmployeeKey}}"><button class="primary" type="submit">Создать ИИ-сотрудника</button></form>
+        {{else}}<p>Настройка ИИ-сотрудника доступна Owner или Configurator.</p>{{end}}
       </section>
     </main>
   </div>

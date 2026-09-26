@@ -34,10 +34,13 @@ func TestIdentityStoreHasNoIllegalImporters(t *testing.T) {
 		}
 		for _, imported := range parsed.Imports {
 			name := strings.Trim(imported.Path.Value, `"`)
+			rel, _ := filepath.Rel(root, path)
+			if name == "github.com/artemiosu/staffy/internal/employee/store" && !inside(rel, filepath.Join("cmd", "staffy-core")) && !inside(rel, filepath.Join("internal", "employee")) {
+				t.Errorf("%s imports employee/store outside its owner or composition root", rel)
+			}
 			if name != "github.com/artemiosu/staffy/internal/identity/store" {
 				continue
 			}
-			rel, _ := filepath.Rel(root, path)
 			if !inside(rel, filepath.Join("cmd", "staffy-core")) && !inside(rel, filepath.Join("internal", "identity")) {
 				t.Errorf("%s imports identity/store outside its owner or composition root", rel)
 			}

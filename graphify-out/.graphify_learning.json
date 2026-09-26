@@ -1,5 +1,70 @@
 {
-  "generated_at": "2026-09-16T21:17:10.096546+00:00",
-  "nodes": {},
+  "generated_at": "2026-09-26T12:37:54.135410+00:00",
+  "nodes": {
+    "_bmad_output_planning_artifacts_architecture_architecture_staffy_2026_09_13_architecture_spine_staffy_architecture_spine": {
+      "code_fingerprint": "bf8e966b90cdd1af8ae6e44a142b1879670bc0a34ee5bcdbfc9c3e24fa90f1bf",
+      "label": "Staffy Architecture Spine",
+      "last": "2026-09-16T21:17:32.994535+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-16T21:17:32.994535+00:00",
+          "outcome": "useful",
+          "q": "Какие существующие продуктовый код, каркас и архитектурные зависимости относятся к Story 1.1 создания Tenant?"
+        }
+      ],
+      "score": 0.800345896,
+      "source_file": "_bmad-output/planning-artifacts/architecture/architecture-staffy-2026-09-13/ARCHITECTURE-SPINE.md",
+      "status": "tentative",
+      "uses": 1
+    },
+    "_bmad_output_planning_artifacts_epics_epic_1_protected_self_service_setup": {
+      "code_fingerprint": "9197a553a5388e1604ddd15a4998625bf098c56f13ad0880c8439b97c0a2fe3b",
+      "label": "Epic 1: Protected Self-Service AI Employee Setup",
+      "last": "2026-09-16T21:17:32.994535+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-16T21:17:32.994535+00:00",
+          "outcome": "useful",
+          "q": "Какие существующие продуктовый код, каркас и архитектурные зависимости относятся к Story 1.1 создания Tenant?"
+        }
+      ],
+      "score": 0.800345896,
+      "source_file": "_bmad-output/planning-artifacts/epics.md",
+      "status": "tentative",
+      "uses": 1
+    },
+    "_bmad_output_planning_artifacts_prds_prd_staffy_2026_09_12_prd_staffy_prd": {
+      "code_fingerprint": "88358baf8d0dcc1a792ed6e147d7c113cc49e2a90c53f22da96a9ce50943c390",
+      "label": "Staffy Product Requirements Document",
+      "last": "2026-09-16T21:17:32.994535+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-16T21:17:32.994535+00:00",
+          "outcome": "useful",
+          "q": "Какие существующие продуктовый код, каркас и архитектурные зависимости относятся к Story 1.1 создания Tenant?"
+        }
+      ],
+      "score": 0.800345896,
+      "source_file": "_bmad-output/planning-artifacts/prds/prd-staffy-2026-09-12/prd.md",
+      "status": "tentative",
+      "uses": 1
+    },
+    "_bmad_output_planning_artifacts_ux_designs_ux_staffy_2026_09_13__working_key_today_owner_owner_today_workspace": {
+      "code_fingerprint": "edf8c2ecb255243d7d50a18f9c94ac713dafb47b95f8a1ee23b3714365609c7a",
+      "label": "Owner Today Workspace",
+      "last": "2026-09-16T21:17:32.994535+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-16T21:17:32.994535+00:00",
+          "outcome": "useful",
+          "q": "Какие существующие продуктовый код, каркас и архитектурные зависимости относятся к Story 1.1 создания Tenant?"
+        }
+      ],
+      "score": 0.800345896,
+      "source_file": "_bmad-output/planning-artifacts/ux-designs/ux-staffy-2026-09-13/.working/key-today-owner.html",
+      "status": "tentative",
+      "uses": 1
+    }
+  },
   "version": 1
 }

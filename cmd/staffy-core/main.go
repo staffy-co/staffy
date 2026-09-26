@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"github.com/artemiosu/staffy/internal/adapters/authdev"
+	employeeApp "github.com/artemiosu/staffy/internal/employee/app"
+	employeeStore "github.com/artemiosu/staffy/internal/employee/store"
 	"github.com/artemiosu/staffy/internal/identity/app"
 	"github.com/artemiosu/staffy/internal/identity/store"
 	"github.com/artemiosu/staffy/internal/platform/id"
@@ -74,6 +76,7 @@ func run(logger *slog.Logger) error {
 	if err != nil {
 		return err
 	}
+	transport.BindEmployee(employeeApp.New(employeeStore.NewPostgres(pool), identityService, clock, ids))
 	server := &http.Server{
 		Addr:              listenAddress,
 		Handler:           transport.Handler(),

@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-16-2026 16:47
-last_updated: 09-26-2026 06:23
+last_updated: 09-26-2026 09:17
 project: staffy
 project_key: NOKEY
 tracking_system: file-system
@@ -37,8 +37,8 @@ story_location: _bmad-output/implementation-artifacts
 development_status:
   epic-1: in-progress
   1-1-создание-защищённого-пространства-tenant: done
-  1-2-управление-участниками-и-полномочиями-tenant: review
-  1-3-создание-черновика-ии-сотрудника-через-guided-setup: backlog
+  1-2-управление-участниками-и-полномочиями-tenant: done
+  1-3-создание-черновика-ии-сотрудника-через-guided-setup: review
   1-4-подключение-версионированного-domain-pack: backlog
   1-5-управление-жизненным-циклом-knowledge-sources: backlog
   1-6-безопасная-настройка-поведения-ии-сотрудника: backlog
