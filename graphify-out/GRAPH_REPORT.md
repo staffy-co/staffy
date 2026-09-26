@@ -1,64 +1,90 @@
 # Graph Report - staffy  (2026-09-16)
 
 ## Corpus Check
-- 148 files · ~332,097 words
+- 158 files · ~343,083 words
 - Verdict: corpus is large enough that graph structure adds value.
-- Unclassified: 13 file(s) not represented in the graph (top: .excalidraw 10, (none) 3)
+- Unclassified: 14 file(s) not represented in the graph (top: .excalidraw 10, (none) 3, .css 1)
 
 ## Summary
-- 368 nodes · 375 edges · 24 communities (21 shown, 3 thin omitted)
-- Extraction: 85% EXTRACTED · 15% INFERRED · 0% AMBIGUOUS · INFERRED: 57 edges (avg confidence: 0.91)
+- 632 nodes · 1009 edges · 45 communities (40 shown, 5 thin omitted)
+- Extraction: 93% EXTRACTED · 7% INFERRED · 0% AMBIGUOUS · INFERRED: 66 edges (avg confidence: 0.9)
 - Token cost: 0 input · 0 output
 
+## Graph Freshness
+- Built from commit: `20f0de8d`
+- Run `git rev-parse HEAD` and compare to check if the graph is stale.
+- Run `graphify update .` after code changes (no API cost).
+
 ## Community Hubs (Navigation)
-- Gate Definition Schema
-- Gate Instance Scope Fields
-- Gate Definitions Registry Schema
-- Gate Instances Registry Schema
-- Gate Evidence and Approval
-- Gate Instance Control Schema
-- Gate Instance Requirements
-- UX System and Validation
-- Customer and Owner UX Screens
-- AI Employee Setup UX
-- Runtime Providers and TCO
-- Runtime Evidence Verification
-- Forged Product Concept
-- Go Runtime Decision Evidence
-- Competitive Landscape
-- Action Gateway Lifecycle
-- Founder UX Vision
-- Product Brief and PRD
-- Product Consilium
-- Voice and Omnichannel Architecture
-- Market and Technical Research
-- Architecture and Epics
-- Sprint Planning and Delivery
-- Sprint Status Workflow
+- properties
+- properties
+- properties
+- properties
+- Staffy Product Requirements Document
+- type
+- Staffy Montagio Consilium Synthesis
+- Omnichannel Synthesis Draft
+- Staffy Competitive Research
+- Staffy Architecture Spine
+- Staffy Visual System
+- Common Platform Core
+- gate-definitions.schema.json
+- gate-instances.schema.json
+- Montagio Slice C UX Patterns
+- AI Employee Readiness Workspace
+- Voice Runtime Maturity Round 2
+- Operations Verification R2
+- Staffy Hardened Idea
+- Go Voice-Core Latency and Economics Analysis
+- Russian Competitor Qualification
+- Staffy Sprint Status
+- Action Gateway
+- Employee Not Technology Metaphor
+- service_test.go
+- UUID
+- server.go
+- testing.T
+- 00001_identity_tenant.sql
+- spec-1-1-tenant-workspace.md
+- package.json
+- gate-instance.schema.json
+- Epic 1 Context: Защищённая самостоятельная настройка ИИ-сотрудника
+- permits
+- main.go
+- dependencies
+- control_generation
+- decision_history
+- tested_at
+- definition_id
+- go_pkg_embed
+- github.com/artemiosu/staffy
+- time.Time
+- expiry_conditions
+- instance_id
 
 ## God Nodes (most connected - your core abstractions)
-1. `Staffy Product Requirements Document` - 14 edges
-2. `Staffy Montagio Consilium Synthesis` - 10 edges
-3. `Staffy Visual System` - 8 edges
-4. `Staffy Architecture Spine` - 8 edges
-5. `Final UX Validation Report` - 7 edges
-6. `Delphi Method Synthesis` - 7 edges
-7. `Staffy Epics and Stories Decomposition` - 7 edges
-8. `blocks_stages` - 5 edges
-9. `required_approver_roles` - 5 edges
-10. `scope` - 5 edges
+1. `Server` - 22 edges
+2. `Principal` - 19 edges
+3. `newTestServer()` - 17 edges
+4. `Staffy Product Requirements Document` - 14 edges
+5. `run()` - 12 edges
+6. `Tenant` - 11 edges
+7. `New()` - 11 edges
+8. `Staffy Montagio Consilium Synthesis` - 10 edges
+9. `Service` - 9 edges
+10. `Parse()` - 9 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `Staffy Technical Research Briefing` --semantically_similar_to--> `Staffy Voice and Omnichannel Architecture Research`  [INFERRED] [semantically similar]
-  _bmad-output/planning-artifacts/research/technical-staffy-voice-architecture-2026-09-11/research-briefing.html → _bmad-output/planning-artifacts/research/technical-staffy-voice-architecture-2026-09-11/research.md
-- `Staffy Architecture Map` --semantically_similar_to--> `Staffy Architecture Spine`  [INFERRED] [semantically similar]
-  _bmad-output/planning-artifacts/architecture/architecture-staffy-2026-09-13/architecture-map.html → _bmad-output/planning-artifacts/architecture/architecture-staffy-2026-09-13/ARCHITECTURE-SPINE.md
-- `Five Light Color Systems` --rationale_for--> `Staffy Visual System`  [INFERRED]
-  _bmad-output/planning-artifacts/ux-designs/ux-staffy-2026-09-13/.working/color-themes-5.html → _bmad-output/planning-artifacts/ux-designs/ux-staffy-2026-09-13/DESIGN.md
-- `Four Visual Directions` --rationale_for--> `Staffy Visual System`  [INFERRED]
-  _bmad-output/planning-artifacts/ux-designs/ux-staffy-2026-09-13/.working/directions-4.html → _bmad-output/planning-artifacts/ux-designs/ux-staffy-2026-09-13/DESIGN.md
-- `Staffy Experience Specification` --implements--> `Staffy Information Architecture Proposal`  [INFERRED]
-  _bmad-output/planning-artifacts/ux-designs/ux-staffy-2026-09-13/EXPERIENCE.md → _bmad-output/planning-artifacts/ux-designs/ux-staffy-2026-09-13/.working/ia-proposal-v1.md
+- `run()` --calls--> `New()`  [INFERRED]
+  cmd/staffy-core/main.go → internal/identity/app/service.go
+- `run()` --calls--> `New()`  [INFERRED]
+  cmd/staffy-core/main.go → internal/transport/http/server.go
+- `run()` --calls--> `New()`  [EXTRACTED]
+  cmd/staffy-core/main.go → internal/adapters/authdev/fixed.go
+- `run()` --calls--> `NewPostgres()`  [EXTRACTED]
+  cmd/staffy-core/main.go → internal/identity/store/postgres.go
+- `run()` --calls--> `Parse()`  [EXTRACTED]
+  cmd/staffy-core/main.go → internal/platform/id/id.go
 
 ## Import Cycles
 - None detected.
@@ -87,111 +113,187 @@
 - **Staffy UX Evidence Synthesis** — _bmad_output_planning_artifacts_ux_designs_ux_staffy_2026_09_13__working_source_prd_final_prd_ux_requirements, _bmad_output_planning_artifacts_ux_designs_ux_staffy_2026_09_13__working_source_research_research_derived_ux_requirements, _bmad_output_planning_artifacts_ux_designs_ux_staffy_2026_09_13__working_source_vision_founder_ux_vision [INFERRED 0.95]
 - **Technical Build-Buy Decision Evidence** — _bmad_output_planning_artifacts_research_technical_staffy_voice_architecture_2026_09_11_brief_technical_research_brief, _bmad_output_planning_artifacts_research_technical_staffy_voice_architecture_2026_09_11_research_voice_architecture_research, _bmad_output_planning_artifacts_research_technical_staffy_voice_architecture_2026_09_11_digests_go_decision_latency_economics_r1_go_latency_economics, _bmad_output_planning_artifacts_research_technical_staffy_voice_architecture_2026_09_11_digests_go_decision_latency_economics_verification_go_latency_economics_verification [INFERRED 0.95]
 
-## Communities (24 total, 3 thin omitted)
+## Communities (45 total, 5 thin omitted)
 
-### Community 0 - "Gate Definition Schema"
+### Community 0 - "properties"
 Cohesion: 0.06
 Nodes (34): additionalProperties, type, const, items, minItems, type, uniqueItems, enum (+26 more)
 
-### Community 1 - "Gate Instance Scope Fields"
+### Community 1 - "properties"
 Cohesion: 0.06
 Nodes (34): minLength, type, minLength, type, minLength, type, minLength, type (+26 more)
 
-### Community 12 - "Gate Definitions Registry Schema"
-Cohesion: 0.14
-Nodes (13): additionalProperties, items, minItems, type, $id, $ref, properties, definitions (+5 more)
-
-### Community 13 - "Gate Instances Registry Schema"
-Cohesion: 0.14
-Nodes (13): additionalProperties, $id, items, minItems, type, $ref, properties, instances (+5 more)
-
-### Community 2 - "Gate Evidence and Approval"
+### Community 2 - "properties"
 Cohesion: 0.06
 Nodes (34): minLength, type, format, type, minLength, type, format, type (+26 more)
 
-### Community 3 - "Gate Instance Control Schema"
-Cohesion: 0.06
-Nodes (31): additionalProperties, allOf, minimum, type, pattern, type, type, $id (+23 more)
+### Community 3 - "properties"
+Cohesion: 0.18
+Nodes (11): type, properties, approved_by, rationale, schema_version, state, supersedes_instance_id, type (+3 more)
 
-### Community 5 - "Gate Instance Requirements"
-Cohesion: 0.11
-Nodes (23): items, type, items, minItems, type, items, type, uniqueItems (+15 more)
-
-### Community 10 - "UX System and Validation"
-Cohesion: 0.17
-Nodes (16): Five Light Color Systems, Four Visual Directions, Staffy Information Architecture Proposal, Autoparts Order Review Key Screen, Staffy Visual System, Staffy Experience Specification, Accessibility Review, Accessibility Review R2 (+8 more)
-
-### Community 14 - "Customer and Owner UX Screens"
-Cohesion: 0.15
-Nodes (13): Single Response Owner, Protected Montagio Continuation, Owner Today Workspace, Montagio Conversation UX Evidence, Montagio Safety and Commerce Invariants, Montagio Slice C UX Patterns, Final PRD UX Requirements, Five Light Color Systems (+5 more)
-
-### Community 15 - "AI Employee Setup UX"
-Cohesion: 0.33
-Nodes (6): Capability Readiness Model, AI Employee Readiness Workspace, Reference UX Patterns, Research-Derived UX Requirements, Published AI Employee Readiness Workspace, Visible AI Employee Lifecycle
-
-### Community 16 - "Runtime Providers and TCO"
-Cohesion: 0.40
-Nodes (5): Operations TCO Ecosystem Round 1, Operations TCO Residency Round 2, Russian Provider Eligibility, Voice Runtime Maturity Round 1, Voice Runtime Maturity Round 2
-
-### Community 17 - "Runtime Evidence Verification"
-Cohesion: 0.40
-Nodes (5): Operations Verification, Operations Verification R2, Runtime Verification R2, Runtime Verification, Imported AI Search Conversation
-
-### Community 18 - "Forged Product Concept"
-Cohesion: 0.50
-Nodes (4): Staffy Hardened Idea, Staffy Forge Decisions, Staffy Hardened Forge Report, Controlled Business Actions
-
-### Community 19 - "Go Runtime Decision Evidence"
-Cohesion: 0.50
-Nodes (4): Go Voice-Core Claims from Source Chat, Go Decision Final Semantic Check, Go Latency and Economics Verification, Go Voice-Core Latency and Economics Analysis
-
-### Community 20 - "Competitive Landscape"
-Cohesion: 0.67
-Nodes (3): Russian Competitor Qualification, Competitor Qualification Risk Verification, Voice-Agent Competitive Landscape Leads
-
-### Community 4 - "Product Brief and PRD"
+### Community 4 - "Staffy Product Requirements Document"
 Cohesion: 0.08
-Nodes (30): Evidence-Gated Controlled Autonomy, Managed Omnichannel AI Employee Platform, Staffy Brief Decision Log, Staffy Product Brief Addendum, Staffy Product Brief, Staffy Source Decision Extract, Staffy PRD Decision Log, Staffy PRD Addendum (+22 more)
+Nodes (30): Staffy Brief Decision Log, Staffy Product Brief Addendum, Staffy Product Brief, Staffy Source Decision Extract, Staffy Gate Registry, Staffy PRD, Staffy Epics and Stories Decomposition, Staffy UX Design (+22 more)
 
-### Community 6 - "Product Consilium"
+### Community 5 - "type"
+Cohesion: 0.39
+Nodes (9): items, items, items, type, items, additionalProperties, required, type (+1 more)
+
+### Community 6 - "Staffy Montagio Consilium Synthesis"
 Cohesion: 0.09
 Nodes (22): Conversational UX Consilium, Delphi Domain Round 1, Delphi Marketplace Round 1, Delphi UX Round 1, Delphi Domain Round 2, Delphi Marketplace Round 2, Delphi UX Round 2, Assumption Audit (+14 more)
 
-### Community 7 - "Voice and Omnichannel Architecture"
+### Community 7 - "Omnichannel Synthesis Draft"
 Cohesion: 0.11
-Nodes (19): Reliable Business Action Contract, Canonical Conversation and Connector Model, Go Media-Core Scope Decision, Media Scope Verification, Pipecat Scaling Decision, Pipecat Scaling Verification, Go Voice-Core Red Team, Integration Reliability Round 1 (+11 more)
+Nodes (19): Go Media-Core Scope Decision, Staged Media Infrastructure Adoption, Media Scope Verification, Pipecat Scaling Decision, Pipecat Scaling Verification, Go Voice-Core Red Team, Integration Reliability Round 1, Reliable Business Action Contract (+11 more)
 
-### Community 8 - "Market and Technical Research"
+### Community 8 - "Staffy Competitive Research"
 Cohesion: 0.11
-Nodes (18): Auto-Parts Vertical Wedge, Action Gateway and Operation Ledger, Competitive Research Citation Check, Vertical Demand Verification, Product and Pricing Verification, Staffy Technical Research Ledger, Staffy Voice Architecture Research Brief, Technical Research Citation Check (+10 more)
+Nodes (18): Auto-Parts Vertical Wedge, Voice-Agent Customer Voice, Competitive Research Citation Check, Voice-Agent Offer and Pricing Teardown, Voice-Agent Market Position Trajectory, Vertical Demand Verification, Product and Pricing Verification, Vertical Voice-Agent Entrants (+10 more)
 
-### Community 9 - "Architecture and Epics"
+### Community 9 - "Staffy Architecture Spine"
 Cohesion: 0.13
-Nodes (16): Architecture Consistency PASS, Architecture Safety PASS, Staffy Architecture Party Decisions, Staffy Architecture Decision Log, Staffy Architecture Map, Staffy Architecture Spine, Montagio Best-Effort Pilot Policy, State and Authority Matrix Rule (+8 more)
+Nodes (16): Staffy Architecture Party Decisions, Staffy Architecture Decision Log, Staffy Architecture Map, Go Modular Monolith, Staffy Architecture Spine, Montagio Best-Effort Pilot Policy, State and Authority Matrix Rule, Executable Architecture Gate Registry (+8 more)
 
-### Community 11 - "Sprint Planning and Delivery"
+### Community 10 - "Staffy Visual System"
+Cohesion: 0.17
+Nodes (16): Staffy UX Decision Memory, Five Light Color Systems, Four Visual Directions, Staffy Information Architecture Proposal, Autoparts Order Review Key Screen, Staffy Visual System, Staffy Experience Specification, Accessibility Review (+8 more)
+
+### Community 11 - "Common Platform Core"
 Cohesion: 0.14
-Nodes (15): Epic 1 Backlog Status, Epic 2 Backlog Status, Epic 3 Backlog Status, Epic 4 Backlog Status, Epic 5 Backlog Status, Epic 6 Backlog Status, Epic 1: Protected Self-Service AI Employee Setup, Epic 2: Unified Customer Service and Human Handoff (+7 more)
+Nodes (15): Epic 1 Backlog Status, Epic 2 Backlog Status, Epic 3 Backlog Status, Epic 4 Backlog Status, Epic 5 Backlog Status, Epic 6 Backlog Status, Common Platform Core, Epic 1: Protected Self-Service AI Employee Setup (+7 more)
+
+### Community 12 - "gate-definitions.schema.json"
+Cohesion: 0.14
+Nodes (13): additionalProperties, items, minItems, type, $id, $ref, properties, definitions (+5 more)
+
+### Community 13 - "gate-instances.schema.json"
+Cohesion: 0.14
+Nodes (13): additionalProperties, $id, items, minItems, type, $ref, properties, instances (+5 more)
+
+### Community 14 - "Montagio Slice C UX Patterns"
+Cohesion: 0.15
+Nodes (13): Protected Montagio Continuation, Owner Today Workspace, Montagio Conversation UX Evidence, Montagio Safety and Commerce Invariants, Montagio Slice C UX Patterns, Final PRD UX Requirements, Single Response Owner, Five Light Color Systems (+5 more)
+
+### Community 15 - "AI Employee Readiness Workspace"
+Cohesion: 0.33
+Nodes (6): AI Employee Readiness Workspace, Reference UX Patterns, Visible AI Employee Lifecycle, Capability Readiness Model, Research-Derived UX Requirements, Published AI Employee Readiness Workspace
+
+### Community 16 - "Voice Runtime Maturity Round 2"
+Cohesion: 0.40
+Nodes (5): Operations TCO Ecosystem Round 1, Operations TCO Residency Round 2, Russian Provider Eligibility, Voice Runtime Maturity Round 1, Voice Runtime Maturity Round 2
+
+### Community 17 - "Operations Verification R2"
+Cohesion: 0.40
+Nodes (5): Operations Verification, Operations Verification R2, Runtime Verification R2, Runtime Verification, Imported AI Search Conversation
+
+### Community 18 - "Staffy Hardened Idea"
+Cohesion: 0.50
+Nodes (4): Staffy Forge Decisions, Staffy Hardened Forge Report, Controlled Business Actions, Staffy Hardened Idea
+
+### Community 19 - "Go Voice-Core Latency and Economics Analysis"
+Cohesion: 0.50
+Nodes (4): Go Voice-Core Claims from Source Chat, Go Decision Final Semantic Check, Go Voice-Core Latency and Economics Analysis, Go Latency and Economics Verification
+
+### Community 20 - "Russian Competitor Qualification"
+Cohesion: 0.67
+Nodes (3): Russian Competitor Qualification, Voice-Agent Competitive Landscape Leads, Competitor Qualification Risk Verification
+
+### Community 24 - "service_test.go"
+Cohesion: 0.10
+Nodes (29): failingIDs, contextKey, go_pkg_context, go_pkg_crypto_rand, go_pkg_crypto_sha256, go_pkg_encoding_hex, go_pkg_errors, go_pkg_fmt (+21 more)
+
+### Community 25 - "UUID"
+Cohesion: 0.10
+Nodes (23): fakeRepository, Fixed, context.Context, fakeIdentity, fixedResolver, sequenceIDs, New(), CreateTenantCommand (+15 more)
+
+### Community 26 - "server.go"
+Cohesion: 0.12
+Nodes (26): go_pkg_encoding_json, go_pkg_github_com_artemiosu_staffy_internal_platform_correlation, go_pkg_github_com_artemiosu_staffy_internal_platform_httpx, go_pkg_github_com_artemiosu_staffy_web, go_pkg_html_template, go_pkg_mime, go_pkg_net_http, html/template.Template (+18 more)
+
+### Community 27 - "testing.T"
+Cohesion: 0.08
+Nodes (46): mapping(), TestStaffyContractHasTenantCreationBoundary(), go_pkg_bytes, go_pkg_github_com_testcontainers_testcontainers_go, go_pkg_github_com_testcontainers_testcontainers_go_modules_postgres, go_pkg_github_com_testcontainers_testcontainers_go_wait, go_pkg_go_parser, go_pkg_go_token (+38 more)
+
+### Community 28 - "00001_identity_tenant.sql"
+Cohesion: 0.62
+Nodes (6): identity, identity.idempotency_records, identity.memberships, identity.outbox_events, identity.principals, identity.tenants
+
+### Community 29 - "spec-1-1-tenant-workspace.md"
+Cohesion: 0.20
+Nodes (9): Boundaries & Constraints, Code Map, I/O & Edge-Case Matrix, Implementation Notes, Intent, Review Triage Log, Spec Change Log, Tasks & Acceptance (+1 more)
+
+### Community 30 - "package.json"
+Cohesion: 0.20
+Nodes (7): @playwright/test, devDependencies, @playwright/test, name, private, scripts, test
+
+### Community 31 - "gate-instance.schema.json"
+Cohesion: 0.22
+Nodes (8): additionalProperties, allOf, $id, required, $schema, title, type, type
+
+### Community 32 - "Epic 1 Context: Защищённая самостоятельная настройка ИИ-сотрудника"
+Cohesion: 0.25
+Nodes (7): Cross-Story Dependencies, Epic 1 Context: Защищённая самостоятельная настройка ИИ-сотрудника, Goal, Requirements & Constraints, Stories, Technical Decisions, UX & Interaction Patterns
+
+### Community 33 - "permits"
+Cohesion: 0.50
+Nodes (4): items, type, uniqueItems, permits
+
+### Community 34 - "main.go"
+Cohesion: 0.11
+Nodes (23): envOr(), loopbackAddress(), main(), run(), TestLoopbackAddressVariants(), TestRunRejectsDevelopmentResolverOutsideLoopbackBeforeDatabaseAccess(), TestVerifyRuntimeDatabaseRejectsRLSBypass(), TestVerifyRuntimeDatabaseReportsConnectionFailure() (+15 more)
+
+### Community 35 - "dependencies"
+Cohesion: 0.50
+Nodes (4): items, type, uniqueItems, dependencies
+
+### Community 36 - "control_generation"
+Cohesion: 0.67
+Nodes (3): minimum, type, control_generation
+
+### Community 37 - "decision_history"
+Cohesion: 0.67
+Nodes (3): minItems, type, decision_history
+
+### Community 38 - "tested_at"
+Cohesion: 0.67
+Nodes (3): tested_at, format, type
+
+### Community 39 - "definition_id"
+Cohesion: 0.67
+Nodes (3): pattern, type, definition_id
+
+### Community 42 - "time.Time"
+Cohesion: 0.12
+Nodes (12): fixedClock, fixedIDs, time.Time, fixedClock, fixedClock, format(), NewV7(), TestNewV7() (+4 more)
+
+### Community 43 - "expiry_conditions"
+Cohesion: 0.67
+Nodes (3): minItems, type, expiry_conditions
+
+### Community 44 - "instance_id"
+Cohesion: 0.67
+Nodes (3): pattern, type, instance_id
 
 ## Knowledge Gaps
-- **199 isolated node(s):** `additionalProperties`, `type`, `const`, `minItems`, `type` (+194 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 210 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **3 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **221 isolated node(s):** `Goal`, `Stories`, `Requirements & Constraints`, `Technical Decisions`, `UX & Interaction Patterns` (+216 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 266 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **5 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `properties` connect `Gate Instance Control Schema` to `Gate Instance Scope Fields`, `Gate Instance Requirements`?**
-  _High betweenness centrality (0.001) - this node is a cross-community bridge._
-- **What connects `additionalProperties`, `type`, `const` to the rest of the system?**
-  _199 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Should `Gate Definition Schema` be split into smaller, more focused modules?**
+- **What connects `Goal`, `Stories`, `Requirements & Constraints` to the rest of the system?**
+  _221 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Should `properties` be split into smaller, more focused modules?**
   _Cohesion score 0.05714285714285714 - nodes in this community are weakly interconnected._
-- **Should `Gate Instance Scope Fields` be split into smaller, more focused modules?**
+- **Should `properties` be split into smaller, more focused modules?**
   _Cohesion score 0.058823529411764705 - nodes in this community are weakly interconnected._
-- **Should `Gate Definitions Registry Schema` be split into smaller, more focused modules?**
-  _Cohesion score 0.14285714285714285 - nodes in this community are weakly interconnected._
-- **Should `Gate Instances Registry Schema` be split into smaller, more focused modules?**
-  _Cohesion score 0.14285714285714285 - nodes in this community are weakly interconnected._
-- **Should `Gate Evidence and Approval` be split into smaller, more focused modules?**
+- **Should `properties` be split into smaller, more focused modules?**
   _Cohesion score 0.058823529411764705 - nodes in this community are weakly interconnected._
+- **Should `Staffy Product Requirements Document` be split into smaller, more focused modules?**
+  _Cohesion score 0.07816091954022988 - nodes in this community are weakly interconnected._
+- **Should `Staffy Montagio Consilium Synthesis` be split into smaller, more focused modules?**
+  _Cohesion score 0.09090909090909091 - nodes in this community are weakly interconnected._
+- **Should `Omnichannel Synthesis Draft` be split into smaller, more focused modules?**
+  _Cohesion score 0.10526315789473684 - nodes in this community are weakly interconnected._
