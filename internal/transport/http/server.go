@@ -46,7 +46,7 @@ func New(identity api.Service, resolver port.PrincipalResolver, ids IDGenerator,
 		"joinLines": func(values []string) string { return strings.Join(values, "\n") },
 		"contains":  func(values []string, value string) bool { return slices.Contains(values, value) },
 		"stepStatus": func(status string) string {
-			return map[string]string{"complete": "Готово", "incomplete": "Не завершено", "blocked": "Заблокировано"}[status]
+			return map[string]string{"complete": "Готово", "incomplete": "Не завершено", "blocked": "Заблокировано", "requires review": "Требует проверки"}[status]
 		},
 	}).ParseFS(staffyweb.Assets, "templates/*.html")
 	if err != nil {
@@ -85,10 +85,14 @@ func (s *Server) BindEmployee(service employeeAPI.Service) {
 	s.mux.HandleFunc("GET /v1/tenants/{tenant_id}/employees", s.listEmployeesAPI)
 	s.mux.HandleFunc("GET /v1/tenants/{tenant_id}/employees/{employee_id}", s.readEmployeeAPI)
 	s.mux.HandleFunc("PATCH /v1/tenants/{tenant_id}/employees/{employee_id}/brief", s.saveBriefAPI)
+	s.mux.HandleFunc("GET /v1/tenants/{tenant_id}/domain-packs", s.domainCatalogAPI)
+	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/employees/{employee_id}/domain-pack/preview", s.previewPackAPI)
+	s.mux.HandleFunc("PUT /v1/tenants/{tenant_id}/employees/{employee_id}/domain-pack", s.pinPackAPI)
 	s.mux.HandleFunc("GET /app/tenants/{tenant_id}/employees", s.employeesPage)
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/employees", s.createEmployeeForm)
 	s.mux.HandleFunc("GET /app/tenants/{tenant_id}/employees/{employee_id}", s.employeePage)
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/employees/{employee_id}/brief", s.saveBriefForm)
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/employees/{employee_id}/domain-pack", s.pinPackForm)
 }
 
 func (s *Server) setup(w http.ResponseWriter, r *http.Request) {

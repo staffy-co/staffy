@@ -34,3 +34,18 @@ func TestBriefValidationAndPlanBlockers(t *testing.T) {
 		}
 	}
 }
+
+func TestLaunchPlanMarksDependentReviewWithoutUnblockingRuntime(t *testing.T) {
+	d := Draft{Pack: &PackPin{ID: "auto-parts", Version: "2.0.0"}, ReviewSlots: []string{"connectors", "knowledge", "behavior"}}
+	plan := LaunchPlan(d)
+	for _, index := range []int{2, 3, 4} {
+		if plan[index].Status != "requires review" {
+			t.Fatalf("slot %s: %+v", plan[index].Name, plan[index])
+		}
+	}
+	for _, index := range []int{5, 6, 7} {
+		if plan[index].Status != "blocked" {
+			t.Fatalf("runtime gate unblocked: %+v", plan[index])
+		}
+	}
+}

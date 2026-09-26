@@ -6,6 +6,70 @@ info:
     Application contract behind a trusted PrincipalResolver. The external login/session
     transport is intentionally deployment-neutral and is not defined by Story 1.1.
 paths:
+  /v1/tenants/{tenant_id}/domain-packs:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+    get:
+      operationId: listDomainPacks
+      summary: Каталог reference packs для настройки
+      x-staffy-principal-required: true
+      responses:
+        '200':
+          description: Доступные версии и требования
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  domain_packs: { type: array, items: { $ref: '#/components/schemas/DomainPackManifest' } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/employees/{employee_id}/domain-pack/preview:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/EmployeeID'
+    post:
+      operationId: previewDomainPackChange
+      summary: Посмотреть последствия смены закреплённой версии
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DomainPackCommand' }
+      responses:
+        '200':
+          description: Разница и зависимые слоты без изменения pin
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DomainPackPreview' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/employees/{employee_id}/domain-pack:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/EmployeeID'
+    put:
+      operationId: pinDomainPack
+      summary: Закрепить точную версию и разрешённые варианты
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DomainPackCommand' }
+      responses:
+        '200':
+          description: Неопубликованный черновик и план
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EmployeeWithPlan' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
   /v1/tenants/{tenant_id}/employees:
     parameters:
       - $ref: '#/components/parameters/TenantID'
@@ -281,6 +345,58 @@ components:
             end: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$' }
         desired_channels: { type: array, uniqueItems: true, description: Желание без подтверждения capability или подключения, items: { type: string, enum: [phone, web_chat, telegram, whatsapp, email, max, jivo, avito, mobile_app_chat] } }
         primary_tasks: { type: array, minItems: 1, maxItems: 20, items: { type: string } }
+    DomainPackPin:
+      type: object
+      required: [id, version, variants]
+      properties:
+        id: { type: string }
+        version: { type: string }
+        variants: { type: object }
+    DomainPackManifest:
+      type: object
+      required: [id, version, name, purpose, support_status, stage, connector_types, journeys, critical_entities, policies, capabilities, gates, schema, policy_ref, knowledge_ref, eval_ref]
+      properties:
+        id: { type: string }
+        version: { type: string }
+        name: { type: string }
+        purpose: { type: string }
+        support_status: { type: string }
+        stage: { type: string, const: setup }
+        connector_types: { type: array, items: { type: string } }
+        journeys: { type: array, items: { type: string } }
+        critical_entities: { type: array, items: { type: string } }
+        policies: { type: array, items: { type: string } }
+        capabilities: { type: array, items: { type: string } }
+        gates: { type: array, items: { type: string } }
+        schema: { type: object }
+        at_least_one_of: { type: array, items: { type: string } }
+        policy_ref: { type: string }
+        knowledge_ref: { type: string }
+        eval_ref: { type: string }
+        upgrade_from: { type: object }
+    DomainPackCommand:
+      type: object
+      additionalProperties: false
+      required: [version, pack_id, pack_version, variants]
+      properties:
+        version: { type: integer, minimum: 1 }
+        pack_id: { type: string }
+        pack_version: { type: string }
+        variants: { type: object }
+        confirmed: { type: boolean }
+    DomainPackPreview:
+      type: object
+      required: [current, target, impact]
+      properties:
+        current: { $ref: '#/components/schemas/DomainPackPin' }
+        target: { $ref: '#/components/schemas/DomainPackManifest' }
+        impact:
+          type: object
+          required: [compatibility, changed, review_slots]
+          properties:
+            compatibility: { type: string }
+            changed: { type: array, items: { type: string } }
+            review_slots: { type: array, items: { type: string } }
     EmployeeDraft:
       type: object
       required: [tenant_id, employee_id, owner_id, status, readiness, version, current_step, brief, created_at, updated_at]
@@ -308,6 +424,8 @@ components:
                 end: { type: string }
             desired_channels: { type: array, items: { type: string } }
             primary_tasks: { type: array, items: { type: string } }
+        domain_pack: { $ref: '#/components/schemas/DomainPackPin' }
+        review_slots: { type: array, items: { type: string } }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
     EmployeeWithPlan:

@@ -10,6 +10,7 @@ import (
 
 	employeeAPI "github.com/artemiosu/staffy/internal/employee/api"
 	employeeDomain "github.com/artemiosu/staffy/internal/employee/domain"
+	"github.com/artemiosu/staffy/internal/employee/packs"
 	"github.com/artemiosu/staffy/internal/identity/api"
 	"github.com/artemiosu/staffy/internal/identity/domain"
 	"github.com/artemiosu/staffy/internal/platform/id"
@@ -111,6 +112,46 @@ func (f *employeeFixture) Save(_ context.Context, c employeeAPI.SaveCommand) (em
 	f.draft.Brief = c.Brief
 	f.draft.CurrentStep = "launch_plan"
 	f.draft.UpdatedAt = time.Now().UTC()
+	return *f.draft, nil
+}
+func (f *employeeFixture) Catalog(context.Context, domain.Principal, id.UUID) ([]employeeDomain.PackManifest, error) {
+	return packs.List(), nil
+}
+func (f *employeeFixture) Preview(_ context.Context, c employeeAPI.PinCommand) (employeeDomain.PackPreview, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	m, ok := packs.Get(c.PackID, c.PackVersion)
+	if !ok || f.draft == nil || f.draft.Pack == nil {
+		return employeeDomain.PackPreview{}, employeeDomain.ErrInvalid
+	}
+	impact, allowed := packs.Impact(*f.draft.Pack, m)
+	if !allowed {
+		return employeeDomain.PackPreview{}, employeeDomain.ErrInvalid
+	}
+	return employeeDomain.PackPreview{Current: *f.draft.Pack, Target: m, Impact: impact}, nil
+}
+func (f *employeeFixture) Pin(_ context.Context, c employeeAPI.PinCommand) (employeeDomain.Draft, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.draft == nil {
+		return employeeDomain.Draft{}, employeeDomain.ErrNotFound
+	}
+	if c.ExpectedVersion != f.draft.Version {
+		return employeeDomain.Draft{}, employeeDomain.ErrConflict
+	}
+	m, ok := packs.Get(c.PackID, c.PackVersion)
+	if !ok || len(employeeDomain.ValidateVariants(m, c.Variants)) > 0 {
+		return employeeDomain.Draft{}, employeeDomain.ErrInvalid
+	}
+	if f.draft.Pack != nil && (f.draft.Pack.ID != c.PackID || f.draft.Pack.Version != c.PackVersion) {
+		impact, ok := packs.Impact(*f.draft.Pack, m)
+		if !ok || !c.Confirmed {
+			return employeeDomain.Draft{}, employeeDomain.ErrInvalid
+		}
+		f.draft.ReviewSlots = impact.ReviewSlots
+	}
+	f.draft.Pack = &employeeDomain.PackPin{ID: c.PackID, Version: c.PackVersion, Variants: c.Variants}
+	f.draft.Version++
 	return *f.draft, nil
 }
 

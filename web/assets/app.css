@@ -14,7 +14,7 @@
 html { background: var(--canvas); color: var(--text); }
 body { margin: 0; min-width: 0; line-height: 1.5; }
 a { color: var(--cedar); }
-a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
 .skip-link { position: absolute; left: 1rem; top: -5rem; padding: .75rem 1rem; background: var(--surface); z-index: 10; }
 .skip-link:focus { top: 1rem; }
 .topbar { min-height: 4.5rem; display: flex; gap: 1rem; align-items: center; justify-content: space-between; padding: .75rem clamp(1rem, 4vw, 3rem); background: var(--surface); border-bottom: 1px solid var(--line); }
@@ -66,3 +66,10 @@ details summary { min-height: 44px; padding: .6rem; cursor: pointer; font-weight
   .brief-snapshot { grid-template-columns: minmax(0, 1fr); }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; } }
+/* Domain setup controls remain readable and reachable at narrow viewports. */
+.pack-card,.pack-warning{border:1px solid #8b9c92;border-radius:.5rem;padding:1rem;margin:1rem 0}
+.pack-form{display:grid;gap:.6rem;max-width:40rem}
+.pack-form select,.pack-form input:not([type=checkbox]){width:100%;max-width:100%;min-height:44px}
+.pack-form button,.pack-form label:has(input[type=checkbox]){min-height:44px}
+.pack-form select,.pack-form input{box-sizing:border-box}
+.pack-form input[type=checkbox]{width:44px;height:44px;min-height:44px;vertical-align:middle}
