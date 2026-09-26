@@ -16,7 +16,7 @@
     </div>
   </header>
   <div class="shell">
-    <nav aria-label="Основная навигация"><a aria-current="page" href="#main">Сегодня</a></nav>
+    <nav aria-label="Основная навигация"><a aria-current="page" href="#main">Сегодня</a>{{if .CanManage}}<a href="/app/tenants/{{.TenantID}}/people">Участники</a>{{end}}</nav>
     <main id="main">
       <section class="panel empty-state" aria-labelledby="workspace-title">
         <p class="status"><span aria-hidden="true">○</span> Пространство создано</p>

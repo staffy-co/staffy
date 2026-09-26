@@ -882,9 +882,9 @@
     "semantic_hash": "c6d307a2fcc1f1986fdc4c98fc025864"
   },
   "_bmad-output/implementation-artifacts/sprint-status.yaml": {
-    "mtime": 1789597396.6482434,
-    "seen": 1789597429.4659011,
-    "ast_hash": "cc50dae8408a41f557377cc836a2fabf",
+    "mtime": 1790418730.1397488,
+    "seen": 1790419541.7790728,
+    "ast_hash": "1c3acf1419372ff8749233a574e82505",
     "semantic_hash": ""
   },
   "cmd/staffy-core/main.go": {
@@ -918,15 +918,15 @@
     "semantic_hash": ""
   },
   "internal/identity/api/api.go": {
-    "mtime": 1789594294.8389404,
-    "seen": 1789595649.0136988,
-    "ast_hash": "3f7336c3f0cf7b95de7a5282aa8cdc31",
+    "mtime": 1790419923.2642858,
+    "seen": 1790420156.94711,
+    "ast_hash": "8f3927f689983cfe7358dabdba689abb",
     "semantic_hash": ""
   },
   "internal/identity/app/service.go": {
-    "mtime": 1789596853.0582137,
-    "seen": 1789597287.4874134,
-    "ast_hash": "28c9b4df1da95df988c4babc306ef2ec",
+    "mtime": 1790419923.8843055,
+    "seen": 1790420156.9471152,
+    "ast_hash": "76f882396103f443da4da333af19e208",
     "semantic_hash": ""
   },
   "internal/identity/app/service_test.go": {
@@ -936,15 +936,15 @@
     "semantic_hash": ""
   },
   "internal/identity/domain/model.go": {
-    "mtime": 1789594294.3589253,
-    "seen": 1789595649.0137064,
-    "ast_hash": "4c822011e901d2b1739afc132a557ddd",
+    "mtime": 1790419922.9752767,
+    "seen": 1790420156.9471304,
+    "ast_hash": "f7dad00000b4f62153b36a03597ddcdb",
     "semantic_hash": ""
   },
   "internal/identity/port/port.go": {
-    "mtime": 1789596852.810206,
-    "seen": 1789597287.487427,
-    "ast_hash": "dc3e1514f4cb70d3e67a1c69bb8bc293",
+    "mtime": 1790419923.5712955,
+    "seen": 1790420156.9471347,
+    "ast_hash": "6c05d9a08374ce2d37260896055e4686",
     "semantic_hash": ""
   },
   "internal/identity/store/postgres.go": {
@@ -984,9 +984,9 @@
     "semantic_hash": ""
   },
   "internal/transport/http/server.go": {
-    "mtime": 1789596890.8114004,
-    "seen": 1789597287.487456,
-    "ast_hash": "09987856b5add5fe9ee7bdd5423d502d",
+    "mtime": 1790420776.3801675,
+    "seen": 1790420798.602822,
+    "ast_hash": "fae18175b793335df79b4d905a2e3a6f",
     "semantic_hash": ""
   },
   "internal/transport/http/server_test.go": {
@@ -996,15 +996,15 @@
     "semantic_hash": ""
   },
   "tests/integration/tenant_test.go": {
-    "mtime": 1789597094.5719984,
-    "seen": 1789597287.4874682,
-    "ast_hash": "36d6942c8d26328d90bd818271d8a0d2",
+    "mtime": 1790419256.2441733,
+    "seen": 1790419541.7790127,
+    "ast_hash": "06b6109a922a45ed9fdad3fb80bd6c39",
     "semantic_hash": ""
   },
   "tests/journeys/fixture_server.go": {
-    "mtime": 1789595122.7749503,
-    "seen": 1789595649.0137367,
-    "ast_hash": "8ecc60513674c62a6f786ce673cdd17d",
+    "mtime": 1790419447.2942014,
+    "seen": 1790419541.7790165,
+    "ast_hash": "7cf0f6903dded669d78da7da41ac631e",
     "semantic_hash": ""
   },
   "tests/journeys/package.json": {
@@ -1050,9 +1050,9 @@
     "semantic_hash": ""
   },
   "contracts/openapi/staffy.yaml": {
-    "mtime": 1789597043.8566818,
-    "seen": 1789597287.4880948,
-    "ast_hash": "61450b506bcd870131d4ef8386ba8566",
+    "mtime": 1790420029.8806727,
+    "seen": 1790420156.9479513,
+    "ast_hash": "bbea4cee761d4937186a7f2a1df77512",
     "semantic_hash": ""
   },
   "web/templates/setup.html": {
@@ -1062,9 +1062,9 @@
     "semantic_hash": ""
   },
   "web/templates/workspace.html": {
-    "mtime": 1789597064.7652216,
-    "seen": 1789597287.4881027,
-    "ast_hash": "f8b34aa47810d16575794f8e456646df",
+    "mtime": 1790419085.6088114,
+    "seen": 1790419541.779784,
+    "ast_hash": "7b8c8df78aa964640fd68009d6007378",
     "semantic_hash": ""
   },
   "migrations/identity/00001_identity_tenant.sql": {
@@ -1083,6 +1083,72 @@
     "mtime": 1789597044.0956879,
     "seen": 1789597287.4873846,
     "ast_hash": "8f79515af740ea04966fe7ebf112c58d",
+    "semantic_hash": ""
+  },
+  "internal/identity/domain/membership_test.go": {
+    "mtime": 1790420123.3916445,
+    "seen": 1790420156.947126,
+    "ast_hash": "3453faa2ca05a8a89f511dcc65cf73f9",
+    "semantic_hash": ""
+  },
+  "internal/identity/store/membership.go": {
+    "mtime": 1790420776.3801675,
+    "seen": 1790420798.6027834,
+    "ast_hash": "4348e51f5b4d9ab9684982471713b8a1",
+    "semantic_hash": ""
+  },
+  "internal/transport/http/membership.go": {
+    "mtime": 1790420776.3801675,
+    "seen": 1790420798.602812,
+    "ast_hash": "d5010a41cb8b640b2f446f3ec89d8a70",
+    "semantic_hash": ""
+  },
+  "internal/transport/http/membership_test.go": {
+    "mtime": 1790420776.3801675,
+    "seen": 1790420798.6028173,
+    "ast_hash": "091cd5eb8f9b8149ee269a0ec6f21c49",
+    "semantic_hash": ""
+  },
+  "migrations/identity/00002_identity_membership.sql": {
+    "mtime": 1790419924.1793149,
+    "seen": 1790420156.9471965,
+    "ast_hash": "457fb047d3babd5df89b6b6e2d548a3b",
+    "semantic_hash": ""
+  },
+  "tests/integration/membership_test.go": {
+    "mtime": 1790420887.4076524,
+    "seen": 1790420917.9621613,
+    "ast_hash": "51ab5458babc043168a33ce3f2874538",
+    "semantic_hash": ""
+  },
+  "tests/journeys/people.spec.ts": {
+    "mtime": 1790420094.5837288,
+    "seen": 1790420156.947219,
+    "ast_hash": "8274b9756f2de497c42e25f143dc737c",
+    "semantic_hash": ""
+  },
+  "_bmad-output/implementation-artifacts/spec-1-2-tenant-membership.md": {
+    "mtime": 1790420503.5746512,
+    "seen": 1790420798.6029277,
+    "ast_hash": "0ba478916e9623978332375730643e70",
+    "semantic_hash": ""
+  },
+  "web/templates/accept_invitation.html": {
+    "mtime": 1790420019.0573287,
+    "seen": 1790420156.947956,
+    "ast_hash": "bafcd03e5740171a596034ac883e2084",
+    "semantic_hash": ""
+  },
+  "web/templates/people.html": {
+    "mtime": 1790420653.5543237,
+    "seen": 1790420798.6035686,
+    "ast_hash": "ae77f214f553c6fe7089e8c15fc4bcc6",
+    "semantic_hash": ""
+  },
+  "_bmad-output/implementation-artifacts/deferred-work.md": {
+    "mtime": 1790420511.3438926,
+    "seen": 1790420798.602909,
+    "ast_hash": "20c80690973246448dfa1b8cc2e1e008",
     "semantic_hash": ""
   }
 }

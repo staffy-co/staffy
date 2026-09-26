@@ -26,6 +26,24 @@ func (identityFixture) CreateTenant(context.Context, api.CreateTenantCommand) (a
 func (identityFixture) Workspace(context.Context, domain.Principal, id.UUID) (domain.Workspace, error) {
 	return domain.Workspace{Tenant: domain.Tenant{ID: tenantID, Name: "Магазин Олега"}, Role: "owner"}, nil
 }
+func (identityFixture) ListMembers(context.Context, domain.Principal, id.UUID) ([]domain.Membership, error) {
+	return []domain.Membership{{TenantID: tenantID, PrincipalID: &principalID, Roles: []domain.Role{domain.Owner}, Scopes: domain.AllScopes(), Status: "active", Version: 1}}, nil
+}
+func (identityFixture) InviteMember(context.Context, api.MembershipCommand) (domain.Membership, string, error) {
+	return domain.Membership{}, "", domain.ErrStepUpRequired
+}
+func (identityFixture) AcceptInvitation(context.Context, domain.Principal, string, id.UUID) (domain.Membership, error) {
+	return domain.Membership{}, domain.ErrNotFound
+}
+func (identityFixture) ChangeMember(context.Context, api.MembershipCommand) (domain.Membership, error) {
+	return domain.Membership{}, domain.ErrStepUpRequired
+}
+func (identityFixture) RevokeMember(context.Context, api.MembershipCommand) error {
+	return domain.ErrStepUpRequired
+}
+func (identityFixture) Authorize(context.Context, domain.Principal, id.UUID, domain.Scope) error {
+	return nil
+}
 
 type resolverFixture struct{}
 
