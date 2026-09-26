@@ -91,6 +91,13 @@ func TestMain(m *testing.M) {
 	if _, err = adminPool.Exec(ctx, strings.Split(string(packMigration), "-- +goose Down")[0]); err != nil {
 		panic(err)
 	}
+	knowledgeMigration, err := os.ReadFile("../../migrations/employee/00003_knowledge_sources.sql")
+	if err != nil {
+		panic(err)
+	}
+	if _, err = adminPool.Exec(ctx, strings.Split(string(knowledgeMigration), "-- +goose Down")[0]); err != nil {
+		panic(err)
+	}
 	if _, err = adminPool.Exec(ctx, "alter role staffy_app login password 'staffy-runtime-test'"); err != nil {
 		panic(err)
 	}

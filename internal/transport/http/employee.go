@@ -50,11 +50,17 @@ func (s *Server) employeeProblem(w http.ResponseWriter, r *http.Request, err err
 	s.problem(w, r, status, code, message, status >= 500, fields)
 }
 func decodeEmployee(w http.ResponseWriter, r *http.Request, out any) error {
+	return decodeEmployeeLimit(w, r, out, 32<<10)
+}
+func decodeEmployeeLarge(w http.ResponseWriter, r *http.Request, out any) error {
+	return decodeEmployeeLimit(w, r, out, 270<<10)
+}
+func decodeEmployeeLimit(w http.ResponseWriter, r *http.Request, out any, limit int64) error {
 	media, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 	if err != nil || media != "application/json" {
 		return domain.ErrInvalid
 	}
-	d := json.NewDecoder(http.MaxBytesReader(w, r.Body, 32<<10))
+	d := json.NewDecoder(http.MaxBytesReader(w, r.Body, limit))
 	d.DisallowUnknownFields()
 	if err = d.Decode(out); err != nil {
 		return domain.ErrInvalid
@@ -203,6 +209,23 @@ func (s *Server) employeePage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data := map[string]any{"TenantID": tenant, "Employee": item, "Plan": domain.LaunchPlan(item), "Catalog": catalog, "Saved": r.URL.Query().Get("saved") == "1"}
+	if s.knowledge != nil && item.Pack != nil {
+		sources, knowledgeErr := s.knowledge.ListKnowledge(r.Context(), actor, tenant, employeeID)
+		if knowledgeErr != nil {
+			s.employeeProblem(w, r, knowledgeErr)
+			return
+		}
+		rows := make([]knowledgeRow, 0, len(sources))
+		for _, source := range sources {
+			_, versions, readErr := s.knowledge.ReadKnowledge(r.Context(), actor, tenant, employeeID, source.SourceID)
+			if readErr != nil {
+				s.employeeProblem(w, r, readErr)
+				return
+			}
+			rows = append(rows, knowledgeRow{Source: source, EffectiveStatus: source.EffectiveStatus(s.clock.Now()), Versions: versions})
+		}
+		data["KnowledgeRows"] = rows
+	}
 	if item.Pack != nil {
 		encodedVariants, _ := json.Marshal(item.Pack.Variants)
 		data["PackVariantsJSON"] = string(encodedVariants)

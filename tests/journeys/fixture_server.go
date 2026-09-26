@@ -66,11 +66,14 @@ func (idsFixture) New(time.Time) (id.UUID, error) {
 }
 
 type employeeFixture struct {
-	mu    sync.Mutex
-	draft *employeeDomain.Draft
+	mu        sync.Mutex
+	draft     *employeeDomain.Draft
+	knowledge *employeeDomain.KnowledgeSource
+	versions  []employeeDomain.KnowledgeVersion
 }
 
 var fixtureEmployeeID = id.MustParse("01994f64-6c00-7000-8000-000000000004")
+var fixtureSourceID = id.MustParse("01994f64-6c00-7000-8000-000000000005")
 
 func (f *employeeFixture) Create(_ context.Context, _ employeeAPI.CreateCommand) (employeeAPI.CreateResult, error) {
 	f.mu.Lock()
@@ -153,6 +156,108 @@ func (f *employeeFixture) Pin(_ context.Context, c employeeAPI.PinCommand) (empl
 	f.draft.Pack = &employeeDomain.PackPin{ID: c.PackID, Version: c.PackVersion, Variants: c.Variants}
 	f.draft.Version++
 	return *f.draft, nil
+}
+
+func (f *employeeFixture) CreateKnowledge(_ context.Context, c employeeAPI.KnowledgeCreateCommand) (employeeDomain.KnowledgeSource, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.draft == nil || f.draft.Pack == nil || c.TenantID != tenantID || c.EmployeeID != fixtureEmployeeID {
+		return employeeDomain.KnowledgeSource{}, employeeDomain.ErrNotFound
+	}
+	if !c.Source.Valid() {
+		return employeeDomain.KnowledgeSource{}, employeeDomain.ErrInvalid
+	}
+	s := c.Source
+	s.TenantID = tenantID
+	s.EmployeeID = fixtureEmployeeID
+	s.SourceID = fixtureSourceID
+	s.Status = "processing"
+	s.Version = 1
+	s.CreatedAt = time.Now().UTC()
+	s.UpdatedAt = s.CreatedAt
+	f.knowledge = &s
+	f.versions = nil
+	return s, nil
+}
+func (f *employeeFixture) ListKnowledge(_ context.Context, _ domain.Principal, tenant, employee id.UUID) ([]employeeDomain.KnowledgeSource, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if tenant != tenantID || employee != fixtureEmployeeID {
+		return nil, employeeDomain.ErrNotFound
+	}
+	if f.knowledge == nil {
+		return []employeeDomain.KnowledgeSource{}, nil
+	}
+	return []employeeDomain.KnowledgeSource{*f.knowledge}, nil
+}
+func (f *employeeFixture) ReadKnowledge(_ context.Context, _ domain.Principal, tenant, employee, source id.UUID) (employeeDomain.KnowledgeSource, []employeeDomain.KnowledgeVersion, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if tenant != tenantID || employee != fixtureEmployeeID || source != fixtureSourceID || f.knowledge == nil {
+		return employeeDomain.KnowledgeSource{}, nil, employeeDomain.ErrNotFound
+	}
+	return *f.knowledge, append([]employeeDomain.KnowledgeVersion(nil), f.versions...), nil
+}
+func (f *employeeFixture) ProcessKnowledge(_ context.Context, c employeeAPI.KnowledgeProcessCommand) (employeeDomain.KnowledgeSource, employeeDomain.KnowledgeVersion, bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.knowledge == nil || c.SourceID != fixtureSourceID {
+		return employeeDomain.KnowledgeSource{}, employeeDomain.KnowledgeVersion{}, false, employeeDomain.ErrNotFound
+	}
+	if !employeeDomain.ValidKnowledgeText(c.Text) {
+		return employeeDomain.KnowledgeSource{}, employeeDomain.KnowledgeVersion{}, false, employeeDomain.ErrInvalid
+	}
+	if f.knowledge.Status == "retired" {
+		return employeeDomain.KnowledgeSource{}, employeeDomain.KnowledgeVersion{}, false, employeeDomain.ErrInvalid
+	}
+	key := []byte("fixture-secret-for-knowledge-checksums")
+	checksum := employeeDomain.KnowledgeChecksum(key, c.Text)
+	if len(f.versions) > 0 && f.versions[0].Checksum == checksum {
+		return *f.knowledge, f.versions[0], true, nil
+	}
+	if c.ExpectedVersion != f.knowledge.Version {
+		return employeeDomain.KnowledgeSource{}, employeeDomain.KnowledgeVersion{}, false, employeeDomain.ErrConflict
+	}
+	v := employeeDomain.KnowledgeVersion{SourceID: fixtureSourceID, Version: f.knowledge.CurrentVersion + 1, Checksum: checksum, Text: c.Text, Chunks: employeeDomain.KnowledgeChunks(key, c.Text), CreatedAt: time.Now().UTC()}
+	for i := range v.Chunks {
+		v.Chunks[i].SourceID = fixtureSourceID
+		v.Chunks[i].Version = v.Version
+	}
+	if len(f.versions) > 0 {
+		v.RemovedFromPrevious, v.AddedFromPrevious = employeeDomain.KnowledgeDiff(f.versions[0].Text, v.Text)
+	}
+	f.versions = append([]employeeDomain.KnowledgeVersion{v}, f.versions...)
+	f.knowledge.CurrentVersion = v.Version
+	f.knowledge.Version++
+	f.knowledge.Status = "ready"
+	return *f.knowledge, v, false, nil
+}
+func (f *employeeFixture) ConflictKnowledge(_ context.Context, c employeeAPI.KnowledgeConflictCommand) (employeeDomain.KnowledgeSource, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.knowledge == nil || c.SourceID != fixtureSourceID {
+		return employeeDomain.KnowledgeSource{}, employeeDomain.ErrNotFound
+	}
+	if c.ExpectedVersion != f.knowledge.Version {
+		return employeeDomain.KnowledgeSource{}, employeeDomain.ErrConflict
+	}
+	f.knowledge.ConflictNote = c.Note
+	f.knowledge.ConflictProvenance = c.Provenance
+	f.knowledge.Version++
+	return *f.knowledge, nil
+}
+func (f *employeeFixture) RetireKnowledge(_ context.Context, c employeeAPI.KnowledgeRetireCommand) (employeeDomain.KnowledgeSource, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.knowledge == nil || c.SourceID != fixtureSourceID {
+		return employeeDomain.KnowledgeSource{}, employeeDomain.ErrNotFound
+	}
+	if c.ExpectedVersion != f.knowledge.Version {
+		return employeeDomain.KnowledgeSource{}, employeeDomain.ErrConflict
+	}
+	f.knowledge.Status = "retired"
+	f.knowledge.Version++
+	return *f.knowledge, nil
 }
 
 func main() {

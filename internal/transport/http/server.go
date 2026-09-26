@@ -31,6 +31,7 @@ type Clock interface{ Now() time.Time }
 type Server struct {
 	identity  api.Service
 	employee  employeeAPI.Service
+	knowledge employeeAPI.KnowledgeService
 	resolver  port.PrincipalResolver
 	ids       IDGenerator
 	clock     Clock
@@ -81,6 +82,19 @@ func (s *Server) Handler() http.Handler { return s.withCorrelation(s.mux) }
 
 func (s *Server) BindEmployee(service employeeAPI.Service) {
 	s.employee = service
+	if knowledge, ok := service.(employeeAPI.KnowledgeService); ok {
+		s.knowledge = knowledge
+		s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/employees/{employee_id}/knowledge-sources", s.createKnowledgeAPI)
+		s.mux.HandleFunc("GET /v1/tenants/{tenant_id}/employees/{employee_id}/knowledge-sources", s.listKnowledgeAPI)
+		s.mux.HandleFunc("GET /v1/tenants/{tenant_id}/employees/{employee_id}/knowledge-sources/{source_id}", s.readKnowledgeAPI)
+		s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/employees/{employee_id}/knowledge-sources/{source_id}/process", s.processKnowledgeAPI)
+		s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/employees/{employee_id}/knowledge-sources/{source_id}/conflict", s.conflictKnowledgeAPI)
+		s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/employees/{employee_id}/knowledge-sources/{source_id}/retire", s.retireKnowledgeAPI)
+		s.mux.HandleFunc("POST /app/tenants/{tenant_id}/employees/{employee_id}/knowledge-sources", s.createKnowledgeForm)
+		s.mux.HandleFunc("POST /app/tenants/{tenant_id}/employees/{employee_id}/knowledge-sources/{source_id}/process", s.processKnowledgeForm)
+		s.mux.HandleFunc("POST /app/tenants/{tenant_id}/employees/{employee_id}/knowledge-sources/{source_id}/conflict", s.conflictKnowledgeForm)
+		s.mux.HandleFunc("POST /app/tenants/{tenant_id}/employees/{employee_id}/knowledge-sources/{source_id}/retire", s.retireKnowledgeForm)
+	}
 	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/employees", s.createEmployeeAPI)
 	s.mux.HandleFunc("GET /v1/tenants/{tenant_id}/employees", s.listEmployeesAPI)
 	s.mux.HandleFunc("GET /v1/tenants/{tenant_id}/employees/{employee_id}", s.readEmployeeAPI)
