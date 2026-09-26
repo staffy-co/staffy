@@ -19,10 +19,11 @@ import (
 )
 
 type fakeEmployee struct {
-	name    string
-	calls   int
-	saveErr error
-	readErr error
+	name       string
+	calls      int
+	saveErr    error
+	readErr    error
+	previewCmd *employeeAPI.PinCommand
 }
 
 func (f *fakeEmployee) Create(_ context.Context, c employeeAPI.CreateCommand) (employeeAPI.CreateResult, error) {
@@ -44,6 +45,41 @@ func (f *fakeEmployee) Save(context.Context, employeeAPI.SaveCommand) (employeeD
 		return employeeDomain.Draft{}, f.saveErr
 	}
 	return employeeDomain.Draft{}, employeeDomain.ErrConflict
+}
+func (f *fakeEmployee) Catalog(context.Context, identityDomain.Principal, id.UUID) ([]employeeDomain.PackManifest, error) {
+	return nil, nil
+}
+func (f *fakeEmployee) Preview(_ context.Context, c employeeAPI.PinCommand) (employeeDomain.PackPreview, error) {
+	f.previewCmd = &c
+	return employeeDomain.PackPreview{Current: employeeDomain.PackPin{ID: "auto-parts", Version: "1.0.0"}, Target: employeeDomain.PackManifest{ID: "auto-parts", Version: "2.0.0"}, Impact: employeeDomain.PackImpact{Compatibility: "incompatible", Changed: []string{"schema"}, ReviewSlots: []string{"knowledge"}}}, nil
+}
+func (f *fakeEmployee) Pin(context.Context, employeeAPI.PinCommand) (employeeDomain.Draft, error) {
+	return employeeDomain.Draft{}, employeeDomain.ErrInvalid
+}
+
+func TestDomainPackPreviewRouteReturnsImpact(t *testing.T) {
+	identity := fakeIdentity{create: func(identityAPI.CreateTenantCommand) (identityAPI.CreateTenantResult, error) {
+		return identityAPI.CreateTenantResult{}, nil
+	}, workspace: func(id.UUID) (identityDomain.Workspace, error) {
+		return identityDomain.Workspace{}, identityDomain.ErrNotFound
+	}}
+	server, err := New(identity, fixedResolver{principal: identityDomain.Principal{ID: testPrincipalID}}, fixedIDs{}, fixedClock{}, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	fake := &fakeEmployee{}
+	server.BindEmployee(fake)
+	path := "/v1/tenants/" + testTenantID.String() + "/employees/" + testCorrelation.String() + "/domain-pack/preview"
+	r := httptest.NewRequest(http.MethodPost, path, strings.NewReader(`{"version":2,"pack_id":"auto-parts","pack_version":"2.0.0","variants":{"parts_interest":"both","matching_depth":2}}`))
+	r.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	server.Handler().ServeHTTP(w, r)
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `"compatibility":"incompatible"`) || !strings.Contains(w.Body.String(), `"review_slots":["knowledge"]`) {
+		t.Fatalf("preview response=%d %s", w.Code, w.Body.String())
+	}
+	if fake.previewCmd == nil || fake.previewCmd.TenantID != testTenantID || fake.previewCmd.EmployeeID != testCorrelation || fake.previewCmd.Actor.ID != testPrincipalID || fake.previewCmd.ExpectedVersion != 2 || fake.previewCmd.PackVersion != "2.0.0" {
+		t.Fatalf("preview command=%+v", fake.previewCmd)
+	}
 }
 
 func TestEmployeeAPIRejectsAuthorityPayloadAndExplainsConflict(t *testing.T) {

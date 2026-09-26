@@ -22,6 +22,14 @@ type SaveCommand struct {
 	ExpectedVersion                     int64
 	Brief                               employeeDomain.Brief
 }
+type PinCommand struct {
+	Actor                               domain.Principal
+	TenantID, EmployeeID, CorrelationID id.UUID
+	ExpectedVersion                     int64
+	PackID, PackVersion                 string
+	Variants                            map[string]any
+	Confirmed                           bool
+}
 type CreateResult struct {
 	Draft    employeeDomain.Draft
 	Replayed bool
@@ -31,6 +39,9 @@ type Service interface {
 	List(context.Context, domain.Principal, id.UUID) ([]employeeDomain.Draft, error)
 	Read(context.Context, domain.Principal, id.UUID, id.UUID) (employeeDomain.Draft, error)
 	Save(context.Context, SaveCommand) (employeeDomain.Draft, error)
+	Catalog(context.Context, domain.Principal, id.UUID) ([]employeeDomain.PackManifest, error)
+	Preview(context.Context, PinCommand) (employeeDomain.PackPreview, error)
+	Pin(context.Context, PinCommand) (employeeDomain.Draft, error)
 }
 type Clock interface{ Now() time.Time }
 type IDGenerator interface {

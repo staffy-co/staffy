@@ -30,9 +30,16 @@ func (s *Server) employeeScope(w http.ResponseWriter, r *http.Request) (identity
 }
 func (s *Server) employeeProblem(w http.ResponseWriter, r *http.Request, err error) {
 	status, code, message := 500, "internal_error", "Не удалось выполнить действие. Повторите позднее."
+	var fields map[string]string
+	var variantError domain.VariantError
+	if errors.As(err, &variantError) {
+		fields = variantError.Fields
+	}
 	switch {
 	case errors.Is(err, domain.ErrNotFound), errors.Is(err, domain.ErrForbidden):
 		status, code, message = 404, "not_found", "Ресурс не найден."
+	case errors.As(err, &variantError):
+		status, code, message = 400, "invalid_variants", "Проверьте варианты Domain Pack."
 	case errors.Is(err, domain.ErrInvalid):
 		status, code, message = 400, "invalid_brief", "Проверьте поля Brief и версию."
 	case errors.Is(err, domain.ErrConflict):
@@ -40,7 +47,7 @@ func (s *Server) employeeProblem(w http.ResponseWriter, r *http.Request, err err
 	case errors.Is(err, domain.ErrIdempotency):
 		status, code, message = 409, "idempotency_conflict", "Этот ключ уже использован для другого запроса."
 	}
-	s.problem(w, r, status, code, message, status >= 500, nil)
+	s.problem(w, r, status, code, message, status >= 500, fields)
 }
 func decodeEmployee(w http.ResponseWriter, r *http.Request, out any) error {
 	media, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -190,7 +197,28 @@ func (s *Server) employeePage(w http.ResponseWriter, r *http.Request) {
 		s.employeeProblem(w, r, err)
 		return
 	}
-	s.render(w, "employee", map[string]any{"TenantID": tenant, "Employee": item, "Plan": domain.LaunchPlan(item), "Saved": r.URL.Query().Get("saved") == "1"})
+	catalog, err := s.employee.Catalog(r.Context(), actor, tenant)
+	if err != nil {
+		s.employeeProblem(w, r, err)
+		return
+	}
+	data := map[string]any{"TenantID": tenant, "Employee": item, "Plan": domain.LaunchPlan(item), "Catalog": catalog, "Saved": r.URL.Query().Get("saved") == "1"}
+	if item.Pack != nil {
+		encodedVariants, _ := json.Marshal(item.Pack.Variants)
+		data["PackVariantsJSON"] = string(encodedVariants)
+		previews := []domain.PackPreview{}
+		for _, target := range catalog {
+			if target.ID == item.Pack.ID && target.Version == item.Pack.Version {
+				continue
+			}
+			preview, previewErr := s.employee.Preview(r.Context(), api.PinCommand{Actor: actor, TenantID: tenant, EmployeeID: employeeID, ExpectedVersion: item.Version, PackID: target.ID, PackVersion: target.Version})
+			if previewErr == nil {
+				previews = append(previews, preview)
+			}
+		}
+		data["PackPreviews"] = previews
+	}
+	s.render(w, "employee", data)
 }
 func (s *Server) saveBriefForm(w http.ResponseWriter, r *http.Request) {
 	actor, tenant, ok := s.employeeScope(w, r)

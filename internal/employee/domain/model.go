@@ -102,6 +102,8 @@ type Draft struct {
 	Version     int64     `json:"version"`
 	CurrentStep string    `json:"current_step"`
 	Brief       Brief     `json:"brief"`
+	Pack        *PackPin  `json:"domain_pack,omitempty"`
+	ReviewSlots []string  `json:"review_slots"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
@@ -118,12 +120,29 @@ func LaunchPlan(d Draft) []PlanStep {
 	if d.CurrentStep == "launch_plan" {
 		brief, reason = "complete", ""
 	}
+	packStatus, packReason := "blocked", "Выберите Domain Pack для настройки."
+	if d.Pack != nil {
+		packStatus, packReason = "incomplete", "Пакет закреплён для настройки; runtime и проверки ещё заблокированы."
+		if len(d.ReviewSlots) > 0 {
+			packStatus = "requires review"
+		}
+	}
+	dependentStatus := func(markers ...string) string {
+		for _, marker := range markers {
+			for _, slot := range d.ReviewSlots {
+				if slot == marker {
+					return "requires review"
+				}
+			}
+		}
+		return "blocked"
+	}
 	return []PlanStep{
 		{Name: "Tenant", Status: "complete"},
 		{Name: "Brief", Status: brief, Reason: reason},
-		{Name: "Domain Pack", Status: "blocked", Reason: "Версионированный пакет ещё не подключён."},
-		{Name: "Connectors", Status: "blocked", Reason: "Подключения и capabilities ещё не проверены."},
-		{Name: "Знания и поведение", Status: "blocked", Reason: "Настройка пока недоступна."},
+		{Name: "Domain Pack", Status: packStatus, Reason: packReason},
+		{Name: "Connectors", Status: dependentStatus("connectors"), Reason: "Подключения и capabilities ещё не проверены."},
+		{Name: "Знания и поведение", Status: dependentStatus("knowledge", "behavior"), Reason: "Настройка пока недоступна."},
 		{Name: "Полномочия и fallback", Status: "blocked", Reason: "Правила пока не утверждены."},
 		{Name: "Eval и preview", Status: "blocked", Reason: "Проверки ещё не выполнены."},
 		{Name: "Публикация", Status: "blocked", Reason: "Публикация возможна только после всех проверок."},
