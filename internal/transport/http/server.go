@@ -10,8 +10,10 @@ import (
 	"mime"
 	"net/http"
 	"slices"
+	"strings"
 	"time"
 
+	employeeAPI "github.com/artemiosu/staffy/internal/employee/api"
 	"github.com/artemiosu/staffy/internal/identity/api"
 	"github.com/artemiosu/staffy/internal/identity/domain"
 	"github.com/artemiosu/staffy/internal/identity/port"
@@ -28,6 +30,7 @@ type Clock interface{ Now() time.Time }
 
 type Server struct {
 	identity  api.Service
+	employee  employeeAPI.Service
 	resolver  port.PrincipalResolver
 	ids       IDGenerator
 	clock     Clock
@@ -38,8 +41,13 @@ type Server struct {
 
 func New(identity api.Service, resolver port.PrincipalResolver, ids IDGenerator, clock Clock, logger *slog.Logger) (*Server, error) {
 	templates, err := template.New("staffy").Funcs(template.FuncMap{
-		"hasRole":  func(roles []domain.Role, role string) bool { return slices.Contains(roles, domain.Role(role)) },
-		"hasScope": func(scopes []domain.Scope, scope string) bool { return slices.Contains(scopes, domain.Scope(scope)) },
+		"hasRole":   func(roles []domain.Role, role string) bool { return slices.Contains(roles, domain.Role(role)) },
+		"hasScope":  func(scopes []domain.Scope, scope string) bool { return slices.Contains(scopes, domain.Scope(scope)) },
+		"joinLines": func(values []string) string { return strings.Join(values, "\n") },
+		"contains":  func(values []string, value string) bool { return slices.Contains(values, value) },
+		"stepStatus": func(status string) string {
+			return map[string]string{"complete": "Готово", "incomplete": "Не завершено", "blocked": "Заблокировано"}[status]
+		},
 	}).ParseFS(staffyweb.Assets, "templates/*.html")
 	if err != nil {
 		return nil, err
@@ -70,6 +78,18 @@ func New(identity api.Service, resolver port.PrincipalResolver, ids IDGenerator,
 }
 
 func (s *Server) Handler() http.Handler { return s.withCorrelation(s.mux) }
+
+func (s *Server) BindEmployee(service employeeAPI.Service) {
+	s.employee = service
+	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/employees", s.createEmployeeAPI)
+	s.mux.HandleFunc("GET /v1/tenants/{tenant_id}/employees", s.listEmployeesAPI)
+	s.mux.HandleFunc("GET /v1/tenants/{tenant_id}/employees/{employee_id}", s.readEmployeeAPI)
+	s.mux.HandleFunc("PATCH /v1/tenants/{tenant_id}/employees/{employee_id}/brief", s.saveBriefAPI)
+	s.mux.HandleFunc("GET /app/tenants/{tenant_id}/employees", s.employeesPage)
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/employees", s.createEmployeeForm)
+	s.mux.HandleFunc("GET /app/tenants/{tenant_id}/employees/{employee_id}", s.employeePage)
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/employees/{employee_id}/brief", s.saveBriefForm)
+}
 
 func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
 	if _, ok := s.principal(w, r); !ok {
@@ -177,7 +197,21 @@ func (s *Server) workspace(w http.ResponseWriter, r *http.Request) {
 	if role == "" {
 		role = "Неизвестна"
 	}
-	s.render(w, "workspace", map[string]any{"TenantID": workspace.Tenant.ID, "TenantName": workspace.Tenant.Name, "Role": role, "CanManage": workspace.Role == "owner"})
+	canConfigure := false
+	if s.employee != nil {
+		if membership, ok := s.identity.(api.MembershipService); ok {
+			canConfigure = membership.Authorize(r.Context(), principal, tenantID, domain.Configuration) == nil
+		}
+	}
+	data := map[string]any{"TenantID": workspace.Tenant.ID, "TenantName": workspace.Tenant.Name, "Role": role, "CanManage": workspace.Role == "owner", "CanConfigure": canConfigure}
+	if s.employee != nil && data["CanConfigure"].(bool) {
+		items, err := s.employee.List(r.Context(), principal, tenantID)
+		if err == nil {
+			data["Employees"] = items
+			data["EmployeeKey"] = s.freshKey("")
+		}
+	}
+	s.render(w, "workspace", data)
 }
 
 func (s *Server) principal(w http.ResponseWriter, r *http.Request) (domain.Principal, bool) {

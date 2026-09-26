@@ -5,8 +5,11 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
 
+	employeeAPI "github.com/artemiosu/staffy/internal/employee/api"
+	employeeDomain "github.com/artemiosu/staffy/internal/employee/domain"
 	"github.com/artemiosu/staffy/internal/identity/api"
 	"github.com/artemiosu/staffy/internal/identity/domain"
 	"github.com/artemiosu/staffy/internal/platform/id"
@@ -61,11 +64,62 @@ func (idsFixture) New(time.Time) (id.UUID, error) {
 	return id.MustParse("01994f64-6c00-7000-8000-000000000003"), nil
 }
 
+type employeeFixture struct {
+	mu    sync.Mutex
+	draft *employeeDomain.Draft
+}
+
+var fixtureEmployeeID = id.MustParse("01994f64-6c00-7000-8000-000000000004")
+
+func (f *employeeFixture) Create(_ context.Context, _ employeeAPI.CreateCommand) (employeeAPI.CreateResult, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.draft == nil {
+		f.draft = &employeeDomain.Draft{TenantID: tenantID, EmployeeID: fixtureEmployeeID, OwnerID: principalID, Status: "draft", Readiness: "incomplete", Version: 1, CurrentStep: "brief", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}
+	}
+	return employeeAPI.CreateResult{Draft: *f.draft}, nil
+}
+func (f *employeeFixture) List(_ context.Context, _ domain.Principal, _ id.UUID) ([]employeeDomain.Draft, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.draft == nil {
+		return []employeeDomain.Draft{}, nil
+	}
+	return []employeeDomain.Draft{*f.draft}, nil
+}
+func (f *employeeFixture) Read(_ context.Context, _ domain.Principal, _ id.UUID, employeeID id.UUID) (employeeDomain.Draft, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.draft == nil || employeeID != fixtureEmployeeID {
+		return employeeDomain.Draft{}, employeeDomain.ErrNotFound
+	}
+	return *f.draft, nil
+}
+func (f *employeeFixture) Save(_ context.Context, c employeeAPI.SaveCommand) (employeeDomain.Draft, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.draft == nil || c.EmployeeID != fixtureEmployeeID {
+		return employeeDomain.Draft{}, employeeDomain.ErrNotFound
+	}
+	if c.ExpectedVersion != f.draft.Version {
+		return employeeDomain.Draft{}, employeeDomain.ErrConflict
+	}
+	if !c.Brief.Valid() {
+		return employeeDomain.Draft{}, employeeDomain.ErrInvalid
+	}
+	f.draft.Version++
+	f.draft.Brief = c.Brief
+	f.draft.CurrentStep = "launch_plan"
+	f.draft.UpdatedAt = time.Now().UTC()
+	return *f.draft, nil
+}
+
 func main() {
 	server, err := httptransport.New(identityFixture{}, resolverFixture{}, idsFixture{}, clockFixture{}, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {
 		panic(err)
 	}
+	server.BindEmployee(&employeeFixture{})
 	if err := http.ListenAndServe("127.0.0.1:18081", server.Handler()); err != nil {
 		panic(err)
 	}

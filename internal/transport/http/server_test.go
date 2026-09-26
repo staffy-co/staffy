@@ -219,7 +219,7 @@ func TestWorkspaceShowsHonestEmptyState(t *testing.T) {
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/app/tenants/"+testTenantID.String(), nil))
 	body := response.Body.String()
-	for _, expected := range []string{"Магазин Олега", "Роль: Owner", "Создать ИИ-сотрудника", "ещё не настроены", "Станет доступно"} {
+	for _, expected := range []string{"Магазин Олега", "Роль: Owner", "Начните с ИИ-сотрудника", "Настройка ИИ-сотрудника доступна"} {
 		if !strings.Contains(body, expected) {
 			t.Fatalf("body does not contain %q", expected)
 		}

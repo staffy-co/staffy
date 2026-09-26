@@ -25,12 +25,15 @@
 
 ## Requirements & Constraints
 
-- Каждый Tenant и все принадлежащие ему объекты изолированы на уровне приложения и PostgreSQL. Межтенантные чтения, записи, связи и утечки через фоновые задачи, connection pool, prepared statements, rollback, поддержку и восстановление запрещены и покрываются отрицательными интеграционными тестами.
-- Проверенная платформенная личность создаёт Tenant идемпотентно, получает роль Owner и оставляет неизменяемое событие с actor, временем и correlation ID. Пользовательский `tenant_id` не является источником доверия.
-- Роли и чувствительные действия применяют deny-by-default, server-side authorization и step-up/MFA там, где это требуется. Секреты, PII и чувствительные payload не попадают в обычные логи, prompts или receipts.
-- Guided setup хранит только явные draft/versioned состояния. Технический success отдельного элемента не означает общую готовность; публикация разрешена лишь для точной комбинации Tenant, Employee, route, modality, Autonomy Class, Release Manifest и Operating Profile с действующими gates.
+- Каждый Tenant и все принадлежащие ему настройки, данные, Connectors, секреты и доказательства изолированы. Проверенная личность создаёт Tenant и получает роль Owner; полномочия людей и машинных principals разделены, чувствительное администрирование Owner/Integration Admin требует MFA.
+- Guided setup ведёт от Tenant и Employee Brief через Domain Pack, Connectors, знания, поведение и fallback к simulation/eval и публикации. Прогресс хранится как неопубликованный draft с владельцем и явным состоянием incomplete/blocked/ready; асинхронный blocker не теряет уже введённое.
+- Knowledge Sources имеют происхождение, scope, приоритет, актуальность и версию. Путь публикации проходит quarantine/validation, extraction, index и eval; retrieval не подменяет актуальные операционные цену, наличие, доступность или статус.
+- Поведение задаётся управляемыми полями и правилами: роль, AI-раскрытие, тон, Conversation Modes, Allowed Claims, Confirmation/Handoff и human fallback. Голос, темп, стиль и словарь произношения получают preview и человеческую проверку на телефонном качестве перед публикацией.
+- Подключение Connector требует проверки конкретного account и каждой Capability; неизвестная, ограниченная или устаревшая возможность не становится разрешением на клиентское обещание или изменение внешней системы. Секреты не раскрываются модели и обычным логам.
+- Настройка включает цели обработки и сроки хранения отдельно по классам данных, права доступа/исправления/отзыва/удаления, а также Entitlement, каналы, лимиты, бюджет и usage. Hard cap переводит новые обращения в заданный безопасный fallback, сохраняя активные обязательства, safety и Recovery.
+- Публикация разрешена лишь для точной комбинации Tenant, Employee, route, modality, Autonomy Class, Release Manifest и Operating Profile с действующими gates. До controlled/live Owner утверждает Operating Profile с каналами, языками, часами, capacity, human coverage, retention и правилами измерения; неподтверждённые зависимости остаются явно заблокированными.
 - Общая платформа не содержит tenant-name branches, клиентских форков или произвольного tenant-кода. Новая компания настраивается через общее ядро, versioned Domain Pack, конфигурацию Employee и переиспользуемые Connectors.
-- Изменения конфигурации, прав, capabilities, consent, entitlement и gate evidence должны быть аудируемыми, версионированными и безопасно отзывать или ограничивать затронутый admission без ложного terminal success.
+- Изменения конфигурации, прав, capabilities, consent, entitlement и gate evidence аудируются и версионируются. Отзыв или истечение допуска ограничивает затронутый scope и инвалидирует ожидающую работу; rollback не отменяет уже совершённые внешние действия.
 
 ## Technical Decisions
 
@@ -38,12 +41,13 @@
 - Модули общаются через typed API и versioned outbox events. Cross-module SQL, циклические зависимости, глобальные mutable dependencies, общие `utils/helpers/common` и доменная политика в composition roots запрещены.
 - PostgreSQL 18 использует shared schema: каждая tenant-owned таблица содержит `tenant_id`, tenant-aware keys, `ENABLE ROW LEVEL SECURITY` и `FORCE ROW LEVEL SECURITY`. Runtime principal — non-owner, non-superuser, `NOBYPASSRLS`; TenantContext задаётся через `SET LOCAL` только внутри транзакции, а отсутствие контекста останавливает выполнение до SQL.
 - Идентификаторы — typed UUIDv7; JSON и БД используют `snake_case`; время — UTC `timestamptz`/RFC3339. HTTP API находится под `/v1`, валидируется OpenAPI 3.1 и возвращает стабильную problem-форму с безопасным сообщением, correlation ID, retryability и field errors.
-- Создание Tenant, назначение Owner и outbox record выполняются атомарно. Повтор с тем же idempotency key возвращает тот же результат; конфликтующий material payload не создаёт новый Tenant.
+- Опубликованные конфигурации неизменяемы и связаны Release Manifest с версиями Domain Pack, policy/eval, Connector contract/build, model/media route и runtime. Материальное изменение создаёт новый manifest; точечный rollback и совместимость текущего/предыдущего event/job contract обязательны.
 - Обычные логи структурированы через `slog`; raw PII, credentials и содержимое разговоров исключаются из логов, metric labels и span names.
 
 ## UX & Interaction Patterns
 
-- После создания Owner попадает в App Shell своего Tenant и видит название компании, роль и один честный следующий шаг — «Создать ИИ-сотрудника». Пустое состояние не заявляет о готовности сотрудника, каналов или интеграций.
+- После создания Owner попадает в App Shell своего Tenant и видит название компании, роль и следующий шаг. Employee Brief создаётся из интервью, редактируется по секциям и отдельно утверждается Owner; Launch Plan показывает блокеры, ответственного, делегирование и возможность продолжить.
+- Integration Card ведёт от владельца credentials к account check, capability test и admission. Knowledge Source Row показывает provenance/freshness/conflict; Test & Release Panel начинает с simulation и объясняет причину каждого блокирующего gate. Draft и published версии остаются различимыми, а материальный конфликт не сливается автоматически.
 - Admin/ops интерфейс использует светлую тему «Северный кедр», role-adaptive навигацию и текстовые статусы. Состояние и роль не кодируются только цветом.
 - Все поверхности поддерживают клавиатуру, видимый focus, семантические landmarks, reflow на 320 px без горизонтального скролла страницы и интерактивные цели не менее 44×44 px.
 
