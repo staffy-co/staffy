@@ -6,6 +6,135 @@ info:
     Application contract behind a trusted PrincipalResolver. The external login/session
     transport is intentionally deployment-neutral and is not defined by Story 1.1.
 paths:
+  /v1/tenants/{tenant_id}/employees/{employee_id}/knowledge-sources:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/EmployeeID'
+    get:
+      operationId: listKnowledgeSources
+      summary: Список текстовых источников знаний черновика
+      x-staffy-principal-required: true
+      responses:
+        '200': { description: Tenant-scoped источники и состояние актуальности }
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+    post:
+      operationId: createKnowledgeSource
+      summary: Создать источник в состоянии processing после выбора Domain Pack
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/KnowledgeSourceCreate' }
+      responses:
+        '201': { description: Источник создан; содержимое ещё не обработано }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/employees/{employee_id}/knowledge-sources/{source_id}:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/EmployeeID'
+      - in: path
+        name: source_id
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: readKnowledgeSource
+      summary: Просмотреть provenance и неизменяемые версии с фрагментами
+      x-staffy-principal-required: true
+      responses:
+        '200': { description: Источник и версии с текстом, checksum и position }
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/employees/{employee_id}/knowledge-sources/{source_id}/process:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/EmployeeID'
+      - in: path
+        name: source_id
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: processKnowledgeSource
+      summary: Обработать допустимый UTF-8 текст до 256 КиБ
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [version, text]
+              additionalProperties: false
+              properties:
+                version: { type: integer, minimum: 1 }
+                text: { type: string, maxLength: 262144 }
+      responses:
+        '200': { description: Текущая или новая immutable версия; replay при том же checksum }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/employees/{employee_id}/knowledge-sources/{source_id}/conflict:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/EmployeeID'
+      - in: path
+        name: source_id
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: markKnowledgeConflict
+      summary: Отметить конфликт с сохранением обоих provenance
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [version, note, provenance]
+              additionalProperties: false
+              properties:
+                version: { type: integer, minimum: 1 }
+                note: { type: string }
+                provenance: { type: string }
+      responses:
+        '200': { description: Блокирующий конфликт }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/employees/{employee_id}/knowledge-sources/{source_id}/retire:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/EmployeeID'
+      - in: path
+        name: source_id
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: retireKnowledgeSource
+      summary: Вывести источник из эксплуатации
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [version]
+              additionalProperties: false
+              properties:
+                version: { type: integer, minimum: 1 }
+      responses:
+        '200': { description: Источник retired и исключён из будущего использования }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
   /v1/tenants/{tenant_id}/domain-packs:
     parameters:
       - $ref: '#/components/parameters/TenantID'
@@ -326,6 +455,19 @@ components:
       required: true
       schema: { type: string, format: uuid }
   schemas:
+    KnowledgeSourceCreate:
+      type: object
+      additionalProperties: false
+      required: [type, title, owner, provenance, scope, priority, language]
+      properties:
+        type: { type: string, enum: [faq, regulation, dialogue] }
+        title: { type: string, minLength: 1, maxLength: 160 }
+        owner: { type: string, minLength: 1, maxLength: 160 }
+        provenance: { type: string, minLength: 1, maxLength: 500 }
+        scope: { type: string, minLength: 1, maxLength: 160 }
+        priority: { type: integer, minimum: 0, maximum: 100 }
+        language: { type: string, minLength: 2, maxLength: 32 }
+        fresh_until: { type: string, format: date-time }
     EmployeeBrief:
       type: object
       additionalProperties: false
