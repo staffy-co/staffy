@@ -32,6 +32,7 @@ type Server struct {
 	identity  api.Service
 	employee  employeeAPI.Service
 	knowledge employeeAPI.KnowledgeService
+	ingestion employeeAPI.KnowledgeIngestService
 	resolver  port.PrincipalResolver
 	ids       IDGenerator
 	clock     Clock
@@ -94,6 +95,13 @@ func (s *Server) BindEmployee(service employeeAPI.Service) {
 		s.mux.HandleFunc("POST /app/tenants/{tenant_id}/employees/{employee_id}/knowledge-sources/{source_id}/process", s.processKnowledgeForm)
 		s.mux.HandleFunc("POST /app/tenants/{tenant_id}/employees/{employee_id}/knowledge-sources/{source_id}/conflict", s.conflictKnowledgeForm)
 		s.mux.HandleFunc("POST /app/tenants/{tenant_id}/employees/{employee_id}/knowledge-sources/{source_id}/retire", s.retireKnowledgeForm)
+	}
+	if ingestion, ok := service.(employeeAPI.KnowledgeIngestService); ok {
+		s.ingestion = ingestion
+		s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/employees/{employee_id}/knowledge-sources/ingest", s.ingestKnowledgeAPI)
+		s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/employees/{employee_id}/knowledge-sources/{source_id}/ingest-fixture", s.reingestFixtureAPI)
+		s.mux.HandleFunc("POST /app/tenants/{tenant_id}/employees/{employee_id}/knowledge-sources/ingest", s.ingestKnowledgeForm)
+		s.mux.HandleFunc("POST /app/tenants/{tenant_id}/employees/{employee_id}/knowledge-sources/{source_id}/ingest-fixture", s.reingestFixtureForm)
 	}
 	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/employees", s.createEmployeeAPI)
 	s.mux.HandleFunc("GET /v1/tenants/{tenant_id}/employees", s.listEmployeesAPI)

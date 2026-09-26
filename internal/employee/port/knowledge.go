@@ -19,6 +19,7 @@ type KnowledgeRepository interface {
 	ListKnowledge(context.Context, tenancy.Context, id.UUID) ([]domain.KnowledgeSource, error)
 	ReadKnowledge(context.Context, tenancy.Context, id.UUID, id.UUID) (domain.KnowledgeSource, []domain.KnowledgeVersion, error)
 	ProcessKnowledge(context.Context, KnowledgeMutation, string) (domain.KnowledgeSource, domain.KnowledgeVersion, bool, error)
+	ProcessSyntheticKnowledge(context.Context, KnowledgeMutation, string) (domain.KnowledgeSource, domain.KnowledgeVersion, bool, error)
 	ConflictKnowledge(context.Context, KnowledgeMutation, string, string) (domain.KnowledgeSource, error)
 	RetireKnowledge(context.Context, KnowledgeMutation) (domain.KnowledgeSource, error)
 }
