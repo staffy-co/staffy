@@ -110,11 +110,15 @@ func (s *Server) BindEmployee(service employeeAPI.Service) {
 	s.mux.HandleFunc("GET /v1/tenants/{tenant_id}/domain-packs", s.domainCatalogAPI)
 	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/employees/{employee_id}/domain-pack/preview", s.previewPackAPI)
 	s.mux.HandleFunc("PUT /v1/tenants/{tenant_id}/employees/{employee_id}/domain-pack", s.pinPackAPI)
+	s.mux.HandleFunc("GET /v1/tenants/{tenant_id}/employees/{employee_id}/behavior", s.readBehaviorAPI)
+	s.mux.HandleFunc("PUT /v1/tenants/{tenant_id}/employees/{employee_id}/behavior", s.saveBehaviorAPI)
+	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/employees/{employee_id}/behavior/preview", s.previewBehaviorAPI)
 	s.mux.HandleFunc("GET /app/tenants/{tenant_id}/employees", s.employeesPage)
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/employees", s.createEmployeeForm)
 	s.mux.HandleFunc("GET /app/tenants/{tenant_id}/employees/{employee_id}", s.employeePage)
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/employees/{employee_id}/brief", s.saveBriefForm)
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/employees/{employee_id}/domain-pack", s.pinPackForm)
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/employees/{employee_id}/behavior", s.saveBehaviorForm)
 }
 
 func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
