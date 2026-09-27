@@ -69,8 +69,79 @@ func (idsFixture) New(time.Time) (id.UUID, error) {
 type employeeFixture struct {
 	mu        sync.Mutex
 	draft     *employeeDomain.Draft
+	behavior  []employeeDomain.BehaviorVersion
 	knowledge *employeeDomain.KnowledgeSource
 	versions  []employeeDomain.KnowledgeVersion
+}
+
+func (f *employeeFixture) ReadBehavior(_ context.Context, _ domain.Principal, tenant, employee id.UUID) ([]employeeDomain.BehaviorVersion, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.draft == nil || tenant != tenantID || employee != fixtureEmployeeID {
+		return nil, employeeDomain.ErrNotFound
+	}
+	return append([]employeeDomain.BehaviorVersion(nil), f.behavior...), nil
+}
+func (f *employeeFixture) PreviewBehavior(_ context.Context, c employeeAPI.BehaviorCommand) (employeeDomain.BehaviorPreview, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.draft == nil || c.TenantID != tenantID || c.EmployeeID != fixtureEmployeeID {
+		return employeeDomain.BehaviorPreview{}, employeeDomain.ErrNotFound
+	}
+	if c.ExpectedVersion != f.draft.Version {
+		return employeeDomain.BehaviorPreview{}, employeeDomain.ErrConflict
+	}
+	if f.draft.Pack == nil {
+		return employeeDomain.BehaviorPreview{}, employeeDomain.BehaviorRuleError{Rule: "Domain Pack", Reason: "Сначала закрепите пакет."}
+	}
+	if err := employeeDomain.ValidateBehavior(c.Config); err != nil {
+		return employeeDomain.BehaviorPreview{}, err
+	}
+	claims := make([]employeeDomain.AllowedClaim, len(c.Config.Claims))
+	copy(claims, c.Config.Claims)
+	for i := range claims {
+		claims[i].Status = "blocked"
+		claims[i].BlockReason = "claim: проверяемая привязка утверждения к доказательству отсутствует"
+	}
+	preview := employeeDomain.BehaviorPreview{Mode: c.Config.Modes[0], Claims: claims, Blockers: []string{"Публикация и реальные действия недоступны в черновике.", "human_requested: человек и маршрут не подтверждены"}, Handoff: "blocked: человек и маршрут не подтверждены", SyntheticOnly: true, Publishable: false}
+	switch c.Scenario {
+	case "", "general":
+	case "refusal":
+		preview.Mode = "blocked"
+		preview.Blockers = append(preview.Blockers, "cancellation/sales: после отказа убеждение прекращается")
+	case "no_contact":
+		preview.Mode = "blocked"
+		preview.Blockers = append(preview.Blockers, "privacy/no_contact: дальнейший контакт запрещён")
+	case "safety":
+		preview.Mode = "blocked"
+		preview.Blockers = append(preview.Blockers, "safety: передать человеку; продажи прекращены")
+	case "human_requested":
+		preview.Mode = "blocked"
+		preview.Blockers = append(preview.Blockers, "human_requested: без подтверждённого человека handoff заблокирован")
+	case "business_action":
+		preview.Mode = "blocked"
+		preview.Blockers = append(preview.Blockers, "Confirmation: черновик не разрешает Business Action")
+	default:
+		return employeeDomain.BehaviorPreview{}, employeeDomain.BehaviorRuleError{Rule: "scenario", Reason: "Неизвестный сценарий запрещён."}
+	}
+	if preview.Mode == "sales" || preview.Mode == "handoff" || len(preview.Claims) > 0 {
+		preview.Mode = "blocked"
+	}
+	return preview, nil
+}
+func (f *employeeFixture) SaveBehavior(ctx context.Context, c employeeAPI.BehaviorCommand) (employeeDomain.BehaviorVersion, error) {
+	preview, err := f.PreviewBehavior(ctx, c)
+	if err != nil {
+		return employeeDomain.BehaviorVersion{}, err
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.draft.Version++
+	config := c.Config
+	config.Claims = preview.Claims
+	v := employeeDomain.BehaviorVersion{TenantID: tenantID, EmployeeID: fixtureEmployeeID, Version: int64(len(f.behavior) + 1), DraftVersion: f.draft.Version, PackID: f.draft.Pack.ID, PackVersion: f.draft.Pack.Version, Config: config, ActorID: c.Actor.ID, ChangedAt: time.Now().UTC(), ChangeSummary: c.ChangeSummary}
+	f.behavior = append([]employeeDomain.BehaviorVersion{v}, f.behavior...)
+	return v, nil
 }
 
 var fixtureEmployeeID = id.MustParse("01994f64-6c00-7000-8000-000000000004")

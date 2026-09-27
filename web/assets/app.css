@@ -79,4 +79,9 @@ details summary { min-height: 44px; padding: .6rem; cursor: pointer; font-weight
 .knowledge-row pre{white-space:pre-wrap;overflow-wrap:anywhere;max-width:100%}
 .knowledge-form{display:grid;gap:.5rem}
 .knowledge-form input,.knowledge-form textarea,.knowledge-form select,.knowledge-row textarea{max-width:100%;width:100%;box-sizing:border-box}
+.behavior-form,.behavior-form fieldset{min-width:0;max-width:40rem}
+.behavior-form input:not([type=checkbox]),.behavior-form textarea,.behavior-form select{max-width:100%;width:100%;box-sizing:border-box}
+.behavior-form button,.behavior-form select,.behavior-form input{min-height:44px}
+.behavior-form input[type=checkbox]{width:24px;height:24px;vertical-align:middle}
+#behavior-preview-output{overflow-wrap:anywhere;white-space:pre-wrap}
 .knowledge-panel button,.knowledge-row summary{min-height:44px}

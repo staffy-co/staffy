@@ -6,6 +6,68 @@ info:
     Application contract behind a trusted PrincipalResolver. The external login/session
     transport is intentionally deployment-neutral and is not defined by Story 1.1.
 paths:
+  /v1/tenants/{tenant_id}/employees/{employee_id}/behavior:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/EmployeeID'
+    get:
+      operationId: readBehaviorVersions
+      summary: Неизменяемая история поведения черновика
+      x-staffy-principal-required: true
+      responses:
+        '200':
+          description: Tenant-scoped версии поведения
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [versions]
+                properties:
+                  versions: { type: array, items: { $ref: '#/components/schemas/BehaviorVersion' } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+    put:
+      operationId: saveBehaviorVersion
+      summary: Сохранить новую версию безопасного поведения
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BehaviorCommand' }
+      responses:
+        '200':
+          description: Новая версия черновика; публикация не изменяется
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BehaviorVersion' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/employees/{employee_id}/behavior/preview:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/EmployeeID'
+    post:
+      operationId: previewBehavior
+      summary: Синтетическая проверка правил и claims без внешних действий
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BehaviorCommand' }
+      responses:
+        '200':
+          description: Режим, claims, блокеры и human fallback; всегда не publishable
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BehaviorPreview' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
   /v1/tenants/{tenant_id}/employees/{employee_id}/knowledge-sources:
     parameters:
       - $ref: '#/components/parameters/TenantID'
@@ -505,6 +567,71 @@ components:
       required: true
       schema: { type: string, format: uuid }
   schemas:
+    BehaviorCommand:
+      type: object
+      additionalProperties: false
+      required: [version, config, change_summary]
+      properties:
+        version: { type: integer, minimum: 1 }
+        change_summary: { type: string, minLength: 1, maxLength: 300 }
+        scenario: { type: string, enum: [general, refusal, no_contact, safety, human_requested, business_action], description: Только синтетический preview }
+        pack_id: { type: string, description: Закреплённый пакет, для которого подготовлена настройка }
+        pack_version: { type: string, description: Версия закреплённого пакета }
+        config: { $ref: '#/components/schemas/Behavior' }
+    BehaviorVersion:
+      type: object
+      required: [tenant_id, employee_id, version, draft_version, pack_id, pack_version, config, actor_id, changed_at, change_summary]
+      properties:
+        tenant_id: { type: string, format: uuid }
+        employee_id: { type: string, format: uuid }
+        version: { type: integer }
+        draft_version: { type: integer }
+        pack_id: { type: string }
+        pack_version: { type: string }
+        config: { $ref: '#/components/schemas/Behavior' }
+        actor_id: { type: string, format: uuid }
+        changed_at: { type: string, format: date-time }
+        change_summary: { type: string }
+    BehaviorPreview:
+      type: object
+      required: [mode, claims, blockers, handoff, synthetic_only, publishable]
+      properties:
+        mode: { type: string, enum: [answer, intake, blocked] }
+        claims: { type: array, items: { $ref: '#/components/schemas/AllowedClaim' } }
+        blockers: { type: array, items: { type: string } }
+        handoff: { type: string }
+        synthetic_only: { type: boolean, const: true }
+        publishable: { type: boolean, const: false }
+    Behavior:
+      type: object
+      additionalProperties: false
+      required: [role, purpose, ai_disclosure, tone, modes, allowed_claims, forbidden_phrases, confirmation, handoff, examples]
+      properties:
+        role: { type: string, minLength: 1, maxLength: 160 }
+        purpose: { type: string, minLength: 1, maxLength: 500 }
+        ai_disclosure: { type: boolean, const: true }
+        tone: { type: string, enum: [neutral, warm, formal] }
+        modes: { type: array, minItems: 1, maxItems: 4, uniqueItems: true, items: { type: string, enum: [answer, intake, sales, handoff] } }
+        allowed_claims: { type: array, maxItems: 20, items: { $ref: '#/components/schemas/AllowedClaim' } }
+        forbidden_phrases: { type: array, maxItems: 20, items: { type: string, maxLength: 300 } }
+        confirmation: { type: string, const: required }
+        handoff: { type: string, const: required }
+        examples: { type: array, maxItems: 8, items: { type: string, maxLength: 300 } }
+    AllowedClaim:
+      type: object
+      additionalProperties: false
+      required: [text, owner, scope, channels, modes]
+      properties:
+        text: { type: string, minLength: 1, maxLength: 300 }
+        owner: { type: string, minLength: 1, maxLength: 160 }
+        scope: { type: string, minLength: 1, maxLength: 160 }
+        channels: { type: array, minItems: 1, items: { type: string } }
+        modes: { type: array, minItems: 1, items: { type: string, enum: [answer, intake, sales, handoff] } }
+        evidence_source_id: { type: string, format: uuid }
+        evidence_version: { type: integer, minimum: 1 }
+        review_at: { type: string, format: date-time }
+        status: { type: string, readOnly: true, const: blocked }
+        block_reason: { type: string, readOnly: true }
     KnowledgeSourceCreate:
       type: object
       additionalProperties: false

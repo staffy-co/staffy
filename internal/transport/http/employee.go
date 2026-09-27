@@ -32,6 +32,7 @@ func (s *Server) employeeProblem(w http.ResponseWriter, r *http.Request, err err
 	status, code, message := 500, "internal_error", "Не удалось выполнить действие. Повторите позднее."
 	var fields map[string]string
 	var variantError domain.VariantError
+	var behaviorError domain.BehaviorRuleError
 	if errors.As(err, &variantError) {
 		fields = variantError.Fields
 	}
@@ -40,6 +41,8 @@ func (s *Server) employeeProblem(w http.ResponseWriter, r *http.Request, err err
 		status, code, message = 404, "not_found", "Ресурс не найден."
 	case errors.As(err, &variantError):
 		status, code, message = 400, "invalid_variants", "Проверьте варианты Domain Pack."
+	case errors.As(err, &behaviorError):
+		status, code, message = 400, "behavior_rule", behaviorError.Error()
 	case errors.Is(err, domain.ErrInvalid):
 		status, code, message = 400, "invalid_brief", "Проверьте поля Brief и версию."
 	case errors.Is(err, domain.ErrConflict):
@@ -209,6 +212,22 @@ func (s *Server) employeePage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data := map[string]any{"TenantID": tenant, "Employee": item, "Plan": domain.LaunchPlan(item), "Catalog": catalog, "Saved": r.URL.Query().Get("saved") == "1"}
+	if item.Pack != nil {
+		if behavior, ok := s.employee.(api.BehaviorService); ok {
+			versions, behaviorErr := behavior.ReadBehavior(r.Context(), actor, tenant, employeeID)
+			if behaviorErr != nil {
+				s.employeeProblem(w, r, behaviorErr)
+				return
+			}
+			data["BehaviorVersions"] = versions
+			data["BehaviorClaimsJSON"] = "[]"
+			if len(versions) > 0 && versions[0].PackID == item.Pack.ID && versions[0].PackVersion == item.Pack.Version {
+				data["BehaviorCurrent"] = versions[0].Config
+				encodedClaims, _ := json.Marshal(versions[0].Config.Claims)
+				data["BehaviorClaimsJSON"] = string(encodedClaims)
+			}
+		}
+	}
 	if s.knowledge != nil && item.Pack != nil {
 		sources, knowledgeErr := s.knowledge.ListKnowledge(r.Context(), actor, tenant, employeeID)
 		if knowledgeErr != nil {
