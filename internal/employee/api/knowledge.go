@@ -38,3 +38,25 @@ type KnowledgeService interface {
 	ConflictKnowledge(context.Context, KnowledgeConflictCommand) (domain.KnowledgeSource, error)
 	RetireKnowledge(context.Context, KnowledgeRetireCommand) (domain.KnowledgeSource, error)
 }
+
+type KnowledgeIngestCommand struct {
+	Actor                               identity.Principal
+	TenantID, EmployeeID, CorrelationID id.UUID
+	Source                              domain.KnowledgeSource
+	URL                                 string
+	FileName                            string
+	File                                []byte
+	Fixture                             bool
+}
+
+type KnowledgeIngestService interface {
+	IngestKnowledge(context.Context, KnowledgeIngestCommand) (domain.KnowledgeSource, domain.KnowledgeVersion, error)
+	ReingestSyntheticKnowledge(context.Context, KnowledgeFixtureCommand) (domain.KnowledgeSource, domain.KnowledgeVersion, bool, error)
+}
+
+type KnowledgeFixtureCommand struct {
+	Actor                                         identity.Principal
+	TenantID, EmployeeID, SourceID, CorrelationID id.UUID
+	ExpectedVersion                               int64
+	FixtureID                                     string
+}

@@ -1,6 +1,7 @@
 package httptransport
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	employeeAPI "github.com/artemiosu/staffy/internal/employee/api"
@@ -10,17 +11,95 @@ import (
 	"github.com/artemiosu/staffy/internal/platform/id"
 	"io"
 	"log/slog"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 )
 
+func ingestMultipart(t *testing.T, path string, duplicate bool) *http.Request {
+	t.Helper()
+	var body bytes.Buffer
+	w := multipart.NewWriter(&body)
+	for key, value := range map[string]string{"type": "document", "title": "TXT", "owner": "Тест", "provenance": "Файл", "scope": "Тест", "priority": "50", "language": "ru"} {
+		if err := w.WriteField(key, value); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if duplicate {
+		if err := w.WriteField("type", "website"); err != nil {
+			t.Fatal(err)
+		}
+		if err := w.WriteField("fixture", "true"); err != nil {
+			t.Fatal(err)
+		}
+		if err := w.WriteField("fixture", "false"); err != nil {
+			t.Fatal(err)
+		}
+		if err := w.WriteField("url", "https://example.com/a"); err != nil {
+			t.Fatal(err)
+		}
+		if err := w.WriteField("url", "https://example.com/b"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	part, err := w.CreateFormFile("file", "sample.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := part.Write([]byte("exact UTF-8 bytes: привет")); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	r := httptest.NewRequest(http.MethodPost, path, &body)
+	r.Header.Set("Content-Type", w.FormDataContentType())
+	r.Header.Set("Origin", "http://example.com")
+	return r
+}
+
+func TestKnowledgeIngestMultipartForwardsExactFileAndRejectsUnsafeMetadata(t *testing.T) {
+	path := "/v1/tenants/" + testTenantID.String() + "/employees/" + testCorrelation.String() + "/knowledge-sources/ingest"
+	t.Run("file", func(t *testing.T) {
+		f := &knowledgeHTTPFake{}
+		r := ingestMultipart(t, path, false)
+		w := httptest.NewRecorder()
+		knowledgeTestServer(t, f).Handler().ServeHTTP(w, r)
+		if w.Code != http.StatusCreated || f.ingestCmd == nil || f.ingestCmd.FileName != "sample.txt" || !bytes.Equal(f.ingestCmd.File, []byte("exact UTF-8 bytes: привет")) {
+			t.Fatalf("multipart forwarding: status=%d command=%+v", w.Code, f.ingestCmd)
+		}
+	})
+	for _, tc := range []struct {
+		name   string
+		mutate func(*http.Request)
+	}{
+		{"cross_origin", func(r *http.Request) { r.Header.Set("Origin", "http://evil.example") }},
+		{"duplicates", func(r *http.Request) {}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := &knowledgeHTTPFake{}
+			r := ingestMultipart(t, path, tc.name == "duplicates")
+			tc.mutate(r)
+			w := httptest.NewRecorder()
+			knowledgeTestServer(t, f).Handler().ServeHTTP(w, r)
+			if w.Code != http.StatusBadRequest && w.Code != http.StatusNotFound {
+				t.Fatalf("unsafe multipart accepted: %d %s", w.Code, w.Body.String())
+			}
+			if f.ingestCmd != nil {
+				t.Fatal("unsafe multipart reached service")
+			}
+		})
+	}
+}
+
 type knowledgeHTTPFake struct {
 	fakeEmployee
 	listErr, versionErr error
 	createCalls         int
 	processCmd          *employeeAPI.KnowledgeProcessCommand
+	ingestCmd           *employeeAPI.KnowledgeIngestCommand
 }
 
 func (f *knowledgeHTTPFake) Read(context.Context, identityDomain.Principal, id.UUID, id.UUID) (employeeDomain.Draft, error) {
@@ -45,6 +124,31 @@ func (f *knowledgeHTTPFake) ReadKnowledge(context.Context, identityDomain.Princi
 func (f *knowledgeHTTPFake) ProcessKnowledge(_ context.Context, c employeeAPI.KnowledgeProcessCommand) (employeeDomain.KnowledgeSource, employeeDomain.KnowledgeVersion, bool, error) {
 	f.processCmd = &c
 	return employeeDomain.KnowledgeSource{SourceID: c.SourceID, Version: 2, Status: "ready"}, employeeDomain.KnowledgeVersion{SourceID: c.SourceID, Version: 1, Text: c.Text, Checksum: "stored-checksum"}, true, nil
+}
+func (f *knowledgeHTTPFake) IngestKnowledge(_ context.Context, c employeeAPI.KnowledgeIngestCommand) (employeeDomain.KnowledgeSource, employeeDomain.KnowledgeVersion, error) {
+	f.ingestCmd = &c
+	return employeeDomain.KnowledgeSource{SourceID: testCorrelation, Status: "processing"}, employeeDomain.KnowledgeVersion{}, nil
+}
+func (f *knowledgeHTTPFake) ReingestSyntheticKnowledge(_ context.Context, c employeeAPI.KnowledgeFixtureCommand) (employeeDomain.KnowledgeSource, employeeDomain.KnowledgeVersion, bool, error) {
+	return employeeDomain.KnowledgeSource{SourceID: c.SourceID, Status: "preview"}, employeeDomain.KnowledgeVersion{Version: 1}, true, nil
+}
+func TestKnowledgeIngestJSONForwardsOnlyScopedFixture(t *testing.T) {
+	f := &knowledgeHTTPFake{}
+	s := knowledgeTestServer(t, f)
+	path := "/v1/tenants/" + testTenantID.String() + "/employees/" + testCorrelation.String() + "/knowledge-sources/ingest"
+	r := httptest.NewRequest(http.MethodPost, path, strings.NewReader(`{"type":"document","title":"Образец","owner":"Тест","provenance":"Фикстура","scope":"Тест","priority":50,"language":"ru","fixture":true}`))
+	r.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, r)
+	if w.Code != http.StatusCreated || f.ingestCmd == nil || !f.ingestCmd.Fixture || f.ingestCmd.TenantID != testTenantID || f.ingestCmd.EmployeeID != testCorrelation || f.ingestCmd.Actor.ID != testPrincipalID {
+		t.Fatalf("ingest response=%d command=%+v", w.Code, f.ingestCmd)
+	}
+	if !strings.Contains(w.Body.String(), `"publishable":false`) {
+		t.Fatalf("ingest claimed publishable: %s", w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), `"status":"processing"`) {
+		t.Fatalf("ingest skipped processing: %s", w.Body.String())
+	}
 }
 func TestKnowledgeProcessJSONForwardsVersionAndText(t *testing.T) {
 	f := &knowledgeHTTPFake{}

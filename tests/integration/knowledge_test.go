@@ -109,6 +109,63 @@ func TestKnowledgeLifecycleIsolationVersionsAndEvidence(t *testing.T) {
 	if visible != 0 {
 		t.Fatalf("RLS exposed foreign source: %d", visible)
 	}
+	ingestBase := employeeAPI.KnowledgeIngestCommand{Actor: owner, TenantID: tenant, EmployeeID: employee.Draft.EmployeeID, CorrelationID: corr, Source: employeeDomain.KnowledgeSource{Type: "document", Title: "Синтетический документ", Owner: "Тест", Provenance: "Фикстура", Scope: "Тест", Priority: 50, Language: "ru"}, Fixture: true}
+	preview, firstFixture, err := svc.IngestKnowledge(ctx, ingestBase)
+	if err != nil || preview.Status != "processing" || preview.CurrentVersion != 0 || firstFixture.Version != 0 {
+		t.Fatalf("synthetic source did not start processing: %+v %+v %v", preview, firstFixture, err)
+	}
+	if _, _, _, err = svc.ProcessKnowledge(ctx, employeeAPI.KnowledgeProcessCommand{Actor: owner, TenantID: tenant, EmployeeID: employee.Draft.EmployeeID, SourceID: preview.SourceID, CorrelationID: corr, ExpectedVersion: preview.Version, Text: "Произвольный текст"}); !errors.Is(err, employeeDomain.ErrInvalid) {
+		t.Fatalf("direct text process bypassed ingestion: %v", err)
+	}
+	fixture := employeeAPI.KnowledgeFixtureCommand{Actor: owner, TenantID: tenant, EmployeeID: employee.Draft.EmployeeID, SourceID: preview.SourceID, CorrelationID: corr, ExpectedVersion: preview.Version, FixtureID: "sample-v1"}
+	preview, firstFixture, replayed, err = svc.ReingestSyntheticKnowledge(ctx, fixture)
+	if err != nil || replayed || preview.Status != "preview" || firstFixture.Version != 1 || firstFixture.Origin == "" || len(firstFixture.Chunks) == 0 || firstFixture.Chunks[0].CapturedAt.IsZero() {
+		t.Fatalf("synthetic preview: %+v %+v %v %v", preview, firstFixture, replayed, err)
+	}
+	fixture.ExpectedVersion = preview.Version
+	_, replayFixture, replayed, err := svc.ReingestSyntheticKnowledge(ctx, fixture)
+	if err != nil || !replayed || replayFixture.Version != 1 {
+		t.Fatalf("synthetic replay: %+v %v %v", replayFixture, replayed, err)
+	}
+	fixture.FixtureID = "sample-v2"
+	preview, nextFixture, replayed, err := svc.ReingestSyntheticKnowledge(ctx, fixture)
+	if err != nil || replayed || preview.Status != "preview" || nextFixture.Version != 2 || preview.CurrentVersion != 2 {
+		t.Fatalf("synthetic diff: %+v %+v %v %v", preview, nextFixture, replayed, err)
+	}
+	_, fixtureVersions, err := svc.ReadKnowledge(ctx, owner, tenant, employee.Draft.EmployeeID, preview.SourceID)
+	if err != nil || len(fixtureVersions) != 2 || fixtureVersions[0].Checksum == fixtureVersions[1].Checksum || fixtureVersions[0].Chunks[0].Origin == "" {
+		t.Fatalf("fixture provenance/versions: %+v %v", fixtureVersions, err)
+	}
+	_, _, err = svc.ReadKnowledge(ctx, owner, otherTenant, employee.Draft.EmployeeID, preview.SourceID)
+	if !errors.Is(err, employeeDomain.ErrNotFound) {
+		t.Fatalf("foreign fixture visible: %v", err)
+	}
+	ingestBase.Fixture = false
+	ingestBase.FileName = "unsafe.pdf"
+	ingestBase.File = []byte("not a pdf")
+	failedFile, _, err := svc.IngestKnowledge(ctx, ingestBase)
+	if err != nil || failedFile.Status != "failed" || failedFile.CurrentVersion != 0 || failedFile.IngestReason == "" {
+		t.Fatalf("unsafe file: %+v %v", failedFile, err)
+	}
+	ingestBase.FileName = "guide.txt"
+	ingestBase.File = []byte("Проверенный UTF-8 текст пока не сканирован")
+	failedRealFile, _, err := svc.IngestKnowledge(ctx, ingestBase)
+	if err != nil || failedRealFile.Status != "failed" || failedRealFile.CurrentVersion != 0 || failedRealFile.Origin != "guide.txt" || !strings.Contains(failedRealFile.IngestReason, "повторно") {
+		t.Fatalf("real file falsely claimed to be stored: %+v %v", failedRealFile, err)
+	}
+	ingestBase.Source.Type = "website"
+	ingestBase.FileName = ""
+	ingestBase.File = nil
+	ingestBase.URL = "https://127.0.0.1/private"
+	failedURL, _, err := svc.IngestKnowledge(ctx, ingestBase)
+	if err != nil || failedURL.Status != "failed" || failedURL.CurrentVersion != 0 || failedURL.Origin != "" {
+		t.Fatalf("unsafe URL: %+v %v", failedURL, err)
+	}
+	ingestBase.URL = "https://8.8.8.8/example"
+	quarantinedURL, _, err := svc.IngestKnowledge(ctx, ingestBase)
+	if err != nil || quarantinedURL.Status != "quarantined" || quarantinedURL.CurrentVersion != 0 || quarantinedURL.Origin != ingestBase.URL {
+		t.Fatalf("real URL quarantine: %+v %v", quarantinedURL, err)
+	}
 	conflict, err := svc.ConflictKnowledge(ctx, employeeAPI.KnowledgeConflictCommand{Actor: owner, TenantID: tenant, EmployeeID: employee.Draft.EmployeeID, SourceID: created.SourceID, CorrelationID: corr, ExpectedVersion: source.Version, Note: "Другое правило", Provenance: "Сообщение владельца"})
 	if err != nil || conflict.EffectiveStatus(time.Now()) != "conflict" {
 		t.Fatalf("conflict: %+v %v", conflict, err)

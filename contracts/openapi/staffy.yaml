@@ -12,7 +12,7 @@ paths:
       - $ref: '#/components/parameters/EmployeeID'
     get:
       operationId: listKnowledgeSources
-      summary: Список текстовых источников знаний черновика
+      summary: Список источников знаний черновика
       x-staffy-principal-required: true
       responses:
         '200': { description: Tenant-scoped источники и состояние актуальности }
@@ -29,6 +29,27 @@ paths:
             schema: { $ref: '#/components/schemas/KnowledgeSourceCreate' }
       responses:
         '201': { description: Источник создан; содержимое ещё не обработано }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/employees/{employee_id}/knowledge-sources/ingest:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/EmployeeID'
+    post:
+      operationId: ingestKnowledgeSource
+      summary: Зарегистрировать HTTPS-страницу или TXT/PDF; синтетическую фикстуру поставить в processing
+      description: Реальная страница остаётся в карантине без сетевого запроса. Реальный файл не сохраняется и получает failed с требованием повторной загрузки после появления scanner и safe extraction. Синтетический источник переходит из processing в непубликуемый preview только через отдельный вызов ingest-fixture. MIME клиента не является основанием для допуска. Файл до 2 МиБ; TXT UTF-8 до 256 КиБ; одна публичная HTTPS-страница.
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/KnowledgeIngest' }
+          multipart/form-data:
+            schema: { $ref: '#/components/schemas/KnowledgeIngestMultipart' }
+      responses:
+        '201': { description: Источник в quarantined, failed или синтетическом processing; publishable=false }
         '400': { $ref: '#/components/responses/Problem' }
         '401': { $ref: '#/components/responses/Problem' }
         '404': { $ref: '#/components/responses/Problem' }
@@ -73,6 +94,35 @@ paths:
                 text: { type: string, maxLength: 262144 }
       responses:
         '200': { description: Текущая или новая immutable версия; replay при том же checksum }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/employees/{employee_id}/knowledge-sources/{source_id}/ingest-fixture:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/EmployeeID'
+      - in: path
+        name: source_id
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: reingestSyntheticKnowledgeSource
+      summary: Повторно извлечь встроенную синтетическую фикстуру, сохраняя CAS и версии
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [version, fixture_id]
+              properties:
+                version: { type: integer, minimum: 1 }
+                fixture_id: { type: string, enum: [sample-v1, sample-v2] }
+      responses:
+        '200': { description: Replay при прежнем тексте или новая immutable версия; publishable=false }
         '400': { $ref: '#/components/responses/Problem' }
         '401': { $ref: '#/components/responses/Problem' }
         '404': { $ref: '#/components/responses/Problem' }
@@ -468,6 +518,35 @@ components:
         priority: { type: integer, minimum: 0, maximum: 100 }
         language: { type: string, minLength: 2, maxLength: 32 }
         fresh_until: { type: string, format: date-time }
+    KnowledgeIngest:
+      type: object
+      additionalProperties: false
+      required: [type, title, owner, provenance, scope, priority, language]
+      properties:
+        type: { type: string, enum: [website, document] }
+        title: { type: string, minLength: 1, maxLength: 160 }
+        owner: { type: string, minLength: 1, maxLength: 160 }
+        provenance: { type: string, minLength: 1, maxLength: 500 }
+        scope: { type: string, minLength: 1, maxLength: 160 }
+        priority: { type: integer, minimum: 0, maximum: 100 }
+        language: { type: string, minLength: 2, maxLength: 32 }
+        url: { type: string, format: uri, maxLength: 2048 }
+        fixture: { type: boolean, description: Встроенный синтетический текст; произвольный payload не принимается }
+    KnowledgeIngestMultipart:
+      type: object
+      additionalProperties: false
+      required: [type, title, owner, provenance, scope, priority, language]
+      properties:
+        type: { type: string, enum: [website, document] }
+        title: { type: string, minLength: 1, maxLength: 160 }
+        owner: { type: string, minLength: 1, maxLength: 160 }
+        provenance: { type: string, minLength: 1, maxLength: 500 }
+        scope: { type: string, minLength: 1, maxLength: 160 }
+        priority: { type: integer, minimum: 0, maximum: 100 }
+        language: { type: string, minLength: 2, maxLength: 32 }
+        url: { type: string, format: uri, maxLength: 2048 }
+        fixture: { type: boolean }
+        file: { type: string, format: binary }
     EmployeeBrief:
       type: object
       additionalProperties: false

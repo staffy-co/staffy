@@ -10,6 +10,7 @@ import (
 
 	employeeAPI "github.com/artemiosu/staffy/internal/employee/api"
 	employeeDomain "github.com/artemiosu/staffy/internal/employee/domain"
+	"github.com/artemiosu/staffy/internal/employee/ingest"
 	"github.com/artemiosu/staffy/internal/employee/packs"
 	"github.com/artemiosu/staffy/internal/identity/api"
 	"github.com/artemiosu/staffy/internal/identity/domain"
@@ -178,6 +179,50 @@ func (f *employeeFixture) CreateKnowledge(_ context.Context, c employeeAPI.Knowl
 	f.knowledge = &s
 	f.versions = nil
 	return s, nil
+}
+func (f *employeeFixture) IngestKnowledge(_ context.Context, c employeeAPI.KnowledgeIngestCommand) (employeeDomain.KnowledgeSource, employeeDomain.KnowledgeVersion, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.draft == nil || f.draft.Pack == nil || c.TenantID != tenantID || c.EmployeeID != fixtureEmployeeID || !c.Fixture || c.Source.Type != "document" || c.URL != "" || len(c.File) != 0 {
+		return employeeDomain.KnowledgeSource{}, employeeDomain.KnowledgeVersion{}, employeeDomain.ErrInvalid
+	}
+	s := c.Source
+	s.TenantID, s.EmployeeID, s.SourceID = tenantID, fixtureEmployeeID, fixtureSourceID
+	s.Origin, s.Status, s.Version = ingest.FixtureOrigin, "processing", 1
+	s.CreatedAt = time.Now().UTC()
+	s.UpdatedAt = s.CreatedAt
+	f.knowledge = &s
+	f.versions = nil
+	return s, employeeDomain.KnowledgeVersion{}, nil
+}
+func (f *employeeFixture) ReingestSyntheticKnowledge(_ context.Context, c employeeAPI.KnowledgeFixtureCommand) (employeeDomain.KnowledgeSource, employeeDomain.KnowledgeVersion, bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.knowledge == nil || c.TenantID != tenantID || c.EmployeeID != fixtureEmployeeID || c.SourceID != fixtureSourceID || f.knowledge.Origin != ingest.FixtureOrigin || f.knowledge.Status == "retired" {
+		return employeeDomain.KnowledgeSource{}, employeeDomain.KnowledgeVersion{}, false, employeeDomain.ErrNotFound
+	}
+	text, err := ingest.SyntheticText(c.FixtureID)
+	if err != nil {
+		return employeeDomain.KnowledgeSource{}, employeeDomain.KnowledgeVersion{}, false, employeeDomain.ErrInvalid
+	}
+	if len(f.versions) > 0 && f.versions[0].Text == text {
+		return *f.knowledge, f.versions[0], true, nil
+	}
+	if c.ExpectedVersion != f.knowledge.Version {
+		return employeeDomain.KnowledgeSource{}, employeeDomain.KnowledgeVersion{}, false, employeeDomain.ErrConflict
+	}
+	now := time.Now().UTC()
+	key := []byte("fixture-secret-for-knowledge-checksums")
+	v := employeeDomain.KnowledgeVersion{SourceID: fixtureSourceID, Version: f.knowledge.CurrentVersion + 1, Checksum: employeeDomain.KnowledgeChecksum(key, text), Text: text, Origin: ingest.FixtureOrigin, CreatedAt: now, Chunks: employeeDomain.KnowledgeChunks(key, text)}
+	for i := range v.Chunks {
+		v.Chunks[i].SourceID, v.Chunks[i].Version = fixtureSourceID, v.Version
+		v.Chunks[i].Origin, v.Chunks[i].CapturedAt = v.Origin, now
+	}
+	f.versions = append([]employeeDomain.KnowledgeVersion{v}, f.versions...)
+	f.knowledge.CurrentVersion = v.Version
+	f.knowledge.Version++
+	f.knowledge.Status = "preview"
+	return *f.knowledge, v, false, nil
 }
 func (f *employeeFixture) ListKnowledge(_ context.Context, _ domain.Principal, tenant, employee id.UUID) ([]employeeDomain.KnowledgeSource, error) {
 	f.mu.Lock()

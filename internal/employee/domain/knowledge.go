@@ -20,6 +20,8 @@ type KnowledgeSource struct {
 	Title              string     `json:"title"`
 	Owner              string     `json:"owner"`
 	Provenance         string     `json:"provenance"`
+	Origin             string     `json:"origin,omitempty"`
+	IngestReason       string     `json:"ingest_reason,omitempty"`
 	Scope              string     `json:"scope"`
 	Priority           int        `json:"priority"`
 	Language           string     `json:"language"`
@@ -34,11 +36,13 @@ type KnowledgeSource struct {
 }
 
 type KnowledgeChunk struct {
-	SourceID id.UUID `json:"source_id"`
-	Version  int64   `json:"version"`
-	Position int     `json:"position"`
-	Text     string  `json:"text"`
-	Checksum string  `json:"checksum"`
+	SourceID   id.UUID   `json:"source_id"`
+	Version    int64     `json:"version"`
+	Position   int       `json:"position"`
+	Text       string    `json:"text"`
+	Checksum   string    `json:"checksum"`
+	Origin     string    `json:"origin,omitempty"`
+	CapturedAt time.Time `json:"captured_at"`
 }
 
 type KnowledgeVersion struct {
@@ -50,6 +54,7 @@ type KnowledgeVersion struct {
 	RemovedFromPrevious string           `json:"removed_from_previous,omitempty"`
 	AddedFromPrevious   string           `json:"added_from_previous,omitempty"`
 	CreatedAt           time.Time        `json:"created_at"`
+	Origin              string           `json:"origin,omitempty"`
 }
 
 func KnowledgeDiff(previous, current string) (string, string) {
@@ -81,11 +86,11 @@ func (s KnowledgeSource) EffectiveStatus(now time.Time) string {
 
 func (s KnowledgeSource) Valid() bool {
 	switch s.Type {
-	case "faq", "regulation", "dialogue":
+	case "faq", "regulation", "dialogue", "website", "document":
 	default:
 		return false
 	}
-	return length(s.Title, 1, 160) && length(s.Owner, 1, 160) && length(s.Provenance, 1, 500) && length(s.Scope, 1, 160) && length(s.Language, 2, 32) && s.Priority >= 0 && s.Priority <= 100
+	return length(s.Title, 1, 160) && length(s.Owner, 1, 160) && length(s.Provenance, 1, 500) && len(s.Origin) <= 2048 && length(s.Scope, 1, 160) && length(s.Language, 2, 32) && s.Priority >= 0 && s.Priority <= 100
 }
 
 func ValidKnowledgeText(value string) bool {

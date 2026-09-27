@@ -10,12 +10,27 @@ test('knowledge row previews versions, stale and conflict at 320px with keyboard
     await page.getByRole('button', { name: 'Закрепить пакет для настройки' }).click();
   }
   await expect(page.getByRole('heading', { name: 'Источники знаний' })).toBeVisible();
-  await page.getByLabel('Название', { exact: true }).last().fill('Сервисный FAQ');
-  await page.getByLabel('Владелец', { exact: true }).fill('Редактор');
-  await page.getByLabel('Происхождение', { exact: true }).fill('Внутренний справочник');
-  await page.getByLabel('Область применения').fill('Общие ответы');
-  await page.getByLabel('Актуально до (RFC3339, необязательно)').fill('2026-09-15T00:00:00Z');
-  const create = page.getByRole('button', { name: 'Создать источник' });
+  const textForm = page.locator('form.knowledge-form').filter({ hasText: 'Добавить текстовый источник' });
+  const ingestForm = page.locator('form.knowledge-form').filter({ hasText: 'Добавить страницу или документ' });
+  await expect(page.getByText('TXT до 256 КиБ / PDF с текстовым слоем до 2 МиБ')).toBeVisible();
+  await expect(ingestForm.getByLabel('Точный HTTPS-адрес (для страницы)')).toBeVisible();
+  await expect(ingestForm.getByLabel('TXT или PDF (для документа)')).toBeHidden();
+  await expect(ingestForm.getByLabel('Точный HTTPS-адрес (для страницы)')).toHaveAttribute('required', '');
+  await ingestForm.getByLabel('Источник').selectOption('document');
+  await expect(ingestForm.getByLabel('Точный HTTPS-адрес (для страницы)')).toBeHidden();
+  await expect(ingestForm.getByLabel('TXT или PDF (для документа)')).toBeVisible();
+  await expect(ingestForm.getByLabel('TXT или PDF (для документа)')).toHaveAttribute('required', '');
+  await expect(ingestForm.getByText('файл не сохранится')).toBeVisible();
+  for (const control of await ingestForm.locator('button:visible, input:visible, select:visible').all()) {
+    const box = await control.boundingBox();
+    expect(box?.height).toBeGreaterThanOrEqual(44);
+  }
+  await textForm.getByLabel('Название', { exact: true }).fill('Сервисный FAQ');
+  await textForm.getByLabel('Владелец', { exact: true }).fill('Редактор');
+  await textForm.getByLabel('Происхождение', { exact: true }).fill('Внутренний справочник');
+  await textForm.getByLabel('Область применения').fill('Общие ответы');
+  await textForm.getByLabel('Актуально до (RFC3339, необязательно)').fill('2026-09-15T00:00:00Z');
+  const create = textForm.getByRole('button', { name: 'Создать источник' });
   await create.focus();
   await expect(create).toHaveCSS('outline-style', /^(?!none$).+/);
   await page.keyboard.press('Enter');
@@ -51,5 +66,27 @@ test('knowledge row previews versions, stale and conflict at 320px with keyboard
   }
   await row.getByRole('button', { name: 'Вывести из эксплуатации' }).click();
   await expect(row).toContainText('Источник выведен из эксплуатации');
+  await page.close();
+});
+
+test('synthetic source visibly moves from processing to non-publishable preview', async ({ browser }) => {
+  const page = await browser.newPage({ viewport: { width: 320, height: 800 } });
+  await page.goto('/app/tenants/01994f64-6c00-7000-8000-000000000002/employees');
+  await page.getByRole('button', { name: 'Создать ИИ-сотрудника' }).click();
+  if (!(await page.getByRole('heading', { name: 'Источники знаний' }).isVisible())) {
+    await page.getByLabel('Пакет и версия').selectOption('auto-parts@1.0.0');
+    await page.locator('.pack-variants:not([hidden])').getByLabel('Интерес к деталям').selectOption('both');
+    await page.getByRole('button', { name: 'Закрепить пакет для настройки' }).click();
+  }
+  await page.getByRole('button', { name: 'Добавить тестовый источник' }).click();
+  const row = page.locator('.knowledge-row').filter({ hasText: 'Тестовый документ' });
+  await expect(row).toContainText('Статус: processing');
+  await row.getByRole('button', { name: 'Обработать тестовый источник' }).click();
+  await expect(row).toContainText('Статус: preview');
+  await expect(row).toContainText('публикация заблокирована');
+  await row.getByLabel('Версия тестового текста').selectOption('sample-v2');
+  await row.getByRole('button', { name: 'Обработать тестовый источник' }).click();
+  await expect(row).toContainText('Текущая версия текста: 2');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
   await page.close();
 });

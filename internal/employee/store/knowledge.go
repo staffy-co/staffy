@@ -11,11 +11,11 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-const knowledgeColumns = "tenant_id,employee_id,source_id,source_type,title,owner_name,provenance,source_scope,priority,language,status,version,current_version,conflict_note,conflict_provenance,fresh_until,created_at,updated_at"
+const knowledgeColumns = "tenant_id,employee_id,source_id,source_type,title,owner_name,provenance,origin_ref,ingest_reason,source_scope,priority,language,status,version,current_version,conflict_note,conflict_provenance,fresh_until,created_at,updated_at"
 
 func scanKnowledge(row pgx.Row) (domain.KnowledgeSource, error) {
 	var s domain.KnowledgeSource
-	err := row.Scan(&s.TenantID, &s.EmployeeID, &s.SourceID, &s.Type, &s.Title, &s.Owner, &s.Provenance, &s.Scope, &s.Priority, &s.Language, &s.Status, &s.Version, &s.CurrentVersion, &s.ConflictNote, &s.ConflictProvenance, &s.FreshUntil, &s.CreatedAt, &s.UpdatedAt)
+	err := row.Scan(&s.TenantID, &s.EmployeeID, &s.SourceID, &s.Type, &s.Title, &s.Owner, &s.Provenance, &s.Origin, &s.IngestReason, &s.Scope, &s.Priority, &s.Language, &s.Status, &s.Version, &s.CurrentVersion, &s.ConflictNote, &s.ConflictProvenance, &s.FreshUntil, &s.CreatedAt, &s.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return s, domain.ErrNotFound
 	}
@@ -38,7 +38,7 @@ func (s *Postgres) CreateKnowledge(ctx context.Context, p port.KnowledgeMutation
 	if len(pack) == 0 {
 		return k, domain.ErrInvalid
 	}
-	k, err = scanKnowledge(tx.QueryRow(ctx, "insert into employee.knowledge_sources(tenant_id,employee_id,source_id,source_type,title,owner_name,provenance,source_scope,priority,language,checksum_key,fresh_until,created_at,updated_at) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$13) returning "+knowledgeColumns, p.Scope.TenantID(), p.EmployeeID, p.SourceID, k.Type, k.Title, k.Owner, k.Provenance, k.Scope, k.Priority, k.Language, k.ChecksumKey, k.FreshUntil, p.Now))
+	k, err = scanKnowledge(tx.QueryRow(ctx, "insert into employee.knowledge_sources(tenant_id,employee_id,source_id,source_type,title,owner_name,provenance,origin_ref,ingest_reason,source_scope,priority,language,checksum_key,fresh_until,created_at,updated_at,status) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$15,$16) returning "+knowledgeColumns, p.Scope.TenantID(), p.EmployeeID, p.SourceID, k.Type, k.Title, k.Owner, k.Provenance, k.Origin, k.IngestReason, k.Scope, k.Priority, k.Language, k.ChecksumKey, k.FreshUntil, p.Now, k.Status))
 	if err != nil {
 		return k, err
 	}
@@ -81,14 +81,14 @@ func (s *Postgres) ReadKnowledge(ctx context.Context, scope tenancy.Context, emp
 	if err != nil {
 		return k, nil, err
 	}
-	rows, err := tx.Query(ctx, "select version,checksum,source_text,created_at from employee.knowledge_versions where tenant_id=$1 and employee_id=$2 and source_id=$3 order by version desc", scope.TenantID(), employee, source)
+	rows, err := tx.Query(ctx, "select version,checksum,source_text,created_at,origin_ref from employee.knowledge_versions where tenant_id=$1 and employee_id=$2 and source_id=$3 order by version desc", scope.TenantID(), employee, source)
 	if err != nil {
 		return k, nil, err
 	}
 	versions := []domain.KnowledgeVersion{}
 	for rows.Next() {
 		v := domain.KnowledgeVersion{SourceID: source}
-		if err = rows.Scan(&v.Version, &v.Checksum, &v.Text, &v.CreatedAt); err != nil {
+		if err = rows.Scan(&v.Version, &v.Checksum, &v.Text, &v.CreatedAt, &v.Origin); err != nil {
 			rows.Close()
 			return k, nil, err
 		}
@@ -113,6 +113,8 @@ func (s *Postgres) ReadKnowledge(ctx context.Context, scope tenancy.Context, emp
 			}
 			c.SourceID = source
 			c.Version = versions[i].Version
+			c.Origin = versions[i].Origin
+			c.CapturedAt = versions[i].CreatedAt
 			versions[i].Chunks = append(versions[i].Chunks, c)
 		}
 		e = cr.Err()
@@ -139,6 +141,12 @@ func knowledgeLocked(ctx context.Context, tx pgx.Tx, p port.KnowledgeMutation) (
 	return scanKnowledge(tx.QueryRow(ctx, "select "+knowledgeColumns+" from employee.knowledge_sources where tenant_id=$1 and employee_id=$2 and source_id=$3 for update", p.Scope.TenantID(), p.EmployeeID, p.SourceID))
 }
 func (s *Postgres) ProcessKnowledge(ctx context.Context, p port.KnowledgeMutation, value string) (domain.KnowledgeSource, domain.KnowledgeVersion, bool, error) {
+	return s.processKnowledge(ctx, p, value, false)
+}
+func (s *Postgres) ProcessSyntheticKnowledge(ctx context.Context, p port.KnowledgeMutation, value string) (domain.KnowledgeSource, domain.KnowledgeVersion, bool, error) {
+	return s.processKnowledge(ctx, p, value, true)
+}
+func (s *Postgres) processKnowledge(ctx context.Context, p port.KnowledgeMutation, value string, synthetic bool) (domain.KnowledgeSource, domain.KnowledgeVersion, bool, error) {
 	tx, err := s.begin(ctx, p.Scope, false)
 	if err != nil {
 		return domain.KnowledgeSource{}, domain.KnowledgeVersion{}, false, err
@@ -148,7 +156,7 @@ func (s *Postgres) ProcessKnowledge(ctx context.Context, p port.KnowledgeMutatio
 	if err != nil {
 		return k, domain.KnowledgeVersion{}, false, err
 	}
-	if k.Status == "retired" {
+	if k.Status == "retired" || (synthetic && (k.Type != "website" && k.Type != "document" || k.Origin != "fixture:staffy-synthetic-v1")) || (!synthetic && (k.Type == "website" || k.Type == "document")) {
 		return k, domain.KnowledgeVersion{}, false, domain.ErrInvalid
 	}
 	var checksumKey []byte
@@ -159,7 +167,7 @@ func (s *Postgres) ProcessKnowledge(ctx context.Context, p port.KnowledgeMutatio
 		return k, domain.KnowledgeVersion{}, false, domain.ErrInvalid
 	}
 	checksum := domain.KnowledgeChecksum(checksumKey, value)
-	v := domain.KnowledgeVersion{SourceID: p.SourceID, Checksum: checksum, Text: value, CreatedAt: p.Now, Chunks: domain.KnowledgeChunks(checksumKey, value)}
+	v := domain.KnowledgeVersion{SourceID: p.SourceID, Checksum: checksum, Text: value, CreatedAt: p.Now, Origin: k.Origin, Chunks: domain.KnowledgeChunks(checksumKey, value)}
 	var currentChecksum string
 	if k.CurrentVersion > 0 {
 		err = tx.QueryRow(ctx, "select checksum from employee.knowledge_versions where tenant_id=$1 and employee_id=$2 and source_id=$3 and version=$4", p.Scope.TenantID(), p.EmployeeID, p.SourceID, k.CurrentVersion).Scan(&currentChecksum)
@@ -172,7 +180,7 @@ func (s *Postgres) ProcessKnowledge(ctx context.Context, p port.KnowledgeMutatio
 			return k, v, false, domain.ErrConflict
 		}
 		v = domain.KnowledgeVersion{SourceID: p.SourceID, Version: k.CurrentVersion}
-		if err = tx.QueryRow(ctx, "select checksum,source_text,created_at from employee.knowledge_versions where tenant_id=$1 and employee_id=$2 and source_id=$3 and version=$4", p.Scope.TenantID(), p.EmployeeID, p.SourceID, v.Version).Scan(&v.Checksum, &v.Text, &v.CreatedAt); err != nil {
+		if err = tx.QueryRow(ctx, "select checksum,source_text,created_at,origin_ref from employee.knowledge_versions where tenant_id=$1 and employee_id=$2 and source_id=$3 and version=$4", p.Scope.TenantID(), p.EmployeeID, p.SourceID, v.Version).Scan(&v.Checksum, &v.Text, &v.CreatedAt, &v.Origin); err != nil {
 			return k, v, false, err
 		}
 		rows, queryErr := tx.Query(ctx, "select position,chunk_text,checksum from employee.knowledge_chunks where tenant_id=$1 and employee_id=$2 and source_id=$3 and version=$4 order by position", p.Scope.TenantID(), p.EmployeeID, p.SourceID, v.Version)
@@ -181,7 +189,7 @@ func (s *Postgres) ProcessKnowledge(ctx context.Context, p port.KnowledgeMutatio
 		}
 		v.Chunks = []domain.KnowledgeChunk{}
 		for rows.Next() {
-			chunk := domain.KnowledgeChunk{SourceID: p.SourceID, Version: v.Version}
+			chunk := domain.KnowledgeChunk{SourceID: p.SourceID, Version: v.Version, Origin: v.Origin, CapturedAt: v.CreatedAt}
 			if err = rows.Scan(&chunk.Position, &chunk.Text, &chunk.Checksum); err != nil {
 				rows.Close()
 				return k, v, false, err
@@ -202,8 +210,10 @@ func (s *Postgres) ProcessKnowledge(ctx context.Context, p port.KnowledgeMutatio
 	for i := range v.Chunks {
 		v.Chunks[i].SourceID = p.SourceID
 		v.Chunks[i].Version = v.Version
+		v.Chunks[i].Origin = k.Origin
+		v.Chunks[i].CapturedAt = p.Now
 	}
-	_, err = tx.Exec(ctx, "insert into employee.knowledge_versions(tenant_id,employee_id,source_id,version,checksum,source_text,created_at) values($1,$2,$3,$4,$5,$6,$7)", p.Scope.TenantID(), p.EmployeeID, p.SourceID, v.Version, v.Checksum, v.Text, p.Now)
+	_, err = tx.Exec(ctx, "insert into employee.knowledge_versions(tenant_id,employee_id,source_id,version,checksum,source_text,created_at,origin_ref) values($1,$2,$3,$4,$5,$6,$7,$8)", p.Scope.TenantID(), p.EmployeeID, p.SourceID, v.Version, v.Checksum, v.Text, p.Now, v.Origin)
 	if err != nil {
 		return k, v, false, err
 	}
@@ -213,7 +223,11 @@ func (s *Postgres) ProcessKnowledge(ctx context.Context, p port.KnowledgeMutatio
 			return k, v, false, err
 		}
 	}
-	k, err = scanKnowledge(tx.QueryRow(ctx, "update employee.knowledge_sources set status='ready',current_version=$4,version=version+1,updated_at=$5 where tenant_id=$1 and employee_id=$2 and source_id=$3 returning "+knowledgeColumns, p.Scope.TenantID(), p.EmployeeID, p.SourceID, v.Version, p.Now))
+	status := "ready"
+	if synthetic {
+		status = "preview"
+	}
+	k, err = scanKnowledge(tx.QueryRow(ctx, "update employee.knowledge_sources set status=$6,current_version=$4,version=version+1,updated_at=$5 where tenant_id=$1 and employee_id=$2 and source_id=$3 returning "+knowledgeColumns, p.Scope.TenantID(), p.EmployeeID, p.SourceID, v.Version, p.Now, status))
 	if err != nil {
 		return k, v, false, err
 	}
