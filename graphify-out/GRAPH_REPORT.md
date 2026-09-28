@@ -1,17 +1,17 @@
-# Graph Report - staffy  (2026-09-26)
+# Graph Report - staffy  (2026-09-28)
 
 ## Corpus Check
-- 200 files · ~375,622 words
+- 234 files · ~400,677 words
 - Verdict: corpus is large enough that graph structure adds value.
-- Unclassified: 14 file(s) not represented in the graph (top: .excalidraw 10, (none) 3, .css 1)
+- Unclassified: 15 file(s) not represented in the graph (top: .excalidraw 10, (none) 4, .css 1)
 
 ## Summary
-- 1030 nodes · 2527 edges · 60 communities (48 shown, 12 thin omitted)
-- Extraction: 95% EXTRACTED · 5% INFERRED · 0% AMBIGUOUS · INFERRED: 121 edges (avg confidence: 0.88)
+- 1284 nodes · 3325 edges · 81 communities (63 shown, 18 thin omitted)
+- Extraction: 95% EXTRACTED · 5% INFERRED · 0% AMBIGUOUS · INFERRED: 150 edges (avg confidence: 0.87)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `0401e843`
+- Built from commit: `623bf027`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -25,7 +25,7 @@
 - Staffy Montagio Consilium Synthesis
 - Omnichannel Synthesis Draft
 - Staffy Competitive Research
-- KnowledgeSource
+- context.Context
 - Staffy Visual System
 - Common Platform Core
 - gate-definitions.schema.json
@@ -43,61 +43,80 @@
 - spec-1-3-guided-employee-draft.md
 - store/membership.go
 - net/http.Request
-- testing.T
+- Service
 - 00001_identity_tenant.sql
 - spec-1-1-tenant-workspace.md
 - @playwright/test
 - gate-instance.schema.json
 - Epic 1 Context: Защищённая самостоятельная настройка ИИ-сотрудника
-- permits
+- dependencies
 - spec-1-4-versioned-domain-pack.md
 - 00001_employee_draft.sql
 - spec-1-2-tenant-membership.md
-- context.Context
-- architecture_test.go
-- employee.audit
+- go_pkg_github_com_artemiosu_staffy_internal_platform_id
+- app/behavior_test.go
+- Context
 - go_pkg_embed
 - github.com/artemiosu/staffy
-- UUID
-- Draft
-- identity.tenants
-- artifact_id
-- domain/knowledge.go
-- .knowledgeMutation
-- fakeIdentity
-- verifierDatabase
-- go_pkg_github_com_artemiosu_staffy_internal_platform_id
-- identity.memberships
-- time.Time
-- Service
+- api/voice.go
 - Principal
+- identity.tenants
+- KnowledgeSource
+- validate.go
+- time.Time
+- testing.T
+- verifierDatabase
+- retentionTx
+- identity.memberships
+- domain/voice.go
+- .Create
+- PackManifest
+- UUID
 - spec-1-5-knowledge-sources.md
 - employee.knowledge_sources
 - employee.drafts
+- spec-1-6-safe-behavior-configuration.md
+- spec-1-7-voice-and-pronunciation.md
+- spec-1-5-safe-source-ingestion.md
+- employee.behavior_versions
+- employee.voice_versions
+- Draft
+- actor_id
+- approved_at
+- role
+- sha256
+- tested_at
+- uri
+- employee.knowledge_sources
+- employee.knowledge_versions
+- employee.audit
+- employee.audit
+- employee.audit
+- employee.voice_previews
 
 ## God Nodes (most connected - your core abstractions)
-1. `Principal` - 65 edges
-2. `KnowledgeSource` - 35 edges
-3. `Draft` - 33 edges
-4. `FromContext()` - 29 edges
-5. `Membership` - 26 edges
-6. `Server` - 25 edges
-7. `Context` - 24 edges
-8. `Parse()` - 22 edges
-9. `MembershipCommand` - 21 edges
-10. `MustParse()` - 20 edges
+1. `Principal` - 79 edges
+2. `KnowledgeSource` - 45 edges
+3. `FromContext()` - 36 edges
+4. `employeeFixture` - 34 edges
+5. `Draft` - 33 edges
+6. `Context` - 32 edges
+7. `Parse()` - 31 edges
+8. `Membership` - 26 edges
+9. `Server` - 26 edges
+10. `KnowledgeVersion` - 22 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `run()` --calls--> `New()`  [INFERRED]
-  cmd/staffy-core/main.go → internal/employee/app/service.go
-- `run()` --calls--> `New()`  [INFERRED]
   cmd/staffy-core/main.go → internal/identity/app/service.go
-- `run()` --calls--> `New()`  [INFERRED]
-  cmd/staffy-core/main.go → internal/transport/http/server.go
 - `run()` --calls--> `New()`  [EXTRACTED]
   cmd/staffy-core/main.go → internal/adapters/authdev/fixed.go
-- `run()` --calls--> `Parse()`  [EXTRACTED]
-  cmd/staffy-core/main.go → internal/platform/id/id.go
+- `run()` --calls--> `NewWithTestTTS()`  [EXTRACTED]
+  cmd/staffy-core/main.go → internal/employee/app/service.go
+- `run()` --calls--> `NewPostgres()`  [EXTRACTED]
+  cmd/staffy-core/main.go → internal/employee/store/postgres.go
+- `run()` --calls--> `NewPostgres()`  [EXTRACTED]
+  cmd/staffy-core/main.go → internal/identity/store/postgres.go
 
 ## Import Cycles
 - None detected.
@@ -126,31 +145,31 @@
 - **Staffy UX Evidence Synthesis** — _bmad_output_planning_artifacts_ux_designs_ux_staffy_2026_09_13__working_source_prd_final_prd_ux_requirements, _bmad_output_planning_artifacts_ux_designs_ux_staffy_2026_09_13__working_source_research_research_derived_ux_requirements, _bmad_output_planning_artifacts_ux_designs_ux_staffy_2026_09_13__working_source_vision_founder_ux_vision [INFERRED 0.95]
 - **Technical Build-Buy Decision Evidence** — _bmad_output_planning_artifacts_research_technical_staffy_voice_architecture_2026_09_11_brief_technical_research_brief, _bmad_output_planning_artifacts_research_technical_staffy_voice_architecture_2026_09_11_research_voice_architecture_research, _bmad_output_planning_artifacts_research_technical_staffy_voice_architecture_2026_09_11_digests_go_decision_latency_economics_r1_go_latency_economics, _bmad_output_planning_artifacts_research_technical_staffy_voice_architecture_2026_09_11_digests_go_decision_latency_economics_verification_go_latency_economics_verification [INFERRED 0.95]
 
-## Communities (60 total, 12 thin omitted)
+## Communities (81 total, 18 thin omitted)
 
 ### Community 0 - "properties"
 Cohesion: 0.06
 Nodes (34): additionalProperties, type, const, items, minItems, type, uniqueItems, enum (+26 more)
 
 ### Community 1 - "properties"
-Cohesion: 0.07
-Nodes (30): minLength, type, minLength, type, minLength, type, minLength, type (+22 more)
+Cohesion: 0.06
+Nodes (34): minLength, type, minLength, type, minLength, type, minLength, type (+26 more)
 
 ### Community 2 - "properties"
-Cohesion: 0.06
-Nodes (31): minLength, type, format, type, format, type, enum, properties (+23 more)
+Cohesion: 0.11
+Nodes (19): minLength, type, format, type, enum, properties, enum, minLength (+11 more)
 
 ### Community 3 - "properties"
-Cohesion: 0.08
-Nodes (25): minimum, type, pattern, type, pattern, type, properties, control_generation (+17 more)
+Cohesion: 0.10
+Nodes (20): type, minimum, type, pattern, type, pattern, type, properties (+12 more)
 
 ### Community 4 - "Staffy Product Requirements Document"
 Cohesion: 0.05
 Nodes (46): Staffy Architecture Party Decisions, Staffy Architecture Decision Log, Staffy Architecture Map, Go Modular Monolith, Staffy Architecture Spine, Montagio Best-Effort Pilot Policy, State and Authority Matrix Rule, Executable Architecture Gate Registry (+38 more)
 
 ### Community 5 - "type"
-Cohesion: 0.12
-Nodes (21): items, type, items, minItems, type, items, type, uniqueItems (+13 more)
+Cohesion: 0.17
+Nodes (16): items, items, minItems, type, items, items, type, items (+8 more)
 
 ### Community 6 - "Staffy Montagio Consilium Synthesis"
 Cohesion: 0.09
@@ -164,9 +183,9 @@ Nodes (19): Go Media-Core Scope Decision, Staged Media Infrastructure Adoption, 
 Cohesion: 0.11
 Nodes (18): Auto-Parts Vertical Wedge, Voice-Agent Customer Voice, Competitive Research Citation Check, Voice-Agent Offer and Pricing Teardown, Voice-Agent Market Position Trajectory, Vertical Demand Verification, Product and Pricing Verification, Vertical Voice-Agent Entrants (+10 more)
 
-### Community 9 - "KnowledgeSource"
-Cohesion: 0.24
-Nodes (11): knowledgeRow, KnowledgeCreateCommand, KnowledgeSource, KnowledgeVersion, KnowledgeMutation, pgx.Row, pgx.Tx, Postgres (+3 more)
+### Community 9 - "context.Context"
+Cohesion: 0.15
+Nodes (9): packIdentity, context.Context, fakeMembers, UnavailableScanner, MembershipCommand, validMutation(), Membership, WithID() (+1 more)
 
 ### Community 10 - "Staffy Visual System"
 Cohesion: 0.17
@@ -221,12 +240,12 @@ Cohesion: 0.15
 Nodes (26): memberInput, sensitive(), TestGrantLimits(), TestReasonCodesAreBounded(), AllowedScopes(), AllScopes(), containsAllScopes(), ReasonCode (+18 more)
 
 ### Community 26 - "net/http.Request"
-Cohesion: 0.08
-Nodes (36): KnowledgeService, html/template.Template, log/slog.Logger, net/http.Handler, net/http.Request, net/http.ResponseWriter, net/http.ServeMux, Clock (+28 more)
-
-### Community 27 - "testing.T"
 Cohesion: 0.06
-Nodes (73): packIDs, envOr(), loopbackAddress(), main(), run(), TestLoopbackAddressVariants(), TestRunRejectsDevelopmentResolverOutsideLoopbackBeforeDatabaseAccess(), TestVerifyRuntimeDatabaseRejectsRLSBypass() (+65 more)
+Nodes (50): KnowledgeIngestService, KnowledgeService, envOr(), loopbackAddress(), main(), run(), TestLoopbackAddressVariants(), TestRunRejectsDevelopmentResolverOutsideLoopbackBeforeDatabaseAccess() (+42 more)
+
+### Community 27 - "Service"
+Cohesion: 0.18
+Nodes (11): fakeIdentity, Clock, CreateTenantCommand, CreateTenantResult, IDGenerator, Service, hasLetterOrNumber(), membershipScope() (+3 more)
 
 ### Community 28 - "00001_identity_tenant.sql"
 Cohesion: 0.62
@@ -237,7 +256,7 @@ Cohesion: 0.20
 Nodes (9): Boundaries & Constraints, Code Map, I/O & Edge-Case Matrix, Implementation Notes, Intent, Review Triage Log, Spec Change Log, Tasks & Acceptance (+1 more)
 
 ### Community 30 - "@playwright/test"
-Cohesion: 0.14
+Cohesion: 0.12
 Nodes (7): @playwright/test, devDependencies, @playwright/test, name, private, scripts, test
 
 ### Community 31 - "gate-instance.schema.json"
@@ -248,9 +267,9 @@ Nodes (8): additionalProperties, allOf, $id, required, $schema, title, type, typ
 Cohesion: 0.25
 Nodes (7): Cross-Story Dependencies, Epic 1 Context: Защищённая самостоятельная настройка ИИ-сотрудника, Goal, Requirements & Constraints, Stories, Technical Decisions, UX & Interaction Patterns
 
-### Community 33 - "permits"
-Cohesion: 0.50
-Nodes (4): items, type, uniqueItems, permits
+### Community 33 - "dependencies"
+Cohesion: 0.24
+Nodes (7): type, uniqueItems, items, type, uniqueItems, dependencies, permits
 
 ### Community 34 - "spec-1-4-versioned-domain-pack.md"
 Cohesion: 0.18
@@ -264,53 +283,61 @@ Nodes (5): employee.audit, employee.drafts, employee.idempotency_records, employ
 Cohesion: 0.20
 Nodes (9): Boundaries & Constraints, Code Map, I/O & Edge-Case Matrix, Implementation Notes, Intent, Review Triage Log, Spec Change Log, Tasks & Acceptance (+1 more)
 
-### Community 37 - "context.Context"
-Cohesion: 0.16
-Nodes (9): packIdentity, context.Context, fakeMembers, MembershipCommand, Service, validMutation(), Membership, WithID() (+1 more)
+### Community 37 - "go_pkg_github_com_artemiosu_staffy_internal_platform_id"
+Cohesion: 0.05
+Nodes (86): limitedAudioBuffer, TestVerifyRuntimeDatabaseRejectsRLSBypass(), TestVerifyRuntimeDatabaseReportsConnectionFailure(), verifyRuntimeDatabase(), executePurge(), main(), purge(), run() (+78 more)
 
-### Community 38 - "architecture_test.go"
-Cohesion: 0.33
-Nodes (6): go_pkg_go_parser, go_pkg_go_token, go_pkg_io_fs, go_pkg_path_filepath, inside(), TestIdentityStoreHasNoIllegalImporters()
+### Community 38 - "app/behavior_test.go"
+Cohesion: 0.12
+Nodes (22): behaviorRepo, AllowedClaim, BehaviorRuleError, BehaviorCommand, Service, behaviorFixture(), TestBehaviorClaimScopeRejectsDuplicateChannelAndMode(), TestBehaviorEvidenceMetadataNeverGrantsClaim() (+14 more)
 
-### Community 42 - "UUID"
+### Community 39 - "Context"
 Cohesion: 0.20
-Nodes (9): mustScope(), CreateParams, PinParams, SaveParams, membershipScope(), Workspace, UUID, Context (+1 more)
+Nodes (4): mustScope(), Workspace, Context, New()
 
-### Community 43 - "Draft"
-Cohesion: 0.16
-Nodes (9): packRepository, fakeEmployee, PinCommand, SaveCommand, Draft, pgx.Row, pgx.Tx, Postgres (+1 more)
+### Community 42 - "api/voice.go"
+Cohesion: 0.21
+Nodes (7): VoicePreview, VoicePreviewRequest, lengthSummary(), Service, safePreviewText(), VoiceRepository, fixtureWAV()
+
+### Community 43 - "Principal"
+Cohesion: 0.17
+Nodes (6): Fixed, New(), VoiceProfile, VoiceCatalog(), Principal, resolverFixture
 
 ### Community 45 - "identity.tenants"
 Cohesion: 0.67
 Nodes (3): identity.tenants, identity.invitations, identity.membership_audit
 
-### Community 46 - "artifact_id"
-Cohesion: 0.67
-Nodes (3): minLength, type, artifact_id
+### Community 46 - "KnowledgeSource"
+Cohesion: 0.10
+Nodes (25): KnowledgeChunk, go_pkg_crypto_hmac, knowledgeHTTPFake, knowledgeRow, KnowledgeCreateCommand, KnowledgeFixtureCommand, KnowledgeIngestCommand, KnowledgeProcessCommand (+17 more)
 
-### Community 47 - "domain/knowledge.go"
-Cohesion: 0.15
-Nodes (14): KnowledgeChunk, PlanStep, WorkingHours, go_pkg_crypto_hmac, go_pkg_unicode_utf8, KnowledgeChecksum(), KnowledgeChunks(), KnowledgeDiff() (+6 more)
+### Community 47 - "validate.go"
+Cohesion: 0.14
+Nodes (19): go_pkg_go_parser, go_pkg_go_token, go_pkg_io_fs, go_pkg_net, go_pkg_path_filepath, net.IP, net.Resolver, net/url.URL (+11 more)
 
-### Community 49 - "fakeIdentity"
-Cohesion: 0.48
-Nodes (4): fakeIdentity, CreateTenantCommand, CreateTenantResult, hasLetterOrNumber()
-
-### Community 51 - "go_pkg_github_com_artemiosu_staffy_internal_platform_id"
-Cohesion: 0.07
-Nodes (60): contextKey, go_pkg_context, go_pkg_crypto_rand, go_pkg_crypto_sha256, go_pkg_encoding_base64, go_pkg_encoding_hex, go_pkg_encoding_json, go_pkg_errors (+52 more)
-
-### Community 55 - "time.Time"
+### Community 48 - "time.Time"
 Cohesion: 0.06
-Nodes (26): failingIDs, fakeRepository, fixedClock, fixedIDs, packClock, time.Time, fixedClock, employeeIDs (+18 more)
+Nodes (27): failingIDs, fakeRepository, fixedClock, fixedIDs, packClock, time.Time, fixedClock, employeeIDs (+19 more)
 
-### Community 56 - "Service"
-Cohesion: 0.13
-Nodes (20): VariantError, VariantField, Clock, CreateCommand, CreateResult, IDGenerator, Service, New() (+12 more)
+### Community 49 - "testing.T"
+Cohesion: 0.07
+Nodes (66): packIDs, mapping(), TestBehaviorContractIsTenantScopedAndDraftOnly(), TestStaffyContractHasTenantCreationBoundary(), go_pkg_gopkg_in_yaml_v3, github.com/jackc/pgx/v5/pgxpool.Pool, io.Writer, net/url.Values (+58 more)
 
-### Community 57 - "Principal"
+### Community 51 - "retentionTx"
+Cohesion: 0.33
+Nodes (3): pgx.Row, github.com/jackc/pgx/v5/pgconn.CommandTag, retentionTx
+
+### Community 54 - "domain/voice.go"
+Cohesion: 0.11
+Nodes (17): ESpeakNG, PlanStep, Pronunciation, ReadbackPlan, VoiceRuleError, WorkingHours, go_pkg_unicode_utf8, Brief (+9 more)
+
+### Community 56 - "PackManifest"
+Cohesion: 0.21
+Nodes (13): VariantError, VariantField, PinCommand, PackImpact, PackManifest, PackPin, PackPreview, TestReferencePackVariantsAndImmutableCatalog() (+5 more)
+
+### Community 57 - "UUID"
 Cohesion: 0.12
-Nodes (9): Fixed, sync.Mutex, knowledgeHTTPFake, New(), KnowledgeConflictCommand, KnowledgeProcessCommand, KnowledgeRetireCommand, Principal (+1 more)
+Nodes (13): sync.Mutex, KnowledgeConflictCommand, KnowledgeRetireCommand, VoiceAssessmentCommand, VoiceCommand, VoiceAssessment, VoicePreviewRecord, VoiceVersion (+5 more)
 
 ### Community 59 - "spec-1-5-knowledge-sources.md"
 Cohesion: 0.20
@@ -320,25 +347,77 @@ Nodes (9): Boundaries & Constraints, Code Map, I/O & Edge-Case Matrix, Implement
 Cohesion: 0.39
 Nodes (7): employee.knowledge_audit, employee.knowledge_chunks, employee.knowledge_outbox, employee.knowledge_sources, employee.knowledge_versions, employee, employee.drafts
 
+### Community 62 - "spec-1-6-safe-behavior-configuration.md"
+Cohesion: 0.18
+Nodes (10): Boundaries & Constraints, Code Map, I/O & Edge-Case Matrix, Implementation Notes, Intent, Review Triage Log, Spec Change Log, Tasks & Acceptance (+2 more)
+
+### Community 63 - "spec-1-7-voice-and-pronunciation.md"
+Cohesion: 0.18
+Nodes (10): Boundaries & Constraints, Code Map, Design Notes, I/O & Edge-Case Matrix, Implementation Notes, Intent, Review Triage Log, Spec Change Log (+2 more)
+
+### Community 65 - "spec-1-5-safe-source-ingestion.md"
+Cohesion: 0.20
+Nodes (9): Boundaries & Constraints, Code Map, I/O & Edge-Case Matrix, Implementation Notes, Intent, Review Triage Log, Spec Change Log, Tasks & Acceptance (+1 more)
+
+### Community 66 - "employee.behavior_versions"
+Cohesion: 0.50
+Nodes (3): employee.behavior_versions, employee, employee.drafts
+
+### Community 67 - "employee.voice_versions"
+Cohesion: 0.50
+Nodes (3): employee.voice_versions, employee, employee.drafts
+
+### Community 68 - "Draft"
+Cohesion: 0.13
+Nodes (11): packRepository, fakeEmployee, SaveCommand, Draft, CreateParams, PinParams, SaveParams, pgx.Row (+3 more)
+
+### Community 69 - "actor_id"
+Cohesion: 0.67
+Nodes (3): minLength, type, actor_id
+
+### Community 70 - "approved_at"
+Cohesion: 0.67
+Nodes (3): format, type, approved_at
+
+### Community 71 - "role"
+Cohesion: 0.67
+Nodes (3): role, minLength, type
+
+### Community 72 - "sha256"
+Cohesion: 0.67
+Nodes (3): sha256, pattern, type
+
+### Community 73 - "tested_at"
+Cohesion: 0.67
+Nodes (3): tested_at, format, type
+
+### Community 74 - "uri"
+Cohesion: 0.67
+Nodes (3): uri, minLength, type
+
+### Community 82 - "employee.voice_previews"
+Cohesion: 0.50
+Nodes (4): employee.voice_versions, employee.voice_previews, employee, voice_previews_employee_idx
+
 ## Knowledge Gaps
-- **258 isolated node(s):** `$schema`, `$id`, `type`, `additionalProperties`, `required` (+253 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 319 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **12 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **287 isolated node(s):** `$schema`, `$id`, `type`, `additionalProperties`, `required` (+282 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 377 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **18 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Service` connect `context.Context` to `fakeIdentity`, `UUID`, `go_pkg_github_com_artemiosu_staffy_internal_platform_id`?**
+- **Why does `run()` connect `net/http.Request` to `Service`, `testing.T`, `Principal`, `go_pkg_github_com_artemiosu_staffy_internal_platform_id`?**
+  _High betweenness centrality (0.001) - this node is a cross-community bridge._
+- **Why does `New()` connect `net/http.Request` to `store/membership.go`?**
   _High betweenness centrality (0.001) - this node is a cross-community bridge._
 - **Why does `UUID` connect `UUID` to `net/http.Request`?**
   _High betweenness centrality (0.001) - this node is a cross-community bridge._
-- **Why does `newService()` connect `testing.T` to `Principal`, `context.Context`?**
-  _High betweenness centrality (0.001) - this node is a cross-community bridge._
 - **What connects `$schema`, `$id`, `type` to the rest of the system?**
-  _258 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _287 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `properties` be split into smaller, more focused modules?**
   _Cohesion score 0.05714285714285714 - nodes in this community are weakly interconnected._
 - **Should `properties` be split into smaller, more focused modules?**
-  _Cohesion score 0.06666666666666667 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.058823529411764705 - nodes in this community are weakly interconnected._
 - **Should `properties` be split into smaller, more focused modules?**
-  _Cohesion score 0.06451612903225806 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.10526315789473684 - nodes in this community are weakly interconnected._

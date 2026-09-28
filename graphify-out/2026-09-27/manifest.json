@@ -1,0 +1,1550 @@
+{
+  "_bmad-output/planning-artifacts/architecture/architecture-staffy-2026-09-13/gate-definition.schema.json": {
+    "mtime": 1790541318.6700797,
+    "seen": 1790543034.7252765,
+    "ast_hash": "87117dfe0ca4140eff16f3c07b3e802e",
+    "semantic_hash": "87117dfe0ca4140eff16f3c07b3e802e"
+  },
+  "_bmad-output/planning-artifacts/architecture/architecture-staffy-2026-09-13/gate-definitions.json": {
+    "mtime": 1790541318.6700797,
+    "seen": 1790543034.7252886,
+    "ast_hash": "9efda9f673c192ffa17698178f137110",
+    "semantic_hash": "9efda9f673c192ffa17698178f137110"
+  },
+  "_bmad-output/planning-artifacts/architecture/architecture-staffy-2026-09-13/gate-definitions.schema.json": {
+    "mtime": 1790541318.6700797,
+    "seen": 1790543034.7252944,
+    "ast_hash": "98da6f5073515b1e5c360766ad69d3ed",
+    "semantic_hash": "98da6f5073515b1e5c360766ad69d3ed"
+  },
+  "_bmad-output/planning-artifacts/architecture/architecture-staffy-2026-09-13/gate-instance.schema.json": {
+    "mtime": 1790541318.6710796,
+    "seen": 1790543034.7252986,
+    "ast_hash": "8c5a0ca1921d9d57efa4b923473d9028",
+    "semantic_hash": "8c5a0ca1921d9d57efa4b923473d9028"
+  },
+  "_bmad-output/planning-artifacts/architecture/architecture-staffy-2026-09-13/gate-instances.json": {
+    "mtime": 1790541318.6710796,
+    "seen": 1790543034.7253027,
+    "ast_hash": "512258f29e417418c9725e34d6aef63b",
+    "semantic_hash": "512258f29e417418c9725e34d6aef63b"
+  },
+  "_bmad-output/planning-artifacts/architecture/architecture-staffy-2026-09-13/gate-instances.schema.json": {
+    "mtime": 1790541318.6710796,
+    "seen": 1790543034.725307,
+    "ast_hash": "b4b341d2c37f49bd813c981a474c40a1",
+    "semantic_hash": "b4b341d2c37f49bd813c981a474c40a1"
+  },
+  "_bmad-output/planning-artifacts/research/competitive-staffy-2026-09-11/claims.json": {
+    "mtime": 1790541318.6950805,
+    "seen": 1790543034.7253113,
+    "ast_hash": "57f1b1c2b9b48b3942fcd50d9fed5cc1",
+    "semantic_hash": "57f1b1c2b9b48b3942fcd50d9fed5cc1"
+  },
+  "_bmad-output/planning-artifacts/research/technical-staffy-voice-architecture-2026-09-11/claims.json": {
+    "mtime": 1790541318.7000806,
+    "seen": 1790543034.7253153,
+    "ast_hash": "ad0f83b81b30797562647cbad8299db1",
+    "semantic_hash": "ad0f83b81b30797562647cbad8299db1"
+  },
+  "_bmad-output/forge/staffy-vertical-voice-agent/.memlog.md": {
+    "mtime": 1790541318.6630795,
+    "seen": 1790543034.7256858,
+    "ast_hash": "d233b6097e8700e03faa994df2d490d2",
+    "semantic_hash": "d233b6097e8700e03faa994df2d490d2"
+  },
+  "_bmad-output/forge/staffy-vertical-voice-agent/forge-report.html": {
+    "mtime": 1790541318.6640794,
+    "seen": 1790543034.7256896,
+    "ast_hash": "599f8cd6974c69811e3cbc124a335683",
+    "semantic_hash": "599f8cd6974c69811e3cbc124a335683"
+  },
+  "_bmad-output/forge/staffy-vertical-voice-agent/forged-idea.md": {
+    "mtime": 1790541318.6640794,
+    "seen": 1790543034.7256937,
+    "ast_hash": "5933bbfd23bc024442925f87440d5dd7",
+    "semantic_hash": "5933bbfd23bc024442925f87440d5dd7"
+  },
+  "_bmad-output/party-mode/memories/installed/.memlog.md": {
+    "mtime": 1790541318.6670794,
+    "seen": 1790543034.725736,
+    "ast_hash": "8e3fd06cf6c33fc31ebf5846585635a8",
+    "semantic_hash": "8e3fd06cf6c33fc31ebf5846585635a8"
+  },
+  "_bmad-output/planning-artifacts/architecture/architecture-staffy-2026-09-13/.memlog.md": {
+    "mtime": 1790541318.6680796,
+    "seen": 1790543034.72574,
+    "ast_hash": "925169e78b1c8f9ae1b205ea25ec8b05",
+    "semantic_hash": "925169e78b1c8f9ae1b205ea25ec8b05"
+  },
+  "_bmad-output/planning-artifacts/architecture/architecture-staffy-2026-09-13/ARCHITECTURE-SPINE.md": {
+    "mtime": 1790541318.6690795,
+    "seen": 1790543034.7257438,
+    "ast_hash": "4f159755e48798193679adfa5309eed2",
+    "semantic_hash": "4f159755e48798193679adfa5309eed2"
+  },
+  "_bmad-output/planning-artifacts/architecture/architecture-staffy-2026-09-13/GATE-REGISTRY.md": {
+    "mtime": 1790541318.6690795,
+    "seen": 1790543034.7257473,
+    "ast_hash": "7fb507d51c34ff853231e4327c13e72e",
+    "semantic_hash": "7fb507d51c34ff853231e4327c13e72e"
+  },
+  "_bmad-output/planning-artifacts/architecture/architecture-staffy-2026-09-13/architecture-map.html": {
+    "mtime": 1790541318.6700797,
+    "seen": 1790543034.7257516,
+    "ast_hash": "588d066d64dc6259603cbd72960c78fc",
+    "semantic_hash": "588d066d64dc6259603cbd72960c78fc"
+  },
+  "_bmad-output/planning-artifacts/architecture/architecture-staffy-2026-09-13/evidence/oq-13a-montagio-best-effort.md": {
+    "mtime": 1790541318.6700797,
+    "seen": 1790543034.7257555,
+    "ast_hash": "ba01c06178b53de193131e3f9f18b72e",
+    "semantic_hash": "ba01c06178b53de193131e3f9f18b72e"
+  },
+  "_bmad-output/planning-artifacts/architecture/architecture-staffy-2026-09-13/evidence/oq-19-platform-rule.md": {
+    "mtime": 1790541318.6700797,
+    "seen": 1790543034.7257593,
+    "ast_hash": "158289c3ffc4a2c6b5c97640a44bba0f",
+    "semantic_hash": "158289c3ffc4a2c6b5c97640a44bba0f"
+  },
+  "_bmad-output/planning-artifacts/architecture/architecture-staffy-2026-09-13/review-consistency-r2.md": {
+    "mtime": 1790541318.6710796,
+    "seen": 1790543034.725763,
+    "ast_hash": "9984b4cf06b1f588acfe09ebcf6a3001",
+    "semantic_hash": "9984b4cf06b1f588acfe09ebcf6a3001"
+  },
+  "_bmad-output/planning-artifacts/architecture/architecture-staffy-2026-09-13/review-consistency-r3.md": {
+    "mtime": 1790541318.6710796,
+    "seen": 1790543034.7257664,
+    "ast_hash": "4bf26799f4f71b66ba9a7e5e887dfc56",
+    "semantic_hash": "4bf26799f4f71b66ba9a7e5e887dfc56"
+  },
+  "_bmad-output/planning-artifacts/architecture/architecture-staffy-2026-09-13/review-consistency-r4.md": {
+    "mtime": 1790541318.6720798,
+    "seen": 1790543034.72577,
+    "ast_hash": "200f0df23cb1a0385286838d383fa56c",
+    "semantic_hash": "200f0df23cb1a0385286838d383fa56c"
+  },
+  "_bmad-output/planning-artifacts/architecture/architecture-staffy-2026-09-13/review-consistency.md": {
+    "mtime": 1790541318.6720798,
+    "seen": 1790543034.7257736,
+    "ast_hash": "e629e14f67a8b0113dcb93c26c8b7a25",
+    "semantic_hash": "e629e14f67a8b0113dcb93c26c8b7a25"
+  },
+  "_bmad-output/planning-artifacts/architecture/architecture-staffy-2026-09-13/review-safety-implementation-r2.md": {
+    "mtime": 1790541318.6720798,
+    "seen": 1790543034.7257771,
+    "ast_hash": "00c76b7217e37a452326af63cc0899db",
+    "semantic_hash": "00c76b7217e37a452326af63cc0899db"
+  },
+  "_bmad-output/planning-artifacts/architecture/architecture-staffy-2026-09-13/review-safety-implementation-r3.md": {
+    "mtime": 1790541318.6720798,
+    "seen": 1790543034.725781,
+    "ast_hash": "57d1fce903411e1ec750ba46e84d0d43",
+    "semantic_hash": "57d1fce903411e1ec750ba46e84d0d43"
+  },
+  "_bmad-output/planning-artifacts/architecture/architecture-staffy-2026-09-13/review-safety-implementation.md": {
+    "mtime": 1790541318.6730797,
+    "seen": 1790543034.7257845,
+    "ast_hash": "db8d13cdd716902910c58cda092cde26",
+    "semantic_hash": "db8d13cdd716902910c58cda092cde26"
+  },
+  "_bmad-output/planning-artifacts/briefs/brief-staffy-2026-09-12/.memlog.md": {
+    "mtime": 1790541318.6730797,
+    "seen": 1790543034.7257886,
+    "ast_hash": "7820a92195a4876c604105a5c4361652",
+    "semantic_hash": "7820a92195a4876c604105a5c4361652"
+  },
+  "_bmad-output/planning-artifacts/briefs/brief-staffy-2026-09-12/addendum.md": {
+    "mtime": 1790541318.6730797,
+    "seen": 1790543034.725792,
+    "ast_hash": "07bfec3804f5398dbd167030418db53e",
+    "semantic_hash": "07bfec3804f5398dbd167030418db53e"
+  },
+  "_bmad-output/planning-artifacts/briefs/brief-staffy-2026-09-12/brief.md": {
+    "mtime": 1790541318.6730797,
+    "seen": 1790543034.7257965,
+    "ast_hash": "f9afae4bc06a04c65e8aed3184aa0c6d",
+    "semantic_hash": "f9afae4bc06a04c65e8aed3184aa0c6d"
+  },
+  "_bmad-output/planning-artifacts/briefs/brief-staffy-2026-09-12/source-extract.md": {
+    "mtime": 1790541318.6740797,
+    "seen": 1790543034.7258005,
+    "ast_hash": "febe87c79cd23e0c2ea7405300d4666a",
+    "semantic_hash": "febe87c79cd23e0c2ea7405300d4666a"
+  },
+  "_bmad-output/planning-artifacts/epics.md": {
+    "mtime": 1790541318.68108,
+    "seen": 1790543034.725804,
+    "ast_hash": "b20b5567a7e853f2520ccc7e49de69df",
+    "semantic_hash": "b20b5567a7e853f2520ccc7e49de69df"
+  },
+  "_bmad-output/planning-artifacts/prds/prd-staffy-2026-09-12/.memlog.md": {
+    "mtime": 1790541318.68108,
+    "seen": 1790543034.725808,
+    "ast_hash": "9b5daab39c1077ba1e61ccb195adf181",
+    "semantic_hash": "9b5daab39c1077ba1e61ccb195adf181"
+  },
+  "_bmad-output/planning-artifacts/prds/prd-staffy-2026-09-12/addendum.md": {
+    "mtime": 1790541318.68208,
+    "seen": 1790543034.7258117,
+    "ast_hash": "35bc1824ad283314b5a1d2eabe25d0ed",
+    "semantic_hash": "35bc1824ad283314b5a1d2eabe25d0ed"
+  },
+  "_bmad-output/planning-artifacts/prds/prd-staffy-2026-09-12/autoparts-journeys-proposal.md": {
+    "mtime": 1790541318.68208,
+    "seen": 1790543034.7258153,
+    "ast_hash": "7d1932f8abfccb6953db8d1278a5a9a6",
+    "semantic_hash": "7d1932f8abfccb6953db8d1278a5a9a6"
+  },
+  "_bmad-output/planning-artifacts/prds/prd-staffy-2026-09-12/consilium/conversation-ux.md": {
+    "mtime": 1790541318.68308,
+    "seen": 1790543034.7258189,
+    "ast_hash": "33ea06d8c2dbebebc7346366f27cdbe9",
+    "semantic_hash": "33ea06d8c2dbebebc7346366f27cdbe9"
+  },
+  "_bmad-output/planning-artifacts/prds/prd-staffy-2026-09-12/consilium/delphi-round1-domain.md": {
+    "mtime": 1790541318.68308,
+    "seen": 1790543034.7258224,
+    "ast_hash": "b6f722c3d25341f1976d3eca3f7ea25a",
+    "semantic_hash": "b6f722c3d25341f1976d3eca3f7ea25a"
+  },
+  "_bmad-output/planning-artifacts/prds/prd-staffy-2026-09-12/consilium/delphi-round1-marketplace.md": {
+    "mtime": 1790541318.6840801,
+    "seen": 1790543034.7258258,
+    "ast_hash": "ed10f40f403c24b3117ce54287b8a18a",
+    "semantic_hash": "ed10f40f403c24b3117ce54287b8a18a"
+  },
+  "_bmad-output/planning-artifacts/prds/prd-staffy-2026-09-12/consilium/delphi-round1-ux.md": {
+    "mtime": 1790541318.6840801,
+    "seen": 1790543034.7258296,
+    "ast_hash": "0479ccaab28237fd602e43b9547d59bf",
+    "semantic_hash": "0479ccaab28237fd602e43b9547d59bf"
+  },
+  "_bmad-output/planning-artifacts/prds/prd-staffy-2026-09-12/consilium/delphi-round2-domain.md": {
+    "mtime": 1790541318.6840801,
+    "seen": 1790543034.725833,
+    "ast_hash": "ff43f6c21e3df2f6e519313c0f4cd6bc",
+    "semantic_hash": "ff43f6c21e3df2f6e519313c0f4cd6bc"
+  },
+  "_bmad-output/planning-artifacts/prds/prd-staffy-2026-09-12/consilium/delphi-round2-marketplace.md": {
+    "mtime": 1790541318.6840801,
+    "seen": 1790543034.7258368,
+    "ast_hash": "382159ad0424cabaa07218c0e93214a2",
+    "semantic_hash": "382159ad0424cabaa07218c0e93214a2"
+  },
+  "_bmad-output/planning-artifacts/prds/prd-staffy-2026-09-12/consilium/delphi-round2-ux.md": {
+    "mtime": 1790541318.68508,
+    "seen": 1790543034.7258406,
+    "ast_hash": "8c59f33fcbbbc6f8c2ad31a357060792",
+    "semantic_hash": "8c59f33fcbbbc6f8c2ad31a357060792"
+  },
+  "_bmad-output/planning-artifacts/prds/prd-staffy-2026-09-12/consilium/elicitation-01-assumption-audit.md": {
+    "mtime": 1790541318.68508,
+    "seen": 1790543034.7258446,
+    "ast_hash": "7fa81dd1ec014980b9d4d10ac86fabf3",
+    "semantic_hash": "7fa81dd1ec014980b9d4d10ac86fabf3"
+  },
+  "_bmad-output/planning-artifacts/prds/prd-staffy-2026-09-12/consilium/elicitation-02-cascading-failure-simulation.md": {
+    "mtime": 1790541318.68508,
+    "seen": 1790543034.725849,
+    "ast_hash": "e282b9fcf20e3c8c2f7469426aa63b23",
+    "semantic_hash": "e282b9fcf20e3c8c2f7469426aa63b23"
+  },
+  "_bmad-output/planning-artifacts/prds/prd-staffy-2026-09-12/consilium/elicitation-03-user-persona-focus-group.md": {
+    "mtime": 1790541318.6860802,
+    "seen": 1790543034.7258523,
+    "ast_hash": "468e1ebb1d881b93c61b51f09059d1b9",
+    "semantic_hash": "468e1ebb1d881b93c61b51f09059d1b9"
+  },
+  "_bmad-output/planning-artifacts/prds/prd-staffy-2026-09-12/consilium/elicitation-04-customer-support-theater.md": {
+    "mtime": 1790541318.6860802,
+    "seen": 1790543034.7258563,
+    "ast_hash": "b223baf89628d918c41c644d0b4ed292",
+    "semantic_hash": "b223baf89628d918c41c644d0b4ed292"
+  },
+  "_bmad-output/planning-artifacts/prds/prd-staffy-2026-09-12/consilium/elicitation-05-delphi-method.md": {
+    "mtime": 1790541318.6860802,
+    "seen": 1790543034.7258599,
+    "ast_hash": "4bea4633dc9138514940fe24a96104d9",
+    "semantic_hash": "4bea4633dc9138514940fe24a96104d9"
+  },
+  "_bmad-output/planning-artifacts/prds/prd-staffy-2026-09-12/consilium/marketplace-ops.md": {
+    "mtime": 1790541318.6870801,
+    "seen": 1790543034.7258632,
+    "ast_hash": "056223809f4a82dd5ef238433c6f346e",
+    "semantic_hash": "056223809f4a82dd5ef238433c6f346e"
+  },
+  "_bmad-output/planning-artifacts/prds/prd-staffy-2026-09-12/consilium/service-domain.md": {
+    "mtime": 1790541318.6880803,
+    "seen": 1790543034.7258663,
+    "ast_hash": "4fc401dcfd8061bc5ecdbd15f47b9228",
+    "semantic_hash": "4fc401dcfd8061bc5ecdbd15f47b9228"
+  },
+  "_bmad-output/planning-artifacts/prds/prd-staffy-2026-09-12/consilium/synthesis.md": {
+    "mtime": 1790541318.6890802,
+    "seen": 1790543034.72587,
+    "ast_hash": "92dbe3b043ff25a0884e81a902c710f5",
+    "semantic_hash": "92dbe3b043ff25a0884e81a902c710f5"
+  },
+  "_bmad-output/planning-artifacts/prds/prd-staffy-2026-09-12/delivery-slices.md": {
+    "mtime": 1790541318.6890802,
+    "seen": 1790543034.7258732,
+    "ast_hash": "4b125496e43e5b978167bc4602152aad",
+    "semantic_hash": "4b125496e43e5b978167bc4602152aad"
+  },
+  "_bmad-output/planning-artifacts/prds/prd-staffy-2026-09-12/memlog-audit.md": {
+    "mtime": 1790541318.6890802,
+    "seen": 1790543034.7258766,
+    "ast_hash": "ddc1a8f561453734a8fb78c0854f8f97",
+    "semantic_hash": "ddc1a8f561453734a8fb78c0854f8f97"
+  },
+  "_bmad-output/planning-artifacts/prds/prd-staffy-2026-09-12/open-items-triage.md": {
+    "mtime": 1790541318.6890802,
+    "seen": 1790543034.7258797,
+    "ast_hash": "259c7e24fc220a4a8304906e123364c9",
+    "semantic_hash": "259c7e24fc220a4a8304906e123364c9"
+  },
+  "_bmad-output/planning-artifacts/prds/prd-staffy-2026-09-12/prd.md": {
+    "mtime": 1790541318.6910803,
+    "seen": 1790543034.7258832,
+    "ast_hash": "0ba894be825d4e13c2ed5d921bf5ddb2",
+    "semantic_hash": "0ba894be825d4e13c2ed5d921bf5ddb2"
+  },
+  "_bmad-output/planning-artifacts/prds/prd-staffy-2026-09-12/reconcile-forge-research-consilium.md": {
+    "mtime": 1790541318.6910803,
+    "seen": 1790543034.725886,
+    "ast_hash": "6acad1608279850fc0da5a8ee9c6ba2e",
+    "semantic_hash": "6acad1608279850fc0da5a8ee9c6ba2e"
+  },
+  "_bmad-output/planning-artifacts/prds/prd-staffy-2026-09-12/reconcile-original-chat.md": {
+    "mtime": 1790541318.6910803,
+    "seen": 1790543034.7258904,
+    "ast_hash": "9ee36d2dd5530c13f3ddd6e53292c62b",
+    "semantic_hash": "9ee36d2dd5530c13f3ddd6e53292c62b"
+  },
+  "_bmad-output/planning-artifacts/prds/prd-staffy-2026-09-12/reconcile-product-brief.md": {
+    "mtime": 1790541318.6920803,
+    "seen": 1790543034.7258942,
+    "ast_hash": "74b88c9ddb5c8aa30c8c5c463ceb0cba",
+    "semantic_hash": "74b88c9ddb5c8aa30c8c5c463ceb0cba"
+  },
+  "_bmad-output/planning-artifacts/prds/prd-staffy-2026-09-12/research-connectors.md": {
+    "mtime": 1790541318.6920803,
+    "seen": 1790543034.7258983,
+    "ast_hash": "2682964e40f5c98c96c3e3ecd09c94e7",
+    "semantic_hash": "2682964e40f5c98c96c3e3ecd09c94e7"
+  },
+  "_bmad-output/planning-artifacts/prds/prd-staffy-2026-09-12/review-conversation-ux-r2.md": {
+    "mtime": 1790541318.6920803,
+    "seen": 1790543034.7259016,
+    "ast_hash": "0e67dd5746991dd398e6d3133f315d38",
+    "semantic_hash": "0e67dd5746991dd398e6d3133f315d38"
+  },
+  "_bmad-output/planning-artifacts/prds/prd-staffy-2026-09-12/review-conversation-ux.md": {
+    "mtime": 1790541318.6930804,
+    "seen": 1790543034.725905,
+    "ast_hash": "f6214454771bb6b37577cfdb345f2af1",
+    "semantic_hash": "f6214454771bb6b37577cfdb345f2af1"
+  },
+  "_bmad-output/planning-artifacts/prds/prd-staffy-2026-09-12/review-product-coherence-r2.md": {
+    "mtime": 1790541318.6930804,
+    "seen": 1790543034.7259085,
+    "ast_hash": "bc9a6aafadd068d55ce8a14214f4e623",
+    "semantic_hash": "bc9a6aafadd068d55ce8a14214f4e623"
+  },
+  "_bmad-output/planning-artifacts/prds/prd-staffy-2026-09-12/review-product-coherence.md": {
+    "mtime": 1790541318.6930804,
+    "seen": 1790543034.7259119,
+    "ast_hash": "7f34c640e778b956f9e22b6d3cf0b1b7",
+    "semantic_hash": "7f34c640e778b956f9e22b6d3cf0b1b7"
+  },
+  "_bmad-output/planning-artifacts/prds/prd-staffy-2026-09-12/review-resolution.md": {
+    "mtime": 1790541318.6930804,
+    "seen": 1790543034.7259152,
+    "ast_hash": "ff145e99b2d37699f8de2b8026151409",
+    "semantic_hash": "ff145e99b2d37699f8de2b8026151409"
+  },
+  "_bmad-output/planning-artifacts/prds/prd-staffy-2026-09-12/review-rubric.md": {
+    "mtime": 1790541318.6940804,
+    "seen": 1790543034.7259188,
+    "ast_hash": "838ba258f484b0c164cccacf5bab3bd6",
+    "semantic_hash": "838ba258f484b0c164cccacf5bab3bd6"
+  },
+  "_bmad-output/planning-artifacts/prds/prd-staffy-2026-09-12/review-safety-operations-r2.md": {
+    "mtime": 1790541318.6940804,
+    "seen": 1790543034.7259223,
+    "ast_hash": "1ab06d408ce1f4862039f89a24517067",
+    "semantic_hash": "1ab06d408ce1f4862039f89a24517067"
+  },
+  "_bmad-output/planning-artifacts/prds/prd-staffy-2026-09-12/review-safety-operations.md": {
+    "mtime": 1790541318.6940804,
+    "seen": 1790543034.725926,
+    "ast_hash": "089e348f027e29697ac29a4b7f4cb8a0",
+    "semantic_hash": "089e348f027e29697ac29a4b7f4cb8a0"
+  },
+  "_bmad-output/planning-artifacts/prds/prd-staffy-2026-09-12/review-technical-feasibility-r2.md": {
+    "mtime": 1790541318.6940804,
+    "seen": 1790543034.7259295,
+    "ast_hash": "220bfdf850f1c396bb6a09fd3331b64d",
+    "semantic_hash": "220bfdf850f1c396bb6a09fd3331b64d"
+  },
+  "_bmad-output/planning-artifacts/prds/prd-staffy-2026-09-12/review-technical-feasibility.md": {
+    "mtime": 1790541318.6950805,
+    "seen": 1790543034.7259328,
+    "ast_hash": "a9d2b608b70c8d27e2cc4f98e577db4a",
+    "semantic_hash": "a9d2b608b70c8d27e2cc4f98e577db4a"
+  },
+  "_bmad-output/planning-artifacts/research/competitive-staffy-2026-09-11/.memlog.md": {
+    "mtime": 1790541318.6950805,
+    "seen": 1790543034.7259367,
+    "ast_hash": "2c60699a541872d4fd2caa5926e5b970",
+    "semantic_hash": "2c60699a541872d4fd2caa5926e5b970"
+  },
+  "_bmad-output/planning-artifacts/research/competitive-staffy-2026-09-11/digests/auto-parts-wedge-r1-lead.md": {
+    "mtime": 1790541318.6960804,
+    "seen": 1790543034.7259405,
+    "ast_hash": "562f925e58719db10699c3caa665478a",
+    "semantic_hash": "562f925e58719db10699c3caa665478a"
+  },
+  "_bmad-output/planning-artifacts/research/competitive-staffy-2026-09-11/digests/competitor-qualification-r1-lead.md": {
+    "mtime": 1790541318.6960804,
+    "seen": 1790543034.7259443,
+    "ast_hash": "9710b620fa525eb3551afe224a50b1f7",
+    "semantic_hash": "9710b620fa525eb3551afe224a50b1f7"
+  },
+  "_bmad-output/planning-artifacts/research/competitive-staffy-2026-09-11/digests/customer-voice-r1-1.md": {
+    "mtime": 1790541318.6960804,
+    "seen": 1790543034.7259486,
+    "ast_hash": "f010f97a1fd4342aa7f54143dfd8eb39",
+    "semantic_hash": "f010f97a1fd4342aa7f54143dfd8eb39"
+  },
+  "_bmad-output/planning-artifacts/research/competitive-staffy-2026-09-11/digests/final-citation-semantic-check.md": {
+    "mtime": 1790541318.6960804,
+    "seen": 1790543034.725952,
+    "ast_hash": "e5e8fbf8da9a77dbf3c5688fe3c4b7bf",
+    "semantic_hash": "e5e8fbf8da9a77dbf3c5688fe3c4b7bf"
+  },
+  "_bmad-output/planning-artifacts/research/competitive-staffy-2026-09-11/digests/landscape-leads-r1-lead.md": {
+    "mtime": 1790541318.6970806,
+    "seen": 1790543034.7259555,
+    "ast_hash": "7c6bf60b88738647089f05ec9e798d0d",
+    "semantic_hash": "7c6bf60b88738647089f05ec9e798d0d"
+  },
+  "_bmad-output/planning-artifacts/research/competitive-staffy-2026-09-11/digests/offers-pricing-r1-1.md": {
+    "mtime": 1790541318.6970806,
+    "seen": 1790543034.7259598,
+    "ast_hash": "16b013a47d734faadce4bdd4672bb67a",
+    "semantic_hash": "16b013a47d734faadce4bdd4672bb67a"
+  },
+  "_bmad-output/planning-artifacts/research/competitive-staffy-2026-09-11/digests/position-trajectory-r1-1.md": {
+    "mtime": 1790541318.6980805,
+    "seen": 1790543034.7259634,
+    "ast_hash": "6c0ea0d5aea4595051ad3e386bef7cfa",
+    "semantic_hash": "6c0ea0d5aea4595051ad3e386bef7cfa"
+  },
+  "_bmad-output/planning-artifacts/research/competitive-staffy-2026-09-11/digests/verification-demand-verticals.md": {
+    "mtime": 1790541318.6980805,
+    "seen": 1790543034.7259674,
+    "ast_hash": "27ada7a69ab86a956126f3beaaea0a34",
+    "semantic_hash": "27ada7a69ab86a956126f3beaaea0a34"
+  },
+  "_bmad-output/planning-artifacts/research/competitive-staffy-2026-09-11/digests/verification-product-pricing.md": {
+    "mtime": 1790541318.6980805,
+    "seen": 1790543034.7259712,
+    "ast_hash": "4ca9dbfd3870bd402fce5eab17d75c5b",
+    "semantic_hash": "4ca9dbfd3870bd402fce5eab17d75c5b"
+  },
+  "_bmad-output/planning-artifacts/research/competitive-staffy-2026-09-11/digests/verification-qualification-risk.md": {
+    "mtime": 1790541318.6980805,
+    "seen": 1790543034.725975,
+    "ast_hash": "7f73ddbda241eaea34df3c7f5164a10e",
+    "semantic_hash": "7f73ddbda241eaea34df3c7f5164a10e"
+  },
+  "_bmad-output/planning-artifacts/research/competitive-staffy-2026-09-11/digests/vertical-entrants-r1-lead.md": {
+    "mtime": 1790541318.6980805,
+    "seen": 1790543034.7259789,
+    "ast_hash": "c7e873f0f965f83bbee6b1ff8f8c05b3",
+    "semantic_hash": "c7e873f0f965f83bbee6b1ff8f8c05b3"
+  },
+  "_bmad-output/planning-artifacts/research/competitive-staffy-2026-09-11/research-briefing.html": {
+    "mtime": 1790541318.6990805,
+    "seen": 1790543034.7259827,
+    "ast_hash": "482af8afe8c570d30f2598854b3cb1e3",
+    "semantic_hash": "482af8afe8c570d30f2598854b3cb1e3"
+  },
+  "_bmad-output/planning-artifacts/research/competitive-staffy-2026-09-11/research.md": {
+    "mtime": 1790541318.7000806,
+    "seen": 1790543034.7259862,
+    "ast_hash": "a9483e32b0f567489b8589f2e30e2d44",
+    "semantic_hash": "a9483e32b0f567489b8589f2e30e2d44"
+  },
+  "_bmad-output/planning-artifacts/research/technical-staffy-voice-architecture-2026-09-11/.memlog.md": {
+    "mtime": 1790541318.7000806,
+    "seen": 1790543034.7259898,
+    "ast_hash": "003626abddfe1ac83cdf68044188f766",
+    "semantic_hash": "003626abddfe1ac83cdf68044188f766"
+  },
+  "_bmad-output/planning-artifacts/research/technical-staffy-voice-architecture-2026-09-11/brief.md": {
+    "mtime": 1790541318.7000806,
+    "seen": 1790543034.7259934,
+    "ast_hash": "004436b782be526d30a962f3e3c63314",
+    "semantic_hash": "004436b782be526d30a962f3e3c63314"
+  },
+  "_bmad-output/planning-artifacts/research/technical-staffy-voice-architecture-2026-09-11/digests/final-citation-semantic-check.md": {
+    "mtime": 1790541318.7010806,
+    "seen": 1790543034.725997,
+    "ast_hash": "ea9621a75b833215250f2dfc742b2f08",
+    "semantic_hash": "ea9621a75b833215250f2dfc742b2f08"
+  },
+  "_bmad-output/planning-artifacts/research/technical-staffy-voice-architecture-2026-09-11/digests/go-decision-chat-claims.md": {
+    "mtime": 1790541318.7010806,
+    "seen": 1790543034.7260005,
+    "ast_hash": "5b9d72df976111b5074b012df8657eae",
+    "semantic_hash": "5b9d72df976111b5074b012df8657eae"
+  },
+  "_bmad-output/planning-artifacts/research/technical-staffy-voice-architecture-2026-09-11/digests/go-decision-final-semantic-check.md": {
+    "mtime": 1790541318.7010806,
+    "seen": 1790543034.7260044,
+    "ast_hash": "9ad24c95e5fd551b93c36de098979caf",
+    "semantic_hash": "9ad24c95e5fd551b93c36de098979caf"
+  },
+  "_bmad-output/planning-artifacts/research/technical-staffy-voice-architecture-2026-09-11/digests/go-decision-latency-economics-r1.md": {
+    "mtime": 1790541318.7010806,
+    "seen": 1790543034.7260082,
+    "ast_hash": "2d17abbfcbf5e84e2e6459e6c986005d",
+    "semantic_hash": "2d17abbfcbf5e84e2e6459e6c986005d"
+  },
+  "_bmad-output/planning-artifacts/research/technical-staffy-voice-architecture-2026-09-11/digests/go-decision-media-scope-r1.md": {
+    "mtime": 1790541318.7020807,
+    "seen": 1790543034.7260118,
+    "ast_hash": "aa33ebf37bfe3d1c03ee8ed255602163",
+    "semantic_hash": "aa33ebf37bfe3d1c03ee8ed255602163"
+  },
+  "_bmad-output/planning-artifacts/research/technical-staffy-voice-architecture-2026-09-11/digests/go-decision-media-scope-verification.md": {
+    "mtime": 1790541318.7020807,
+    "seen": 1790543034.726015,
+    "ast_hash": "bc2bd7a4b71ed264a936a6afce04a3f4",
+    "semantic_hash": "bc2bd7a4b71ed264a936a6afce04a3f4"
+  },
+  "_bmad-output/planning-artifacts/research/technical-staffy-voice-architecture-2026-09-11/digests/go-decision-pipecat-scale-r1.md": {
+    "mtime": 1790541318.7030807,
+    "seen": 1790543034.7260182,
+    "ast_hash": "d37e284617d87110b0309f2c939e2742",
+    "semantic_hash": "d37e284617d87110b0309f2c939e2742"
+  },
+  "_bmad-output/planning-artifacts/research/technical-staffy-voice-architecture-2026-09-11/digests/go-decision-pipecat-scale-verification.md": {
+    "mtime": 1790541318.7030807,
+    "seen": 1790543034.7260222,
+    "ast_hash": "47e0b42680cdb65b73c6c8b93eee5178",
+    "semantic_hash": "47e0b42680cdb65b73c6c8b93eee5178"
+  },
+  "_bmad-output/planning-artifacts/research/technical-staffy-voice-architecture-2026-09-11/digests/go-decision-red-team.md": {
+    "mtime": 1790541318.7030807,
+    "seen": 1790543034.7260256,
+    "ast_hash": "8dbb8e96fc31ec6a17dd123dfb15000c",
+    "semantic_hash": "8dbb8e96fc31ec6a17dd123dfb15000c"
+  },
+  "_bmad-output/planning-artifacts/research/technical-staffy-voice-architecture-2026-09-11/digests/integration-reliability-r1-1.md": {
+    "mtime": 1790541318.7040808,
+    "seen": 1790543034.7260292,
+    "ast_hash": "feca9cd6ca916d01ada3deef848ce7bb",
+    "semantic_hash": "feca9cd6ca916d01ada3deef848ce7bb"
+  },
+  "_bmad-output/planning-artifacts/research/technical-staffy-voice-architecture-2026-09-11/digests/integration-reliability-r2-1.md": {
+    "mtime": 1790541318.7040808,
+    "seen": 1790543034.7260325,
+    "ast_hash": "f400ef831d6cc8759aa9e3524b740998",
+    "semantic_hash": "f400ef831d6cc8759aa9e3524b740998"
+  },
+  "_bmad-output/planning-artifacts/research/technical-staffy-voice-architecture-2026-09-11/digests/omnichannel-chatwoot-r2.md": {
+    "mtime": 1790541318.7040808,
+    "seen": 1790543034.726036,
+    "ast_hash": "082e5d921b1608e49e93266bdc2c7575",
+    "semantic_hash": "082e5d921b1608e49e93266bdc2c7575"
+  },
+  "_bmad-output/planning-artifacts/research/technical-staffy-voice-architecture-2026-09-11/digests/omnichannel-final-semantic-check.md": {
+    "mtime": 1790541318.7040808,
+    "seen": 1790543034.7260394,
+    "ast_hash": "5860659de385009a3e80d241dcb9df5c",
+    "semantic_hash": "5860659de385009a3e80d241dcb9df5c"
+  },
+  "_bmad-output/planning-artifacts/research/technical-staffy-voice-architecture-2026-09-11/digests/omnichannel-red-team-r1.md": {
+    "mtime": 1790541318.7050807,
+    "seen": 1790543034.726043,
+    "ast_hash": "d14d56245596804c48ec27ff5463e749",
+    "semantic_hash": "d14d56245596804c48ec27ff5463e749"
+  },
+  "_bmad-output/planning-artifacts/research/technical-staffy-voice-architecture-2026-09-11/digests/omnichannel-ru-channels-r1.md": {
+    "mtime": 1790541318.7050807,
+    "seen": 1790543034.7260466,
+    "ast_hash": "1ab8085fe3988cda36f8609f1f626a21",
+    "semantic_hash": "1ab8085fe3988cda36f8609f1f626a21"
+  },
+  "_bmad-output/planning-artifacts/research/technical-staffy-voice-architecture-2026-09-11/digests/omnichannel-simple-stack-r1.md": {
+    "mtime": 1790541318.7050807,
+    "seen": 1790543034.72605,
+    "ast_hash": "0881df5d5970f8354e37ecb00e84bbe1",
+    "semantic_hash": "0881df5d5970f8354e37ecb00e84bbe1"
+  },
+  "_bmad-output/planning-artifacts/research/technical-staffy-voice-architecture-2026-09-11/digests/omnichannel-synthesis-draft.md": {
+    "mtime": 1790541318.706081,
+    "seen": 1790543034.7260532,
+    "ast_hash": "02814bd0a2e9c9ab1967811244c053b9",
+    "semantic_hash": "02814bd0a2e9c9ab1967811244c053b9"
+  },
+  "_bmad-output/planning-artifacts/research/technical-staffy-voice-architecture-2026-09-11/digests/omnichannel-voice-patterns-r1.md": {
+    "mtime": 1790541318.706081,
+    "seen": 1790543034.7260568,
+    "ast_hash": "01d7a976b470658914adbd88323f4505",
+    "semantic_hash": "01d7a976b470658914adbd88323f4505"
+  },
+  "_bmad-output/planning-artifacts/research/technical-staffy-voice-architecture-2026-09-11/digests/operations-tco-ecosystem-r1-1.md": {
+    "mtime": 1790541318.706081,
+    "seen": 1790543034.7260604,
+    "ast_hash": "a4455ad756bf23c356847f2448636d81",
+    "semantic_hash": "a4455ad756bf23c356847f2448636d81"
+  },
+  "_bmad-output/planning-artifacts/research/technical-staffy-voice-architecture-2026-09-11/digests/operations-tco-ecosystem-r2-1.md": {
+    "mtime": 1790541318.7070808,
+    "seen": 1790543034.726064,
+    "ast_hash": "e3795506bec9181794ae43d829d7ec96",
+    "semantic_hash": "e3795506bec9181794ae43d829d7ec96"
+  },
+  "_bmad-output/planning-artifacts/research/technical-staffy-voice-architecture-2026-09-11/digests/provider-eligibility-components-r1-lead.md": {
+    "mtime": 1790541318.7070808,
+    "seen": 1790543034.7260675,
+    "ast_hash": "cea90ec35e9579bf826ad38e56d7d5ba",
+    "semantic_hash": "cea90ec35e9579bf826ad38e56d7d5ba"
+  },
+  "_bmad-output/planning-artifacts/research/technical-staffy-voice-architecture-2026-09-11/digests/runtime-maturity-r1-1.md": {
+    "mtime": 1790541318.7070808,
+    "seen": 1790543034.7260711,
+    "ast_hash": "6f55c8d11c4b35d625bb9fd4c3e77eba",
+    "semantic_hash": "6f55c8d11c4b35d625bb9fd4c3e77eba"
+  },
+  "_bmad-output/planning-artifacts/research/technical-staffy-voice-architecture-2026-09-11/digests/runtime-maturity-r2-1.md": {
+    "mtime": 1790541318.7080808,
+    "seen": 1790543034.7260752,
+    "ast_hash": "aa8799a9c2de4b6226a0a947176609ff",
+    "semantic_hash": "aa8799a9c2de4b6226a0a947176609ff"
+  },
+  "_bmad-output/planning-artifacts/research/technical-staffy-voice-architecture-2026-09-11/digests/verification-integration-r2.md": {
+    "mtime": 1790541318.7080808,
+    "seen": 1790543034.7260787,
+    "ast_hash": "3681fd8a9a2c0527df9b4cd9f46b5331",
+    "semantic_hash": "3681fd8a9a2c0527df9b4cd9f46b5331"
+  },
+  "_bmad-output/planning-artifacts/research/technical-staffy-voice-architecture-2026-09-11/digests/verification-integration.md": {
+    "mtime": 1790541318.7080808,
+    "seen": 1790543034.7260826,
+    "ast_hash": "e2b8e64433e651aceda6d66c3921e415",
+    "semantic_hash": "e2b8e64433e651aceda6d66c3921e415"
+  },
+  "_bmad-output/planning-artifacts/research/technical-staffy-voice-architecture-2026-09-11/digests/verification-operations-r2.md": {
+    "mtime": 1790541318.7080808,
+    "seen": 1790543034.726086,
+    "ast_hash": "f9783eb13b4ce89ae43bb195961fafbe",
+    "semantic_hash": "f9783eb13b4ce89ae43bb195961fafbe"
+  },
+  "_bmad-output/planning-artifacts/research/technical-staffy-voice-architecture-2026-09-11/digests/verification-operations.md": {
+    "mtime": 1790541318.709081,
+    "seen": 1790543034.726089,
+    "ast_hash": "baed467687057d175bd45a212447de1b",
+    "semantic_hash": "baed467687057d175bd45a212447de1b"
+  },
+  "_bmad-output/planning-artifacts/research/technical-staffy-voice-architecture-2026-09-11/digests/verification-runtime-r2.md": {
+    "mtime": 1790541318.709081,
+    "seen": 1790543034.7260923,
+    "ast_hash": "0310b375b36a9ce98d7f1313c0f458f7",
+    "semantic_hash": "0310b375b36a9ce98d7f1313c0f458f7"
+  },
+  "_bmad-output/planning-artifacts/research/technical-staffy-voice-architecture-2026-09-11/digests/verification-runtime.md": {
+    "mtime": 1790541318.709081,
+    "seen": 1790543034.726096,
+    "ast_hash": "ca3690281e7f498fefe18f21e0071b3b",
+    "semantic_hash": "ca3690281e7f498fefe18f21e0071b3b"
+  },
+  "_bmad-output/planning-artifacts/research/technical-staffy-voice-architecture-2026-09-11/imports/\u0447\u0430\u0442-\u0441-\u0438\u0438-\u043f\u043e\u0438\u0441\u043a\u043e\u0432\u0438\u043a\u043e\u043c.md": {
+    "mtime": 1790541318.7100809,
+    "seen": 1790543034.7261026,
+    "ast_hash": "1d2e9b27c805a807b26a6f59a74f8e91",
+    "semantic_hash": "1d2e9b27c805a807b26a6f59a74f8e91"
+  },
+  "_bmad-output/planning-artifacts/research/technical-staffy-voice-architecture-2026-09-11/research-briefing.html": {
+    "mtime": 1790541318.711081,
+    "seen": 1790543034.7261057,
+    "ast_hash": "4af796d4eeb1fc590c2b3f8b6f4c49f2",
+    "semantic_hash": "4af796d4eeb1fc590c2b3f8b6f4c49f2"
+  },
+  "_bmad-output/planning-artifacts/research/technical-staffy-voice-architecture-2026-09-11/research.md": {
+    "mtime": 1790541318.712081,
+    "seen": 1790543034.7261093,
+    "ast_hash": "32ff9c707a005dea7ceb951b165888b8",
+    "semantic_hash": "32ff9c707a005dea7ceb951b165888b8"
+  },
+  "_bmad-output/planning-artifacts/ux-designs/ux-staffy-2026-09-13/.memlog.md": {
+    "mtime": 1790541318.712081,
+    "seen": 1790543034.7261126,
+    "ast_hash": "b7fce34b3ed2786d8ee04a49b9af95ee",
+    "semantic_hash": "b7fce34b3ed2786d8ee04a49b9af95ee"
+  },
+  "_bmad-output/planning-artifacts/ux-designs/ux-staffy-2026-09-13/.working/color-themes-5.html": {
+    "mtime": 1790541318.7130811,
+    "seen": 1790543034.7261162,
+    "ast_hash": "fa4a55e6133aba2dc057845e6ea123e2",
+    "semantic_hash": "fa4a55e6133aba2dc057845e6ea123e2"
+  },
+  "_bmad-output/planning-artifacts/ux-designs/ux-staffy-2026-09-13/.working/directions-4.html": {
+    "mtime": 1790541318.7130811,
+    "seen": 1790543034.7261202,
+    "ast_hash": "7d05b806600f0290a6865d175eda39a4",
+    "semantic_hash": "7d05b806600f0290a6865d175eda39a4"
+  },
+  "_bmad-output/planning-artifacts/ux-designs/ux-staffy-2026-09-13/.working/ia-proposal-v1.md": {
+    "mtime": 1790541318.7160811,
+    "seen": 1790543034.7261238,
+    "ast_hash": "b233bf1058c57c8347233eeefeb84b55",
+    "semantic_hash": "b233bf1058c57c8347233eeefeb84b55"
+  },
+  "_bmad-output/planning-artifacts/ux-designs/ux-staffy-2026-09-13/.working/key-autoparts-order-review.html": {
+    "mtime": 1790541318.717081,
+    "seen": 1790543034.7261274,
+    "ast_hash": "c51215f114b26fcf591e30fbacfd08a0",
+    "semantic_hash": "c51215f114b26fcf591e30fbacfd08a0"
+  },
+  "_bmad-output/planning-artifacts/ux-designs/ux-staffy-2026-09-13/.working/key-employee-workspace.html": {
+    "mtime": 1790541318.717081,
+    "seen": 1790543034.7261314,
+    "ast_hash": "2d159024043cfb4818d40bbc01696f2e",
+    "semantic_hash": "2d159024043cfb4818d40bbc01696f2e"
+  },
+  "_bmad-output/planning-artifacts/ux-designs/ux-staffy-2026-09-13/.working/key-montagio-continuation.html": {
+    "mtime": 1790541318.7180812,
+    "seen": 1790543034.7261345,
+    "ast_hash": "db49da522a0ba1f6e60667662bf1633b",
+    "semantic_hash": "db49da522a0ba1f6e60667662bf1633b"
+  },
+  "_bmad-output/planning-artifacts/ux-designs/ux-staffy-2026-09-13/.working/key-today-owner.html": {
+    "mtime": 1790541318.7180812,
+    "seen": 1790543034.7261379,
+    "ast_hash": "21bf5445a1bdc7f8f9bf54efd154da46",
+    "semantic_hash": "21bf5445a1bdc7f8f9bf54efd154da46"
+  },
+  "_bmad-output/planning-artifacts/ux-designs/ux-staffy-2026-09-13/.working/reference-patterns-2026-09-13.md": {
+    "mtime": 1790541318.7180812,
+    "seen": 1790543034.7261412,
+    "ast_hash": "cdc73205cc879656ba1faeb3b28e4c4e",
+    "semantic_hash": "cdc73205cc879656ba1faeb3b28e4c4e"
+  },
+  "_bmad-output/planning-artifacts/ux-designs/ux-staffy-2026-09-13/.working/source-montagio-conversation.md": {
+    "mtime": 1790541318.7190812,
+    "seen": 1790543034.7261448,
+    "ast_hash": "145bdbf67a8e99385ae62996079962f1",
+    "semantic_hash": "145bdbf67a8e99385ae62996079962f1"
+  },
+  "_bmad-output/planning-artifacts/ux-designs/ux-staffy-2026-09-13/.working/source-montagio-safety-commerce.md": {
+    "mtime": 1790541318.7190812,
+    "seen": 1790543034.7261481,
+    "ast_hash": "902f231ec77b024d28444bf6539e2f65",
+    "semantic_hash": "902f231ec77b024d28444bf6539e2f65"
+  },
+  "_bmad-output/planning-artifacts/ux-designs/ux-staffy-2026-09-13/.working/source-montagio-ux.md": {
+    "mtime": 1790541318.7200813,
+    "seen": 1790543034.7261517,
+    "ast_hash": "fc4c606eb4646234c0f9f86c5cbab09d",
+    "semantic_hash": "fc4c606eb4646234c0f9f86c5cbab09d"
+  },
+  "_bmad-output/planning-artifacts/ux-designs/ux-staffy-2026-09-13/.working/source-prd.md": {
+    "mtime": 1790541318.7200813,
+    "seen": 1790543034.7261553,
+    "ast_hash": "8da8456ad4df46c9f9bcd854b2358df5",
+    "semantic_hash": "8da8456ad4df46c9f9bcd854b2358df5"
+  },
+  "_bmad-output/planning-artifacts/ux-designs/ux-staffy-2026-09-13/.working/source-research.md": {
+    "mtime": 1790541318.7210813,
+    "seen": 1790543034.7261586,
+    "ast_hash": "526bb8b55ff47e0581f2c86c67d64d0b",
+    "semantic_hash": "526bb8b55ff47e0581f2c86c67d64d0b"
+  },
+  "_bmad-output/planning-artifacts/ux-designs/ux-staffy-2026-09-13/.working/source-vision.md": {
+    "mtime": 1790541318.7210813,
+    "seen": 1790543034.7261622,
+    "ast_hash": "2249db3c6cb804b7e0cb884bdc353986",
+    "semantic_hash": "2249db3c6cb804b7e0cb884bdc353986"
+  },
+  "_bmad-output/planning-artifacts/ux-designs/ux-staffy-2026-09-13/DESIGN.md": {
+    "mtime": 1790541318.7210813,
+    "seen": 1790543034.7261655,
+    "ast_hash": "2cd9536a36feddcc3e9f445da372ecdd",
+    "semantic_hash": "2cd9536a36feddcc3e9f445da372ecdd"
+  },
+  "_bmad-output/planning-artifacts/ux-designs/ux-staffy-2026-09-13/EXPERIENCE.md": {
+    "mtime": 1790541318.7220814,
+    "seen": 1790543034.726169,
+    "ast_hash": "43be6615bb6dfad9d2169d76830a2a6a",
+    "semantic_hash": "43be6615bb6dfad9d2169d76830a2a6a"
+  },
+  "_bmad-output/planning-artifacts/ux-designs/ux-staffy-2026-09-13/mockups/color-themes-5.html": {
+    "mtime": 1790541318.7220814,
+    "seen": 1790543034.7261724,
+    "ast_hash": "fa4a55e6133aba2dc057845e6ea123e2",
+    "semantic_hash": "fa4a55e6133aba2dc057845e6ea123e2"
+  },
+  "_bmad-output/planning-artifacts/ux-designs/ux-staffy-2026-09-13/mockups/directions-4.html": {
+    "mtime": 1790541318.7230814,
+    "seen": 1790543034.726176,
+    "ast_hash": "7d05b806600f0290a6865d175eda39a4",
+    "semantic_hash": "7d05b806600f0290a6865d175eda39a4"
+  },
+  "_bmad-output/planning-artifacts/ux-designs/ux-staffy-2026-09-13/mockups/key-autoparts-order-review.html": {
+    "mtime": 1790541318.7230814,
+    "seen": 1790543034.7261796,
+    "ast_hash": "c51215f114b26fcf591e30fbacfd08a0",
+    "semantic_hash": "c51215f114b26fcf591e30fbacfd08a0"
+  },
+  "_bmad-output/planning-artifacts/ux-designs/ux-staffy-2026-09-13/mockups/key-employee-workspace.html": {
+    "mtime": 1790541318.7240813,
+    "seen": 1790543034.7261827,
+    "ast_hash": "2d159024043cfb4818d40bbc01696f2e",
+    "semantic_hash": "2d159024043cfb4818d40bbc01696f2e"
+  },
+  "_bmad-output/planning-artifacts/ux-designs/ux-staffy-2026-09-13/mockups/key-montagio-continuation.html": {
+    "mtime": 1790541318.7240813,
+    "seen": 1790543034.7261863,
+    "ast_hash": "db49da522a0ba1f6e60667662bf1633b",
+    "semantic_hash": "db49da522a0ba1f6e60667662bf1633b"
+  },
+  "_bmad-output/planning-artifacts/ux-designs/ux-staffy-2026-09-13/mockups/key-today-owner.html": {
+    "mtime": 1790541318.7240813,
+    "seen": 1790543034.7261896,
+    "ast_hash": "21bf5445a1bdc7f8f9bf54efd154da46",
+    "semantic_hash": "21bf5445a1bdc7f8f9bf54efd154da46"
+  },
+  "_bmad-output/planning-artifacts/ux-designs/ux-staffy-2026-09-13/review-accessibility-r2.md": {
+    "mtime": 1790541318.7250814,
+    "seen": 1790543034.7261932,
+    "ast_hash": "2adfd64e302854a146c8e5fd21a5eed2",
+    "semantic_hash": "2adfd64e302854a146c8e5fd21a5eed2"
+  },
+  "_bmad-output/planning-artifacts/ux-designs/ux-staffy-2026-09-13/review-accessibility.md": {
+    "mtime": 1790541318.7250814,
+    "seen": 1790543034.7261963,
+    "ast_hash": "65f6d8b5ca622aa0c8ba46e66438d11e",
+    "semantic_hash": "65f6d8b5ca622aa0c8ba46e66438d11e"
+  },
+  "_bmad-output/planning-artifacts/ux-designs/ux-staffy-2026-09-13/review-editorial.md": {
+    "mtime": 1790541318.7250814,
+    "seen": 1790543034.7261999,
+    "ast_hash": "6e942a1b59323faaf2ca5ceb45422f94",
+    "semantic_hash": "6e942a1b59323faaf2ca5ceb45422f94"
+  },
+  "_bmad-output/planning-artifacts/ux-designs/ux-staffy-2026-09-13/review-rubric-r2.md": {
+    "mtime": 1790541318.7250814,
+    "seen": 1790543034.7262034,
+    "ast_hash": "b069aeeb98cadb60bdc6549ed5819372",
+    "semantic_hash": "b069aeeb98cadb60bdc6549ed5819372"
+  },
+  "_bmad-output/planning-artifacts/ux-designs/ux-staffy-2026-09-13/review-rubric.md": {
+    "mtime": 1790541318.7250814,
+    "seen": 1790543034.7262065,
+    "ast_hash": "b8a7b3b887c0cdf41b14ed3eda5af2e9",
+    "semantic_hash": "b8a7b3b887c0cdf41b14ed3eda5af2e9"
+  },
+  "_bmad-output/planning-artifacts/ux-designs/ux-staffy-2026-09-13/review-safety-operations-r2.md": {
+    "mtime": 1790541318.7260814,
+    "seen": 1790543034.7262099,
+    "ast_hash": "5fa3c504e1c559fd6f9539e05d3e41d1",
+    "semantic_hash": "5fa3c504e1c559fd6f9539e05d3e41d1"
+  },
+  "_bmad-output/planning-artifacts/ux-designs/ux-staffy-2026-09-13/review-safety-operations.md": {
+    "mtime": 1790541318.7260814,
+    "seen": 1790543034.7262132,
+    "ast_hash": "64fe61d8188f38668ac5a7baf8f91a00",
+    "semantic_hash": "64fe61d8188f38668ac5a7baf8f91a00"
+  },
+  "_bmad-output/planning-artifacts/ux-designs/ux-staffy-2026-09-13/validation-report.html": {
+    "mtime": 1790541318.7260814,
+    "seen": 1790543034.7262168,
+    "ast_hash": "91baa7e3371348959e183abb45a814af",
+    "semantic_hash": "91baa7e3371348959e183abb45a814af"
+  },
+  "_bmad-output/planning-artifacts/ux-designs/ux-staffy-2026-09-13/validation-report.md": {
+    "mtime": 1790541318.7260814,
+    "seen": 1790543034.7262201,
+    "ast_hash": "1dac531b3d687e3668c3dd8a4278daae",
+    "semantic_hash": "1dac531b3d687e3668c3dd8a4278daae"
+  },
+  "_bmad-output/planning-artifacts/research/technical-staffy-voice-architecture-2026-09-11/digests/go-decision-latency-economics-verification.md": {
+    "mtime": 1790541318.7020807,
+    "seen": 1790543034.7262478,
+    "ast_hash": "c6d307a2fcc1f1986fdc4c98fc025864",
+    "semantic_hash": "c6d307a2fcc1f1986fdc4c98fc025864"
+  },
+  "_bmad-output/implementation-artifacts/sprint-status.yaml": {
+    "mtime": 1790541787.0370355,
+    "seen": 1790543034.725732,
+    "ast_hash": "d24e2d47fd5863b7cfd8ddfba8943096",
+    "semantic_hash": ""
+  },
+  "cmd/staffy-core/main.go": {
+    "mtime": 1790543004.2908006,
+    "seen": 1790543034.7253194,
+    "ast_hash": "a743b1bd4c49e48d213aac4f76a71b42",
+    "semantic_hash": ""
+  },
+  "go.mod": {
+    "mtime": 1790541318.7340817,
+    "seen": 1790543034.725334,
+    "ast_hash": "b1d98389b96a14f217263a998c8b6dcd",
+    "semantic_hash": ""
+  },
+  "internal/adapters/authdev/fixed.go": {
+    "mtime": 1790541318.8730862,
+    "seen": 1790543034.7253387,
+    "ast_hash": "ccc71bb9c5a712812119199133d46d4d",
+    "semantic_hash": ""
+  },
+  "internal/adapters/authdev/fixed_test.go": {
+    "mtime": 1790541318.8730862,
+    "seen": 1790543034.725361,
+    "ast_hash": "227cee475a4569d4900bac71acf4420c",
+    "semantic_hash": ""
+  },
+  "internal/architecture/architecture_test.go": {
+    "mtime": 1790541318.8740861,
+    "seen": 1790543034.7253673,
+    "ast_hash": "97c6221616d0db732eea7dd4aaa24b0c",
+    "semantic_hash": ""
+  },
+  "internal/identity/api/api.go": {
+    "mtime": 1790541318.8780863,
+    "seen": 1790543034.725496,
+    "ast_hash": "8f3927f689983cfe7358dabdba689abb",
+    "semantic_hash": ""
+  },
+  "internal/identity/app/service.go": {
+    "mtime": 1790541318.8780863,
+    "seen": 1790543034.7254996,
+    "ast_hash": "76f882396103f443da4da333af19e208",
+    "semantic_hash": ""
+  },
+  "internal/identity/app/service_test.go": {
+    "mtime": 1790541318.8780863,
+    "seen": 1790543034.7255037,
+    "ast_hash": "93904c7334a0f2cbe8c6920d57398a0e",
+    "semantic_hash": ""
+  },
+  "internal/identity/domain/model.go": {
+    "mtime": 1790541318.8790863,
+    "seen": 1790543034.725512,
+    "ast_hash": "f7dad00000b4f62153b36a03597ddcdb",
+    "semantic_hash": ""
+  },
+  "internal/identity/port/port.go": {
+    "mtime": 1790541318.8790863,
+    "seen": 1790543034.725516,
+    "ast_hash": "6c05d9a08374ce2d37260896055e4686",
+    "semantic_hash": ""
+  },
+  "internal/identity/store/postgres.go": {
+    "mtime": 1790541318.8790863,
+    "seen": 1790543034.725523,
+    "ast_hash": "209e2567dc7c439f6a58102f828dd209",
+    "semantic_hash": ""
+  },
+  "internal/platform/correlation/correlation.go": {
+    "mtime": 1790541318.8800864,
+    "seen": 1790543034.725527,
+    "ast_hash": "d7de5fd728cc04fb1d0222fa3b6020eb",
+    "semantic_hash": ""
+  },
+  "internal/platform/httpx/problem.go": {
+    "mtime": 1790541318.8800864,
+    "seen": 1790543034.7255306,
+    "ast_hash": "369f31d6a6e914d48e0546b895a94653",
+    "semantic_hash": ""
+  },
+  "internal/platform/id/id.go": {
+    "mtime": 1790541318.8800864,
+    "seen": 1790543034.7255342,
+    "ast_hash": "42fd95155198c955fde6eebb24a94f56",
+    "semantic_hash": ""
+  },
+  "internal/platform/id/id_test.go": {
+    "mtime": 1790541318.8800864,
+    "seen": 1790543034.7255375,
+    "ast_hash": "eed0874dd9677ac994b6511ae128a0fd",
+    "semantic_hash": ""
+  },
+  "internal/platform/tenancy/context.go": {
+    "mtime": 1790541318.8800864,
+    "seen": 1790543034.7255416,
+    "ast_hash": "d80f7bc4127a98c07749dc2724496071",
+    "semantic_hash": ""
+  },
+  "internal/transport/http/server.go": {
+    "mtime": 1790543961.1105354,
+    "seen": 1790544523.5675855,
+    "ast_hash": "7df0fde8f57856185173a4775c242721",
+    "semantic_hash": ""
+  },
+  "internal/transport/http/server_test.go": {
+    "mtime": 1790541318.8830864,
+    "seen": 1790543034.725586,
+    "ast_hash": "799ae3df6ffe64b7543f6ad6992238c2",
+    "semantic_hash": ""
+  },
+  "tests/integration/tenant_test.go": {
+    "mtime": 1790544214.9060986,
+    "seen": 1790544523.5676525,
+    "ast_hash": "359a9247467b165aa4b1c35c29876ff1",
+    "semantic_hash": ""
+  },
+  "tests/journeys/fixture_server.go": {
+    "mtime": 1790544358.0604243,
+    "seen": 1790544523.5676587,
+    "ast_hash": "a7a9c4cb8c0799903800bf36b7cea924",
+    "semantic_hash": ""
+  },
+  "tests/journeys/package.json": {
+    "mtime": 1790541318.8860865,
+    "seen": 1790543034.72565,
+    "ast_hash": "91a2927b6c5871d373a8cd0724a99bca",
+    "semantic_hash": ""
+  },
+  "tests/journeys/playwright.config.ts": {
+    "mtime": 1790542977.1839378,
+    "seen": 1790543034.7256575,
+    "ast_hash": "d3adb8bccbe884c0915c9b08a64a1c84",
+    "semantic_hash": ""
+  },
+  "tests/journeys/workspace.spec.ts": {
+    "mtime": 1790541318.8860865,
+    "seen": 1790543034.7256615,
+    "ast_hash": "596a39290d3a4e90fde506c81b01fb01",
+    "semantic_hash": ""
+  },
+  "web/ui.go": {
+    "mtime": 1790541318.8880866,
+    "seen": 1790543034.7256784,
+    "ast_hash": "56c500b65cd602072493086f44b8ca7f",
+    "semantic_hash": ""
+  },
+  ".github/workflows/ci.yml": {
+    "mtime": 1790541318.6610794,
+    "seen": 1790543034.7256818,
+    "ast_hash": "f926c017da00ea8112919ed2fbcd0308",
+    "semantic_hash": ""
+  },
+  "_bmad-output/implementation-artifacts/epic-1-context.md": {
+    "mtime": 1790541454.0344074,
+    "seen": 1790543034.725701,
+    "ast_hash": "cda65f22c4b2feadeda1eff6bee13829",
+    "semantic_hash": ""
+  },
+  "_bmad-output/implementation-artifacts/spec-1-1-tenant-workspace.md": {
+    "mtime": 1790541318.6650796,
+    "seen": 1790543034.725705,
+    "ast_hash": "01bbedab6f45f46de0d079471498d6ac",
+    "semantic_hash": ""
+  },
+  "contracts/openapi/staffy.yaml": {
+    "mtime": 1790544320.0142715,
+    "seen": 1790544523.568554,
+    "ast_hash": "45eafc2ecc005f0374a9641f06d3a109",
+    "semantic_hash": ""
+  },
+  "web/templates/setup.html": {
+    "mtime": 1790541318.8880866,
+    "seen": 1790543034.726241,
+    "ast_hash": "c7f57f947b86e6c1aff29e8420e59b15",
+    "semantic_hash": ""
+  },
+  "web/templates/workspace.html": {
+    "mtime": 1790541318.8880866,
+    "seen": 1790543034.7262444,
+    "ast_hash": "30994f8c209dfc0f4454fc67bc75fb2a",
+    "semantic_hash": ""
+  },
+  "migrations/identity/00001_identity_tenant.sql": {
+    "mtime": 1790541318.8840866,
+    "seen": 1790543034.7256134,
+    "ast_hash": "7fec8b7738bf2f39852f2afd6e1808ad",
+    "semantic_hash": ""
+  },
+  "cmd/staffy-core/main_test.go": {
+    "mtime": 1790541318.7330816,
+    "seen": 1790543034.7253246,
+    "ast_hash": "4797b47958405ff4cdfbb1f19e7413d1",
+    "semantic_hash": ""
+  },
+  "contracts/openapi/contract_test.go": {
+    "mtime": 1790541318.7330816,
+    "seen": 1790543034.7253287,
+    "ast_hash": "73a59591ac0e8883440c4ff697faa9c2",
+    "semantic_hash": ""
+  },
+  "internal/identity/domain/membership_test.go": {
+    "mtime": 1790541318.8790863,
+    "seen": 1790543034.7255075,
+    "ast_hash": "3453faa2ca05a8a89f511dcc65cf73f9",
+    "semantic_hash": ""
+  },
+  "internal/identity/store/membership.go": {
+    "mtime": 1790541318.8790863,
+    "seen": 1790543034.7255194,
+    "ast_hash": "4348e51f5b4d9ab9684982471713b8a1",
+    "semantic_hash": ""
+  },
+  "internal/transport/http/membership.go": {
+    "mtime": 1790541318.8820865,
+    "seen": 1790543034.7255752,
+    "ast_hash": "d5010a41cb8b640b2f446f3ec89d8a70",
+    "semantic_hash": ""
+  },
+  "internal/transport/http/membership_test.go": {
+    "mtime": 1790541318.8820865,
+    "seen": 1790543034.7255788,
+    "ast_hash": "091cd5eb8f9b8149ee269a0ec6f21c49",
+    "semantic_hash": ""
+  },
+  "migrations/identity/00002_identity_membership.sql": {
+    "mtime": 1790541318.8840866,
+    "seen": 1790543034.7256172,
+    "ast_hash": "457fb047d3babd5df89b6b6e2d548a3b",
+    "semantic_hash": ""
+  },
+  "tests/integration/membership_test.go": {
+    "mtime": 1790541318.8850865,
+    "seen": 1790543034.7256355,
+    "ast_hash": "51ab5458babc043168a33ce3f2874538",
+    "semantic_hash": ""
+  },
+  "tests/journeys/people.spec.ts": {
+    "mtime": 1790541318.8860865,
+    "seen": 1790543034.7256541,
+    "ast_hash": "8274b9756f2de497c42e25f143dc737c",
+    "semantic_hash": ""
+  },
+  "_bmad-output/implementation-artifacts/spec-1-2-tenant-membership.md": {
+    "mtime": 1790541318.6650796,
+    "seen": 1790543034.7257085,
+    "ast_hash": "878b5da35cb761ac66d84c38d018c467",
+    "semantic_hash": ""
+  },
+  "web/templates/accept_invitation.html": {
+    "mtime": 1790541318.8870866,
+    "seen": 1790543034.726227,
+    "ast_hash": "bafcd03e5740171a596034ac883e2084",
+    "semantic_hash": ""
+  },
+  "web/templates/people.html": {
+    "mtime": 1790541318.8880866,
+    "seen": 1790543034.7262373,
+    "ast_hash": "ae77f214f553c6fe7089e8c15fc4bcc6",
+    "semantic_hash": ""
+  },
+  "_bmad-output/implementation-artifacts/deferred-work.md": {
+    "mtime": 1790541318.6640794,
+    "seen": 1790543034.7256975,
+    "ast_hash": "920b8a3480ca45146f1ce2461fdd4f24",
+    "semantic_hash": ""
+  },
+  "internal/employee/api/api.go": {
+    "mtime": 1790541318.8740861,
+    "seen": 1790543034.7253735,
+    "ast_hash": "8c69bcf70d7b318976fc842d4ff14216",
+    "semantic_hash": ""
+  },
+  "internal/employee/app/service.go": {
+    "mtime": 1790542656.6247346,
+    "seen": 1790543034.7254114,
+    "ast_hash": "7b9d00edc8269259ea5c17195e83ff6b",
+    "semantic_hash": ""
+  },
+  "internal/employee/domain/model.go": {
+    "mtime": 1790541318.8760862,
+    "seen": 1790543034.725431,
+    "ast_hash": "8c16a9d195a441147f7efb766dc5d1ad",
+    "semantic_hash": ""
+  },
+  "internal/employee/port/port.go": {
+    "mtime": 1790541318.8770862,
+    "seen": 1790543034.7254748,
+    "ast_hash": "eb4119f481732688b1f077b5a6647a2c",
+    "semantic_hash": ""
+  },
+  "internal/employee/store/postgres.go": {
+    "mtime": 1790541318.8780863,
+    "seen": 1790543034.7254884,
+    "ast_hash": "122f744491e98141f0422621e25e149f",
+    "semantic_hash": ""
+  },
+  "internal/transport/http/employee.go": {
+    "mtime": 1790544694.5776985,
+    "seen": 1790544798.3218923,
+    "ast_hash": "b7245caacb6929e8213c0b91f27b12af",
+    "semantic_hash": ""
+  },
+  "migrations/employee/00001_employee_draft.sql": {
+    "mtime": 1790541318.8830864,
+    "seen": 1790543034.7255924,
+    "ast_hash": "52bef93fc7964da0e4bc3876ee789c05",
+    "semantic_hash": ""
+  },
+  "tests/integration/employee_test.go": {
+    "mtime": 1790541318.8850865,
+    "seen": 1790543034.725628,
+    "ast_hash": "e840865f2f5a786d6d788abc48c1fe70",
+    "semantic_hash": ""
+  },
+  "_bmad-output/implementation-artifacts/spec-1-3-guided-employee-draft.md": {
+    "mtime": 1790541318.6650796,
+    "seen": 1790543034.725712,
+    "ast_hash": "6afd62d1011049e6b334bc932b553cb2",
+    "semantic_hash": ""
+  },
+  "web/templates/employee.html": {
+    "mtime": 1790544734.906937,
+    "seen": 1790544798.322995,
+    "ast_hash": "7ab865bfa0513e6d8224648626c2f8fd",
+    "semantic_hash": ""
+  },
+  "web/templates/employees.html": {
+    "mtime": 1790541318.8880866,
+    "seen": 1790543034.7262332,
+    "ast_hash": "514552db8478afead2fe5d9c639dae26",
+    "semantic_hash": ""
+  },
+  "internal/employee/domain/model_test.go": {
+    "mtime": 1790541318.8760862,
+    "seen": 1790543034.7254357,
+    "ast_hash": "f94417b9e60c9456d0893185312c1fe6",
+    "semantic_hash": ""
+  },
+  "internal/transport/http/employee_test.go": {
+    "mtime": 1790541318.8810863,
+    "seen": 1790543034.7255564,
+    "ast_hash": "6404eb728166a98f0daa70dd8424aec1",
+    "semantic_hash": ""
+  },
+  "internal/employee/app/pack_test.go": {
+    "mtime": 1790541318.8750863,
+    "seen": 1790543034.725407,
+    "ast_hash": "89f32d1b1e14acfdf24e687cd3360433",
+    "semantic_hash": ""
+  },
+  "internal/employee/domain/pack.go": {
+    "mtime": 1790541318.8760862,
+    "seen": 1790543034.7254395,
+    "ast_hash": "567aa84dd56acadab6e52146f7e0c306",
+    "semantic_hash": ""
+  },
+  "internal/employee/domain/pack_test.go": {
+    "mtime": 1790541318.8760862,
+    "seen": 1790543034.7254436,
+    "ast_hash": "b8012e5b5e198cae3f215099a751cf6c",
+    "semantic_hash": ""
+  },
+  "internal/employee/packs/catalog.go": {
+    "mtime": 1790541318.8770862,
+    "seen": 1790543034.7254639,
+    "ast_hash": "6c3ef02e4101f38b141aa0ab7c6f949f",
+    "semantic_hash": ""
+  },
+  "internal/transport/http/domain_pack.go": {
+    "mtime": 1790541318.8810863,
+    "seen": 1790543034.725549,
+    "ast_hash": "449eaf967f157b1bf15532cd4080a558",
+    "semantic_hash": ""
+  },
+  "migrations/employee/00002_domain_pack.sql": {
+    "mtime": 1790541318.8830864,
+    "seen": 1790543034.7255962,
+    "ast_hash": "c99587716bcfa6b3e478f28fc4d99ac7",
+    "semantic_hash": ""
+  },
+  "_bmad-output/implementation-artifacts/spec-1-4-versioned-domain-pack.md": {
+    "mtime": 1790541318.6660795,
+    "seen": 1790543034.7257156,
+    "ast_hash": "4a57c3dfec1cee8e4b9860bcb480f2a7",
+    "semantic_hash": ""
+  },
+  "tests/integration/domain_pack_test.go": {
+    "mtime": 1790541318.8840866,
+    "seen": 1790543034.7256243,
+    "ast_hash": "21b8633ed4765a4571597448181f25d7",
+    "semantic_hash": ""
+  },
+  "tests/journeys/z-domain-pack.spec.ts": {
+    "mtime": 1790541318.8860865,
+    "seen": 1790543034.725665,
+    "ast_hash": "cff7b9a5fc5ff64471641f53d5798fd1",
+    "semantic_hash": ""
+  },
+  "internal/employee/api/knowledge.go": {
+    "mtime": 1790541318.8740861,
+    "seen": 1790543034.7253819,
+    "ast_hash": "3d6eeeea919ba13ef399d2cfe05f1015",
+    "semantic_hash": ""
+  },
+  "internal/employee/app/knowledge.go": {
+    "mtime": 1790541318.8750863,
+    "seen": 1790543034.725402,
+    "ast_hash": "9224998d2811246741c97da6fb4d4c6e",
+    "semantic_hash": ""
+  },
+  "internal/employee/domain/knowledge.go": {
+    "mtime": 1790541318.8750863,
+    "seen": 1790543034.725423,
+    "ast_hash": "1557a3142eea2feb630f46616825497e",
+    "semantic_hash": ""
+  },
+  "internal/employee/domain/knowledge_test.go": {
+    "mtime": 1790541318.8760862,
+    "seen": 1790543034.725427,
+    "ast_hash": "d1056191918f1ce5daaa039e759a66c4",
+    "semantic_hash": ""
+  },
+  "internal/employee/port/knowledge.go": {
+    "mtime": 1790541318.8770862,
+    "seen": 1790543034.725471,
+    "ast_hash": "4c81e5d3bbbccb07354543e5793d6a42",
+    "semantic_hash": ""
+  },
+  "internal/employee/store/knowledge.go": {
+    "mtime": 1790541318.8780863,
+    "seen": 1790543034.7254848,
+    "ast_hash": "ef2a803f94c415de9705854b83980e09",
+    "semantic_hash": ""
+  },
+  "internal/transport/http/knowledge.go": {
+    "mtime": 1790541318.8810863,
+    "seen": 1790543034.725561,
+    "ast_hash": "eecfcad9cb681d9a867d41cbb21b9f1c",
+    "semantic_hash": ""
+  },
+  "internal/transport/http/knowledge_view.go": {
+    "mtime": 1790541318.8820865,
+    "seen": 1790543034.7255712,
+    "ast_hash": "2dd560825950e807bb6bfbab2b49aea7",
+    "semantic_hash": ""
+  },
+  "migrations/employee/00003_knowledge_sources.sql": {
+    "mtime": 1790541318.8830864,
+    "seen": 1790543034.7255998,
+    "ast_hash": "45d01d24f42b0922392ca77fe46cdd8f",
+    "semantic_hash": ""
+  },
+  "tests/integration/knowledge_test.go": {
+    "mtime": 1790541318.8850865,
+    "seen": 1790543034.7256317,
+    "ast_hash": "dae73b1c42fb4b663e167a40658fc2a5",
+    "semantic_hash": ""
+  },
+  "_bmad-output/implementation-artifacts/spec-1-5-knowledge-sources.md": {
+    "mtime": 1790541318.6660795,
+    "seen": 1790543034.725719,
+    "ast_hash": "4d0510b0381f96ca1cabadac0ffca380",
+    "semantic_hash": ""
+  },
+  "internal/transport/http/knowledge_test.go": {
+    "mtime": 1790541318.8820865,
+    "seen": 1790543034.7255678,
+    "ast_hash": "da4493cbcfe17a047034d97b94696675",
+    "semantic_hash": ""
+  },
+  "tests/journeys/zz-knowledge.spec.ts": {
+    "mtime": 1790541318.8870866,
+    "seen": 1790543034.7256718,
+    "ast_hash": "ce68b2c5ae2b53a3746d34db212116cb",
+    "semantic_hash": ""
+  },
+  "internal/employee/api/behavior.go": {
+    "mtime": 1790541318.8740861,
+    "seen": 1790543034.7253776,
+    "ast_hash": "c10e6bf7d5189ba7388048450829506f",
+    "semantic_hash": ""
+  },
+  "internal/employee/api/voice.go": {
+    "mtime": 1790544214.8990984,
+    "seen": 1790544523.567308,
+    "ast_hash": "0846886928c3de099dc868a53012aaa0",
+    "semantic_hash": ""
+  },
+  "internal/employee/app/behavior.go": {
+    "mtime": 1790541318.8740861,
+    "seen": 1790543034.725389,
+    "ast_hash": "0c4065f299208bd03adc906f8c052208",
+    "semantic_hash": ""
+  },
+  "internal/employee/app/behavior_test.go": {
+    "mtime": 1790541318.8740861,
+    "seen": 1790543034.7253923,
+    "ast_hash": "65b537860780d3c4e49d40d91c0ea2b1",
+    "semantic_hash": ""
+  },
+  "internal/employee/app/espeak.go": {
+    "mtime": 1790542882.2039149,
+    "seen": 1790543034.7253954,
+    "ast_hash": "7b4c67e535816e135bbbfde8eeda0510",
+    "semantic_hash": ""
+  },
+  "internal/employee/app/espeak_test.go": {
+    "mtime": 1790542882.2029147,
+    "seen": 1790543034.7253985,
+    "ast_hash": "b7d6566a932a194706108cb304328d04",
+    "semantic_hash": ""
+  },
+  "internal/employee/app/voice.go": {
+    "mtime": 1790544358.0554242,
+    "seen": 1790544523.567341,
+    "ast_hash": "a1b7bc8fd243816ffc33442564dfa83d",
+    "semantic_hash": ""
+  },
+  "internal/employee/domain/behavior.go": {
+    "mtime": 1790541318.8750863,
+    "seen": 1790543034.7254188,
+    "ast_hash": "f3f9a1ca33c96d7f82fb5a3e1f0faf66",
+    "semantic_hash": ""
+  },
+  "internal/employee/domain/voice.go": {
+    "mtime": 1790544295.5355308,
+    "seen": 1790544523.5674036,
+    "ast_hash": "99a8f2f0d1b08ef2c0a426bd4adc4c97",
+    "semantic_hash": ""
+  },
+  "internal/employee/domain/voice_test.go": {
+    "mtime": 1790544358.0554242,
+    "seen": 1790544523.5674074,
+    "ast_hash": "32628e1af714b030a9945dffca23e53b",
+    "semantic_hash": ""
+  },
+  "internal/employee/ingest/scanner.go": {
+    "mtime": 1790541318.8760862,
+    "seen": 1790543034.7254531,
+    "ast_hash": "0e2fcbdb24f121de56cd9bf5906e3f23",
+    "semantic_hash": ""
+  },
+  "internal/employee/ingest/validate.go": {
+    "mtime": 1790541318.8760862,
+    "seen": 1790543034.7254565,
+    "ast_hash": "4fbfc58118dff831b6ed543c3be55689",
+    "semantic_hash": ""
+  },
+  "internal/employee/ingest/validate_test.go": {
+    "mtime": 1790541318.8770862,
+    "seen": 1790543034.72546,
+    "ast_hash": "809b7715bba3dbfd11ff84bde2f061e4",
+    "semantic_hash": ""
+  },
+  "internal/employee/port/behavior.go": {
+    "mtime": 1790541318.8770862,
+    "seen": 1790543034.7254667,
+    "ast_hash": "05dd59b7f21029aa89e218e8660f93d2",
+    "semantic_hash": ""
+  },
+  "internal/employee/port/voice.go": {
+    "mtime": 1790544214.8990984,
+    "seen": 1790544523.5674458,
+    "ast_hash": "e622ce9dc344d103f174834e259a456a",
+    "semantic_hash": ""
+  },
+  "internal/employee/store/behavior.go": {
+    "mtime": 1790541318.8770862,
+    "seen": 1790543034.7254813,
+    "ast_hash": "e1da3948e4ac6578b745b10bf29d9d93",
+    "semantic_hash": ""
+  },
+  "internal/employee/store/voice.go": {
+    "mtime": 1790544358.0564241,
+    "seen": 1790544523.5674667,
+    "ast_hash": "388ca90316aafe59255f440c76b458dd",
+    "semantic_hash": ""
+  },
+  "internal/transport/http/behavior.go": {
+    "mtime": 1790541318.8810863,
+    "seen": 1790543034.725545,
+    "ast_hash": "92f2091035069b7f1e46ae43e5596b54",
+    "semantic_hash": ""
+  },
+  "internal/transport/http/knowledge_ingest.go": {
+    "mtime": 1790541318.8810863,
+    "seen": 1790543034.725564,
+    "ast_hash": "d4c789b5663a9c6be03cd6e710645df1",
+    "semantic_hash": ""
+  },
+  "internal/transport/http/voice.go": {
+    "mtime": 1790544214.9010985,
+    "seen": 1790544523.567593,
+    "ast_hash": "7818ed55c34b85487714480d718abf68",
+    "semantic_hash": ""
+  },
+  "migrations/employee/00004_safe_source_ingestion.sql": {
+    "mtime": 1790541318.8830864,
+    "seen": 1790543034.7256029,
+    "ast_hash": "79c073ac93992d58af76dcd2d1559617",
+    "semantic_hash": ""
+  },
+  "migrations/employee/00005_behavior.sql": {
+    "mtime": 1790541318.8840866,
+    "seen": 1790543034.7256062,
+    "ast_hash": "9d00d8b04045b36e31000b07c4a2e9fa",
+    "semantic_hash": ""
+  },
+  "migrations/employee/00006_voice.sql": {
+    "mtime": 1790541956.511438,
+    "seen": 1790543034.725609,
+    "ast_hash": "afed2e4c11247b6bf7f74a4205a12acf",
+    "semantic_hash": ""
+  },
+  "tests/integration/behavior_test.go": {
+    "mtime": 1790541318.8840866,
+    "seen": 1790543034.72562,
+    "ast_hash": "cdc7e6638aeff3c976e2e4d9efb3ee54",
+    "semantic_hash": ""
+  },
+  "tests/integration/voice_test.go": {
+    "mtime": 1790544214.9010985,
+    "seen": 1790544523.567656,
+    "ast_hash": "160f4449abe35bb8927b1c89c1194b63",
+    "semantic_hash": ""
+  },
+  "tests/journeys/zz-behavior.spec.ts": {
+    "mtime": 1790541318.8860865,
+    "seen": 1790543034.725668,
+    "ast_hash": "cf69000c9572f251a5efe9ad8d0d4659",
+    "semantic_hash": ""
+  },
+  "tests/journeys/zzz-voice.spec.ts": {
+    "mtime": 1790544424.3334377,
+    "seen": 1790544523.5676937,
+    "ast_hash": "124b46144c777c125488e876330f6eab",
+    "semantic_hash": ""
+  },
+  "_bmad-output/implementation-artifacts/spec-1-5-safe-source-ingestion.md": {
+    "mtime": 1790541318.6660795,
+    "seen": 1790543034.725722,
+    "ast_hash": "da33c720466dc7405cbb7c4ef94a188d",
+    "semantic_hash": ""
+  },
+  "_bmad-output/implementation-artifacts/spec-1-6-safe-behavior-configuration.md": {
+    "mtime": 1790541318.6670794,
+    "seen": 1790543034.7257252,
+    "ast_hash": "0bd610b30fade313cfb19e36484b1f22",
+    "semantic_hash": ""
+  },
+  "_bmad-output/implementation-artifacts/spec-1-7-voice-and-pronunciation.md": {
+    "mtime": 1790544780.403335,
+    "seen": 1790544798.3221765,
+    "ast_hash": "3aac7655853261b9ae90c79ce2c1fedf",
+    "semantic_hash": ""
+  },
+  "migrations/employee/00007_voice_preview.sql": {
+    "mtime": 1790544296.3555555,
+    "seen": 1790544523.5676212,
+    "ast_hash": "1d96c3a6e736d6bba17fc0794fa344e5",
+    "semantic_hash": ""
+  }
+}

@@ -21,10 +21,17 @@ type Service struct {
 	identity   identityAPI.MembershipService
 	clock      api.Clock
 	ids        api.IDGenerator
+	testTTS    port.TestTTS
 }
 
 func New(repository port.Repository, identity identityAPI.MembershipService, clock api.Clock, ids api.IDGenerator) *Service {
-	return &Service{repository, identity, clock, ids}
+	return &Service{repository: repository, identity: identity, clock: clock, ids: ids}
+}
+
+func NewWithTestTTS(repository port.Repository, identity identityAPI.MembershipService, clock api.Clock, ids api.IDGenerator, tts port.TestTTS) *Service {
+	s := New(repository, identity, clock, ids)
+	s.testTTS = tts
+	return s
 }
 
 func (s *Service) scope(ctx context.Context, actor identityDomain.Principal, tenantID id.UUID) (tenancy.Context, error) {

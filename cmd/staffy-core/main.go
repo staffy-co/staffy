@@ -14,6 +14,7 @@ import (
 
 	"github.com/artemiosu/staffy/internal/adapters/authdev"
 	employeeApp "github.com/artemiosu/staffy/internal/employee/app"
+	employeePort "github.com/artemiosu/staffy/internal/employee/port"
 	employeeStore "github.com/artemiosu/staffy/internal/employee/store"
 	"github.com/artemiosu/staffy/internal/identity/app"
 	"github.com/artemiosu/staffy/internal/identity/store"
@@ -76,7 +77,11 @@ func run(logger *slog.Logger) error {
 	if err != nil {
 		return err
 	}
-	transport.BindEmployee(employeeApp.New(employeeStore.NewPostgres(pool), identityService, clock, ids))
+	var testTTS employeePort.TestTTS
+	if binary := os.Getenv("STAFFY_DEV_ESPEAK_NG_BIN"); binary != "" {
+		testTTS = &employeeApp.ESpeakNG{Binary: binary, DataParent: os.Getenv("STAFFY_DEV_ESPEAK_DATA_PATH"), LibraryPath: os.Getenv("STAFFY_DEV_ESPEAK_LIBRARY_PATH")}
+	}
+	transport.BindEmployee(employeeApp.NewWithTestTTS(employeeStore.NewPostgres(pool), identityService, clock, ids, testTTS))
 	server := &http.Server{
 		Addr:              listenAddress,
 		Handler:           transport.Handler(),

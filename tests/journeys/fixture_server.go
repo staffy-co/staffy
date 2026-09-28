@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/binary"
 	"io"
 	"log/slog"
 	"net/http"
@@ -67,11 +68,136 @@ func (idsFixture) New(time.Time) (id.UUID, error) {
 }
 
 type employeeFixture struct {
-	mu        sync.Mutex
-	draft     *employeeDomain.Draft
-	behavior  []employeeDomain.BehaviorVersion
-	knowledge *employeeDomain.KnowledgeSource
-	versions  []employeeDomain.KnowledgeVersion
+	mu               sync.Mutex
+	draft            *employeeDomain.Draft
+	behavior         []employeeDomain.BehaviorVersion
+	voice            []employeeDomain.VoiceVersion
+	voicePreviews    map[id.UUID]employeeDomain.VoicePreviewRecord
+	voiceAssessments []employeeDomain.VoiceAssessment
+	knowledge        *employeeDomain.KnowledgeSource
+	versions         []employeeDomain.KnowledgeVersion
+}
+
+func (f *employeeFixture) VoiceCatalog(_ context.Context, _ domain.Principal, tenant id.UUID) ([]employeeDomain.VoiceProfile, error) {
+	if tenant != tenantID {
+		return nil, employeeDomain.ErrNotFound
+	}
+	profiles := employeeDomain.VoiceCatalog()
+	for i := range profiles {
+		profiles[i].PreviewStatus = "available"
+	}
+	return profiles, nil
+}
+func (f *employeeFixture) ReadVoice(_ context.Context, _ domain.Principal, tenant, employee id.UUID) ([]employeeDomain.VoiceVersion, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.draft == nil || tenant != tenantID || employee != fixtureEmployeeID {
+		return nil, employeeDomain.ErrNotFound
+	}
+	return append([]employeeDomain.VoiceVersion(nil), f.voice...), nil
+}
+func (f *employeeFixture) SaveVoice(_ context.Context, c employeeAPI.VoiceCommand) (employeeDomain.VoiceVersion, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.draft == nil || c.TenantID != tenantID || c.EmployeeID != fixtureEmployeeID {
+		return employeeDomain.VoiceVersion{}, employeeDomain.ErrNotFound
+	}
+	if f.draft.Version != c.ExpectedVersion {
+		return employeeDomain.VoiceVersion{}, employeeDomain.ErrConflict
+	}
+	if err := employeeDomain.ValidateVoice(f.draft.Brief, c.Config); err != nil {
+		return employeeDomain.VoiceVersion{}, err
+	}
+	v := employeeDomain.VoiceVersion{TenantID: tenantID, EmployeeID: fixtureEmployeeID, Version: int64(len(f.voice) + 1), DraftVersion: f.draft.Version + 1, Config: c.Config, ActorID: c.Actor.ID, ChangedAt: time.Now().UTC(), ChangeSummary: c.ChangeSummary}
+	f.voice = append([]employeeDomain.VoiceVersion{v}, f.voice...)
+	f.draft.Version++
+	return v, nil
+}
+func (f *employeeFixture) PreviewVoice(ctx context.Context, c employeeAPI.VoicePreviewRequest) (employeeAPI.VoicePreview, error) {
+	if !c.SyntheticDataConfirmed {
+		return employeeAPI.VoicePreview{}, employeeDomain.ErrInvalid
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.draft == nil || c.TenantID != tenantID || c.EmployeeID != fixtureEmployeeID {
+		return employeeAPI.VoicePreview{}, employeeDomain.ErrNotFound
+	}
+	if len(f.voice) == 0 || f.voice[0].Version != c.VoiceVersion {
+		return employeeAPI.VoicePreview{}, employeeDomain.ErrConflict
+	}
+	synthesisText, _, err := employeeDomain.ResolveSynthesisText(f.voice[0].Config, c.Text)
+	if err != nil {
+		return employeeAPI.VoicePreview{}, err
+	}
+	preview := employeeAPI.VoicePreview{Text: c.Text, SynthesisText: synthesisText, VoiceVersion: c.VoiceVersion, DictionaryVersion: c.VoiceVersion, DraftVersion: f.voice[0].DraftVersion, Route: "offline-test-tts", Capability: "unavailable", PhoneQualityApproved: false}
+	preview.Audio = fixtureWAV()
+	preview.AudioType = "audio/wav"
+	preview.Capability = "available"
+	preview.PreviewID, _ = id.NewV7(time.Now().UTC())
+	if f.voicePreviews == nil {
+		f.voicePreviews = map[id.UUID]employeeDomain.VoicePreviewRecord{}
+	}
+	f.voicePreviews[preview.PreviewID] = employeeDomain.VoicePreviewRecord{TenantID: tenantID, EmployeeID: fixtureEmployeeID, PreviewID: preview.PreviewID, VoiceVersion: c.VoiceVersion, DictionaryVersion: c.VoiceVersion, DraftVersion: f.voice[0].DraftVersion, Text: c.Text, SynthesisText: synthesisText, Route: preview.Route, Slow: c.Slow, ActorID: c.Actor.ID, CreatedAt: time.Now().UTC()}
+	return preview, nil
+}
+
+func fixtureWAV() []byte {
+	const sampleRate = 8000
+	data := make([]byte, sampleRate/10)
+	wav := make([]byte, 44+len(data))
+	copy(wav[0:4], "RIFF")
+	binary.LittleEndian.PutUint32(wav[4:8], uint32(len(wav)-8))
+	copy(wav[8:12], "WAVE")
+	copy(wav[12:16], "fmt ")
+	binary.LittleEndian.PutUint32(wav[16:20], 16)
+	binary.LittleEndian.PutUint16(wav[20:22], 1)
+	binary.LittleEndian.PutUint16(wav[22:24], 1)
+	binary.LittleEndian.PutUint32(wav[24:28], sampleRate)
+	binary.LittleEndian.PutUint32(wav[28:32], sampleRate)
+	binary.LittleEndian.PutUint16(wav[32:34], 1)
+	binary.LittleEndian.PutUint16(wav[34:36], 8)
+	copy(wav[36:40], "data")
+	binary.LittleEndian.PutUint32(wav[40:44], uint32(len(data)))
+	copy(wav[44:], data)
+	return wav
+}
+func (f *employeeFixture) ReadVoiceAssessments(_ context.Context, _ domain.Principal, tenant, employee id.UUID) ([]employeeDomain.VoiceAssessment, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.draft == nil || tenant != tenantID || employee != fixtureEmployeeID {
+		return nil, employeeDomain.ErrNotFound
+	}
+	out := append([]employeeDomain.VoiceAssessment(nil), f.voiceAssessments...)
+	for i := range out {
+		out[i].Stale = out[i].VoiceVersion != f.voice[0].Version || out[i].DraftVersion != f.draft.Version
+	}
+	return out, nil
+}
+func (f *employeeFixture) AssessVoice(_ context.Context, c employeeAPI.VoiceAssessmentCommand) (employeeDomain.VoiceAssessment, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.draft == nil || c.TenantID != tenantID || c.EmployeeID != fixtureEmployeeID {
+		return employeeDomain.VoiceAssessment{}, employeeDomain.ErrNotFound
+	}
+	p, ok := f.voicePreviews[c.PreviewID]
+	if !ok {
+		return employeeDomain.VoiceAssessment{}, employeeDomain.ErrNotFound
+	}
+	if p.VoiceVersion != c.VoiceVersion || p.VoiceVersion != f.voice[0].Version || p.DraftVersion != f.draft.Version {
+		return employeeDomain.VoiceAssessment{}, employeeDomain.ErrConflict
+	}
+	if c.Verdict != "approved" && c.Verdict != "needs_revision" {
+		return employeeDomain.VoiceAssessment{}, employeeDomain.ErrInvalid
+	}
+	for _, a := range f.voiceAssessments {
+		if a.PreviewID == c.PreviewID {
+			return employeeDomain.VoiceAssessment{}, employeeDomain.ErrConflict
+		}
+	}
+	assessmentID, _ := id.NewV7(time.Now().UTC())
+	a := employeeDomain.VoiceAssessment{VoicePreviewRecord: p, AssessmentID: assessmentID, Verdict: c.Verdict, AssessedBy: c.Actor.ID, AssessedAt: time.Now().UTC()}
+	f.voiceAssessments = append([]employeeDomain.VoiceAssessment{a}, f.voiceAssessments...)
+	return a, nil
 }
 
 func (f *employeeFixture) ReadBehavior(_ context.Context, _ domain.Principal, tenant, employee id.UUID) ([]employeeDomain.BehaviorVersion, error) {
