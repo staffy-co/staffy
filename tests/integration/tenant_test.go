@@ -112,6 +112,27 @@ func TestMain(m *testing.M) {
 	if _, err = adminPool.Exec(ctx, strings.Split(string(behaviorMigration), "-- +goose Down")[0]); err != nil {
 		panic(err)
 	}
+	voiceMigration, err := os.ReadFile("../../migrations/employee/00006_voice.sql")
+	if err != nil {
+		panic(err)
+	}
+	if _, err = adminPool.Exec(ctx, strings.Split(string(voiceMigration), "-- +goose Down")[0]); err != nil {
+		panic(err)
+	}
+	voicePreviewMigration, err := os.ReadFile("../../migrations/employee/00007_voice_preview.sql")
+	if err != nil {
+		panic(err)
+	}
+	if _, err = adminPool.Exec(ctx, strings.Split(string(voicePreviewMigration), "-- +goose Down")[0]); err != nil {
+		panic(err)
+	}
+	voiceRetentionMigration, err := os.ReadFile("../../migrations/employee/00008_voice_retention.sql")
+	if err != nil {
+		panic(err)
+	}
+	if _, err = adminPool.Exec(ctx, strings.Split(string(voiceRetentionMigration), "-- +goose Down")[0]); err != nil {
+		panic(err)
+	}
 	if _, err = adminPool.Exec(ctx, "alter role staffy_app login password 'staffy-runtime-test'"); err != nil {
 		panic(err)
 	}

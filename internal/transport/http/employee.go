@@ -6,6 +6,7 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -33,6 +34,7 @@ func (s *Server) employeeProblem(w http.ResponseWriter, r *http.Request, err err
 	var fields map[string]string
 	var variantError domain.VariantError
 	var behaviorError domain.BehaviorRuleError
+	var voiceError domain.VoiceRuleError
 	if errors.As(err, &variantError) {
 		fields = variantError.Fields
 	}
@@ -43,6 +45,8 @@ func (s *Server) employeeProblem(w http.ResponseWriter, r *http.Request, err err
 		status, code, message = 400, "invalid_variants", "Проверьте варианты Domain Pack."
 	case errors.As(err, &behaviorError):
 		status, code, message = 400, "behavior_rule", behaviorError.Error()
+	case errors.As(err, &voiceError):
+		status, code, message = 400, "voice_rule", voiceError.Error()
 	case errors.Is(err, domain.ErrInvalid):
 		status, code, message = 400, "invalid_brief", "Проверьте поля Brief и версию."
 	case errors.Is(err, domain.ErrConflict):
@@ -212,6 +216,38 @@ func (s *Server) employeePage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data := map[string]any{"TenantID": tenant, "Employee": item, "Plan": domain.LaunchPlan(item), "Catalog": catalog, "Saved": r.URL.Query().Get("saved") == "1"}
+	if voice, ok := s.employee.(api.VoiceService); ok {
+		versions, voiceErr := voice.ReadVoice(r.Context(), actor, tenant, employeeID)
+		if voiceErr != nil {
+			s.employeeProblem(w, r, voiceErr)
+			return
+		}
+		profiles, voiceErr := voice.VoiceCatalog(r.Context(), actor, tenant)
+		if voiceErr != nil {
+			s.employeeProblem(w, r, voiceErr)
+			return
+		}
+		compatible := make([]domain.VoiceProfile, 0, len(profiles))
+		if slices.Contains(item.Brief.DesiredChannels, "phone") {
+			for _, profile := range profiles {
+				if slices.Contains(item.Brief.Languages, profile.Language) {
+					compatible = append(compatible, profile)
+				}
+			}
+		}
+		data["VoiceVersions"] = versions
+		data["VoiceCatalog"] = compatible
+		data["VoiceCurrent"] = domain.VoiceConfig{}
+		if len(versions) > 0 {
+			data["VoiceCurrent"] = versions[0].Config
+		}
+		assessments, voiceErr := voice.ReadVoiceAssessments(r.Context(), actor, tenant, employeeID)
+		if voiceErr != nil {
+			s.employeeProblem(w, r, voiceErr)
+			return
+		}
+		data["VoiceAssessments"] = assessments
+	}
 	if item.Pack != nil {
 		if behavior, ok := s.employee.(api.BehaviorService); ok {
 			versions, behaviorErr := behavior.ReadBehavior(r.Context(), actor, tenant, employeeID)

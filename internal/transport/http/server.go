@@ -113,12 +113,19 @@ func (s *Server) BindEmployee(service employeeAPI.Service) {
 	s.mux.HandleFunc("GET /v1/tenants/{tenant_id}/employees/{employee_id}/behavior", s.readBehaviorAPI)
 	s.mux.HandleFunc("PUT /v1/tenants/{tenant_id}/employees/{employee_id}/behavior", s.saveBehaviorAPI)
 	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/employees/{employee_id}/behavior/preview", s.previewBehaviorAPI)
+	s.mux.HandleFunc("GET /v1/tenants/{tenant_id}/voice-profiles", s.voiceCatalogAPI)
+	s.mux.HandleFunc("GET /v1/tenants/{tenant_id}/employees/{employee_id}/voice", s.readVoiceAPI)
+	s.mux.HandleFunc("PUT /v1/tenants/{tenant_id}/employees/{employee_id}/voice", s.saveVoiceAPI)
+	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/employees/{employee_id}/voice/preview", s.previewVoiceAPI)
+	s.mux.HandleFunc("GET /v1/tenants/{tenant_id}/employees/{employee_id}/voice/assessments", s.readVoiceAssessmentsAPI)
+	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/employees/{employee_id}/voice/assessments", s.assessVoiceAPI)
 	s.mux.HandleFunc("GET /app/tenants/{tenant_id}/employees", s.employeesPage)
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/employees", s.createEmployeeForm)
 	s.mux.HandleFunc("GET /app/tenants/{tenant_id}/employees/{employee_id}", s.employeePage)
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/employees/{employee_id}/brief", s.saveBriefForm)
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/employees/{employee_id}/domain-pack", s.pinPackForm)
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/employees/{employee_id}/behavior", s.saveBehaviorForm)
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/employees/{employee_id}/voice", s.saveVoiceForm)
 }
 
 func (s *Server) setup(w http.ResponseWriter, r *http.Request) {

@@ -6,6 +6,132 @@ info:
     Application contract behind a trusted PrincipalResolver. The external login/session
     transport is intentionally deployment-neutral and is not defined by Story 1.1.
 paths:
+  /v1/tenants/{tenant_id}/voice-profiles:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+    get:
+      operationId: listVoiceProfiles
+      summary: Каталог допустимых голосов и точный статус synthetic preview
+      x-staffy-principal-required: true
+      responses:
+        '200':
+          description: Tenant-scoped каталог
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  profiles: { type: array, items: { $ref: '#/components/schemas/VoiceProfile' } }
+        '404': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/employees/{employee_id}/voice:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/EmployeeID'
+    get:
+      operationId: readVoiceVersions
+      summary: Неизменяемая история голоса и словаря
+      x-staffy-principal-required: true
+      responses:
+        '200':
+          description: Версии настройки
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  versions: { type: array, items: { $ref: '#/components/schemas/VoiceVersion' } }
+        '404': { $ref: '#/components/responses/Problem' }
+    put:
+      operationId: saveVoiceVersion
+      summary: Сохранить новую версию голоса с CAS
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VoiceCommand' }
+      responses:
+        '200':
+          description: Новая версия
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VoiceVersion' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/employees/{employee_id}/voice/preview:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/EmployeeID'
+    post:
+      operationId: previewVoice
+      summary: Только разрешённый синтетический маршрут; ошибка capability не выдаёт аудио
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [voice_version, text, synthetic_data_confirmed]
+              properties:
+                voice_version: { type: integer, minimum: 1 }
+                text: { type: string, minLength: 1, maxLength: 300 }
+                slow: { type: boolean }
+                synthetic_data_confirmed: { type: boolean, const: true, description: Explicit confirmation that this preview uses fictional test data; no automatic PII detection is performed. }
+      responses:
+        '200':
+          description: Синтетическое аудио с точным текстом и версиями
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VoicePreview' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+        '503': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/employees/{employee_id}/voice/assessments:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/EmployeeID'
+    get:
+      operationId: readVoiceAssessments
+      summary: Оценки точных synthetic preview со статусом stale
+      x-staffy-principal-required: true
+      responses:
+        '200':
+          description: Tenant-scoped оценки
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  assessments: { type: array, items: { $ref: '#/components/schemas/VoiceAssessment' } }
+        '404': { $ref: '#/components/responses/Problem' }
+    post:
+      operationId: assessVoicePreview
+      summary: Оценить конкретный успешный preview текущей версии
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [preview_id, voice_version, verdict]
+              properties:
+                preview_id: { type: string, format: uuid }
+                voice_version: { type: integer, minimum: 1 }
+                verdict: { type: string, enum: [approved, needs_revision] }
+      responses:
+        '200':
+          description: Неизменяемая оценка; телефонное качество всё ещё требует человека
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VoiceAssessment' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
   /v1/tenants/{tenant_id}/employees/{employee_id}/behavior:
     parameters:
       - $ref: '#/components/parameters/TenantID'
@@ -567,6 +693,109 @@ components:
       required: true
       schema: { type: string, format: uuid }
   schemas:
+    VoiceProfile:
+      type: object
+      required: [id, language, styles, min_tempo, max_tempo, preview_status, restrictions]
+      properties:
+        id: { type: string }
+        language: { type: string }
+        styles: { type: array, items: { type: string } }
+        min_tempo: { type: integer }
+        max_tempo: { type: integer }
+        preview_status: { type: string, enum: [available, unavailable] }
+        restrictions: { type: array, items: { type: string } }
+    Pronunciation:
+      type: object
+      additionalProperties: false
+      required: [written, language, scope, normalized, test_phrase, support_status, critical_kind, synthetic_data_confirmed]
+      properties:
+        written: { type: string, maxLength: 120 }
+        language: { type: string }
+        scope: { type: string }
+        normalized: { type: string, maxLength: 240 }
+        test_phrase: { type: string, maxLength: 300 }
+        support_status: { type: string, enum: [unverified, unsupported] }
+        critical_kind: { type: string, enum: [none, vin, oem, article, phone, address, date, amount, pack] }
+        synthetic_data_confirmed: { type: boolean, const: true, description: Explicit confirmation that this entry uses fictional test data; no automatic PII detection is performed. }
+        readback: { $ref: '#/components/schemas/ReadbackPlan' }
+        phone_quality_approved: { type: boolean, const: false }
+    ReadbackPlan:
+      type: object
+      additionalProperties: false
+      required: [segments, confirmation, on_mismatch, phone_quality_gate]
+      properties:
+        segments: { type: array, minItems: 2, maxItems: 60, items: { type: string, minLength: 1, maxLength: 32 } }
+        confirmation: { type: string, const: ask_customer }
+        on_mismatch: { type: string, const: human_handoff }
+        phone_quality_gate: { type: string, const: pending_human }
+    VoiceConfig:
+      type: object
+      additionalProperties: false
+      required: [profile_id, language, style, tempo, dictionary]
+      properties:
+        profile_id: { type: string }
+        language: { type: string }
+        style: { type: string }
+        tempo: { type: integer }
+        dictionary: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/Pronunciation' } }
+    VoiceCommand:
+      type: object
+      additionalProperties: false
+      required: [version, config, change_summary]
+      properties:
+        version: { type: integer, minimum: 1 }
+        config: { $ref: '#/components/schemas/VoiceConfig' }
+        change_summary: { type: string, minLength: 1, maxLength: 300 }
+    VoiceVersion:
+      type: object
+      required: [tenant_id, employee_id, version, draft_version, config, actor_id, changed_at, change_summary]
+      properties:
+        tenant_id: { type: string, format: uuid }
+        employee_id: { type: string, format: uuid }
+        version: { type: integer }
+        draft_version: { type: integer }
+        config: { $ref: '#/components/schemas/VoiceConfig' }
+        actor_id: { type: string, format: uuid }
+        changed_at: { type: string, format: date-time }
+        change_summary: { type: string }
+    VoicePreview:
+      type: object
+      required: [text, synthesis_text, voice_version, dictionary_version, draft_version, route, capability, phone_quality_approved, stale]
+      properties:
+        text: { type: string }
+        synthesis_text: { type: string }
+        preview_id: { type: string, format: uuid }
+        voice_version: { type: integer }
+        dictionary_version: { type: integer }
+        draft_version: { type: integer }
+        route: { type: string, const: offline-test-tts }
+        capability: { type: string }
+        audio: { type: string, format: byte }
+        audio_type: { type: string }
+        phone_quality_approved: { type: boolean, const: false }
+        stale: { type: boolean }
+    VoiceAssessment:
+      type: object
+      required: [tenant_id, employee_id, preview_id, voice_version, dictionary_version, draft_version, text, synthesis_text, route, actor_id, created_at, assessment_id, verdict, assessed_by, assessed_at, stale, phone_quality_approved]
+      properties:
+        tenant_id: { type: string, format: uuid }
+        employee_id: { type: string, format: uuid }
+        preview_id: { type: string, format: uuid }
+        voice_version: { type: integer }
+        dictionary_version: { type: integer }
+        draft_version: { type: integer }
+        text: { type: string }
+        synthesis_text: { type: string }
+        route: { type: string, const: offline-test-tts }
+        slow: { type: boolean }
+        actor_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        assessment_id: { type: string, format: uuid }
+        verdict: { type: string, enum: [approved, needs_revision] }
+        assessed_by: { type: string, format: uuid }
+        assessed_at: { type: string, format: date-time }
+        stale: { type: boolean }
+        phone_quality_approved: { type: boolean, const: false }
     BehaviorCommand:
       type: object
       additionalProperties: false

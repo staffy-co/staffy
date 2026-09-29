@@ -8,6 +8,7 @@ export default defineConfig({
   reporter: 'line',
   use: {
     baseURL: 'http://127.0.0.1:18081',
+    launchOptions: process.env.STAFFY_TEST_CHROMIUM_BIN ? { executablePath: process.env.STAFFY_TEST_CHROMIUM_BIN } : {},
     trace: 'retain-on-failure'
   },
   webServer: {
