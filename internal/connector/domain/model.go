@@ -15,6 +15,10 @@ const (
         StatusRevoked             = "revoked"
 )
 
+// MaxRevokeReasonRunes bounds the human reason so the stored version summary
+// ("revoked: " + reason) always satisfies the 300-character history limit.
+const MaxRevokeReasonRunes = 290
+
 // Separate check states for basic authentication and transport availability.
 const (
         CheckPending = "pending"

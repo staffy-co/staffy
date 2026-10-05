@@ -49,7 +49,7 @@ func New(identity api.Service, resolver port.PrincipalResolver, ids IDGenerator,
                 "hasScope":  func(scopes []domain.Scope, scope string) bool { return slices.Contains(scopes, domain.Scope(scope)) },
                 "joinLines": func(values []string) string { return strings.Join(values, "\n") },
                 "contains":  func(values []string, value string) bool { return slices.Contains(values, value) },
-                "statusNote": func(status, auth, transport string) string { return connectionStatusText(status, auth, transport) },
+                "statusNote": func(status, auth, transport, environment string) string { return connectionStatusText(status, auth, transport, environment) },
                 "stepStatus": func(status string) string {
                         return map[string]string{"complete": "Готово", "incomplete": "Не завершено", "blocked": "Заблокировано", "requires review": "Требует проверки"}[status]
                 },

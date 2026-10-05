@@ -5,6 +5,7 @@ package integration_test
 import (
         "context"
         "errors"
+        "strings"
         "testing"
         "time"
 
@@ -88,10 +89,34 @@ func TestConnectionLifecycleCatalogRLSIdempotencyAndSecretSealing(t *testing.T) 
                 t.Fatalf("second account=%+v err=%v", second.Connection, err)
         }
 
+        // A max-length revoke reason still fits the stored history limit
+        // ("revoked: " + 290 = 299 characters, CHECK allows 300).
+        longRevoked, err := svc.Revoke(ctx, connectorAPI.RevokeCommand{Actor: owner, TenantID: tenant, ConnectionID: second.Connection.ConnectionID, CorrelationID: corr, ExpectedVersion: second.Connection.Version, Reason: strings.Repeat("я", 290)})
+        if err != nil || longRevoked.Status != connectorDomain.StatusRevoked {
+                t.Fatalf("long reason revoke=%+v err=%v", longRevoked, err)
+        }
+
         // Failed basic check is recorded honestly.
         failed, err := svc.Connect(ctx, connectorAPI.ConnectCommand{Actor: owner, TenantID: tenant, ConnectionID: connectionID, CorrelationID: corr, ExpectedVersion: created.Connection.Version, Secrets: map[string]string{"api_key": "real-secret-bad-format"}})
         if err != nil || failed.Status != connectorDomain.StatusFailed || failed.AuthState != connectorDomain.CheckFailed || failed.Transport != connectorDomain.CheckVerified {
                 t.Fatalf("failed connect=%+v err=%v", failed, err)
+        }
+
+        // A failed check writes no orphan secret reference and keeps the
+        // redacted explanation in the immutable history.
+        var hasSecretKey bool
+        if err = adminPool.QueryRow(ctx, "select payload ? 'secret_id' from connector.outbox_events where tenant_id=$1 and connection_id=$2 and aggregate_version=$3", tenant, connectionID, failed.Version).Scan(&hasSecretKey); err != nil {
+                t.Fatal(err)
+        }
+        if hasSecretKey {
+                t.Fatal("failed check must not advertise a secret it never sealed")
+        }
+        var summary string
+        if err = adminPool.QueryRow(ctx, "select change_summary from connector.connection_versions where tenant_id=$1 and connection_id=$2 and version=$3", tenant, connectionID, failed.Version).Scan(&summary); err != nil {
+                t.Fatal(err)
+        }
+        if !strings.Contains(summary, "Синтетическая проверка аутентификации не прошла") {
+                t.Fatalf("history must keep the redacted explanation: %s", summary)
         }
 
         // Successful check stays connected/unverified — capabilities are not claimed.
@@ -123,8 +148,29 @@ func TestConnectionLifecycleCatalogRLSIdempotencyAndSecretSealing(t *testing.T) 
                 t.Fatalf("save=%+v err=%v", saved, err)
         }
 
+        // Failed rotation leaves no active secret over the revoked seal, and a
+        // plain connect retry stays honest and allowed.
+        failedRotate, err := svc.Rotate(ctx, connectorAPI.ConnectCommand{Actor: owner, TenantID: tenant, ConnectionID: connectionID, CorrelationID: corr, ExpectedVersion: saved.Version, Secrets: map[string]string{"api_key": "not-sandbox-rotation"}})
+        if err != nil || failedRotate.Status != connectorDomain.StatusFailed {
+                t.Fatalf("failed rotate=%+v err=%v", failedRotate, err)
+        }
+        if failedRotate.SecretActive {
+                t.Fatal("failed rotation must not keep a secret active over a revoked seal")
+        }
+        var storedActive bool
+        if err = adminPool.QueryRow(ctx, "select secret_active from connector.connections where tenant_id=$1 and connection_id=$2", tenant, connectionID).Scan(&storedActive); err != nil {
+                t.Fatal(err)
+        }
+        if storedActive {
+                t.Fatal("stored secret_active must be false after failed rotation")
+        }
+        retried, err := svc.Connect(ctx, connectorAPI.ConnectCommand{Actor: owner, TenantID: tenant, ConnectionID: connectionID, CorrelationID: corr, ExpectedVersion: failedRotate.Version, Secrets: map[string]string{"api_key": "sandbox-retry-key"}})
+        if err != nil || retried.Status != connectorDomain.StatusConnectedUnverified || !retried.SecretActive {
+                t.Fatalf("connect retry=%+v err=%v", retried, err)
+        }
+
         // Rotation revokes the previous seal and re-checks honestly.
-        rotated, err := svc.Rotate(ctx, connectorAPI.ConnectCommand{Actor: owner, TenantID: tenant, ConnectionID: connectionID, CorrelationID: corr, ExpectedVersion: saved.Version, Secrets: map[string]string{"api_key": "sandbox-rotated-key"}})
+        rotated, err := svc.Rotate(ctx, connectorAPI.ConnectCommand{Actor: owner, TenantID: tenant, ConnectionID: connectionID, CorrelationID: corr, ExpectedVersion: retried.Version, Secrets: map[string]string{"api_key": "sandbox-rotated-key"}})
         if err != nil || rotated.Status != connectorDomain.StatusConnectedUnverified {
                 t.Fatalf("rotate=%+v err=%v", rotated, err)
         }
@@ -155,14 +201,14 @@ func TestConnectionLifecycleCatalogRLSIdempotencyAndSecretSealing(t *testing.T) 
         if err = adminPool.QueryRow(ctx, "select count(*) filter (where revoked_at is null), count(*) filter (where revoked_at is not null) from connector.secret_seals where tenant_id=$1 and connection_id=$2", tenant, connectionID).Scan(&active, &revokedSeals); err != nil {
                 t.Fatal(err)
         }
-        if active != 0 || revokedSeals != 2 {
-                t.Fatalf("active=%d revoked=%d (want 0/2: only verified secrets are sealed)", active, revokedSeals)
+        if active != 0 || revokedSeals != 3 {
+                t.Fatalf("active=%d revoked=%d (want 0/3: only verified secrets are sealed)", active, revokedSeals)
         }
 
         // Audit and outbox never contain secret material: audit has no payload
         // column at all, and outbox payloads only carry opaque references.
         var leak int
-        if err = adminPool.QueryRow(ctx, `select count(*) from connector.outbox_events where tenant_id=$1 and (payload::text like '%sandbox-integration-key%' or payload::text like '%sandbox-rotated-key%' or payload::text like '%real-secret-bad%')`, tenant).Scan(&leak); err != nil {
+        if err = adminPool.QueryRow(ctx, `select count(*) from connector.outbox_events where tenant_id=$1 and (payload::text like '%sandbox-integration-key%' or payload::text like '%sandbox-rotated-key%' or payload::text like '%sandbox-retry-key%' or payload::text like '%not-sandbox-rotation%' or payload::text like '%real-secret-bad%')`, tenant).Scan(&leak); err != nil {
                 t.Fatal(err)
         }
         if leak != 0 {

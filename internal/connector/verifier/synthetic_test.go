@@ -102,3 +102,22 @@ func TestReasonsNeverEchoSecretValues(t *testing.T) {
                 t.Fatalf("reason must never echo the secret value: %s", combined)
         }
 }
+
+func TestSyntheticCheckEndpointSuffixRequiresSeparatorDot(t *testing.T) {
+        v := Synthetic{}
+        def := syntheticDefinition()
+        secret := map[string]string{"api_key": "sandbox-demo-123"}
+        // Lookalike hosts that merely END with the suffix (no separating dot)
+        // must not verify: the published rule is https://<имя>.sandbox.example.
+        for _, host := range []string{"notsandbox.example", "mysandbox.example", "sandbox.example", "sandbox.example.com"} {
+                result := v.BasicCheck(context.Background(), def, connectorDomain.EnvSandbox, map[string]string{"endpoint": "https://" + host}, secret)
+                if result.Transport != connectorDomain.CheckFailed {
+                        t.Fatalf("host %q must not verify transport, got %s", host, result.Transport)
+                }
+        }
+        // The documented shape with the separating dot still verifies.
+        result := v.BasicCheck(context.Background(), def, connectorDomain.EnvSandbox, map[string]string{"endpoint": "https://demo.sandbox.example"}, secret)
+        if result.Transport != connectorDomain.CheckVerified {
+                t.Fatalf("demo.sandbox.example must verify transport, got %s", result.Transport)
+        }
+}
