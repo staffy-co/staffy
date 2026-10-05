@@ -149,20 +149,26 @@ func TestConnectorRequestsRejectUnknownFields(t *testing.T) {
 		t.Fatal(err)
 	}
 	var document map[string]any
-	if err := yaml.Unmarshal(content, &document); err != nil {
+	if err = yaml.Unmarshal(content, &document); err != nil {
 		t.Fatal(err)
 	}
-	paths := mapping(t, document, "paths")
-	create := mapping(t, mapping(t, paths, "/v1/tenants/{tenant_id}/connections"), "post")
-	body := mapping(t, create, "requestBody")
-	schema := mapping(t, mapping(t, mapping(t, body, "content"), "application/json"), "schema")
-	if additional, _ := schema["additionalProperties"].(bool); additional {
-		t.Fatal("connection create must reject unknown fields")
+	// Every connector request body must explicitly forbid unknown fields.
+	// Assert the value equals false so deleting the line (a realistic
+	// regression) fails the test instead of silently passing.
+	requests := map[string]string{
+		"/v1/tenants/{tenant_id}/connections":                         "post",
+		"/v1/tenants/{tenant_id}/connections/{connection_id}":         "put",
+		"/v1/tenants/{tenant_id}/connections/{connection_id}/connect": "post",
+		"/v1/tenants/{tenant_id}/connections/{connection_id}/rotate":  "post",
+		"/v1/tenants/{tenant_id}/connections/{connection_id}/revoke":  "post",
 	}
-	connect := mapping(t, mapping(t, paths, "/v1/tenants/{tenant_id}/connections/{connection_id}/connect"), "post")
-	connectBody := mapping(t, connect, "requestBody")
-	connectSchema := mapping(t, mapping(t, mapping(t, connectBody, "content"), "application/json"), "schema")
-	if additional, _ := connectSchema["additionalProperties"].(bool); additional {
-		t.Fatal("connect must reject unknown fields")
+	paths := mapping(t, document, "paths")
+	for path, method := range requests {
+		operation := mapping(t, mapping(t, paths, path), method)
+		body := mapping(t, operation, "requestBody")
+		schema := mapping(t, mapping(t, mapping(t, body, "content"), "application/json"), "schema")
+		if additional, ok := schema["additionalProperties"].(bool); !ok || additional {
+			t.Fatalf("%s %s must set additionalProperties: false, got %v", method, path, schema["additionalProperties"])
+		}
 	}
 }

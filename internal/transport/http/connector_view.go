@@ -144,19 +144,39 @@ func environmentsText(envs []connectorDomain.Environment) []string {
 }
 
 // connectionStatusText renders the honest machine status as readable text with
-// an explanation so states never read as success when they are not.
-func connectionStatusText(status, auth, transport string) string {
+// an explanation so states never read as success when they are not. A failed
+// check carries the concrete safe next step (published sandbox formats), not a
+// generic apology.
+func connectionStatusText(status, auth, transport, environment string) string {
         switch status {
         case connectorDomain.StatusDraft:
                 return "Черновик: секрет ещё не проверялся"
         case connectorDomain.StatusConnectedUnverified:
                 return "Подключено, но возможности не проверены (connected/unverified): успешная проверка аутентификации и транспорта не подтверждает отправку, приём и бизнес-операции"
         case connectorDomain.StatusFailed:
-                return "Проверка не прошла: " + checkText(auth, "аутентификация") + ", " + checkText(transport, "транспорт")
+                return "Проверка не прошла: " + failedCheckText(auth, transport, environment)
         case connectorDomain.StatusRevoked:
                 return "Отозвано"
         }
         return status
+}
+
+// failedCheckText explains each failed part with the published synthetic rule
+// so the user sees the next step without echoing any submitted value.
+func failedCheckText(auth, transport, environment string) string {
+        suffix := "sandbox.example"
+        if environment == string(connectorDomain.EnvTest) {
+                suffix = "test.example"
+        }
+        authPart := checkText(auth, "аутентификация")
+        if auth == connectorDomain.CheckFailed {
+                authPart = "аутентификация не пройдена — используйте тестовый ключ формата sandbox-<8-64 символа>"
+        }
+        transportPart := checkText(transport, "транспорт")
+        if transport == connectorDomain.CheckFailed {
+                transportPart = "транспорт не пройден — endpoint должен быть вида https://<имя>." + suffix
+        }
+        return authPart + ", " + transportPart
 }
 
 func checkText(state, label string) string {

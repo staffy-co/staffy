@@ -235,7 +235,7 @@ paths:
               required: [version, reason]
               properties:
                 version: { type: integer, minimum: 1 }
-                reason: { type: string, minLength: 1, maxLength: 300 }
+                reason: { type: string, minLength: 1, maxLength: 290, description: Ограничено так, чтобы хранимая сводка «revoked: <причина>» укладывалась в лимит истории 300 символов }
       responses:
         '200':
           description: Отозванное подключение

@@ -57,7 +57,10 @@ func (s *Service) Create(ctx context.Context, c api.CreateCommand) (api.CreateRe
                 return api.CreateResult{}, err
         }
         key := strings.TrimSpace(c.IdempotencyKey)
-        if len(key) < 8 || len(key) > 200 || !c.CorrelationID.Valid() {
+        // Count runes, not bytes: the storage CHECK uses char_length, so a
+        // multibyte key measured in bytes could otherwise pass here and fail
+        // in SQL with a 500.
+        if runes := len([]rune(key)); runes < 8 || runes > 200 || !c.CorrelationID.Valid() {
                 return api.CreateResult{}, connectorDomain.ErrInvalidIdempotency
         }
         label := strings.TrimSpace(c.Label)
@@ -149,6 +152,9 @@ func (s *Service) Save(ctx context.Context, c api.SaveCommand) (connectorDomain.
         if current.Status == connectorDomain.StatusRevoked {
                 return connectorDomain.Connection{}, connectorDomain.RuleError{Rule: "status", Reason: "Отозванное подключение нельзя изменить; создайте новое."}
         }
+        if !connectorDomain.ValidTransition(current.Status, connectorDomain.StatusDraft) {
+                return connectorDomain.Connection{}, connectorDomain.RuleError{Rule: "status", Reason: "Состояние подключения не допускает сохранение; обновите страницу."}
+        }
         def, ok := catalog.Get(current.ConnectorID, current.ConnectorVer)
         if !ok {
                 return connectorDomain.Connection{}, connectorDomain.ErrInvalid
@@ -208,6 +214,13 @@ func (s *Service) connect(ctx context.Context, c api.ConnectCommand, rotate bool
         // Basic check runs on the submitted values in memory; the plaintext secret
         // is never persisted, logged, or echoed back.
         check := s.verifier.BasicCheck(ctx, def, current.Environment, current.Config, c.Secrets)
+        nextStatus := connectorDomain.StatusFailed
+        if check.Authentication == connectorDomain.CheckVerified && check.Transport == connectorDomain.CheckVerified {
+                nextStatus = connectorDomain.StatusConnectedUnverified
+        }
+        if !connectorDomain.ValidTransition(current.Status, nextStatus) {
+                return connectorDomain.Connection{}, connectorDomain.RuleError{Rule: "status", Reason: "Состояние подключения не допускает проверку; обновите страницу."}
+        }
         now := s.clock.Now().UTC()
         // A secret is sealed only when authentication actually verified: invalid
         // credentials are not stored, so the user can retry connect honestly.
@@ -248,8 +261,10 @@ func (s *Service) Revoke(ctx context.Context, c api.RevokeCommand) (connectorDom
                 return connectorDomain.Connection{}, connectorDomain.ErrInvalid
         }
         reason := strings.TrimSpace(c.Reason)
-        if reason == "" || len([]rune(reason)) > 300 {
-                return connectorDomain.Connection{}, connectorDomain.RuleError{Rule: "reason", Reason: "Укажите причину отзыва (до 300 символов)."}
+        // The stored summary is "revoked: " + reason; the rune bound keeps the
+        // combined value inside the 300-character history CHECK.
+        if reason == "" || len([]rune(reason)) > connectorDomain.MaxRevokeReasonRunes {
+                return connectorDomain.Connection{}, connectorDomain.RuleError{Rule: "reason", Reason: "Укажите причину отзыва (до 290 символов)."}
         }
         current, err := s.repository.Read(ctx, scope, c.ConnectionID)
         if err != nil {
@@ -257,6 +272,9 @@ func (s *Service) Revoke(ctx context.Context, c api.RevokeCommand) (connectorDom
         }
         if current.Status == connectorDomain.StatusRevoked {
                 return connectorDomain.Connection{}, connectorDomain.RuleError{Rule: "status", Reason: "Подключение уже отозвано."}
+        }
+        if !connectorDomain.ValidTransition(current.Status, connectorDomain.StatusRevoked) {
+                return connectorDomain.Connection{}, connectorDomain.RuleError{Rule: "status", Reason: "Состояние подключения не допускает отзыв; обновите страницу."}
         }
         now := s.clock.Now().UTC()
         eventID, err := s.ids.New(now)

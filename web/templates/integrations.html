@@ -48,7 +48,7 @@
 <span>Статус: <strong class="connection-status">{{.Status}}</strong></span>
 <span>Аутентификация: {{.AuthState}}</span>
 <span>Транспорт: {{.Transport}}</span>
-<span>{{statusNote .Status .AuthState .Transport}}</span>
+<span>{{statusNote .Status .AuthState .Transport .Environment}}</span>
 {{if .SecretHint}}<span>Секрет: принят, отпечаток {{.SecretHint}} — значение недоступно{{if not .SecretActive}} (отозван){{end}}</span>{{end}}
 <span>Версия: {{.Version}}</span>
 {{if ne .Status "revoked"}}
@@ -96,7 +96,7 @@
 <details><summary>Отозвать подключение</summary>
 <form method="post" action="/app/tenants/{{$.TenantID}}/connections/{{.ConnectionID}}/revoke">
 <input type="hidden" name="version" value="{{.Version}}">
-<label for="reason-{{.ConnectionID}}">Причина отзыва</label><input id="reason-{{.ConnectionID}}" name="reason" type="text" required maxlength="300">
+<label for="reason-{{.ConnectionID}}">Причина отзыва</label><input id="reason-{{.ConnectionID}}" name="reason" type="text" required maxlength="290">
 <label><input type="checkbox" name="confirm_revoke" value="yes" required> Подтверждаю отзыв этого подключения</label>
 <button class="primary" type="submit">Отозвать</button>
 </form></details>

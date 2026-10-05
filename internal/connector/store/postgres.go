@@ -5,6 +5,7 @@ import (
         "encoding/json"
         "errors"
         "fmt"
+        "strings"
 
         connectorDomain "github.com/artemiosu/staffy/internal/connector/domain"
         "github.com/artemiosu/staffy/internal/connector/port"
@@ -294,6 +295,9 @@ func (s *Postgres) Connect(ctx context.Context, p port.ConnectParams) (connector
         if p.Check.Authentication == connectorDomain.CheckVerified && p.Check.Transport == connectorDomain.CheckVerified {
                 nextStatus = connectorDomain.StatusConnectedUnverified
         }
+        if !connectorDomain.ValidTransition(current.Status, nextStatus) {
+                return connectorDomain.Connection{}, connectorDomain.ErrConflict
+        }
         secretID := current.SecretID
         hint := current.SecretHint
         secretActive := current.SecretActive
@@ -304,6 +308,11 @@ func (s *Postgres) Connect(ctx context.Context, p port.ConnectParams) (connector
                 secretID = p.SecretID
                 hint = p.Hint
                 secretActive = true
+        } else if p.Rotate {
+                // The previous seal was revoked above and no new secret was
+                // accepted (invalid credentials are never stored): no secret
+                // stays active, and a plain connect retry stays honest.
+                secretActive = false
         }
         var secretIDArg any
         if secretID != "" {
@@ -314,11 +323,11 @@ func (s *Postgres) Connect(ctx context.Context, p port.ConnectParams) (connector
         }
         outcome := "checked"
         eventType := "connector.connection_checked"
-        summary := "basic check: authentication=" + p.Check.Authentication + ", transport=" + p.Check.Transport
+        summary := checkSummary("", p.Check)
         if p.Rotate {
                 outcome = "rotated"
                 eventType = "connector.connection_rotated"
-                summary = "secret rotated; basic check: authentication=" + p.Check.Authentication + ", transport=" + p.Check.Transport
+                summary = checkSummary("secret rotated; ", p.Check)
         }
         if _, err = tx.Exec(ctx, "insert into connector.connection_versions(tenant_id,connection_id,version,connector_id,connector_version,label,environment,status,authentication_state,transport_state,config,secret_id,secret_hint,secret_active,actor_id,change_summary,changed_at) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)", p.Scope.TenantID(), p.ConnectionID, version, current.ConnectorID, current.ConnectorVer, current.Label, current.Environment, nextStatus, p.Check.Authentication, p.Check.Transport, mustJSON(current.Config), uuidArg(secretID), hint, secretActive, p.Scope.PrincipalID(), summary, p.Now); err != nil {
                 return connectorDomain.Connection{}, err
@@ -326,7 +335,14 @@ func (s *Postgres) Connect(ctx context.Context, p port.ConnectParams) (connector
         if _, err = tx.Exec(ctx, "insert into connector.audit(tenant_id,audit_id,connection_id,actor_id,attempted_version,resulting_version,outcome,correlation_id,occurred_at) values($1,$2,$3,$4,$5,$6,$7,$8,$9)", p.Scope.TenantID(), p.AuditID, p.ConnectionID, p.Scope.PrincipalID(), p.ExpectedVersion, version, outcome, p.CorrelationID, p.Now); err != nil {
                 return connectorDomain.Connection{}, err
         }
-        payload, _ := json.Marshal(map[string]any{"connection_id": p.ConnectionID, "version": version, "secret_id": p.SecretID, "secret_hint": p.Hint, "authentication_state": p.Check.Authentication, "transport_state": p.Check.Transport, "status": nextStatus})
+        payloadFields := map[string]any{"connection_id": p.ConnectionID, "version": version, "authentication_state": p.Check.Authentication, "transport_state": p.Check.Transport, "status": nextStatus}
+        // Reference a secret only when a seal row actually exists: a failed
+        // check must not advertise an orphan id that nothing backs.
+        if secretID != "" {
+                payloadFields["secret_id"] = secretID
+                payloadFields["secret_hint"] = hint
+        }
+        payload, _ := json.Marshal(payloadFields)
         if _, err = tx.Exec(ctx, "insert into connector.outbox_events(tenant_id,event_id,connection_id,event_type,schema_version,aggregate_version,actor_id,correlation_id,occurred_at,payload) values($1,$2,$3,$4,1,$5,$6,$7,$8,$9)", p.Scope.TenantID(), p.EventID, p.ConnectionID, eventType, version, p.Scope.PrincipalID(), p.CorrelationID, p.Now, payload); err != nil {
                 return connectorDomain.Connection{}, err
         }
@@ -384,10 +400,37 @@ func (s *Postgres) Revoke(ctx context.Context, p port.RevokeParams) (connectorDo
 
 // uuidArg converts an optional UUID into a nullable SQL argument.
 func uuidArg(value id.UUID) any {
-	if value == "" {
-		return nil
-	}
-	return value
+        if value == "" {
+                return nil
+        }
+        return value
+}
+
+// checkSummary renders the redacted basic-check outcome for the immutable
+// version history. The verifier reasons are fixed redacted strings, never the
+// submitted values; the combined text is capped for the 300-char CHECK.
+func checkSummary(prefix string, check connectorDomain.CheckResult) string {
+        var b strings.Builder
+        b.WriteString(prefix)
+        b.WriteString("basic check: authentication=")
+        b.WriteString(check.Authentication)
+        if check.Authentication == connectorDomain.CheckFailed && check.AuthReason != "" {
+                b.WriteString(" (")
+                b.WriteString(check.AuthReason)
+                b.WriteString(")")
+        }
+        b.WriteString(", transport=")
+        b.WriteString(check.Transport)
+        if check.Transport == connectorDomain.CheckFailed && check.TransportReason != "" {
+                b.WriteString(" (")
+                b.WriteString(check.TransportReason)
+                b.WriteString(")")
+        }
+        summary := b.String()
+        if runes := []rune(summary); len(runes) > 300 {
+                return string(runes[:300])
+        }
+        return summary
 }
 
 func mustJSON(m map[string]string) []byte {

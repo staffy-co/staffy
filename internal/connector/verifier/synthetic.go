@@ -74,8 +74,10 @@ func transportOK(endpoint string, env connectorDomain.Environment) bool {
         }
         host := u.Hostname()
         suffix := envSuffix(env)
-        if len(host) < len(suffix)+1 {
+        // The published rule is "<name>.<suffix>": the suffix must be preceded by
+        // a separating dot, so lookalike hosts ("notsandbox.example") never pass.
+        if len(host) < len(suffix)+2 {
                 return false
         }
-        return host[len(host)-len(suffix):] == suffix && host != suffix
+        return host[len(host)-len(suffix):] == suffix && host[len(host)-len(suffix)-1] == '.'
 }

@@ -389,18 +389,48 @@ func (s *Server) integrationsPage(w http.ResponseWriter, r *http.Request) {
         if v := r.URL.Query().Get("connected"); v == "1" {
                 data["Notice"] = "Синтетическая проверка выполнена. Статус подключения обновлён."
         }
-        if v := r.URL.Query().Get("error"); v != "" {
-                data["Error"] = sanitizeQueryMessage(v)
+        if v := r.URL.Query().Get("check_failed"); v == "1" {
+                data["Notice"] = "Синтетическая проверка не прошла. Статус подключения обновлён; безопасное объяснение и следующий шаг — в карточке подключения."
+        }
+        // Error flash rides a short-lived HttpOnly cookie, never the URL: an
+        // attacker-chosen ?error=… can no longer render as a system alert.
+        if message := flashError(r, tenant); message != "" {
+                data["Error"] = message
+                http.SetCookie(w, clearFlashCookie(tenant))
         }
         s.render(w, "integrations", data)
 }
 
-func sanitizeQueryMessage(v string) string {
-        v = strings.TrimSpace(v)
-        if len([]rune(v)) > 200 {
+// flashCookieName identifies the one-shot connector error flash.
+const flashCookieName = "staffy_flash_error"
+
+func flashCookiePath(tenant id.UUID) string { return "/app/tenants/" + tenant.String() + "/integrations" }
+
+func setFlashError(w http.ResponseWriter, tenant id.UUID, message string) {
+        http.SetCookie(w, &http.Cookie{
+                Name: flashCookieName, Value: url.QueryEscape(message), Path: flashCookiePath(tenant),
+                MaxAge: 300, HttpOnly: true, SameSite: http.SameSiteLaxMode,
+        })
+}
+
+func clearFlashCookie(tenant id.UUID) *http.Cookie {
+        return &http.Cookie{Name: flashCookieName, Value: "", Path: flashCookiePath(tenant), MaxAge: -1, HttpOnly: true, SameSite: http.SameSiteLaxMode}
+}
+
+func flashError(r *http.Request, tenant id.UUID) string {
+        cookie, err := r.Cookie(flashCookieName)
+        if err != nil || cookie.Value == "" {
+                return ""
+        }
+        message, err := url.QueryUnescape(cookie.Value)
+        if err != nil {
+                return ""
+        }
+        message = strings.TrimSpace(message)
+        if len([]rune(message)) > 200 {
                 return "Действие не выполнено."
         }
-        return v
+        return message
 }
 
 func (s *Server) createConnectionForm(w http.ResponseWriter, r *http.Request) {
@@ -434,7 +464,10 @@ func (s *Server) createConnectionForm(w http.ResponseWriter, r *http.Request) {
                 redirectWithError(w, r, tenant, err)
                 return
         }
-        _ = result
+        if result.Connection.Status != connectorDomain.StatusDraft {
+                http.Redirect(w, r, "/app/tenants/"+tenant.String()+"/integrations?check_failed=1", http.StatusSeeOther)
+                return
+        }
         http.Redirect(w, r, "/app/tenants/"+tenant.String()+"/integrations?saved=1", http.StatusSeeOther)
 }
 
@@ -467,11 +500,6 @@ func (s *Server) saveConnectionForm(w http.ResponseWriter, r *http.Request) {
                 s.connectorProblem(w, r, connectorDomain.ErrInvalid)
                 return
         }
-        connection, err := service.Read(r.Context(), actor, tenant, connectionID)
-        if err != nil {
-                s.connectorProblem(w, r, err)
-                return
-        }
         config := map[string]string{}
         for _, field := range r.Form["config_field"] {
                 if value := r.FormValue("config_" + field); value != "" {
@@ -484,7 +512,6 @@ func (s *Server) saveConnectionForm(w http.ResponseWriter, r *http.Request) {
                 redirectWithError(w, r, tenant, err)
                 return
         }
-        _ = connection
         http.Redirect(w, r, "/app/tenants/"+tenant.String()+"/integrations?saved=1", http.StatusSeeOther)
 }
 
@@ -524,9 +551,13 @@ func (s *Server) connectConnectionForm(w http.ResponseWriter, r *http.Request) {
                 }
         }
         corr, _ := correlation.FromContext(r.Context())
-        _, err = service.Connect(r.Context(), connectorAPI.ConnectCommand{Actor: actor, TenantID: tenant, ConnectionID: connectionID, CorrelationID: corr, ExpectedVersion: version, Secrets: secrets})
+        connection, err := service.Connect(r.Context(), connectorAPI.ConnectCommand{Actor: actor, TenantID: tenant, ConnectionID: connectionID, CorrelationID: corr, ExpectedVersion: version, Secrets: secrets})
         if err != nil {
                 redirectWithError(w, r, tenant, err)
+                return
+        }
+        if connection.Status == connectorDomain.StatusFailed {
+                http.Redirect(w, r, "/app/tenants/"+tenant.String()+"/integrations?check_failed=1", http.StatusSeeOther)
                 return
         }
         http.Redirect(w, r, "/app/tenants/"+tenant.String()+"/integrations?connected=1", http.StatusSeeOther)
@@ -568,9 +599,13 @@ func (s *Server) rotateConnectionForm(w http.ResponseWriter, r *http.Request) {
                 }
         }
         corr, _ := correlation.FromContext(r.Context())
-        _, err = service.Rotate(r.Context(), connectorAPI.ConnectCommand{Actor: actor, TenantID: tenant, ConnectionID: connectionID, CorrelationID: corr, ExpectedVersion: version, Secrets: secrets})
+        connection, err := service.Rotate(r.Context(), connectorAPI.ConnectCommand{Actor: actor, TenantID: tenant, ConnectionID: connectionID, CorrelationID: corr, ExpectedVersion: version, Secrets: secrets})
         if err != nil {
                 redirectWithError(w, r, tenant, err)
+                return
+        }
+        if connection.Status == connectorDomain.StatusFailed {
+                http.Redirect(w, r, "/app/tenants/"+tenant.String()+"/integrations?check_failed=1", http.StatusSeeOther)
                 return
         }
         http.Redirect(w, r, "/app/tenants/"+tenant.String()+"/integrations?connected=1", http.StatusSeeOther)
@@ -628,5 +663,8 @@ func redirectWithError(w http.ResponseWriter, r *http.Request, tenant id.UUID, e
         if errors.As(err, &blocked) {
                 message = blocked.Reason
         }
-        http.Redirect(w, r, "/app/tenants/"+tenant.String()+"/integrations?error="+url.QueryEscape(message), http.StatusSeeOther)
+        // The message is always a fixed server-side string (never a submitted
+        // value); it travels in a one-shot HttpOnly cookie instead of the URL.
+        setFlashError(w, tenant, message)
+        http.Redirect(w, r, "/app/tenants/"+tenant.String()+"/integrations", http.StatusSeeOther)
 }

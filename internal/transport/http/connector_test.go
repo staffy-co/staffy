@@ -6,6 +6,7 @@ import (
         "log/slog"
         "net/http"
         "net/http/httptest"
+        "net/url"
         "strings"
         "testing"
 
@@ -21,6 +22,7 @@ type fakeConnector struct {
         createErr    error
         connectErr   error
         connectCalls int
+        connectStatus string
         lastConnect  *connectorAPI.ConnectCommand
         lastCreate   *connectorAPI.CreateCommand
         revokeErr    error
@@ -66,7 +68,11 @@ func (f *fakeConnector) Connect(_ context.Context, c connectorAPI.ConnectCommand
         if f.connectErr != nil {
                 return connectorDomain.Connection{}, f.connectErr
         }
-        return connectorDomain.Connection{TenantID: c.TenantID, ConnectionID: c.ConnectionID, Status: connectorDomain.StatusConnectedUnverified, AuthState: connectorDomain.CheckVerified, Transport: connectorDomain.CheckVerified, SecretID: testCorrelation, SecretHint: "abcdef012345", SecretActive: true, Version: 2}, nil
+        status := f.connectStatus
+        if status == "" {
+                status = connectorDomain.StatusConnectedUnverified
+        }
+        return connectorDomain.Connection{TenantID: c.TenantID, ConnectionID: c.ConnectionID, Status: status, AuthState: connectorDomain.CheckVerified, Transport: connectorDomain.CheckVerified, SecretID: testCorrelation, SecretHint: "abcdef012345", SecretActive: true, Version: 2}, nil
 }
 
 func (f *fakeConnector) Rotate(context.Context, connectorAPI.ConnectCommand) (connectorDomain.Connection, error) {
@@ -196,5 +202,107 @@ func TestConnectConnectionAPIConflictMapsTo409(t *testing.T) {
         server.Handler().ServeHTTP(w, r)
         if w.Code != http.StatusConflict {
                 t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+        }
+}
+
+func connectorFormRequest(method, path string, form url.Values) *http.Request {
+        request := httptest.NewRequest(method, path, strings.NewReader(form.Encode()))
+        request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+        request.Header.Set("Origin", "http://example.com")
+        request.Header.Set("X-Correlation-ID", testCorrelation.String())
+        return request
+}
+
+func TestConnectionFormErrorTravelsInFlashCookieNotURL(t *testing.T) {
+        fake := &fakeConnector{connectErr: connectorDomain.RuleError{Rule: "secret", Reason: "Секрет уже принят. Для замены используйте ротацию."}}
+        server := newConnectorTestServer(t, fake)
+        path := "/app/tenants/" + testTenantID.String() + "/connections/" + testCorrelation.String() + "/connect"
+        form := url.Values{"version": {"1"}, "secret_field": {"api_key"}, "secret_api_key": {"sandbox-form-value"}}
+        response := httptest.NewRecorder()
+        server.Handler().ServeHTTP(response, connectorFormRequest(http.MethodPost, path, form))
+        if response.Code != http.StatusSeeOther {
+                t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+        }
+        location := response.Header().Get("Location")
+        if strings.Contains(location, "error=") {
+                t.Fatalf("error message must not travel in the URL: %s", location)
+        }
+        if location != "/app/tenants/"+testTenantID.String()+"/integrations" {
+                t.Fatalf("unexpected redirect: %s", location)
+        }
+        var flash *http.Cookie
+        for _, cookie := range response.Result().Cookies() {
+                if cookie.Name == flashCookieName {
+                        flash = cookie
+                }
+        }
+        if flash == nil || flash.Value == "" {
+                t.Fatalf("error flash cookie missing: %v", response.Result().Cookies())
+        }
+        if !flash.HttpOnly || flash.MaxAge <= 0 {
+                t.Fatalf("flash cookie must be HttpOnly and expiring: %+v", flash)
+        }
+        // The page renders the message once and clears the cookie.
+        page := httptest.NewRequest(http.MethodGet, "/app/tenants/"+testTenantID.String()+"/integrations", nil)
+        page.AddCookie(flash)
+        rendered := httptest.NewRecorder()
+        server.Handler().ServeHTTP(rendered, page)
+        if rendered.Code != http.StatusOK {
+                t.Fatalf("page status=%d", rendered.Code)
+        }
+        if !strings.Contains(rendered.Body.String(), "Секрет уже принят") {
+                t.Fatalf("flash message must be rendered once: %s", rendered.Body.String())
+        }
+        var cleared bool
+        for _, cookie := range rendered.Result().Cookies() {
+                if cookie.Name == flashCookieName && cookie.MaxAge < 0 {
+                        cleared = true
+                }
+        }
+        if !cleared {
+                t.Fatal("flash cookie must be cleared after rendering")
+        }
+        // A second render without the cookie shows no stale error.
+        again := httptest.NewRecorder()
+        server.Handler().ServeHTTP(again, httptest.NewRequest(http.MethodGet, "/app/tenants/"+testTenantID.String()+"/integrations", nil))
+        if strings.Contains(again.Body.String(), "Секрет уже принят") {
+                t.Fatal("flash error must be one-shot")
+        }
+}
+
+func TestIntegrationsPageIgnoresSpoofedErrorQueryParam(t *testing.T) {
+        server := newConnectorTestServer(t, &fakeConnector{})
+        request := httptest.NewRequest(http.MethodGet, "/app/tenants/"+testTenantID.String()+"/integrations?error="+url.QueryEscape("Ваш аккаунт скомпрометирован, нажмите сюда"), nil)
+        response := httptest.NewRecorder()
+        server.Handler().ServeHTTP(response, request)
+        if response.Code != http.StatusOK {
+                t.Fatalf("status=%d", response.Code)
+        }
+        if strings.Contains(response.Body.String(), "скомпрометирован") {
+                t.Fatalf("attacker-chosen error text must not render as a system alert: %s", response.Body.String())
+        }
+}
+
+func TestConnectFormFailedCheckRedirectsToHonestNotice(t *testing.T) {
+        fake := &fakeConnector{connectStatus: connectorDomain.StatusFailed}
+        server := newConnectorTestServer(t, fake)
+        path := "/app/tenants/" + testTenantID.String() + "/connections/" + testCorrelation.String() + "/connect"
+        form := url.Values{"version": {"1"}, "secret_field": {"api_key"}, "secret_api_key": {"not-sandbox-format"}}
+        response := httptest.NewRecorder()
+        server.Handler().ServeHTTP(response, connectorFormRequest(http.MethodPost, path, form))
+        if response.Code != http.StatusSeeOther {
+                t.Fatalf("status=%d", response.Code)
+        }
+        if location := response.Header().Get("Location"); !strings.Contains(location, "check_failed=1") {
+                t.Fatalf("failed check must redirect with check_failed, got %s", location)
+        }
+        page := httptest.NewRequest(http.MethodGet, "/app/tenants/"+testTenantID.String()+"/integrations?check_failed=1", nil)
+        rendered := httptest.NewRecorder()
+        server.Handler().ServeHTTP(rendered, page)
+        if rendered.Code != http.StatusOK {
+                t.Fatalf("page status=%d", rendered.Code)
+        }
+        if !strings.Contains(rendered.Body.String(), "Синтетическая проверка не прошла") {
+                t.Fatalf("honest failure notice missing: %s", rendered.Body.String())
         }
 }

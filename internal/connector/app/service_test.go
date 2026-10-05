@@ -157,6 +157,10 @@ func (r *connRepo) Connect(_ context.Context, p port.ConnectParams) (connectorDo
                 c.SecretActive = true
                 r.seals[p.SecretID] = &connectorDomain.Seal{TenantID: c.TenantID, ConnectionID: c.ConnectionID, SecretID: p.SecretID, Sealed: p.Sealed, Key: p.Key, CreatedAt: p.Now}
                 r.lastEvent["connect"] = map[string]any{"secret_id": p.SecretID, "hint": p.Hint, "sealed_len": len(p.Sealed), "key_len": len(p.Key)}
+        } else if p.Rotate {
+                // Mirrors the SQL store: the previous seal was revoked and no new
+                // secret was accepted, so no secret stays active.
+                c.SecretActive = false
         }
         c.AuthState = p.Check.Authentication
         c.Transport = p.Check.Transport
@@ -394,5 +398,101 @@ func TestCrossTenantAccessDenied(t *testing.T) {
         denied := New(newConnRepo(), connIdentity{allowed: false}, stubVerifier{}, connClock{}, &connIDs{})
         if _, err := denied.Catalog(ctx, identityDomain.Principal{ID: connActor}, connTenant); !errors.Is(err, connectorDomain.ErrNotFound) {
                 t.Fatalf("unauthorized catalog = %v", err)
+        }
+}
+
+func TestRevokeReasonBoundKeepsStoredSummaryInsideHistoryLimit(t *testing.T) {
+        s, _ := serviceFixture()
+        ctx := context.Background()
+        first, err := s.Create(ctx, createCommand())
+        if err != nil {
+                t.Fatalf("create: %v", err)
+        }
+        // MaxRevokeReasonRunes fits with the "revoked: " prefix inside the 300-char
+        // history CHECK; one rune more must be rejected up front with a 400, not a 500.
+        ok := createCommand()
+        ok.IdempotencyKey = "create-key-reason-ok"
+        second, err := s.Create(ctx, ok)
+        if err != nil {
+                t.Fatalf("create second: %v", err)
+        }
+        if _, err = s.Revoke(ctx, api.RevokeCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: first.Connection.ConnectionID, CorrelationID: connCorrelation, ExpectedVersion: first.Connection.Version, Reason: strings.Repeat("ф", connectorDomain.MaxRevokeReasonRunes)}); err != nil {
+                t.Fatalf("max-length reason must be accepted: %v", err)
+        }
+        if _, err = s.Revoke(ctx, api.RevokeCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: second.Connection.ConnectionID, CorrelationID: connCorrelation, ExpectedVersion: second.Connection.Version, Reason: strings.Repeat("ф", connectorDomain.MaxRevokeReasonRunes+1)}); err == nil {
+                t.Fatal("reason above the bound must be rejected before storage")
+        }
+}
+
+func TestCreateRejectsMultibyteShortIdempotencyKey(t *testing.T) {
+        s, _ := serviceFixture()
+        cmd := createCommand()
+        // 7 Cyrillic runes = 14 bytes: byte-based validation used to let it pass
+        // while the SQL CHECK (char_length) failed with a 500.
+        cmd.IdempotencyKey = "ключик"
+        if _, err := s.Create(context.Background(), cmd); !errors.Is(err, connectorDomain.ErrInvalidIdempotency) {
+                t.Fatalf("multibyte short key must be rejected: %v", err)
+        }
+        valid := cmd
+        valid.IdempotencyKey = "ключ-подлинный-длиный"
+        if _, err := s.Create(context.Background(), valid); err != nil {
+                t.Fatalf("multibyte key of enough runes must pass: %v", err)
+        }
+}
+
+func TestFailedRotationLeavesNoActiveSecretAndAllowsConnectRetry(t *testing.T) {
+        s, repo := serviceFixture()
+        ctx := context.Background()
+        created, _ := s.Create(ctx, createCommand())
+        first, err := s.Connect(ctx, api.ConnectCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: created.Connection.ConnectionID, CorrelationID: connCorrelation, ExpectedVersion: 1, Secrets: map[string]string{"api_key": "sandbox-first-key"}})
+        if err != nil {
+                t.Fatalf("connect: %v", err)
+        }
+        rotate := api.ConnectCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: created.Connection.ConnectionID, CorrelationID: connCorrelation, ExpectedVersion: first.Version, Secrets: map[string]string{"api_key": "not-sandbox-format"}}
+        rotated, err := s.Rotate(ctx, rotate)
+        if err != nil {
+                t.Fatalf("rotate: %v", err)
+        }
+        if rotated.Status != connectorDomain.StatusFailed {
+                t.Fatalf("rotation with invalid secret must fail honestly: %s", rotated.Status)
+        }
+        // The previous seal was revoked and no new secret was accepted: no secret
+        // may stay active, and a plain connect retry must be allowed.
+        if rotated.SecretActive {
+                t.Fatal("failed rotation must not leave a secret active over a revoked seal")
+        }
+        if seal := repo.seals[first.SecretID]; seal == nil || seal.RevokedAt == nil {
+                t.Fatal("previous seal must be revoked on rotation")
+        }
+        retry := rotate
+        retry.ExpectedVersion = rotated.Version
+        retry.Secrets = map[string]string{"api_key": "sandbox-retry-key"}
+        second, err := s.Connect(ctx, retry)
+        if err != nil {
+                t.Fatalf("connect retry after failed rotation must be allowed: %v", err)
+        }
+        if second.Status != connectorDomain.StatusConnectedUnverified || !second.SecretActive {
+                t.Fatalf("retry must seal the new secret: %+v", second)
+        }
+}
+
+func TestUnexpectedStatusIsRejectedInsteadOfSilentWrite(t *testing.T) {
+        repo := newConnRepo()
+        s := New(repo, connIdentity{allowed: true}, stubVerifier{}, connClock{}, &connIDs{})
+        ctx := context.Background()
+        created, _ := s.Create(ctx, createCommand())
+        // Simulate a corrupted/unexpected stored status: the ValidTransition guard
+        // must refuse commands instead of writing an undocumented transition.
+        corrupt := repo.connections[created.Connection.ConnectionID]
+        corrupt.Status = "mystery"
+        repo.connections[created.Connection.ConnectionID] = corrupt
+        if _, err := s.Save(ctx, api.SaveCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: created.Connection.ConnectionID, CorrelationID: connCorrelation, ExpectedVersion: 1, Config: corrupt.Config, Label: corrupt.Label, ChangeSummary: "Попытка"}); err == nil {
+                t.Fatal("unexpected status must block save")
+        }
+        if _, err := s.Connect(ctx, api.ConnectCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: created.Connection.ConnectionID, CorrelationID: connCorrelation, ExpectedVersion: 1, Secrets: map[string]string{"api_key": "sandbox-any-key"}}); err == nil {
+                t.Fatal("unexpected status must block connect")
+        }
+        if _, err := s.Revoke(ctx, api.RevokeCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: created.Connection.ConnectionID, CorrelationID: connCorrelation, ExpectedVersion: 1, Reason: "Причина"}); err == nil {
+                t.Fatal("unexpected status must block revoke")
         }
 }
