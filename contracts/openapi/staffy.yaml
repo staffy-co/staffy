@@ -6,6 +6,249 @@ info:
     Application contract behind a trusted PrincipalResolver. The external login/session
     transport is intentionally deployment-neutral and is not defined by Story 1.1.
 paths:
+  /v1/tenants/{tenant_id}/connectors:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+    get:
+      operationId: listConnectorDefinitions
+      summary: Каталог Connector definitions со статусами поддержки и schema полей
+      x-staffy-principal-required: true
+      responses:
+        '200':
+          description: Tenant-scoped каталог, сгруппированный на клиенте по типам
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [connectors]
+                properties:
+                  connectors: { type: array, items: { $ref: '#/components/schemas/ConnectorDefinition' } }
+        '404': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/connections:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+    post:
+      operationId: createConnection
+      summary: Создать tenant-scoped draft Connection; production заблокирован до AG-4
+      x-staffy-principal-required: true
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, minLength: 8, maxLength: 200 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [connector_id, connector_version, label, environment, config]
+              properties:
+                connector_id: { type: string }
+                connector_version: { type: string }
+                label: { type: string, minLength: 1, maxLength: 120 }
+                environment: { type: string, enum: [sandbox, test] }
+                config: { type: object, additionalProperties: { type: string } }
+      responses:
+        '201':
+          description: Новый draft Connection
+          headers:
+            Location: { schema: { type: string } }
+            Idempotency-Replayed: { schema: { type: string } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [connection]
+                properties:
+                  connection: { $ref: '#/components/schemas/Connection' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+    get:
+      operationId: listConnections
+      summary: Текущие подключения Tenant
+      x-staffy-principal-required: true
+      responses:
+        '200':
+          description: Tenant-scoped подключения
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [connections]
+                properties:
+                  connections: { type: array, items: { $ref: '#/components/schemas/Connection' } }
+        '404': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/connections/{connection_id}:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/ConnectionID'
+    get:
+      operationId: readConnection
+      summary: Чтение Connection; секрет возвращается только opaque reference и отпечатком
+      x-staffy-principal-required: true
+      responses:
+        '200':
+          description: Подключение
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [connection]
+                properties:
+                  connection: { $ref: '#/components/schemas/Connection' }
+        '404': { $ref: '#/components/responses/Problem' }
+    put:
+      operationId: saveConnection
+      summary: Сохранить новую версию конфигурации с CAS; проверочные статусы сбрасываются
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [version, label, config, change_summary]
+              properties:
+                version: { type: integer, minimum: 1 }
+                label: { type: string, minLength: 1, maxLength: 120 }
+                config: { type: object, additionalProperties: { type: string } }
+                change_summary: { type: string, minLength: 1, maxLength: 300 }
+      responses:
+        '200':
+          description: Обновлённое подключение
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [connection]
+                properties:
+                  connection: { $ref: '#/components/schemas/Connection' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/connections/{connection_id}/versions:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/ConnectionID'
+    get:
+      operationId: readConnectionVersions
+      summary: Неизменяемая история версий Connection
+      x-staffy-principal-required: true
+      responses:
+        '200':
+          description: Версии подключения
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [versions]
+                properties:
+                  versions: { type: array, items: { $ref: '#/components/schemas/ConnectionVersion' } }
+        '404': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/connections/{connection_id}/connect:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/ConnectionID'
+    post:
+      operationId: connectConnection
+      summary: Принять секрет один раз и выполнить разрешённую синтетическую базовую проверку
+      description: >-
+        Секрет записывается в SecretStore и сохраняется только как непрозрачная ссылка.
+        Исходное значение недоступно после приёма. Успешная проверка не подтверждает
+        capabilities: статус остаётся connected/unverified.
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [version, secrets]
+              properties:
+                version: { type: integer, minimum: 1 }
+                secrets: { type: object, additionalProperties: { type: string } }
+      responses:
+        '200':
+          description: Подключение с отдельными состояниями authentication и transport
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [connection]
+                properties:
+                  connection: { $ref: '#/components/schemas/Connection' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/connections/{connection_id}/rotate:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/ConnectionID'
+    post:
+      operationId: rotateConnectionSecret
+      summary: 'Ротация секрета: новая версия Connection, прежняя ссылка отзывается'
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [version, secrets]
+              properties:
+                version: { type: integer, minimum: 1 }
+                secrets: { type: object, additionalProperties: { type: string } }
+      responses:
+        '200':
+          description: Подключение с новой версией и отозванным прежним seal
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [connection]
+                properties:
+                  connection: { $ref: '#/components/schemas/Connection' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/connections/{connection_id}/revoke:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/ConnectionID'
+    post:
+      operationId: revokeConnection
+      summary: Терминальный отзыв подключения и секрета
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [version, reason]
+              properties:
+                version: { type: integer, minimum: 1 }
+                reason: { type: string, minLength: 1, maxLength: 300 }
+      responses:
+        '200':
+          description: Отозванное подключение
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [connection]
+                properties:
+                  connection: { $ref: '#/components/schemas/Connection' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
   /v1/tenants/{tenant_id}/voice-profiles:
     parameters:
       - $ref: '#/components/parameters/TenantID'
@@ -692,6 +935,11 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    ConnectionID:
+      name: connection_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
   schemas:
     VoiceProfile:
       type: object
@@ -1071,6 +1319,65 @@ components:
         correlation_id: { type: string, format: uuid }
         retryable: { type: boolean }
         field_errors: { type: object, additionalProperties: { type: string } }
+    ConnectorField:
+      type: object
+      additionalProperties: false
+      required: [name, label, type, required, secret, description]
+      properties:
+        name: { type: string }
+        label: { type: string }
+        type: { type: string, enum: [text, url] }
+        required: { type: boolean }
+        secret: { type: boolean }
+        description: { type: string }
+    ConnectorDefinition:
+      type: object
+      additionalProperties: false
+      required: [id, version, type, name, purpose, support_status, adapter_implemented, allowed_environments, required_account_type, documentation_url, fields]
+      properties:
+        id: { type: string }
+        version: { type: string }
+        type: { type: string, enum: [SIP/telephony, chat/inbox, business system, AI/speech, storage/supporting service] }
+        name: { type: string }
+        purpose: { type: string }
+        support_status: { type: string, enum: [supported, pilot, candidate, deferred, unavailable] }
+        adapter_implemented: { type: boolean }
+        allowed_environments: { type: array, items: { type: string, enum: [sandbox, test] } }
+        required_account_type: { type: string }
+        documentation_url: { type: string }
+        priority_note: { type: string }
+        fields: { type: array, items: { $ref: '#/components/schemas/ConnectorField' } }
+    Connection:
+      type: object
+      additionalProperties: false
+      required: [tenant_id, connection_id, connector_id, connector_version, label, environment, status, authentication_state, transport_state, config, secret_active, owner_id, version, created_at, updated_at]
+      properties:
+        tenant_id: { type: string, format: uuid }
+        connection_id: { type: string, format: uuid }
+        connector_id: { type: string }
+        connector_version: { type: string }
+        label: { type: string }
+        environment: { type: string, enum: [sandbox, test] }
+        status: { type: string, enum: [draft, connected_unverified, failed, revoked] }
+        authentication_state: { type: string, enum: [pending, verified, failed] }
+        transport_state: { type: string, enum: [pending, verified, failed] }
+        config: { type: object, additionalProperties: { type: string } }
+        secret_id: { type: string, format: uuid, description: Opaque SecretStore reference; исходное значение недоступно }
+        secret_hint: { type: string, description: Короткий отпечаток для подтверждения человеком без раскрытия значения }
+        secret_active: { type: boolean }
+        owner_id: { type: string, format: uuid }
+        version: { type: integer, minimum: 1 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    ConnectionVersion:
+      allOf:
+        - $ref: '#/components/schemas/Connection'
+        - type: object
+          additionalProperties: false
+          required: [actor_id, change_summary]
+          properties:
+            actor_id: { type: string, format: uuid }
+            change_summary: { type: string }
   responses:
     Problem:
       description: Безопасная ошибка

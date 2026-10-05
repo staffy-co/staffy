@@ -93,3 +93,76 @@ func mapping(t *testing.T, source map[string]any, key string) map[string]any {
 	}
 	return value
 }
+
+func TestConnectorContractIsProductionClosedAndSecretWriteOnly(t *testing.T) {
+	content, err := os.ReadFile("staffy.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document map[string]any
+	if err := yaml.Unmarshal(content, &document); err != nil {
+		t.Fatal(err)
+	}
+	schemas := mapping(t, mapping(t, document, "components"), "schemas")
+	connectionProperties := mapping(t, mapping(t, schemas, "Connection"), "properties")
+	environment, _ := connectionProperties["environment"].(map[string]any)
+	if environment == nil {
+		t.Fatal("connection environment schema missing")
+	}
+	if enum, _ := environment["enum"].([]any); len(enum) != 2 {
+		t.Fatalf("environment enum must only list sandbox/test, got %v", enum)
+	}
+	definitionProperties := mapping(t, mapping(t, schemas, "ConnectorDefinition"), "properties")
+	status, _ := definitionProperties["support_status"].(map[string]any)
+	if status == nil {
+		t.Fatal("support_status schema missing")
+	}
+	if enum, _ := status["enum"].([]any); len(enum) != 5 {
+		t.Fatalf("support status vocabulary must stay textual and distinct, got %v", enum)
+	}
+	paths := mapping(t, document, "paths")
+	for _, path := range []string{
+		"/v1/tenants/{tenant_id}/connectors",
+		"/v1/tenants/{tenant_id}/connections",
+		"/v1/tenants/{tenant_id}/connections/{connection_id}",
+		"/v1/tenants/{tenant_id}/connections/{connection_id}/versions",
+		"/v1/tenants/{tenant_id}/connections/{connection_id}/connect",
+		"/v1/tenants/{tenant_id}/connections/{connection_id}/rotate",
+		"/v1/tenants/{tenant_id}/connections/{connection_id}/revoke",
+	} {
+		item := mapping(t, paths, path)
+		for _, method := range []string{"get", "post", "put"} {
+			operation, ok := item[method].(map[string]any)
+			if !ok {
+				continue
+			}
+			if required, _ := operation["x-staffy-principal-required"].(bool); !required {
+				t.Fatalf("%s %s must document the verified principal boundary", method, path)
+			}
+		}
+	}
+}
+
+func TestConnectorRequestsRejectUnknownFields(t *testing.T) {
+	content, err := os.ReadFile("staffy.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document map[string]any
+	if err := yaml.Unmarshal(content, &document); err != nil {
+		t.Fatal(err)
+	}
+	paths := mapping(t, document, "paths")
+	create := mapping(t, mapping(t, paths, "/v1/tenants/{tenant_id}/connections"), "post")
+	body := mapping(t, create, "requestBody")
+	schema := mapping(t, mapping(t, mapping(t, body, "content"), "application/json"), "schema")
+	if additional, _ := schema["additionalProperties"].(bool); additional {
+		t.Fatal("connection create must reject unknown fields")
+	}
+	connect := mapping(t, mapping(t, paths, "/v1/tenants/{tenant_id}/connections/{connection_id}/connect"), "post")
+	connectBody := mapping(t, connect, "requestBody")
+	connectSchema := mapping(t, mapping(t, mapping(t, connectBody, "content"), "application/json"), "schema")
+	if additional, _ := connectSchema["additionalProperties"].(bool); additional {
+		t.Fatal("connect must reject unknown fields")
+	}
+}

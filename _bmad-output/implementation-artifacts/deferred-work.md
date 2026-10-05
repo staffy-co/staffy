@@ -21,3 +21,15 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-7-voice-and-pronunciation.md`
   summary: До использования оценок голоса в release-gate связать receipt с digest аудио, версией адаптера и полным набором параметров синтеза.
   evidence: Текущий локальный preview подтверждает текст, версии конфигурации, маршрут и slow, но не позволяет доказать, что позднее проверяется тот же WAV; синтетическая оценка сейчас намеренно не открывает телефонный gate.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-8-integrations-catalog.md`
+  summary: До подключения реальных провайдеров пройти AG-4: выбрать конкретный SecretStore (внешнее хранилище вместо локальных HMAC-seal), решить ротацию и физическое уничтожение отозванных seals и их ключей.
+  evidence: Первый срез запечатывает секреты HMAC-SHA256 с случайным ключом на Connection в `connector.secret_seals` и отзывает ссылки, но физического уничтожения и внешнего SecretStore нет; production-среда закрыта fail-closed доменом и SQL CHECK.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-8-integrations-catalog.md`
+  summary: Пометка зависимых capability evidence как `stale` при ротации и отзыве секрета реализуется вместе с capability verification Story 1.9.
+  evidence: Текущий срез сбрасывает состояния authentication/transport в pending и не заявляет capabilities; `connected/unverified` — честное терминальное состояние среза, evidence-таблица появится в Story 1.9.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-8-integrations-catalog.md`
+  summary: Восстановление фокуса в конкретное поле после ошибок форм интеграций — вместе с общим accessibility-проходом UI.
+  evidence: Ошибки форм сейчас возвращаются redirect-ом с role=alert и текстом; цель ≥44×44 px и клавиатурная навигация проверены journey-тестом, но точечный focus-management в поле не реализован.
