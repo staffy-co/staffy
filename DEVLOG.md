@@ -41,3 +41,22 @@ decisions:
 - Секреты: токен только в env STAFFY_GH_TOKEN; remote URL чистый; .githooks сканируют стейдж и уходящие коммиты
 next: SM создаёт спеку story 1-9 «Проверка capabilities конкретного подключения» (bmad-build; вход: sprint-status.yaml → epic-1-context.md → epics.md §Story 1.9 → spec-1-8 → deferred-work.md, где 3 записи нацелены на 1-9)
 commit: fa7b315
+
+---
+date: 2026-10-06
+task: drill
+role: main (Super Z)
+story: process
+summary: Учения системы непрерывности — полное восстановление с чистого листа, все гейты зелёные
+done:
+- Фаза 1 (fresh clone с GitHub): HEAD drill-клона совпал с ожидаемым 243dfd6 → PASS-1 (RPO = 0, незапушенной работы нет)
+- Фаза 3 (bootstrap в изолированном каталоге, свой PG на порту 54330): клон → Go → PostgreSQL из third_party/portable-pg16.tar.xz → initdb → БД staffy_test/staffy_dev (single-user mode) → миграции через integration-суит → npm ci → build/vet/unit — exit 0, ~4 минуты
+- V6 идемпотентность: повторный запуск bootstrap — exit 0 («уже запущен», drop+re-apply миграций переживается)
+- V8 консистентность: check-continuity в drill-клоне — OK (fail=0, warn=0)
+- V7 ненанесение ущерба: основной клон чист, синхронен с origin, основной PG жив
+- Security: remote URL drill-клона автоматически очищен скриптом; credential helper подключён
+decisions:
+- Drill признан успешным; доверие системе непрерывности подтверждено (до следующего изменения bootstrap — тогда re-drill)
+- Замечание окружения песочницы: env-переменные не переживают между вызовами shell — STAFFY_GH_TOKEN экспортировать в той же команде, что и git-операции
+next: SM создаёт спеку story 1-9 «Проверка capabilities конкретного подключения» (bmad-build step-01/02; вход: sprint-status.yaml → epic-1-context.md → epics.md §Story 1.9 → spec-1-8 → deferred-work.md; затем CHECKPOINT 1 — одобрение владельцем)
+commit: 243dfd6
