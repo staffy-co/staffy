@@ -1,0 +1,171 @@
+package httptransport
+
+import (
+        "strings"
+
+        connectorDomain "github.com/artemiosu/staffy/internal/connector/domain"
+        "github.com/artemiosu/staffy/internal/platform/id"
+)
+
+// fieldView is one rendered form field with a stable, unique element id.
+type fieldView struct {
+        Name        string
+        Label       string
+        Description string
+        Value       string
+        Required    bool
+        ElementID   string
+}
+
+// connectorCard is a catalog card prepared for the integrations page.
+type connectorCard struct {
+        ID                  string
+        Version             string
+        Name                string
+        Purpose             string
+        SupportStatus       string
+        PriorityNote        string
+        AllowedEnvironments string
+        RequiredAccountType string
+        DocumentationURL    string
+        Connectable         bool
+        ConfigFields        []fieldView
+        SecretFields        []fieldView
+}
+
+// connectionView is one tenant connection prepared for the page.
+type connectionView struct {
+        ConnectionID  id.UUID
+        Label         string
+        ConnectorID   string
+        ConnectorVer  string
+        Environment   string
+        Status        string
+        AuthState     string
+        Transport     string
+        SecretHint    string
+        SecretActive  bool
+        Version       int64
+        ConfigFields  []fieldView
+        SecretFields  []fieldView
+        HasSecretForm bool
+}
+
+type connectorTypeGroupView struct {
+        Title string
+        Cards []connectorCard
+}
+
+var connectorTypeTitles = map[connectorDomain.ConnectorType]string{
+        connectorDomain.TypeSIP:      "Телефония (SIP)",
+        connectorDomain.TypeChat:     "Чат и входящие",
+        connectorDomain.TypeBusiness: "Бизнес-системы",
+        connectorDomain.TypeAISpeech: "ИИ и речь",
+        connectorDomain.TypeStorage:  "Хранилища и вспомогательные сервисы",
+}
+
+func prepareConnectorGroups(defs []connectorDomain.ConnectorDefinition) []connectorTypeGroupView {
+        order := []connectorDomain.ConnectorType{connectorDomain.TypeSIP, connectorDomain.TypeChat, connectorDomain.TypeBusiness, connectorDomain.TypeAISpeech, connectorDomain.TypeStorage}
+        groups := []connectorTypeGroupView{}
+        for _, t := range order {
+                cards := []connectorCard{}
+                for _, def := range defs {
+                        if def.Type != t {
+                                continue
+                        }
+                        card := connectorCard{
+                                ID: def.ID, Version: def.Version, Name: def.Name, Purpose: def.Purpose,
+                                SupportStatus: string(def.SupportStatus), RequiredAccountType: def.RequiredAccountType,
+                                DocumentationURL: def.DocumentationURL, Connectable: def.Connectable(),
+                        }
+                        if def.AdapterImplemented && def.PriorityNote != "" {
+                                card.PriorityNote = def.PriorityNote
+                        }
+                        card.AllowedEnvironments = strings.Join(environmentsText(def.AllowedEnvironments), ", ")
+                        card.ConfigFields = fieldViews("c-"+def.ID, def.ConfigSchema(), nil)
+                        card.SecretFields = fieldViews("s-"+def.ID, def.SecretSchema(), nil)
+                        cards = append(cards, card)
+                }
+                if len(cards) > 0 {
+                        groups = append(groups, connectorTypeGroupView{Title: connectorTypeTitles[t], Cards: cards})
+                }
+        }
+        return groups
+}
+
+func prepareConnectionViews(connections []connectorDomain.Connection, defs []connectorDomain.ConnectorDefinition) []connectionView {
+        byID := map[string]connectorDomain.ConnectorDefinition{}
+        for _, def := range defs {
+                byID[def.ID+"\x00"+def.Version] = def
+        }
+        views := make([]connectionView, 0, len(connections))
+        for _, c := range connections {
+                view := connectionView{
+                        ConnectionID: c.ConnectionID, Label: c.Label, ConnectorID: c.ConnectorID, ConnectorVer: c.ConnectorVer,
+                        Environment: string(c.Environment), Status: c.Status, AuthState: c.AuthState, Transport: c.Transport,
+                        SecretHint: c.SecretHint, SecretActive: c.SecretActive, Version: c.Version,
+                }
+                prefix := "conn-" + c.ConnectionID.String()
+                def, ok := byID[c.ConnectorID+"\x00"+c.ConnectorVer]
+                if ok {
+                        values := map[string]string{}
+                        for k, v := range c.Config {
+                                values[k] = v
+                        }
+                        view.ConfigFields = fieldViews(prefix, def.ConfigSchema(), values)
+                        view.SecretFields = fieldViews(prefix, def.SecretSchema(), nil)
+                        view.HasSecretForm = len(view.SecretFields) > 0
+                }
+                views = append(views, view)
+        }
+        return views
+}
+
+func fieldViews(prefix string, schema []connectorDomain.FieldSchema, values map[string]string) []fieldView {
+        out := make([]fieldView, 0, len(schema))
+        for _, f := range schema {
+                view := fieldView{Name: f.Name, Label: f.Label, Description: f.Description, Required: f.Required, ElementID: prefix + "-" + f.Name}
+                if values != nil {
+                        if v, ok := values[f.Name]; ok {
+                                view.Value = v
+                        }
+                }
+                out = append(out, view)
+        }
+        return out
+}
+
+func environmentsText(envs []connectorDomain.Environment) []string {
+        out := make([]string, 0, len(envs))
+        for _, e := range envs {
+                out = append(out, string(e))
+        }
+        return out
+}
+
+// connectionStatusText renders the honest machine status as readable text with
+// an explanation so states never read as success when they are not.
+func connectionStatusText(status, auth, transport string) string {
+        switch status {
+        case connectorDomain.StatusDraft:
+                return "Черновик: секрет ещё не проверялся"
+        case connectorDomain.StatusConnectedUnverified:
+                return "Подключено, но возможности не проверены (connected/unverified): успешная проверка аутентификации и транспорта не подтверждает отправку, приём и бизнес-операции"
+        case connectorDomain.StatusFailed:
+                return "Проверка не прошла: " + checkText(auth, "аутентификация") + ", " + checkText(transport, "транспорт")
+        case connectorDomain.StatusRevoked:
+                return "Отозвано"
+        }
+        return status
+}
+
+func checkText(state, label string) string {
+        switch state {
+        case connectorDomain.CheckVerified:
+                return label + " пройдена"
+        case connectorDomain.CheckFailed:
+                return label + " не пройдена"
+        default:
+                return label + " ожидает"
+        }
+}

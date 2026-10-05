@@ -90,3 +90,20 @@ details summary { min-height: 44px; padding: .6rem; cursor: pointer; font-weight
 .voice-form input:not([type=checkbox]),.voice-form select,.voice-form textarea,.voice-preview-form textarea,.voice-preview-form audio{width:100%;max-width:100%}
 .voice-preview-form button{min-height:44px}
 #voice-preview-status{overflow-wrap:anywhere}
+/* Integration catalog and connections stay readable and reachable at 320px. */
+.connector-catalog,.connection-list{display:grid;gap:.75rem;padding:0;list-style:none;min-width:0}
+.connector-card{display:grid;border:1px solid var(--line);border-radius:.6rem;padding:1rem;gap:.3rem;overflow-wrap:anywhere}
+.connector-card>span{display:block}
+.connector-status{font-weight:800}
+.connector-connect form{margin-top:.5rem;max-width:40rem}
+.connector-connect label,.connector-connect input,.connector-connect select{min-width:0;max-width:100%}
+.connector-connect button{min-height:44px}
+.connection-list .employee-card{display:grid;gap:.3rem}
+.connection-list .employee-card>span{display:block}
+.connection-status{overflow-wrap:anywhere}
+.connection-list details summary{min-height:44px}
+.connection-list form{max-width:40rem}
+.connection-list input,.connection-list select{min-width:0;max-width:100%}
+.connection-list button{min-height:44px}
+.connection-list label:has(input[type=checkbox]){min-height:44px}
+.connection-list input[type=checkbox]{width:44px;height:44px;flex:0 0 44px}

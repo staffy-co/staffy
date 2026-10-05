@@ -1,0 +1,108 @@
+{{define "integrations"}}
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Интеграции · Staffy</title><link rel="stylesheet" href="/assets/app.css"></head>
+<body><a class="skip-link" href="#main">К основному содержанию</a><header class="topbar"><a class="brand" href="/app/tenants/{{.TenantID}}">Staffy</a><strong>Пространство → Интеграции</strong></header>
+<div class="shell"><nav aria-label="Основная навигация"><a href="/app/tenants/{{.TenantID}}">Сегодня</a><a href="/app/tenants/{{$.TenantID}}/people">Участники</a></nav><main id="main"><section class="panel"><h1>Интеграции</h1>
+<p>Выберите канал или бизнес-систему из каталога. Подключение создаётся для вашей организации; секрет принимается один раз и больше не показывается. До прохождения gate AG-4 доступны только sandbox и test среды.</p>
+{{if .Error}}<p class="alert" role="alert">{{.Error}}</p>{{end}}{{if .Notice}}<p class="status" role="status">{{.Notice}}</p>{{end}}
+
+<h2>Каталог Connector</h2>
+{{range .Groups}}
+<h3>{{.Title}}</h3>
+<ul class="connector-catalog">
+{{range .Cards}}
+<li class="connector-card">
+<strong>{{.Name}}</strong>
+<span>Статус: <span class="connector-status">{{.SupportStatus}}</span>{{if .PriorityNote}} — {{.PriorityNote}}{{end}}</span>
+<span>Назначение: {{.Purpose}}</span>
+<span>Тип учётной записи: {{.RequiredAccountType}}</span>
+<span>Среды: {{.AllowedEnvironments}}</span>
+<a href="{{.DocumentationURL}}" rel="noopener noreferrer" target="_blank">Документация</a>
+{{if .Connectable}}
+<details class="connector-connect"><summary>Подключить {{.Name}}</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/connections">
+<input type="hidden" name="connector_id" value="{{.ID}}"><input type="hidden" name="connector_version" value="{{.Version}}"><input type="hidden" name="idempotency_key" value="{{$.IdempotencyKey}}">
+<label for="label-{{.ID}}">Назначение подключения</label><input id="label-{{.ID}}" name="label" type="text" required maxlength="120">
+<label for="environment-{{.ID}}">Среда</label><select id="environment-{{.ID}}" name="environment"><option value="sandbox">sandbox</option><option value="test">test</option><option value="production" disabled>production — закрыто до gate AG-4</option></select>
+{{range .ConfigFields}}
+<input type="hidden" name="config_field" value="{{.Name}}">
+<label for="{{.ElementID}}">{{.Label}}{{if .Required}} (обязательно){{end}}</label><input id="{{.ElementID}}" name="config_{{.Name}}" type="text" {{if .Required}}required{{end}} maxlength="300" aria-describedby="{{.ElementID}}-hint" {{if .Value}}value="{{.Value}}"{{end}}>
+<span id="{{.ElementID}}-hint" class="next-note">{{.Description}}</span>
+{{end}}
+<button class="primary" type="submit">Создать черновик подключения</button>
+</form></details>
+{{else}}
+<p class="next-note">Подключение недоступно: адаптер не реализован.</p>
+{{end}}
+</li>
+{{end}}
+</ul>
+{{end}}
+
+<h2>Подключения</h2>
+<ul class="connection-list">
+{{range .Connections}}
+<li class="employee-card">
+<strong>{{.Label}}</strong>
+<span>Connector: {{.ConnectorID}} {{.ConnectorVer}}</span>
+<span>Среда: {{.Environment}}</span>
+<span>Статус: <strong class="connection-status">{{.Status}}</strong></span>
+<span>Аутентификация: {{.AuthState}}</span>
+<span>Транспорт: {{.Transport}}</span>
+<span>{{statusNote .Status .AuthState .Transport}}</span>
+{{if .SecretHint}}<span>Секрет: принят, отпечаток {{.SecretHint}} — значение недоступно{{if not .SecretActive}} (отозван){{end}}</span>{{end}}
+<span>Версия: {{.Version}}</span>
+{{if ne .Status "revoked"}}
+<details><summary>Изменить конфигурацию</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/connections/{{.ConnectionID}}/config">
+<input type="hidden" name="version" value="{{.Version}}">
+<label for="label-{{.ConnectionID}}">Назначение</label><input id="label-{{.ConnectionID}}" name="label" type="text" value="{{.Label}}" required maxlength="120">
+{{range .ConfigFields}}
+<input type="hidden" name="config_field" value="{{.Name}}">
+<label for="config-{{.ElementID}}">{{.Label}}{{if .Required}} (обязательно){{end}}</label><input id="config-{{.ElementID}}" name="config_{{.Name}}" type="text" {{if .Required}}required{{end}} maxlength="300" value="{{.Value}}">
+{{end}}
+<label for="summary-{{.ConnectionID}}">Что изменилось</label><input id="summary-{{.ConnectionID}}" name="change_summary" type="text" required maxlength="300">
+<button class="primary" type="submit">Сохранить новую версию</button>
+<p class="next-note">После изменения конфигурации статусы проверки сбрасываются: повторите подключение секрета.</p>
+</form></details>
+
+{{if .HasSecretForm}}
+{{if .SecretActive}}
+<details><summary>Ротация секрета</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/connections/{{.ConnectionID}}/rotate">
+<input type="hidden" name="version" value="{{.Version}}">
+{{range .SecretFields}}
+<input type="hidden" name="secret_field" value="{{.Name}}">
+<label for="rotate-{{.ElementID}}">{{.Label}}</label><input id="rotate-{{.ElementID}}" name="secret_{{.Name}}" type="password" autocomplete="new-password" required aria-describedby="rotate-{{.ElementID}}-hint">
+<span id="rotate-{{.ElementID}}-hint" class="next-note">Значение принимается один раз и больше не показывается.</span>
+{{end}}
+<button class="primary" type="submit">Заменить секрет</button>
+<p class="next-note">Прежний секрет будет отозван; проверка аутентификации и транспорта выполнится заново.</p>
+</form></details>
+{{else}}
+<details><summary>Подключить секрет</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/connections/{{.ConnectionID}}/connect">
+<input type="hidden" name="version" value="{{.Version}}">
+{{range .SecretFields}}
+<input type="hidden" name="secret_field" value="{{.Name}}">
+<label for="connect-{{.ElementID}}">{{.Label}}</label><input id="connect-{{.ElementID}}" name="secret_{{.Name}}" type="password" autocomplete="new-password" required aria-describedby="connect-{{.ElementID}}-hint">
+<span id="connect-{{.ElementID}}-hint" class="next-note">Значение принимается один раз и больше не показывается. Формат тестового ключа: sandbox-…</span>
+{{end}}
+<button class="primary" type="submit">Проверить и подключить</button>
+<p class="next-note">Проверка синтетическая: успешная аутентификация и доступность endpoint не означают подтверждение capabilities.</p>
+</form></details>
+{{end}}
+{{end}}
+
+<details><summary>Отозвать подключение</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/connections/{{.ConnectionID}}/revoke">
+<input type="hidden" name="version" value="{{.Version}}">
+<label for="reason-{{.ConnectionID}}">Причина отзыва</label><input id="reason-{{.ConnectionID}}" name="reason" type="text" required maxlength="300">
+<label><input type="checkbox" name="confirm_revoke" value="yes" required> Подтверждаю отзыв этого подключения</label>
+<button class="primary" type="submit">Отозвать</button>
+</form></details>
+{{end}}
+</li>
+{{else}}<li>Подключений пока нет.</li>{{end}}
+</ul>
+</section></main></div></body></html>
+{{end}}
