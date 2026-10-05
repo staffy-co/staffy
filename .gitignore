@@ -1,7 +1,30 @@
 # Graphify's run-local accounting is not shared project state.
 graphify-out/cost.json
+graphify-out/cache/
 
 # Local browser-test dependencies and artifacts.
 tests/journeys/node_modules/
 tests/journeys/test-results/
 tests/journeys/playwright-report/
+
+# Secrets / local credentials (см. docs/CONTINUITY.md, регламент безопасности).
+.env
+.env.*
+*.token
+*.pem
+*.key
+credentials*
+.git-credentials
+.netrc
+.npmrc
+id_rsa*
+id_ed25519*
+
+# Machine-generated local environment (создаёт scripts/bootstrap.sh).
+scripts/env.sh
+
+# Bootstrap step logs.
+*.initdb.log
+*.integration.log
+*.unit.log
+

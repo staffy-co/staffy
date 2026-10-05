@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# pre-commit: блокирует случайный коммит секретов (GitHub PAT, приватные ключи).
+# Активация: git config core.hooksPath .githooks (делает scripts/bootstrap.sh).
+# Правило проекта: --no-verify запрещён. В выводе токен всегда маскируется.
+set -uo pipefail
+PAT='(github_pat_[A-Za-z0-9_]{22,}|gh[pousr]_[A-Za-z0-9]{36,}|ghs_[A-Za-z0-9]{36,})'
+PEM='-----BEGIN [A-Z ]*PRIVATE KEY-----'
+mask() { sed -E 's/(github_pat_|ghp_|ghu_|ghs_|gho_|ghr_|gh[pousr]_)[A-Za-z0-9_]+/\1***/g'; }
+diff_out=$(git diff --cached 2>/dev/null || true)
+if echo "$diff_out" | grep -aE "$PAT" >/dev/null 2>&1 || echo "$diff_out" | grep -aF "$PEM" >/dev/null 2>&1; then
+  echo "BLOCK: в стейдже обнаружен секрет (GitHub PAT / приватный ключ):" >&2
+  echo "$diff_out" | grep -aE "$PAT" | mask | head -5 >&2 || true
+  echo "Убери секрет из файлов, отзови токен при компрометации (см. docs/CONTINUITY.md)." >&2
+  exit 1
+fi
+exit 0

@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# pre-push: сканирует уходящие коммиты и их сообщения на секреты
+# (ловит то, что проскочило мимо pre-commit, включая commit-месседжи).
+set -uo pipefail
+PAT='(github_pat_[A-Za-z0-9_]{22,}|gh[pousr]_[A-Za-z0-9]{36,}|ghs_[A-Za-z0-9]{36,})'
+PEM='-----BEGIN [A-Z ]*PRIVATE KEY-----'
+mask() { sed -E 's/(github_pat_|ghp_|ghu_|ghs_|gho_|ghr_|gh[pousr]_)[A-Za-z0-9_]+/\1***/g'; }
+# диапазон уходящих коммитов: всё, чего нет на remote-ветках
+base=$(git rev-parse --abbrev-ref origin/HEAD 2>/dev/null || echo origin/main)
+if git rev-parse "$base" >/dev/null 2>&1; then
+  range="$base..HEAD"
+else
+  range="HEAD"
+fi
+out=$(git log -p --format='COMMIT-MSG %s' "$range" 2>/dev/null || true)
+if echo "$out" | grep -aE "$PAT" >/dev/null 2>&1 || echo "$out" | grep -aF "$PEM" >/dev/null 2>&1; then
+  echo "BLOCK: в уходящих коммитах обнаружен секрет (маскировано):" >&2
+  echo "$out" | grep -aE "$PAT" | mask | head -5 >&2 || true
+  exit 1
+fi
+exit 0
