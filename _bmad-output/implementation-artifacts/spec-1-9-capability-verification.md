@@ -2,7 +2,7 @@
 title: 'Story 1.9 — Проверка capabilities конкретного подключения'
 type: 'feature'
 created: '2026-10-06'
-status: 'backlog'
+status: 'ready-for-dev'
 route: 'dispatch'
 review_loop_iteration: 0
 baseline_commit: '3ed539437bf6e8521ceb623b2ba977d75402b2e4'
@@ -98,6 +98,7 @@ context:
 ## Spec Change Log
 
 - 2026-10-06, review loop 0: создана спека первого среза Story 1.9 (SM). Статус `backlog` до CHECKPOINT 1 — одобрения владельцем; после одобрения спека и sprint-status.yaml одновременно переходят в `ready-for-dev` (условие синхронности check-continuity).
+- 2026-10-06, CHECKPOINT 1: спека одобрена владельцем без правок («одобряю», чат 2026-10-06). Замороженные секции (Intent / Boundaries & Constraints / I/O & Edge-Case Matrix) не изменялись. Спека и sprint-status.yaml одновременно переведены в `ready-for-dev`; далее — Dev (step-03).
 
 ## Design Notes
 
