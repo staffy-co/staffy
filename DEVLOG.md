@@ -173,3 +173,22 @@ decisions:
 - Финальная фиксация мержа — прямой docs-пуш в main (разрешено протоколом: инфраструктура/docs, зелёное состояние только что подтверждено CI #35/#36)
 next: CHECKPOINT для владельца: провести epic-1-retrospective сейчас или продолжить разработку stories 1-10…1-12 (следующий по порядку — 1-10 «Управление периметром данных, сроками хранения и правами субъектов»)
 commit: d368aa8
+
+---
+date: 2026-10-06
+task: 13-sm
+role: main (Super Z, роль SM)
+story: 1-10
+summary: SM-шаг story 1-10 — спека первого среза «Artifact Data Map и retention» написана, запушена на ветку, ожидает CHECKPOINT 1 (одобрение владельцем)
+done:
+- Входы SM прочитаны: epics.md §Story 1.10 (FR-1/FR-6/FR-8, NFR-14–16), epic-1-context.md, PRD (NFR-14/15/16), spec-1-8, spec-1-9, deferred-work.md, GATE-REGISTRY.md (AG-4), инвентаризация фактических таблиц (identity/employee/connector)
+- Ветка codex/story-1-10-data-perimeter создана от main (0787127)
+- Написана спека первого среза: _bmad-output/implementation-artifacts/spec-1-10-data-perimeter.md — модуль privacy, версионируемая append-only Artifact Data Map (текущая версия — derivation, второго писателя нет), retention-политики строго по классу, идемпотентный deletion workflow через порты владеющих модулей со словарём исходов deleted/scheduled/retained_by_law/unsupported/unknown, legal hold на событиях, Data Lifecycle Receipt с hash-evidence, scope data_governance (Owner/Configurator, аудит — read-only), тест целостности периметра (словарь классов == таблицы миграций)
+- Честные границы среза: физическое уничтожение секретов и внешний SecretStore — AG-4 (unsupported-блокировка по образцу 1-9); DSAR, lineage, provider-deletion capabilities, автопланировщик — следующие срезы
+decisions:
+- Ретроспектива epic-1 отложена до закрытия 1-10…1-12 (решение владельца «полагаюсь на экспертность», 2026-10-06): ретроспектива в статусе optional, полный разбор полезнее по завершённому эпизоду
+- Deletion через порты модулей-владельцев (privacy не пишет в чужие таблицы); частичный успех честен по построению — словарь исходов и есть семантика частичного выполнения
+- Словарь классов — код-константа + тест синхронизации с миграциями: «незарегистрированные данные» невозможны по построению
+- Спека и sprint-status.yaml остаются в backlog до CHECKPOINT 1; после одобрения — одновременно ready-for-dev
+next: CHECKPOINT 1 — владелец одобряет или правит спеку 1-10 (файл на ветке codex/story-1-10-data-perimeter, запушена). После одобрения: перевод спеки и sprint-status.yaml в ready-for-dev на той же ветке → Dev (step-03) реализует срез
+commit: 0787127
