@@ -490,10 +490,12 @@ func (s *Server) integrationsPage(w http.ResponseWriter, r *http.Request) {
         s.render(w, "integrations", data)
 }
 
-// flashCookieName identifies the one-shot connector error flash.
+// flashCookieName identifies the one-shot error flash.
 const flashCookieName = "staffy_flash_error"
 
-func flashCookiePath(tenant id.UUID) string { return "/app/tenants/" + tenant.String() + "/integrations" }
+// flashCookiePath is scoped to the whole tenant area so the flash set by any
+// module form (integrations, data map) is readable on its own page.
+func flashCookiePath(tenant id.UUID) string { return "/app/tenants/" + tenant.String() }
 
 func setFlashError(w http.ResponseWriter, tenant id.UUID, message string) {
         http.SetCookie(w, &http.Cookie{

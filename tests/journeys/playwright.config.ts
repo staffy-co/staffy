@@ -12,7 +12,7 @@ export default defineConfig({
     trace: 'retain-on-failure'
   },
   webServer: {
-    command: 'cd ../.. && go run ./tests/journeys/fixture_server.go',
+    command: 'cd ../.. && go run ./tests/journeys',
     url: 'http://127.0.0.1:18081/healthz',
     reuseExistingServer: false,
     timeout: 120_000

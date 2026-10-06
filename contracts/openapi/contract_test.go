@@ -274,3 +274,88 @@ func TestCapabilityVerificationContractIsDocumented(t *testing.T) {
 		}
 	}
 }
+
+func TestPrivacyDataPerimeterContractIsHonest(t *testing.T) {
+	content, err := os.ReadFile("staffy.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document map[string]any
+	if err = yaml.Unmarshal(content, &document); &document == nil || err != nil {
+		t.Fatal(err)
+	}
+	paths := mapping(t, document, "paths")
+	// Every privacy endpoint stays behind the verified principal boundary.
+	for path, methods := range map[string][]string{
+		"/v1/tenants/{tenant_id}/data-map":                              {"get"},
+		"/v1/tenants/{tenant_id}/data-map/entries":                      {"post"},
+		"/v1/tenants/{tenant_id}/retention-policies":                    {"post"},
+		"/v1/tenants/{tenant_id}/legal-holds":                           {"post"},
+		"/v1/tenants/{tenant_id}/legal-holds/release":                   {"post"},
+		"/v1/tenants/{tenant_id}/deletion-requests":                     {"post"},
+		"/v1/tenants/{tenant_id}/deletion-requests/{request_id}/receipt": {"get"},
+	} {
+		item := mapping(t, paths, path)
+		for _, method := range methods {
+			operation := mapping(t, item, method)
+			if required, _ := operation["x-staffy-principal-required"].(bool); !required {
+				t.Fatalf("%s %s must document the verified principal boundary", method, path)
+			}
+		}
+	}
+	// The deletion workflow documents the honest outcome vocabulary.
+	schemas := mapping(t, mapping(t, document, "components"), "schemas")
+	outcome := mapping(t, schemas, "DeletionOutcome")
+	outcomeProps := mapping(t, outcome, "properties")
+	outcomeField := mapping(t, outcomeProps, "outcome")
+	enum, _ := outcomeField["enum"].([]any)
+	want := map[string]bool{"deleted": false, "scheduled": false, "retained_by_law": false, "unsupported": false, "unknown": false}
+	for _, v := range enum {
+		if s, ok := v.(string); ok {
+			want[s] = true
+		}
+	}
+	for outcomeState, seen := range want {
+		if !seen {
+			t.Errorf("DeletionOutcome.outcome enum must include %q (honest outcome vocabulary)", outcomeState)
+		}
+	}
+	// The retention policy request rejects blanket policies by requiring the class.
+	policyRequest := mapping(t, mapping(t, mapping(t, mapping(t, paths, "/v1/tenants/{tenant_id}/retention-policies"), "post"), "requestBody"), "content")
+	policySchema := mapping(t, mapping(t, policyRequest, "application/json"), "schema")
+	required, _ := policySchema["required"].([]any)
+	hasClass := false
+	for _, field := range required {
+		if name, ok := field.(string); ok && name == "class" {
+			hasClass = true
+		}
+	}
+	if !hasClass {
+		t.Fatal("retention policy request must require the class field: blanket policies are rejected")
+	}
+	if additional, ok := policySchema["additionalProperties"].(bool); !ok || additional {
+		t.Fatal("retention policy request must set additionalProperties: false")
+	}
+	// Map entry statuses stay honest in the data class view.
+	classView := mapping(t, schemas, "DataClassView")
+	classProps := mapping(t, classView, "properties")
+	status := mapping(t, classProps, "status")
+	statusEnum, _ := status["enum"].([]any)
+	statusWant := map[string]bool{"complete": false, "incomplete": false, "undocumented": false}
+	for _, v := range statusEnum {
+		if s, ok := v.(string); ok {
+			statusWant[s] = true
+		}
+	}
+	for state, seen := range statusWant {
+		if !seen {
+			t.Errorf("DataClassView.status enum must include %q", state)
+		}
+	}
+	// Deletion request bodies reject unknown fields too.
+	deletionRequest := mapping(t, mapping(t, mapping(t, mapping(t, paths, "/v1/tenants/{tenant_id}/deletion-requests"), "post"), "requestBody"), "content")
+	deletionSchema := mapping(t, mapping(t, deletionRequest, "application/json"), "schema")
+	if additional, ok := deletionSchema["additionalProperties"].(bool); !ok || additional {
+		t.Fatal("deletion request must set additionalProperties: false")
+	}
+}
