@@ -276,3 +276,23 @@ decisions:
 - Инлайн-подстановка ${STAFFY_GH_TOKEN} в аргументы curl раскрывается до назначения env (пустой заголовок → 401); токен передаётся через env скрипта или export+unset в одной команде
 next: дождаться зелёного CI на PR #11; затем merge PR #11 в main (GitHub API); после мержа — CHECKPOINT для владельца: story 1-11 (entitlement-лимиты) или epic-1-retrospective
 commit: cfe5147
+
+---
+date: 2026-10-07
+task: 18-merge
+role: main (Super Z)
+story: 1-10
+summary: PR #11 влит в main (merge 04d4735) — цикл story 1-10 полностью закрыт: спека → CHECKPOINT 1 → реализация → review R1/R2 → PR → merge; CI зелёный на всех чекпоинтах; CI-брешь .gitignore найдена и закрыта
+done:
+- CI на PR #11 упал на первом прогоне (cfe5147): fixture_server.go: undefined privacyFixture — файлы tests/journeys/privacy_fixture.go и tests/journeys/zzzzz-datamap.spec.ts не были в git
+- Корневая причина: .gitignore-паттерн journeys (добавлен в 1-9 против 14-МБ бинарника go build) без анкера игнорировал всю папку tests/journeys/ — новые файлы молча выпадали из коммитов; отслеживаемые ранее файлы не пострадали
+- Фикс (коммит 1ca61ec): паттерн привязан к корню (/journeys), оба файла добавлены; повторные прогоны CI — success (push + synchronize)
+- Merge PR #11 через GitHub API: merge-коммит 04d4735, история ветки сохранена; локальный main синхронизирован ff-only
+- CI на main после мержа — success (37531417621); check-continuity на main: OK (fail=0, warn=0)
+- Спека 1-10: done (review_loop_iteration 2), sprint-status.yaml: done; записи 13-sm…17-pr попали в main через merge (DEVLOG-конфликт не возник: после ответвления ветки main не писал DEVLOG)
+decisions:
+- Анкер gitignore-паттернов для артефактов сборки обязателен: unanchored journeys маскировал потерю файлов; CI-прогон на ветке — единственный способ поймать такое до merge (локальные прогоны видят файлы на диске)
+- Выпавшие файлы восстановлены тем же содержимым, что проходило локальный регресс: состав коммита 1ca61ec = ровно то, что тестировалось
+- DEVLOG-запись мержа — docs-пуш в main (разрешено протоколом: инфраструктура/docs, зелёное состояние только что подтверждено CI на main)
+next: CHECKPOINT для владельца: story 1-11 (entitlement-лимиты и прозрачность usage) — следующий по порядку; epic-1-retrospective остаётся optional до закрытия 1-11/1-12
+commit: <pending>
