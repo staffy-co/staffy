@@ -258,4 +258,4 @@ decisions:
 - Сбой anchor-запроса при удалении — unknown, а не fallback: решения о сроке удаления не принимаются на подставных датах; DataView (отображение) сохраняет мягкий fallback
 - Пробельная индентация — исторический стиль всей кодовой базы (CI gofmt не проверяет): не трогаем, чтобы не создавать дифф-шум
 next: PR ветки codex/story-1-10-data-perimeter в main (нужен свежий STAFFY_GH_TOKEN от владельца: push ветки + PR через GitHub API + merge); после мержа — CHECKPOINT: story 1-11 (entitlement-лимиты) или ретроспектива epic-1
-commit: <pending>
+commit: f313844
