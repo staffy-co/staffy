@@ -63,6 +63,40 @@ commit: 243dfd6
 
 ---
 date: 2026-10-06
+task: 6-sm
+role: main (Super Z, роль SM)
+story: 1-9
+summary: SM-шаг story 1-9 — спека первого среза написана, запушена на ветку, ожидает CHECKPOINT 1 (одобрение владельцем)
+done:
+- Возобновление после сброса сессии И окружения по протоколу AGENTS.md: fresh clone → bootstrap (exit 0, полное окружение) → check-continuity OK (fail=0, warn=0) — система непрерывности пережила реальный сброс без потерь
+- Входы SM прочитаны: epics.md §Story 1.9 (FR-8), epic-1-context.md, spec-1-8, deferred-work.md (3 записи нацелены на 1-9), GATE-REGISTRY.md (AG-4), PRD FR-8
+- Написана и запушена спека первого среза: `_bmad-output/implementation-artifacts/spec-1-9-capability-verification.md` на ветке `codex/story-1-9-capability-verification` (коммит a188786, [skip ci])
+- Спека закрывает три долга 1-8: stale-пометка evidence при ротации/отзыве, конкурентный CAS-тест connect/rotate, идемпотентные повторы connect/rotate/revoke
+decisions:
+- Состояние capabilities — derived из фактов (evidence + активный secret_id + история версий + пинн контракта + срок действия), без mutable-таблицы состояний: один источник истины, рассинхрон невозможен по построению
+- Спека и sprint-status.yaml остаются в статусе `backlog` до CHECKPOINT 1; после одобрения владельцем — одновременно `ready-for-dev` (условие синхронности check-continuity)
+- Срез остаётся на локальном синтетическом контуре: AG-4 не тронут; Action Gateway, Employee readiness-блокировки и автоматический reconciliation — честные отклонения среза (Design Notes спеки)
+next: CHECKPOINT 1 — владелец одобряет или правит спеку 1-9 (файл на ветке codex/story-1-9-capability-verification; ветка запушена). После одобрения: перевести спеку и sprint-status.yaml в ready-for-dev на той же ветке → Dev (step-03) реализует срез по Tasks & Acceptance
+commit: a188786
+
+---
+date: 2026-10-06
+task: 7-sm
+role: main (Super Z, роль SM)
+story: 1-9
+summary: CHECKPOINT 1 пройден — владелец одобрил спеку 1-9 без правок; статус ready-for-dev на ветке и в sprint-status.yaml
+done:
+- Владелец ответил «одобряю» (чат 2026-10-06) — CHECKPOINT 1 закрыт
+- На ветке codex/story-1-9-capability-verification: спека и sprint-status.yaml одновременно переведены в ready-for-dev (коммит 7d20a2d, push); замороженные секции спеки не тронуты; Spec Change Log дополнен записью CHECKPOINT 1
+- В AGENTS.md добавлен постоянный протокол коммуникации с владельцем (нетехнический владелец — простые объяснения) — по прямой просьбе владельца
+decisions:
+- Одобрение зафиксировано как есть, без правок спеки — frozen-секции неизменны
+- Правило простых объяснений — постоянное, живёт в AGENTS.md (переживает любой сброс), а не в памяти сессии
+next: Dev (step-03) реализует срез story 1-9 по Tasks & Acceptance спеки (файл _bmad-output/implementation-artifacts/spec-1-9-capability-verification.md; входы в frontmatter context:); работа на ветке codex/story-1-9-capability-verification; подшаги с зелёными тестами — чекпоинт-коммит + push
+commit: 7d20a2d
+
+---
+date: 2026-10-06
 task: 8-dev
 role: main (Super Z, роль Dev)
 story: 1-9
