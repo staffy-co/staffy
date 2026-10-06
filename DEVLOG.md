@@ -104,3 +104,21 @@ decisions:
 - Наблюдение (не блокер): integrations-страница делает N+1 запросов CapabilityState (Read+ListEvidence на карточку) — приемлемо при текущем масштабе, пересмотреть при >50 подключениях
 next: PR в main по ветке codex/story-1-9-capability-verification (нужен свежий STAFFY_GH_TOKEN от владельца в чате: push ветки + gh pr create; после мержа — CHECKPOINT: epic-1-retrospective или старт story 1-10)
 commit: 5392388
+
+---
+date: 2026-10-06
+task: 11-pr
+role: main (Super Z)
+story: 1-9
+summary: Ветка запушена (2 коммита), PR #10 создан через GitHub API; CI-триггер от события opened не сработал — восстановлен push-коммитом (synchronize)
+done:
+- Push ветки codex/story-1-9-capability-verification: локальные 5392388 (правки R1) и b94ba61 (статус done) доставлены в origin — RPO = 0
+- Security-исправление сессии: remote URL временно содержал токен из чата (нарушение «remote URL всегда чистый»); очищен до канонического вида, подключён credential helper scripts/git-credential-staffy.sh (токен только из env STAFFY_GH_TOKEN)
+- PR #10 (base: main) создан через GitHub API, title/body в стиле PR #9; close/reopen для триггера не помог (0 runs от pull_request opened)
+- CI-триггер обеспечен этим push-коммитом: событие push по ветке + synchronize по PR (без [skip ci] — подшаг завершён, состояние зелёное)
+- check-continuity.sh после пуша ветки: OK (fail=0, warn=0)
+decisions:
+- API-созданный PR не всегда зажигает pull_request-opened workflow — при отсутствии запусков лечится push-коммитом в ветку (synchronize), а не ожиданием
+- Повторное нарушение «токен в remote URL» недопустимо: с этой сессии только credential helper + STAFFY_GH_TOKEN в той же shell-команде
+next: дождаться зелёного CI на PR #10; затем merge PR #10 в main (GitHub API); после мержа — CHECKPOINT для владельца: epic-1-retrospective или старт story 1-10
+commit: b94ba61
