@@ -275,4 +275,4 @@ decisions:
 - Bundle-пуш с head [skip ci] гасит CI для всех коммитов пуша: завершающий подшаг пуша должен идти либо одиночным коммитом без маркера, либо отдельным триггер-коммитом
 - Инлайн-подстановка ${STAFFY_GH_TOKEN} в аргументы curl раскрывается до назначения env (пустой заголовок → 401); токен передаётся через env скрипта или export+unset в одной команде
 next: дождаться зелёного CI на PR #11; затем merge PR #11 в main (GitHub API); после мержа — CHECKPOINT для владельца: story 1-11 (entitlement-лимиты) или epic-1-retrospective
-commit: <pending>
+commit: cfe5147
