@@ -35,6 +35,7 @@ type ConnectCommand struct {
 	TenantID, ConnectionID, CorrelationID id.UUID
 	ExpectedVersion                  int64
 	Secrets                          map[string]string
+	IdempotencyKey                   string
 }
 
 type RevokeCommand struct {
@@ -42,6 +43,17 @@ type RevokeCommand struct {
 	TenantID, ConnectionID, CorrelationID id.UUID
 	ExpectedVersion                  int64
 	Reason                           string
+	IdempotencyKey                   string
+}
+
+// VerifyCommand runs the safe read-only probe for one declared capability of
+// one connection. The idempotency key replays the same evidence instead of
+// producing contradictory rows.
+type VerifyCommand struct {
+	Actor                            domain.Principal
+	TenantID, ConnectionID, CorrelationID id.UUID
+	Capability                       string
+	IdempotencyKey                   string
 }
 
 type CreateResult struct {
@@ -49,10 +61,46 @@ type CreateResult struct {
 	Replayed   bool
 }
 
-// Verifier performs the allowed basic authentication and transport check.
-// Implementations must redact secrets and provider responses in every result.
+type ConnectResult struct {
+	Connection connectorDomain.Connection
+	Replayed   bool
+}
+
+type RevokeResult struct {
+	Connection connectorDomain.Connection
+	Replayed   bool
+}
+
+// VerifyResult returns the derived state of the verified capability and
+// whether the command replayed an earlier stored outcome.
+type VerifyResult struct {
+	Report   connectorDomain.CapabilityReport
+	Replayed bool
+}
+
+// CapabilityStateResult is the derived capability view of one connection.
+type CapabilityStateResult struct {
+	Connection      connectorDomain.Connection
+	ContractVersion string
+	AdapterBuild    string
+	Capabilities    []connectorDomain.CapabilityReport
+}
+
+// Verifier performs the allowed basic authentication and transport check plus
+// the safe read-only capability probe. Implementations must redact secrets and
+// provider responses in every result.
 type Verifier interface {
 	BasicCheck(ctx context.Context, def connectorDomain.ConnectorDefinition, env connectorDomain.Environment, config map[string]string, secrets map[string]string) connectorDomain.CheckResult
+	Probe(ctx context.Context, def connectorDomain.ConnectorDefinition, dec connectorDomain.CapabilityDeclaration, env connectorDomain.Environment, config map[string]string) ProbeResult
+	Build() string
+}
+
+// ProbeResult is the redacted outcome of the synthetic read-only probe.
+type ProbeResult struct {
+	Outcome         string
+	DeliveryLevel   string
+	RedactedRequest string
+	RedactedResult  string
 }
 
 type Service interface {
@@ -62,9 +110,11 @@ type Service interface {
 	Read(ctx context.Context, actor domain.Principal, tenantID, connectionID id.UUID) (connectorDomain.Connection, error)
 	ReadVersions(ctx context.Context, actor domain.Principal, tenantID, connectionID id.UUID) ([]connectorDomain.ConnectionVersion, error)
 	Save(ctx context.Context, c SaveCommand) (connectorDomain.Connection, error)
-	Connect(ctx context.Context, c ConnectCommand) (connectorDomain.Connection, error)
-	Rotate(ctx context.Context, c ConnectCommand) (connectorDomain.Connection, error)
-	Revoke(ctx context.Context, c RevokeCommand) (connectorDomain.Connection, error)
+	Connect(ctx context.Context, c ConnectCommand) (ConnectResult, error)
+	Rotate(ctx context.Context, c ConnectCommand) (ConnectResult, error)
+	Revoke(ctx context.Context, c RevokeCommand) (RevokeResult, error)
+	VerifyCapability(ctx context.Context, c VerifyCommand) (VerifyResult, error)
+	CapabilityState(ctx context.Context, actor domain.Principal, tenantID, connectionID id.UUID) (CapabilityStateResult, error)
 }
 
 type Clock interface{ Now() time.Time }

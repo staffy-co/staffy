@@ -121,3 +121,86 @@ func TestSyntheticCheckEndpointSuffixRequiresSeparatorDot(t *testing.T) {
                 t.Fatalf("demo.sandbox.example must verify transport, got %s", result.Transport)
         }
 }
+
+func probeDeclaration() connectorDomain.CapabilityDeclaration {
+	return connectorDomain.CapabilityDeclaration{
+		ID: "query.trunk-status", Title: "Статус транка", Direction: connectorDomain.DirectionOutbound, Operation: connectorDomain.OperationQuery,
+		TimeoutMS: 5000, Ordering: "unordered", RateLimit: "60/мин", SizeLimit: "4 КБ", Receipt: "query_result",
+		ReceiptLevel: connectorDomain.DeliveryDelivered, CancelCompensation: "не применимо", Reconciliation: "не требуется",
+		ReconciliationOwner: "Technical Lead", ProbeAllowed: true,
+	}
+}
+
+func probeDefinition() connectorDomain.ConnectorDefinition {
+	return connectorDomain.ConnectorDefinition{
+		ID: "staffy-synthetic-telephony", Version: "1.1.0", SupportStatus: connectorDomain.StatusSupported, AdapterImplemented: true,
+		AllowedEnvironments: []connectorDomain.Environment{connectorDomain.EnvSandbox},
+		Fields:              []connectorDomain.FieldSchema{{Name: "endpoint", Label: "Endpoint", Type: connectorDomain.FieldURL, Required: true}, {Name: "api_key", Label: "API-ключ", Type: connectorDomain.FieldText, Required: true, Secret: true}},
+	}
+}
+
+func TestProbeVerifiesReadOnlyCapabilityAtDeliveredLevel(t *testing.T) {
+	v := Synthetic{}
+	result := v.Probe(context.Background(), probeDefinition(), probeDeclaration(), connectorDomain.EnvSandbox, map[string]string{"endpoint": "https://demo.sandbox.example", "api_key": "sandbox-secret-value"})
+	if result.Outcome != connectorDomain.EvidenceVerified || result.DeliveryLevel != string(connectorDomain.DeliveryDelivered) {
+		t.Fatalf("result=%+v", result)
+	}
+	// Redaction: only the host, never the path, the query or the secret.
+	if strings.Contains(result.RedactedRequest, "sandbox-secret-value") || strings.Contains(result.RedactedRequest, "/api") {
+		t.Fatalf("request must stay redacted: %s", result.RedactedRequest)
+	}
+	if strings.Contains(result.RedactedResult, "sandbox-") {
+		t.Fatalf("result must stay redacted: %s", result.RedactedResult)
+	}
+	if !strings.Contains(result.RedactedRequest, AdapterBuild) {
+		t.Fatalf("request must record the adapter build: %s", result.RedactedRequest)
+	}
+}
+
+func TestProbeTimeoutHostYieldsHonestUnknown(t *testing.T) {
+	v := Synthetic{}
+	result := v.Probe(context.Background(), probeDefinition(), probeDeclaration(), connectorDomain.EnvSandbox, map[string]string{"endpoint": "https://timeout.demo.sandbox.example"})
+	if result.Outcome != connectorDomain.EvidenceUnknown || result.DeliveryLevel != string(connectorDomain.DeliveryUnknown) {
+		t.Fatalf("result=%+v", result)
+	}
+	if !strings.Contains(result.RedactedResult, "вслепую") || !strings.Contains(result.RedactedResult, "Technical Lead") {
+		t.Fatalf("unknown must forbid blind retries and name the owner: %s", result.RedactedResult)
+	}
+}
+
+func TestProbeExpiredContextYieldsUnknown(t *testing.T) {
+	v := Synthetic{}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	result := v.Probe(ctx, probeDefinition(), probeDeclaration(), connectorDomain.EnvSandbox, map[string]string{"endpoint": "https://demo.sandbox.example"})
+	if result.Outcome != connectorDomain.EvidenceUnknown {
+		t.Fatalf("expired deadline must yield unknown: %+v", result)
+	}
+}
+
+func TestProbeFailHostYieldsFailed(t *testing.T) {
+	v := Synthetic{}
+	result := v.Probe(context.Background(), probeDefinition(), probeDeclaration(), connectorDomain.EnvSandbox, map[string]string{"endpoint": "https://fail.demo.sandbox.example"})
+	if result.Outcome != connectorDomain.EvidenceFailed {
+		t.Fatalf("fail host must yield failed: %+v", result)
+	}
+}
+
+func TestProbeRefusesNonVerifiableCapabilities(t *testing.T) {
+	v := Synthetic{}
+	mutating := probeDeclaration()
+	mutating.Operation = connectorDomain.OperationCommand
+	result := v.Probe(context.Background(), probeDefinition(), mutating, connectorDomain.EnvSandbox, map[string]string{"endpoint": "https://demo.sandbox.example"})
+	if result.Outcome != connectorDomain.EvidenceFailed || !strings.Contains(result.RedactedResult, "Action Gateway") {
+		t.Fatalf("mutating capability probe must be refused: %+v", result)
+	}
+}
+
+func TestAdapterBuildConstantPinsSyntheticVersion(t *testing.T) {
+	if AdapterBuild != "synthetic/1.1.0" {
+		t.Fatalf("adapter build = %s", AdapterBuild)
+	}
+	if v := (Synthetic{}); v.Build() != AdapterBuild {
+		t.Fatal("Build() must report the pinned adapter build")
+	}
+}

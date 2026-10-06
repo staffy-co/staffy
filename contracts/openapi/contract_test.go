@@ -172,3 +172,105 @@ func TestConnectorRequestsRejectUnknownFields(t *testing.T) {
 		}
 	}
 }
+
+func TestCapabilityVerificationContractIsDocumented(t *testing.T) {
+	content, err := os.ReadFile("staffy.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document map[string]any
+	if err := yaml.Unmarshal(content, &document); err != nil {
+		t.Fatal(err)
+	}
+	paths := mapping(t, document, "paths")
+
+	// Capability State read endpoint.
+	statePath := mapping(t, paths, "/v1/tenants/{tenant_id}/connections/{connection_id}/capabilities")
+	stateGet := mapping(t, statePath, "get")
+	if required, _ := stateGet["x-staffy-principal-required"].(bool); !required {
+		t.Fatal("capability state must stay behind the verified principal boundary")
+	}
+	stateResponses := mapping(t, stateGet, "responses")
+	if _, ok := stateResponses["404"]; !ok {
+		t.Error("capability state must document 404")
+	}
+
+	// Verify endpoint: principal boundary, idempotency header, honest errors.
+	verifyPath := mapping(t, paths, "/v1/tenants/{tenant_id}/connections/{connection_id}/capabilities/{capability_id}/verify")
+	verifyPost := mapping(t, verifyPath, "post")
+	if required, _ := verifyPost["x-staffy-principal-required"].(bool); !required {
+		t.Fatal("verify must stay behind the verified principal boundary")
+	}
+	verifyParams, ok := verifyPost["parameters"].([]any)
+	if !ok {
+		t.Fatal("verify must document the Idempotency-Key header")
+	}
+	hasKeyHeader := false
+	for _, p := range verifyParams {
+		param, ok := p.(map[string]any)
+		if !ok {
+			continue
+		}
+		if name, _ := param["name"].(string); name == "Idempotency-Key" {
+			if in, _ := param["in"].(string); in == "header" {
+				hasKeyHeader = true
+			}
+		}
+	}
+	if !hasKeyHeader {
+		t.Fatal("verify must require the Idempotency-Key header (replay/conflict semantics)")
+	}
+	verifyResponses := mapping(t, verifyPost, "responses")
+	for _, status := range []string{"200", "400", "404", "409"} {
+		if _, ok := verifyResponses[status]; !ok {
+			t.Errorf("verify response %s is missing", status)
+		}
+	}
+
+	// connect/rotate/revoke are now idempotent by header.
+	for _, path := range []string{
+		"/v1/tenants/{tenant_id}/connections/{connection_id}/connect",
+		"/v1/tenants/{tenant_id}/connections/{connection_id}/rotate",
+		"/v1/tenants/{tenant_id}/connections/{connection_id}/revoke",
+	} {
+		item := mapping(t, paths, path)
+		post := mapping(t, item, "post")
+		params, _ := post["parameters"].([]any)
+		found := false
+		for _, p := range params {
+			param, ok := p.(map[string]any)
+			if !ok {
+				continue
+			}
+			if name, _ := param["name"].(string); name == "Idempotency-Key" {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("%s must document the idempotent Idempotency-Key header (R2 Gap 5)", path)
+		}
+	}
+
+	// Capability schemas with the honest state and delivery vocabularies.
+	schemas := mapping(t, mapping(t, document, "components"), "schemas")
+	for _, schema := range []string{"CapabilityDeclaration", "CapabilityReport", "CapabilityBlock", "CapabilityEvidenceSummary"} {
+		if _, ok := schemas[schema]; !ok {
+			t.Errorf("schema %s is missing", schema)
+		}
+	}
+	report := mapping(t, schemas, "CapabilityReport")
+	props := mapping(t, report, "properties")
+	state := mapping(t, props, "state")
+	enum, _ := state["enum"].([]any)
+	want := map[string]bool{"unverified": false, "verifying": false, "verified": false, "unsupported": false, "failed": false, "unknown": false, "stale": false}
+	for _, v := range enum {
+		if s, ok := v.(string); ok {
+			want[s] = true
+		}
+	}
+	for state, seen := range want {
+		if !seen {
+			t.Errorf("CapabilityReport.state enum must include %q (honest state vocabulary)", state)
+		}
+	}
+}

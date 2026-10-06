@@ -61,16 +61,38 @@ func (i connIdentity) Authorize(_ context.Context, _ identityDomain.Principal, t
         return nil
 }
 
-// connRepo is a fake repository implementing the full port.Repository.
+// commandRecord is one idempotency record of connect/rotate/revoke.
+type commandRecord struct {
+        hash     string
+        snapshot connectorDomain.Connection
+}
+
+// connRepo is a fake repository implementing the full port.Repository with
+// in-memory idempotency for commands and capability evidence.
 type connRepo struct {
         connections map[id.UUID]connectorDomain.Connection
         seals       map[id.UUID]*connectorDomain.Seal
         idempotency map[string]port.CreateParams
+        records     map[string]commandRecord // key: operation + ":" + idempotency key
+        evidence    map[string]connectorDomain.CapabilityEvidence
         lastEvent   map[string]any
 }
 
 func newConnRepo() *connRepo {
-        return &connRepo{connections: map[id.UUID]connectorDomain.Connection{}, seals: map[id.UUID]*connectorDomain.Seal{}, idempotency: map[string]port.CreateParams{}, lastEvent: map[string]any{}}
+        return &connRepo{connections: map[id.UUID]connectorDomain.Connection{}, seals: map[id.UUID]*connectorDomain.Seal{}, idempotency: map[string]port.CreateParams{}, records: map[string]commandRecord{}, evidence: map[string]connectorDomain.CapabilityEvidence{}, lastEvent: map[string]any{}}
+}
+
+func (r *connRepo) recordKey(operation, key string) string { return operation + ":" + key }
+
+func (r *connRepo) LookupCommand(_ context.Context, _ tenancy.Context, operation, key, hash string) (connectorDomain.Connection, bool, error) {
+        record, ok := r.records[r.recordKey(operation, key)]
+        if !ok {
+                return connectorDomain.Connection{}, false, nil
+        }
+        if record.hash != hash {
+                return connectorDomain.Connection{}, false, connectorDomain.ErrIdempotencyConflict
+        }
+        return record.snapshot, true, nil
 }
 
 func (r *connRepo) Create(_ context.Context, p port.CreateParams) (connectorDomain.Connection, bool, error) {
@@ -136,13 +158,25 @@ func (r *connRepo) Save(_ context.Context, p port.SaveParams) (connectorDomain.C
         return c, nil
 }
 
-func (r *connRepo) Connect(_ context.Context, p port.ConnectParams) (connectorDomain.Connection, error) {
+func (r *connRepo) Connect(_ context.Context, p port.ConnectParams) (connectorDomain.Connection, bool, error) {
+        if record, ok := r.records[r.recordKey(p.Operation, p.IdempotencyKey)]; ok {
+                if record.hash != p.RequestHash {
+                        return connectorDomain.Connection{}, false, connectorDomain.ErrIdempotencyConflict
+                }
+                return record.snapshot, true, nil
+        }
         c, ok := r.connections[p.ConnectionID]
         if !ok {
-                return connectorDomain.Connection{}, connectorDomain.ErrNotFound
+                return connectorDomain.Connection{}, false, connectorDomain.ErrNotFound
         }
         if c.Version != p.ExpectedVersion {
-                return connectorDomain.Connection{}, connectorDomain.ErrConflict
+                return connectorDomain.Connection{}, false, connectorDomain.ErrConflict
+        }
+        // Mirrors the SQL store: the single-secret rule lives under the row lock,
+        // so the concurrent race resolves as a CAS conflict and the sequential
+        // double connect as an honest rule rejection.
+        if !p.Rotate && c.SecretActive {
+                return connectorDomain.Connection{}, false, connectorDomain.RuleError{Rule: "secret", Reason: "Секрет уже принят. Для замены используйте ротацию."}
         }
         if p.Rotate && c.SecretActive {
                 if seal, ok := r.seals[c.SecretID]; ok && seal.RevokedAt == nil {
@@ -171,16 +205,25 @@ func (r *connRepo) Connect(_ context.Context, p port.ConnectParams) (connectorDo
         }
         c.UpdatedAt = p.Now
         r.connections[p.ConnectionID] = c
-        return c, nil
+        if p.IdempotencyKey != "" {
+                r.records[r.recordKey(p.Operation, p.IdempotencyKey)] = commandRecord{hash: p.RequestHash, snapshot: c}
+        }
+        return c, false, nil
 }
 
-func (r *connRepo) Revoke(_ context.Context, p port.RevokeParams) (connectorDomain.Connection, error) {
+func (r *connRepo) Revoke(_ context.Context, p port.RevokeParams) (connectorDomain.Connection, bool, error) {
+        if record, ok := r.records[r.recordKey(p.Operation, p.IdempotencyKey)]; ok {
+                if record.hash != p.RequestHash {
+                        return connectorDomain.Connection{}, false, connectorDomain.ErrIdempotencyConflict
+                }
+                return record.snapshot, true, nil
+        }
         c, ok := r.connections[p.ConnectionID]
         if !ok {
-                return connectorDomain.Connection{}, connectorDomain.ErrNotFound
+                return connectorDomain.Connection{}, false, connectorDomain.ErrNotFound
         }
         if c.Version != p.ExpectedVersion {
-                return connectorDomain.Connection{}, connectorDomain.ErrConflict
+                return connectorDomain.Connection{}, false, connectorDomain.ErrConflict
         }
         c.Version++
         c.Status = connectorDomain.StatusRevoked
@@ -191,7 +234,52 @@ func (r *connRepo) Revoke(_ context.Context, p port.RevokeParams) (connectorDoma
                 now := p.Now
                 seal.RevokedAt = &now
         }
-        return c, nil
+        if p.IdempotencyKey != "" {
+                r.records[r.recordKey(p.Operation, p.IdempotencyKey)] = commandRecord{hash: p.RequestHash, snapshot: c}
+        }
+        return c, false, nil
+}
+
+func (r *connRepo) LookupEvidence(_ context.Context, _ tenancy.Context, connectionID id.UUID, key, hash string) (connectorDomain.CapabilityEvidence, bool, error) {
+        existing, ok := r.evidence[connectionID.String()+":"+key]
+        if !ok {
+                return connectorDomain.CapabilityEvidence{}, false, nil
+        }
+        if existing.RequestHash != hash {
+                return connectorDomain.CapabilityEvidence{}, false, connectorDomain.ErrIdempotencyConflict
+        }
+        return existing, true, nil
+}
+
+func (r *connRepo) SaveEvidence(_ context.Context, p port.SaveEvidenceParams) (connectorDomain.CapabilityEvidence, bool, error) {
+        slot := p.ConnectionID.String() + ":" + p.IdempotencyKey
+        if existing, ok := r.evidence[slot]; ok {
+                if existing.RequestHash != p.RequestHash {
+                        return connectorDomain.CapabilityEvidence{}, false, connectorDomain.ErrIdempotencyConflict
+                }
+                return existing, true, nil
+        }
+        row := connectorDomain.CapabilityEvidence{
+                TenantID: p.Scope.TenantID(), EvidenceID: p.EvidenceID, ConnectionID: p.ConnectionID, SecretID: p.SecretID,
+                Environment: p.Environment, ContractVersion: p.ContractVersion, AdapterBuild: p.AdapterBuild,
+                Capability: p.Capability, ProbeKind: p.ProbeKind, ActorID: p.Scope.PrincipalID(),
+                RequestedAt: p.RequestedAt, DeadlineAt: p.DeadlineAt, CompletedAt: p.CompletedAt,
+                Outcome: p.Outcome, DeliveryLevel: p.DeliveryLevel,
+                RedactedRequest: p.RedactedRequest, RedactedResult: p.RedactedResult,
+                ExpiresAt: p.ExpiresAt, IdempotencyKey: p.IdempotencyKey, RequestHash: p.RequestHash,
+        }
+        r.evidence[slot] = row
+        return row, false, nil
+}
+
+func (r *connRepo) ListEvidence(_ context.Context, _ tenancy.Context, connectionID id.UUID) ([]connectorDomain.CapabilityEvidence, error) {
+        out := []connectorDomain.CapabilityEvidence{}
+        for _, row := range r.evidence {
+                if row.ConnectionID == connectionID {
+                        out = append(out, row)
+                }
+        }
+        return out, nil
 }
 
 func serviceFixture() (*Service, *connRepo) {
@@ -213,11 +301,29 @@ func (stubVerifier) BasicCheck(_ context.Context, def connectorDomain.ConnectorD
         return result
 }
 
+func (stubVerifier) Probe(_ context.Context, _ connectorDomain.ConnectorDefinition, dec connectorDomain.CapabilityDeclaration, _ connectorDomain.Environment, _ map[string]string) api.ProbeResult {
+        return api.ProbeResult{
+                Outcome:         connectorDomain.EvidenceVerified,
+                DeliveryLevel:   string(connectorDomain.DeliveryDelivered),
+                RedactedRequest: "probe:read-only " + dec.ID + " → demo.sandbox.example (sandbox), адаптер stub/1.0",
+                RedactedResult:  "Синтетический read-only ответ получен: транк активен; уровень доставки delivered.",
+        }
+}
+
+func (stubVerifier) Build() string { return "stub/1.0" }
+
 func createCommand() api.CreateCommand {
         return api.CreateCommand{
                 Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, IdempotencyKey: "create-key-123", CorrelationID: connCorrelation,
-                ConnectorID: "staffy-synthetic-telephony", ConnectorVer: "1.0.0", Label: "Тестовая телефония", Environment: connectorDomain.EnvSandbox,
+                ConnectorID: "staffy-synthetic-telephony", ConnectorVer: "1.1.0", Label: "Тестовая телефония", Environment: connectorDomain.EnvSandbox,
                 Config: map[string]string{"endpoint": "https://demo.sandbox.example"},
+        }
+}
+
+func connectCommand(connectionID id.UUID, version int64, key, secret string) api.ConnectCommand {
+        return api.ConnectCommand{
+                Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: connectionID, CorrelationID: connCorrelation,
+                ExpectedVersion: version, Secrets: map[string]string{"api_key": secret}, IdempotencyKey: key,
         }
 }
 
@@ -244,6 +350,15 @@ func TestCreateDraftConnection(t *testing.T) {
         conflict.Label = "Другое назначение"
         if _, err = s.Create(context.Background(), conflict); !errors.Is(err, connectorDomain.ErrIdempotencyConflict) {
                 t.Fatalf("conflict: %v", err)
+        }
+}
+
+func TestCreateRejectsStaleContractVersion(t *testing.T) {
+        s, _ := serviceFixture()
+        cmd := createCommand()
+        cmd.ConnectorVer = "1.0.0"
+        if _, err := s.Create(context.Background(), cmd); err == nil {
+                t.Fatal("an outdated contract pin must be refused: new connections pin the latest version")
         }
 }
 
@@ -286,32 +401,34 @@ func TestConnectSealsSecretAndKeepsCapabilityHonest(t *testing.T) {
         if err != nil {
                 t.Fatalf("create: %v", err)
         }
-        connect := api.ConnectCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: created.Connection.ConnectionID, CorrelationID: connCorrelation, ExpectedVersion: created.Connection.Version, Secrets: map[string]string{"api_key": "sandbox-demo-123"}}
-        c, err := s.Connect(ctx, connect)
+        c, err := s.Connect(ctx, connectCommand(created.Connection.ConnectionID, created.Connection.Version, "connect-key-1", "sandbox-demo-123"))
         if err != nil {
                 t.Fatalf("connect: %v", err)
         }
-        if c.Status != connectorDomain.StatusConnectedUnverified {
-                t.Fatalf("status = %s, want connected_unverified", c.Status)
+        if c.Connection.Status != connectorDomain.StatusConnectedUnverified {
+                t.Fatalf("status = %s, want connected_unverified", c.Connection.Status)
         }
-        if c.AuthState != connectorDomain.CheckVerified || c.Transport != connectorDomain.CheckVerified {
-                t.Fatalf("states = %s/%s", c.AuthState, c.Transport)
+        if c.Connection.AuthState != connectorDomain.CheckVerified || c.Connection.Transport != connectorDomain.CheckVerified {
+                t.Fatalf("states = %s/%s", c.Connection.AuthState, c.Connection.Transport)
         }
-        if c.SecretActive != true || c.SecretHint == "" {
-                t.Fatalf("secret bookkeeping missing: %+v", c)
+        if c.Connection.SecretActive != true || c.Connection.SecretHint == "" {
+                t.Fatalf("secret bookkeeping missing: %+v", c.Connection)
+        }
+        if c.Replayed {
+                t.Fatal("first connect must not be replayed")
         }
         // The sealed material never leaves the store; reads return only the hint.
         event := repo.lastEvent["connect"].(map[string]any)
-        if len(c.Config["api_key"]) > 0 {
+        if len(c.Connection.Config["api_key"]) > 0 {
                 t.Fatal("secret must not appear in config")
         }
         _ = event
-        seal := repo.seals[c.SecretID]
+        seal := repo.seals[c.Connection.SecretID]
         if seal == nil || len(seal.Sealed) != 32 || len(seal.Key) != 32 {
                 t.Fatalf("seal malformed: %+v", seal)
         }
         // Read path returns no secret material.
-        read, err := s.Read(ctx, identityDomain.Principal{ID: connActor}, connTenant, c.ConnectionID)
+        read, err := s.Read(ctx, identityDomain.Principal{ID: connActor}, connTenant, c.Connection.ConnectionID)
         if err != nil {
                 t.Fatalf("read: %v", err)
         }
@@ -320,17 +437,44 @@ func TestConnectSealsSecretAndKeepsCapabilityHonest(t *testing.T) {
         }
 }
 
+func TestConnectReplayAfterNetworkFailure(t *testing.T) {
+        s, repo := serviceFixture()
+        ctx := context.Background()
+        created, _ := s.Create(ctx, createCommand())
+        first, err := s.Connect(ctx, connectCommand(created.Connection.ConnectionID, 1, "connect-retry-key", "sandbox-first-key"))
+        if err != nil {
+                t.Fatalf("connect: %v", err)
+        }
+        // The same key with the same data replays the stored outcome — the
+        // "secret already accepted" guard must NOT fire for an idempotent retry.
+        retry, err := s.Connect(ctx, connectCommand(created.Connection.ConnectionID, 1, "connect-retry-key", "sandbox-first-key"))
+        if err != nil {
+                t.Fatalf("idempotent retry must replay, got %v", err)
+        }
+        if !retry.Replayed || retry.Connection.Version != first.Connection.Version {
+                t.Fatalf("replay = %+v (first=%+v)", retry.Connection, first.Connection)
+        }
+        // The same key with different data is an honest conflict.
+        conflicting := connectCommand(created.Connection.ConnectionID, 1, "connect-retry-key", "sandbox-other-key")
+        if _, err = s.Connect(ctx, conflicting); !errors.Is(err, connectorDomain.ErrIdempotencyConflict) {
+                t.Fatalf("conflicting retry = %v", err)
+        }
+        // No duplicate versions were created by the retries.
+        if len(repo.connections) != 1 {
+                t.Fatalf("replays must not duplicate work: %d", len(repo.connections))
+        }
+}
+
 func TestConnectFailureIsHonest(t *testing.T) {
         s, _ := serviceFixture()
         ctx := context.Background()
         created, _ := s.Create(ctx, createCommand())
-        connect := api.ConnectCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: created.Connection.ConnectionID, CorrelationID: connCorrelation, ExpectedVersion: 1, Secrets: map[string]string{"api_key": "wrong-secret-value"}}
-        c, err := s.Connect(ctx, connect)
+        c, err := s.Connect(ctx, connectCommand(created.Connection.ConnectionID, 1, "connect-key-fail", "wrong-secret-value"))
         if err != nil {
                 t.Fatalf("failed check must still record state, got %v", err)
         }
-        if c.Status != connectorDomain.StatusFailed || c.AuthState != connectorDomain.CheckFailed {
-                t.Fatalf("failed connection = %+v", c)
+        if c.Connection.Status != connectorDomain.StatusFailed || c.Connection.AuthState != connectorDomain.CheckFailed {
+                t.Fatalf("failed connection = %+v", c.Connection)
         }
 }
 
@@ -338,14 +482,11 @@ func TestSecretAcceptedOnceRotationReplacesIt(t *testing.T) {
         s, repo := serviceFixture()
         ctx := context.Background()
         created, _ := s.Create(ctx, createCommand())
-        connect := api.ConnectCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: created.Connection.ConnectionID, CorrelationID: connCorrelation, ExpectedVersion: 1, Secrets: map[string]string{"api_key": "sandbox-first-key"}}
-        first, err := s.Connect(ctx, connect)
+        first, err := s.Connect(ctx, connectCommand(created.Connection.ConnectionID, 1, "rotate-key-a", "sandbox-first-key"))
         if err != nil {
                 t.Fatalf("connect: %v", err)
         }
-        second := connect
-        second.ExpectedVersion = first.Version
-        second.Secrets = map[string]string{"api_key": "not-sandbox-format"}
+        second := connectCommand(created.Connection.ConnectionID, first.Connection.Version, "rotate-key-b", "not-sandbox-format")
         if _, err = s.Connect(ctx, second); err == nil {
                 t.Fatal("double connect must be rejected; use rotation")
         }
@@ -353,15 +494,15 @@ func TestSecretAcceptedOnceRotationReplacesIt(t *testing.T) {
         if err != nil {
                 t.Fatalf("rotate: %v", err)
         }
-        if rotated.Version != first.Version+1 {
-                t.Fatalf("rotation must create a new version: %d", rotated.Version)
+        if rotated.Connection.Version != first.Connection.Version+1 {
+                t.Fatalf("rotation must create a new version: %d", rotated.Connection.Version)
         }
-        oldSeal := repo.seals[first.SecretID]
+        oldSeal := repo.seals[first.Connection.SecretID]
         if oldSeal == nil || oldSeal.RevokedAt == nil {
                 t.Fatal("previous seal must be revoked on rotation")
         }
-        if rotated.Status != connectorDomain.StatusFailed {
-                t.Fatalf("rotation with invalid secret must reset to failed honestly: %s", rotated.Status)
+        if rotated.Connection.Status != connectorDomain.StatusFailed {
+                t.Fatalf("rotation with invalid secret must reset to failed honestly: %s", rotated.Connection.Status)
         }
 }
 
@@ -369,23 +510,42 @@ func TestRevokeIsTerminalAndRevokesSeal(t *testing.T) {
         s, repo := serviceFixture()
         ctx := context.Background()
         created, _ := s.Create(ctx, createCommand())
-        connect := api.ConnectCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: created.Connection.ConnectionID, CorrelationID: connCorrelation, ExpectedVersion: 1, Secrets: map[string]string{"api_key": "sandbox-final-key"}}
-        connected, _ := s.Connect(ctx, connect)
-        revoked, err := s.Revoke(ctx, api.RevokeCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: connected.ConnectionID, CorrelationID: connCorrelation, ExpectedVersion: connected.Version, Reason: "Проект завершён"})
+        connected, _ := s.Connect(ctx, connectCommand(created.Connection.ConnectionID, 1, "revoke-key-a", "sandbox-final-key"))
+        revoked, err := s.Revoke(ctx, api.RevokeCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: connected.Connection.ConnectionID, CorrelationID: connCorrelation, ExpectedVersion: connected.Connection.Version, Reason: "Проект завершён", IdempotencyKey: "revoke-key-a"})
         if err != nil {
                 t.Fatalf("revoke: %v", err)
         }
-        if revoked.Status != connectorDomain.StatusRevoked || revoked.SecretActive {
-                t.Fatalf("revoked = %+v", revoked)
+        if revoked.Connection.Status != connectorDomain.StatusRevoked || revoked.Connection.SecretActive {
+                t.Fatalf("revoked = %+v", revoked.Connection)
         }
-        if seal := repo.seals[connected.SecretID]; seal == nil || seal.RevokedAt == nil {
+        if seal := repo.seals[connected.Connection.SecretID]; seal == nil || seal.RevokedAt == nil {
                 t.Fatal("seal must be revoked with the connection")
         }
-        if _, err = s.Revoke(ctx, api.RevokeCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: revoked.ConnectionID, CorrelationID: connCorrelation, ExpectedVersion: revoked.Version, Reason: "Повторно"}); err == nil {
+        if _, err = s.Revoke(ctx, api.RevokeCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: revoked.Connection.ConnectionID, CorrelationID: connCorrelation, ExpectedVersion: revoked.Connection.Version, Reason: "Повторно", IdempotencyKey: "revoke-key-b"}); err == nil {
                 t.Fatal("revoked connection must reject further commands")
         }
-        if _, err = s.Save(ctx, api.SaveCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: revoked.ConnectionID, CorrelationID: connCorrelation, ExpectedVersion: revoked.Version, Config: revoked.Config, Label: revoked.Label, ChangeSummary: "Попытка"}); err == nil {
+        if _, err = s.Save(ctx, api.SaveCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: revoked.Connection.ConnectionID, CorrelationID: connCorrelation, ExpectedVersion: revoked.Connection.Version, Config: revoked.Connection.Config, Label: revoked.Connection.Label, ChangeSummary: "Попытка"}); err == nil {
                 t.Fatal("revoked connection must reject config changes")
+        }
+}
+
+func TestRevokeReplayWithSameKey(t *testing.T) {
+        s, _ := serviceFixture()
+        ctx := context.Background()
+        created, _ := s.Create(ctx, createCommand())
+        connected, _ := s.Connect(ctx, connectCommand(created.Connection.ConnectionID, 1, "replay-key-c", "sandbox-rev-key"))
+        cmd := api.RevokeCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: connected.Connection.ConnectionID, CorrelationID: connCorrelation, ExpectedVersion: connected.Connection.Version, Reason: "Завершение", IdempotencyKey: "revoke-replay-key"}
+        first, err := s.Revoke(ctx, cmd)
+        if err != nil {
+                t.Fatalf("revoke: %v", err)
+        }
+        // Retry after a network failure: replay, not "already revoked".
+        retry, err := s.Revoke(ctx, cmd)
+        if err != nil || !retry.Replayed {
+                t.Fatalf("idempotent revoke retry = %v %+v", err, retry)
+        }
+        if retry.Connection.Version != first.Connection.Version {
+                t.Fatalf("replay must return the stored outcome version: %d vs %d", retry.Connection.Version, first.Connection.Version)
         }
 }
 
@@ -416,10 +576,10 @@ func TestRevokeReasonBoundKeepsStoredSummaryInsideHistoryLimit(t *testing.T) {
         if err != nil {
                 t.Fatalf("create second: %v", err)
         }
-        if _, err = s.Revoke(ctx, api.RevokeCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: first.Connection.ConnectionID, CorrelationID: connCorrelation, ExpectedVersion: first.Connection.Version, Reason: strings.Repeat("ф", connectorDomain.MaxRevokeReasonRunes)}); err != nil {
+        if _, err = s.Revoke(ctx, api.RevokeCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: first.Connection.ConnectionID, CorrelationID: connCorrelation, ExpectedVersion: first.Connection.Version, Reason: strings.Repeat("ф", connectorDomain.MaxRevokeReasonRunes), IdempotencyKey: "reason-ok-key"}); err != nil {
                 t.Fatalf("max-length reason must be accepted: %v", err)
         }
-        if _, err = s.Revoke(ctx, api.RevokeCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: second.Connection.ConnectionID, CorrelationID: connCorrelation, ExpectedVersion: second.Connection.Version, Reason: strings.Repeat("ф", connectorDomain.MaxRevokeReasonRunes+1)}); err == nil {
+        if _, err = s.Revoke(ctx, api.RevokeCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: second.Connection.ConnectionID, CorrelationID: connCorrelation, ExpectedVersion: second.Connection.Version, Reason: strings.Repeat("ф", connectorDomain.MaxRevokeReasonRunes+1), IdempotencyKey: "reason-bad-key"}); err == nil {
                 t.Fatal("reason above the bound must be rejected before storage")
         }
 }
@@ -444,35 +604,33 @@ func TestFailedRotationLeavesNoActiveSecretAndAllowsConnectRetry(t *testing.T) {
         s, repo := serviceFixture()
         ctx := context.Background()
         created, _ := s.Create(ctx, createCommand())
-        first, err := s.Connect(ctx, api.ConnectCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: created.Connection.ConnectionID, CorrelationID: connCorrelation, ExpectedVersion: 1, Secrets: map[string]string{"api_key": "sandbox-first-key"}})
+        first, err := s.Connect(ctx, connectCommand(created.Connection.ConnectionID, 1, "rotate-key-f1", "sandbox-first-key"))
         if err != nil {
                 t.Fatalf("connect: %v", err)
         }
-        rotate := api.ConnectCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: created.Connection.ConnectionID, CorrelationID: connCorrelation, ExpectedVersion: first.Version, Secrets: map[string]string{"api_key": "not-sandbox-format"}}
+        rotate := connectCommand(created.Connection.ConnectionID, first.Connection.Version, "rotate-key-f2", "not-sandbox-format")
         rotated, err := s.Rotate(ctx, rotate)
         if err != nil {
                 t.Fatalf("rotate: %v", err)
         }
-        if rotated.Status != connectorDomain.StatusFailed {
-                t.Fatalf("rotation with invalid secret must fail honestly: %s", rotated.Status)
+        if rotated.Connection.Status != connectorDomain.StatusFailed {
+                t.Fatalf("rotation with invalid secret must fail honestly: %s", rotated.Connection.Status)
         }
         // The previous seal was revoked and no new secret was accepted: no secret
         // may stay active, and a plain connect retry must be allowed.
-        if rotated.SecretActive {
+        if rotated.Connection.SecretActive {
                 t.Fatal("failed rotation must not leave a secret active over a revoked seal")
         }
-        if seal := repo.seals[first.SecretID]; seal == nil || seal.RevokedAt == nil {
+        if seal := repo.seals[first.Connection.SecretID]; seal == nil || seal.RevokedAt == nil {
                 t.Fatal("previous seal must be revoked on rotation")
         }
-        retry := rotate
-        retry.ExpectedVersion = rotated.Version
-        retry.Secrets = map[string]string{"api_key": "sandbox-retry-key"}
+        retry := connectCommand(created.Connection.ConnectionID, rotated.Connection.Version, "rotate-key-f3", "sandbox-retry-key")
         second, err := s.Connect(ctx, retry)
         if err != nil {
                 t.Fatalf("connect retry after failed rotation must be allowed: %v", err)
         }
-        if second.Status != connectorDomain.StatusConnectedUnverified || !second.SecretActive {
-                t.Fatalf("retry must seal the new secret: %+v", second)
+        if second.Connection.Status != connectorDomain.StatusConnectedUnverified || !second.Connection.SecretActive {
+                t.Fatalf("retry must seal the new secret: %+v", second.Connection)
         }
 }
 
@@ -489,10 +647,119 @@ func TestUnexpectedStatusIsRejectedInsteadOfSilentWrite(t *testing.T) {
         if _, err := s.Save(ctx, api.SaveCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: created.Connection.ConnectionID, CorrelationID: connCorrelation, ExpectedVersion: 1, Config: corrupt.Config, Label: corrupt.Label, ChangeSummary: "Попытка"}); err == nil {
                 t.Fatal("unexpected status must block save")
         }
-        if _, err := s.Connect(ctx, api.ConnectCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: created.Connection.ConnectionID, CorrelationID: connCorrelation, ExpectedVersion: 1, Secrets: map[string]string{"api_key": "sandbox-any-key"}}); err == nil {
+        if _, err := s.Connect(ctx, connectCommand(created.Connection.ConnectionID, 1, "mystery-key-1", "sandbox-any-key")); err == nil {
                 t.Fatal("unexpected status must block connect")
         }
-        if _, err := s.Revoke(ctx, api.RevokeCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: created.Connection.ConnectionID, CorrelationID: connCorrelation, ExpectedVersion: 1, Reason: "Причина"}); err == nil {
+        if _, err := s.Revoke(ctx, api.RevokeCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: created.Connection.ConnectionID, CorrelationID: connCorrelation, ExpectedVersion: 1, Reason: "Причина", IdempotencyKey: "mystery-key-2"}); err == nil {
                 t.Fatal("unexpected status must block revoke")
+        }
+}
+
+func TestVerifyCapabilityLifecycleGuardsAndIdempotency(t *testing.T) {
+        s, repo := serviceFixture()
+        ctx := context.Background()
+        created, _ := s.Create(ctx, createCommand())
+        connectionID := created.Connection.ConnectionID
+
+        // Draft connection: verification is guarded.
+        if _, err := s.VerifyCapability(ctx, api.VerifyCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: connectionID, CorrelationID: connCorrelation, Capability: "query.trunk-status", IdempotencyKey: "verify-key-d1"}); err == nil {
+                t.Fatal("draft connection must refuse capability verification")
+        }
+
+        connected, _ := s.Connect(ctx, connectCommand(connectionID, 1, "verify-key-c1", "sandbox-verify-key"))
+
+        // CapabilityState shows declared capabilities with honest states.
+        state, err := s.CapabilityState(ctx, identityDomain.Principal{ID: connActor}, connTenant, connectionID)
+        if err != nil {
+                t.Fatalf("capability state: %v", err)
+        }
+        if len(state.Capabilities) != 3 {
+                t.Fatalf("contract 1.1.0 declares 3 capabilities, got %d", len(state.Capabilities))
+        }
+        byID := map[string]connectorDomain.CapabilityReport{}
+        for _, report := range state.Capabilities {
+                byID[report.ID] = report
+        }
+        if byID["query.trunk-status"].State != connectorDomain.CapStateUnverified || byID["query.trunk-status"].CanVerify != true {
+                t.Fatalf("query must start unverified and verifiable: %+v", byID["query.trunk-status"])
+        }
+        if byID["command.send-sms"].State != connectorDomain.CapStateUnverified || byID["command.send-sms"].Block == nil {
+                t.Fatalf("mutating capability must carry the Action Gateway block: %+v", byID["command.send-sms"])
+        }
+        if byID["event.inbound-call"].State != connectorDomain.CapStateUnverified {
+                t.Fatalf("inbound event must stay unverified honestly: %+v", byID["event.inbound-call"])
+        }
+
+        // Mutating capability: verification is refused fail-closed.
+        mutating := api.VerifyCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: connectionID, CorrelationID: connCorrelation, Capability: "command.send-sms", IdempotencyKey: "verify-key-m1"}
+        if _, err = s.VerifyCapability(ctx, mutating); err == nil {
+                t.Fatal("mutating capability verification must be refused")
+        } else {
+                var rule connectorDomain.RuleError
+                if !errors.As(err, &rule) || !strings.Contains(rule.Reason, "Action Gateway") {
+                        t.Fatalf("block reason must name Action Gateway: %v", err)
+                }
+        }
+
+        // Inbound event: honest refusal.
+        if _, err = s.VerifyCapability(ctx, api.VerifyCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: connectionID, CorrelationID: connCorrelation, Capability: "event.inbound-call", IdempotencyKey: "verify-key-e1"}); err == nil {
+                t.Fatal("inbound event verification must be refused in this slice")
+        }
+
+        // Unknown capability: refused.
+        if _, err = s.VerifyCapability(ctx, api.VerifyCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: connectionID, CorrelationID: connCorrelation, Capability: "query.unknown", IdempotencyKey: "verify-key-u1"}); err == nil {
+                t.Fatal("undeclared capability must be refused")
+        }
+
+        // Happy path: read-only probe stores evidence and derives verified.
+        verified, err := s.VerifyCapability(ctx, api.VerifyCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: connectionID, CorrelationID: connCorrelation, Capability: "query.trunk-status", IdempotencyKey: "verify-key-v1"})
+        if err != nil {
+                t.Fatalf("verify: %v", err)
+        }
+        if verified.Report.State != connectorDomain.CapStateVerified || verified.Report.Evidence == nil {
+                t.Fatalf("verified report = %+v", verified.Report)
+        }
+        if verified.Report.Evidence.DeliveryLevel != string(connectorDomain.DeliveryDelivered) {
+                t.Fatalf("delivery level = %s", verified.Report.Evidence.DeliveryLevel)
+        }
+        if len(repo.evidence) != 1 {
+                t.Fatalf("exactly one evidence row expected: %d", len(repo.evidence))
+        }
+
+        // Same key + same data: replay without a contradicting row.
+        replay, err := s.VerifyCapability(ctx, api.VerifyCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: connectionID, CorrelationID: connCorrelation, Capability: "query.trunk-status", IdempotencyKey: "verify-key-v1"})
+        if err != nil || !replay.Replayed {
+                t.Fatalf("verify replay = %v %+v", err, replay)
+        }
+        if len(repo.evidence) != 1 {
+                t.Fatalf("replay must not add evidence: %d", len(repo.evidence))
+        }
+
+        // Same key + different capability: honest conflict.
+        if _, err = s.VerifyCapability(ctx, api.VerifyCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: connectionID, CorrelationID: connCorrelation, Capability: "event.inbound-call", IdempotencyKey: "verify-key-v1"}); !errors.Is(err, connectorDomain.ErrIdempotencyConflict) {
+                t.Fatalf("verify key conflict = %v", err)
+        }
+
+        // Rotation makes the evidence stale: derivation names the exact fact.
+        rotated, err := s.Rotate(ctx, connectCommand(connectionID, connected.Connection.Version, "verify-key-r1", "sandbox-rotate-key"))
+        if err != nil {
+                t.Fatalf("rotate: %v", err)
+        }
+        if rotated.Connection.Status != connectorDomain.StatusConnectedUnverified {
+                t.Fatalf("rotation with a valid key keeps the connection usable: %s", rotated.Connection.Status)
+        }
+        state, err = s.CapabilityState(ctx, identityDomain.Principal{ID: connActor}, connTenant, connectionID)
+        if err != nil {
+                t.Fatalf("state after rotation: %v", err)
+        }
+        for _, report := range state.Capabilities {
+                if report.ID == "query.trunk-status" {
+                        if report.State != connectorDomain.CapStateStale {
+                                t.Fatalf("after rotation the old evidence must be stale, got %s", report.State)
+                        }
+                        if !strings.Contains(report.StateReason, "ротирован") {
+                                t.Fatalf("stale reason must name the rotation: %s", report.StateReason)
+                        }
+                }
         }
 }

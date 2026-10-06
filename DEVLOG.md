@@ -94,3 +94,65 @@ decisions:
 - Правило простых объяснений — постоянное, живёт в AGENTS.md (переживает любой сброс), а не в памяти сессии
 next: Dev (step-03) реализует срез story 1-9 по Tasks & Acceptance спеки (файл _bmad-output/implementation-artifacts/spec-1-9-capability-verification.md; входы в frontmatter context:); работа на ветке codex/story-1-9-capability-verification; подшаги с зелёными тестами — чекпоинт-коммит + push
 commit: 7d20a2d
+
+---
+date: 2026-10-06
+task: 8-dev
+role: main (Super Z, роль Dev)
+story: 1-9
+summary: Dev step-03 — реализован весь срез story 1-9 (capability verification); полный регресс зелёный; статус in-progress до review R1
+done:
+- Домен: internal/connector/domain/capability.go — словарь состояний (unverified/verifying/verified/unsupported/failed/unknown/stale), CapabilityDeclaration с обязательной операционной семантикой (+Complete-валидация), CapabilityEvidence (append-only факты), derivation-функция DeriveCapabilityStates (чистая, без второго писателя), managed-блокировка ActionGatewayBlock (AG-4, Technical Lead + Security)
+- Каталог: контракт staffy-synthetic-telephony 1.1.0 с тремя capabilities (query.trunk-status probe-разрешена; command.send-sms мутирующая — блок; event.inbound-call — честный unverified); 1.0.0 неизменяем и резолвится для пиннов; List показывает только актуальные версии; Create отвергает устаревший пинн честной причиной
+- Миграция 00002: connector.capability_evidence (append-only, RLS, INSERT/SELECT для staffy_app, CHECK-и outcome/delivery/probe_kind/redaction, UNIQUE (tenant, connection, idempotency_key)); idempotency_records.resulting_version; audit outcome CHECK расширен (replayed/idempotency_conflict/capability_*)
+- Верификатор: Probe (детерминированный, host-маркеры timeout./fail., ctx-deadline → unknown, редакция — только host, AdapterBuild synthetic/1.1.0, Build())
+- app/port/store: VerifyCapability (guards → probe с deadline → SaveEvidence идемпотентно), CapabilityState (derived при чтении), LookupCommand/LookupEvidence ДО доменных стражей (повтор после сетевого сбоя = replay, а не ложный конфликт), идемпотентность connect/rotate/revoke через idempotency_records + replay снапшота версии; single-secret правило перенесено под row-lock (гонка connect/connect = ровно один seal + один ErrConflict — R2 Gap 4 закрыт конкурентным integration-тестом; R2 Gap 5 закрыт replay-семантикой)
+- HTTP/UI: GET .../capabilities, POST .../capabilities/{id}/verify (+Idempotency-Key и Idempotency-Replayed на connect/rotate/revoke/verify); панель Capability State в карточке (заявленные vs доказанные, state/reason/время/срок, managed-блокировка, verify-кнопка ≥44px, прогрессивное раскрытие evidence, role=status); flash/notice по исходу (verified/failed/unknown)
+- OpenAPI: 2 новых пути + 4 схемы (CapabilityDeclaration/Report/Block/EvidenceSummary, enum-ы состояний и delivery-уровней), идемпотентные заголовки документированы; контрактный тест
+- Тесты: домен (derivation-матрица: stale-причины по фактам, unsupported, блок, unknown+владелец, latest-per-capability), верификатор (probe-сценарии, редакция), app (guards, replay/conflict, stale после ротации), http (API+формы+панель), интеграция (полный жизненный цикл evidence, таймаут→unknown, истечение TTL, изоляция чужих доказательств, гранты immutable, конкурентный CAS), e2e (панель, verify, блок, stale после ротации, 44px, live region)
+- Проверки на дереве: go test ./... (16 ok), go vet ./... (чисто), go test -tags=integration ./tests/integration/... (ok), npm test --prefix tests/journeys (12/12), git diff --check (чисто)
+decisions:
+- Порядок идемпотентность-раньше-стражей: повторы команд и verify отвечаются LookupCommand/LookupEvidence до доменных guard-ов, иначе повтор после сбоя сети падал бы в «секрет уже принят»/«уже отозвано» вместо replay (спека: повтор = replay результата)
+- Single-secret rule под row-lock в store (не в service): при конкурентных connect побеждает детерминированный CAS-конфликт, при последовательном двойном connect — честная rule-ошибка 400
+- Адаптер и фикстура: каждый принятый seal = НОВЫЙ secret_id + UpdatedAt-bump (как в SQL) — иначе derivation не видит stale при ротации в e2e
+- stale-причины выводятся в приоритете: отозвано → секрет ротирован/отозван → конфигурация/состояние изменились → версия контракта → сборка адаптера → истечение срока (точная причина текстом)
+next: review R1 свежим контекстом (Reviewer читает спеку + git diff 7d20a2d..HEAD; R1/R2 → правки → PR в main; статусы review/done синхронно со sprint-status.yaml)
+commit: f10dda0
+
+---
+date: 2026-10-06
+task: 10-review
+role: main (Super Z, роли Reviewer R1/R2)
+story: 1-9
+summary: Review R1+R2 свежим контекстом (спека ↔ дифф 7d20a2d..5392388); два honesty-дефекта UI найдены и закрыты; полный регресс зелёный; статус done, ветка готова к PR
+done:
+- R1: полная сверка спеки с git diff 7d20a2d..f10dda0 (27 файлов, +3279/-331): словарь состояний и derivation (чистая функция фактов), migration 00002 (RLS FORCE, append-only гранты INSERT/SELECT, CHECK-словари, UNIQUE tenant+connection+key), синтетический probe (редация фиксированными строками, deadline, delivery-уровни, timeout → unknown), идемпотентность connect/rotate/revoke/verify через LookupCommand/LookupEvidence ДО доменных стражей, конкурентный CAS-тест (R2 Gap 4) и replay-семантика (R2 Gap 5), OpenAPI 2 пути + 4 схемы с контракт-тестом, e2e-доступность (320px, 44px, live region, редация секрета)
+- Независимая регрессия рецензента: go test -count=1 ./... (16 ok), go vet чисто, integration -count=1 (21 тест), journeys 12/12, git diff --check чисто
+- Findings R1 (оба закрыты в 5392388): (1) verifyCapabilityForm default-ветка редиректила с capability_verified=1 при stale-replay — нарушение Never-правила «не показывать expired/unknown/stale как успех»; (2) фокус терялся после verify-redirect при спека-требовании «обновление проверки объявляется без потери focus»
+- Fixes 5392388: capability_stale=1 для stale-replay + нейтральный default-редирект без флага; фокусируемый #page-notice (tabindex=-1 + focus() по DOMContentLoaded, образец employee.html); http-тесты ×3 (stale-replay честно, non-terminal без флага, focusable notice) + e2e toBeFocused
+- R2: повторное чтение диффа правок 5392388 — минимальность подтверждена, замороженные секции не затронуты, регресс зелёный
+- Спека → done (review_loop_iteration: 2, записи R1/R2 в Spec Change Log); sprint-status.yaml → done синхронно
+decisions:
+- Наблюдение (не блокер): namespace идемпотентных ключей verify — per-connection (UNIQUE tenant+connection+key в capability_evidence), тогда как connect/rotate/revoke — per-actor+operation (idempotency_records); асимметрия семантики честна (evidence-строка сама является записью идемпотентности), выровнять при появлении второго верификатора
+- Наблюдение (не блокер): ветка StatusRevoked в staleReason недостижима при текущем порядке derivation (stale считается только для connected/unverified) — оставлена как защитная на случай изменения порядка
+- Наблюдение (не блокер): integrations-страница делает N+1 запросов CapabilityState (Read+ListEvidence на карточку) — приемлемо при текущем масштабе, пересмотреть при >50 подключениях
+next: PR в main по ветке codex/story-1-9-capability-verification (нужен свежий STAFFY_GH_TOKEN от владельца в чате: push ветки + gh pr create; после мержа — CHECKPOINT: epic-1-retrospective или старт story 1-10)
+commit: 5392388
+
+---
+date: 2026-10-06
+task: 11-pr
+role: main (Super Z)
+story: 1-9
+summary: Ветка запушена (2 коммита), PR #10 создан через GitHub API; CI-триггер от события opened не сработал — восстановлен push-коммитом (synchronize)
+done:
+- Push ветки codex/story-1-9-capability-verification: локальные 5392388 (правки R1) и b94ba61 (статус done) доставлены в origin — RPO = 0
+- Security-исправление сессии: remote URL временно содержал токен из чата (нарушение «remote URL всегда чистый»); очищен до канонического вида, подключён credential helper scripts/git-credential-staffy.sh (токен только из env STAFFY_GH_TOKEN)
+- PR #10 (base: main) создан через GitHub API, title/body в стиле PR #9; close/reopen для триггера не помог (0 runs от pull_request opened)
+- CI-триггер обеспечен этим push-коммитом: событие push по ветке + synchronize по PR (без [skip ci] — подшаг завершён, состояние зелёное)
+- check-continuity.sh после пуша ветки: OK (fail=0, warn=0)
+decisions:
+- API-созданный PR не всегда зажигает pull_request-opened workflow — при отсутствии запусков лечится push-коммитом в ветку (synchronize), а не ожиданием
+- Повторное нарушение «токен в remote URL» недопустимо: с этой сессии только credential helper + STAFFY_GH_TOKEN в той же shell-команде
+next: дождаться зелёного CI на PR #10; затем merge PR #10 в main (GitHub API); после мержа — CHECKPOINT для владельца: epic-1-retrospective или старт story 1-10
+commit: b94ba61

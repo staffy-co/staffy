@@ -80,18 +80,19 @@ type FieldSchema struct {
 // ConnectorDefinition is an immutable, versioned catalog entry.
 // It declares intent and schema only: no provider DTOs, no executable policy.
 type ConnectorDefinition struct {
-        ID                  string        `json:"id"`
-        Version             string        `json:"version"`
-        Type                ConnectorType `json:"type"`
-        Name                string        `json:"name"`
-        Purpose             string        `json:"purpose"`
-        SupportStatus       SupportStatus `json:"support_status"`
-        AdapterImplemented  bool          `json:"adapter_implemented"`
-        AllowedEnvironments []Environment `json:"allowed_environments"`
-        RequiredAccountType string        `json:"required_account_type"`
-        DocumentationURL    string        `json:"documentation_url"`
-        PriorityNote        string        `json:"priority_note,omitempty"`
-        Fields              []FieldSchema `json:"fields"`
+        ID                  string                   `json:"id"`
+        Version             string                   `json:"version"`
+        Type                ConnectorType            `json:"type"`
+        Name                string                   `json:"name"`
+        Purpose             string                   `json:"purpose"`
+        SupportStatus       SupportStatus            `json:"support_status"`
+        AdapterImplemented  bool                     `json:"adapter_implemented"`
+        AllowedEnvironments []Environment            `json:"allowed_environments"`
+        RequiredAccountType string                   `json:"required_account_type"`
+        DocumentationURL    string                   `json:"documentation_url"`
+        PriorityNote        string                   `json:"priority_note,omitempty"`
+        Fields              []FieldSchema            `json:"fields"`
+        Capabilities        []CapabilityDeclaration  `json:"capabilities,omitempty"`
 }
 
 // Connectable reports whether this definition may start a new Connection.

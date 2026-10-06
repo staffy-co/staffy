@@ -85,6 +85,8 @@ func (s *Server) BindConnector(service connectorAPI.Service) {
         s.mux.HandleFunc("GET /v1/tenants/{tenant_id}/connections", s.listConnectionsAPI)
         s.mux.HandleFunc("GET /v1/tenants/{tenant_id}/connections/{connection_id}", s.readConnectionAPI)
         s.mux.HandleFunc("GET /v1/tenants/{tenant_id}/connections/{connection_id}/versions", s.readConnectionVersionsAPI)
+        s.mux.HandleFunc("GET /v1/tenants/{tenant_id}/connections/{connection_id}/capabilities", s.capabilityStateAPI)
+        s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/connections/{connection_id}/capabilities/{capability_id}/verify", s.verifyCapabilityAPI)
         s.mux.HandleFunc("PUT /v1/tenants/{tenant_id}/connections/{connection_id}", s.saveConnectionAPI)
         s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/connections/{connection_id}/connect", s.connectConnectionAPI)
         s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/connections/{connection_id}/rotate", s.rotateConnectionAPI)
@@ -95,6 +97,7 @@ func (s *Server) BindConnector(service connectorAPI.Service) {
         s.mux.HandleFunc("POST /app/tenants/{tenant_id}/connections/{connection_id}/connect", s.connectConnectionForm)
         s.mux.HandleFunc("POST /app/tenants/{tenant_id}/connections/{connection_id}/rotate", s.rotateConnectionForm)
         s.mux.HandleFunc("POST /app/tenants/{tenant_id}/connections/{connection_id}/revoke", s.revokeConnectionForm)
+        s.mux.HandleFunc("POST /app/tenants/{tenant_id}/connections/{connection_id}/capabilities/{capability_id}/verify", s.verifyCapabilityForm)
 }
 
 func (s *Server) connectorCatalogAPI(w http.ResponseWriter, r *http.Request) {
@@ -278,13 +281,16 @@ func (s *Server) connectConnectionAPI(w http.ResponseWriter, r *http.Request) {
                 return
         }
         corr, _ := correlation.FromContext(r.Context())
-        connection, err := service.Connect(r.Context(), connectorAPI.ConnectCommand{Actor: actor, TenantID: tenant, ConnectionID: connectionID, CorrelationID: corr, ExpectedVersion: input.Version, Secrets: input.Secrets})
+        result, err := service.Connect(r.Context(), connectorAPI.ConnectCommand{Actor: actor, TenantID: tenant, ConnectionID: connectionID, CorrelationID: corr, ExpectedVersion: input.Version, Secrets: input.Secrets, IdempotencyKey: r.Header.Get("Idempotency-Key")})
         if err != nil {
                 s.connectorProblem(w, r, err)
                 return
         }
         w.Header().Set("Content-Type", "application/json")
-        _ = json.NewEncoder(w).Encode(map[string]any{"connection": connection})
+        if result.Replayed {
+                w.Header().Set("Idempotency-Replayed", "true")
+        }
+        _ = json.NewEncoder(w).Encode(map[string]any{"connection": result.Connection})
 }
 
 func (s *Server) rotateConnectionAPI(w http.ResponseWriter, r *http.Request) {
@@ -311,13 +317,16 @@ func (s *Server) rotateConnectionAPI(w http.ResponseWriter, r *http.Request) {
                 return
         }
         corr, _ := correlation.FromContext(r.Context())
-        connection, err := service.Rotate(r.Context(), connectorAPI.ConnectCommand{Actor: actor, TenantID: tenant, ConnectionID: connectionID, CorrelationID: corr, ExpectedVersion: input.Version, Secrets: input.Secrets})
+        result, err := service.Rotate(r.Context(), connectorAPI.ConnectCommand{Actor: actor, TenantID: tenant, ConnectionID: connectionID, CorrelationID: corr, ExpectedVersion: input.Version, Secrets: input.Secrets, IdempotencyKey: r.Header.Get("Idempotency-Key")})
         if err != nil {
                 s.connectorProblem(w, r, err)
                 return
         }
         w.Header().Set("Content-Type", "application/json")
-        _ = json.NewEncoder(w).Encode(map[string]any{"connection": connection})
+        if result.Replayed {
+                w.Header().Set("Idempotency-Replayed", "true")
+        }
+        _ = json.NewEncoder(w).Encode(map[string]any{"connection": result.Connection})
 }
 
 func (s *Server) revokeConnectionAPI(w http.ResponseWriter, r *http.Request) {
@@ -344,13 +353,69 @@ func (s *Server) revokeConnectionAPI(w http.ResponseWriter, r *http.Request) {
                 return
         }
         corr, _ := correlation.FromContext(r.Context())
-        connection, err := service.Revoke(r.Context(), connectorAPI.RevokeCommand{Actor: actor, TenantID: tenant, ConnectionID: connectionID, CorrelationID: corr, ExpectedVersion: input.Version, Reason: input.Reason})
+        result, err := service.Revoke(r.Context(), connectorAPI.RevokeCommand{Actor: actor, TenantID: tenant, ConnectionID: connectionID, CorrelationID: corr, ExpectedVersion: input.Version, Reason: input.Reason, IdempotencyKey: r.Header.Get("Idempotency-Key")})
         if err != nil {
                 s.connectorProblem(w, r, err)
                 return
         }
         w.Header().Set("Content-Type", "application/json")
-        _ = json.NewEncoder(w).Encode(map[string]any{"connection": connection})
+        if result.Replayed {
+                w.Header().Set("Idempotency-Replayed", "true")
+        }
+        _ = json.NewEncoder(w).Encode(map[string]any{"connection": result.Connection})
+}
+
+func (s *Server) capabilityStateAPI(w http.ResponseWriter, r *http.Request) {
+        actor, tenant, ok := s.connectorScope(w, r)
+        if !ok {
+                return
+        }
+        connectionID, err := id.Parse(r.PathValue("connection_id"))
+        if err != nil {
+                s.connectorProblem(w, r, connectorDomain.ErrNotFound)
+                return
+        }
+        service := s.connectorService()
+        if service == nil {
+                s.connectorProblem(w, r, connectorDomain.ErrNotFound)
+                return
+        }
+        state, err := service.CapabilityState(r.Context(), actor, tenant, connectionID)
+        if err != nil {
+                s.connectorProblem(w, r, err)
+                return
+        }
+        w.Header().Set("Content-Type", "application/json")
+        _ = json.NewEncoder(w).Encode(map[string]any{"connection_id": state.Connection.ConnectionID, "contract_version": state.ContractVersion, "adapter_build": state.AdapterBuild, "capabilities": state.Capabilities})
+}
+
+func (s *Server) verifyCapabilityAPI(w http.ResponseWriter, r *http.Request) {
+        actor, tenant, ok := s.connectorScope(w, r)
+        if !ok {
+                return
+        }
+        connectionID, err := id.Parse(r.PathValue("connection_id"))
+        if err != nil {
+                s.connectorProblem(w, r, connectorDomain.ErrNotFound)
+                return
+        }
+        capabilityID := r.PathValue("capability_id")
+        service := s.connectorService()
+        if service == nil {
+                s.connectorProblem(w, r, connectorDomain.ErrNotFound)
+                return
+        }
+        corr, _ := correlation.FromContext(r.Context())
+        result, err := service.VerifyCapability(r.Context(), connectorAPI.VerifyCommand{Actor: actor, TenantID: tenant, ConnectionID: connectionID, CorrelationID: corr, Capability: capabilityID, IdempotencyKey: r.Header.Get("Idempotency-Key")})
+        if err != nil {
+                s.connectorProblem(w, r, err)
+                return
+        }
+        w.Header().Set("Content-Type", "application/json")
+        if result.Replayed {
+                w.Header().Set("Idempotency-Replayed", "true")
+        }
+        _ = json.NewEncoder(w).Encode(map[string]any{"capability": result.Report, "replayed": result.Replayed})
 }
 
 // --- HTML UI ---
@@ -376,11 +441,23 @@ func (s *Server) integrationsPage(w http.ResponseWriter, r *http.Request) {
                 return
         }
         grouped := prepareConnectorGroups(defs)
+        views := prepareConnectionViews(connections, defs)
+        // Capability state is derived per connection (facts + evidence); every
+        // card also gets its own fresh idempotency key for verify/connect forms.
+        for i := range views {
+                state, err := service.CapabilityState(r.Context(), actor, tenant, views[i].ConnectionID)
+                if err != nil {
+                        s.connectorProblem(w, r, err)
+                        return
+                }
+                views[i].Capabilities = prepareCapabilityViews(state, s.freshKey("verify"))
+                views[i].FormKey = s.freshKey("conn")
+        }
         key := s.freshKey("")
         data := map[string]any{
                 "TenantID":       tenant,
                 "Groups":         grouped,
-                "Connections":    prepareConnectionViews(connections, defs),
+                "Connections":    views,
                 "IdempotencyKey": key,
         }
         if v := r.URL.Query().Get("saved"); v == "1" {
@@ -391,6 +468,18 @@ func (s *Server) integrationsPage(w http.ResponseWriter, r *http.Request) {
         }
         if v := r.URL.Query().Get("check_failed"); v == "1" {
                 data["Notice"] = "Синтетическая проверка не прошла. Статус подключения обновлён; безопасное объяснение и следующий шаг — в карточке подключения."
+        }
+        if v := r.URL.Query().Get("capability_verified"); v == "1" {
+                data["Notice"] = "Проверка возможности выполнена: доказательство сохранено, состояние обновлено в карточке подключения."
+        }
+        if v := r.URL.Query().Get("capability_failed"); v == "1" {
+                data["Notice"] = "Проверка возможности не прошла: состояние и причина — в карточке подключения."
+        }
+        if v := r.URL.Query().Get("capability_unknown"); v == "1" {
+                data["Notice"] = "Проверка возможности не завершилась до срока: результат неопределён, повтор вслепую исключён. Владелец сверки и безопасный шаг — в карточке."
+        }
+        if v := r.URL.Query().Get("capability_stale"); v == "1" {
+                data["Notice"] = "Доказательство устарело (факты подключения изменились): состояние и причина — в карточке подключения; повторите проверку осознанно."
         }
         // Error flash rides a short-lived HttpOnly cookie, never the URL: an
         // attacker-chosen ?error=… can no longer render as a system alert.
@@ -551,12 +640,12 @@ func (s *Server) connectConnectionForm(w http.ResponseWriter, r *http.Request) {
                 }
         }
         corr, _ := correlation.FromContext(r.Context())
-        connection, err := service.Connect(r.Context(), connectorAPI.ConnectCommand{Actor: actor, TenantID: tenant, ConnectionID: connectionID, CorrelationID: corr, ExpectedVersion: version, Secrets: secrets})
+        result, err := service.Connect(r.Context(), connectorAPI.ConnectCommand{Actor: actor, TenantID: tenant, ConnectionID: connectionID, CorrelationID: corr, ExpectedVersion: version, Secrets: secrets, IdempotencyKey: r.FormValue("idempotency_key")})
         if err != nil {
                 redirectWithError(w, r, tenant, err)
                 return
         }
-        if connection.Status == connectorDomain.StatusFailed {
+        if result.Connection.Status == connectorDomain.StatusFailed {
                 http.Redirect(w, r, "/app/tenants/"+tenant.String()+"/integrations?check_failed=1", http.StatusSeeOther)
                 return
         }
@@ -599,12 +688,12 @@ func (s *Server) rotateConnectionForm(w http.ResponseWriter, r *http.Request) {
                 }
         }
         corr, _ := correlation.FromContext(r.Context())
-        connection, err := service.Rotate(r.Context(), connectorAPI.ConnectCommand{Actor: actor, TenantID: tenant, ConnectionID: connectionID, CorrelationID: corr, ExpectedVersion: version, Secrets: secrets})
+        result, err := service.Rotate(r.Context(), connectorAPI.ConnectCommand{Actor: actor, TenantID: tenant, ConnectionID: connectionID, CorrelationID: corr, ExpectedVersion: version, Secrets: secrets, IdempotencyKey: r.FormValue("idempotency_key")})
         if err != nil {
                 redirectWithError(w, r, tenant, err)
                 return
         }
-        if connection.Status == connectorDomain.StatusFailed {
+        if result.Connection.Status == connectorDomain.StatusFailed {
                 http.Redirect(w, r, "/app/tenants/"+tenant.String()+"/integrations?check_failed=1", http.StatusSeeOther)
                 return
         }
@@ -645,12 +734,63 @@ func (s *Server) revokeConnectionForm(w http.ResponseWriter, r *http.Request) {
                 return
         }
         corr, _ := correlation.FromContext(r.Context())
-        _, err = service.Revoke(r.Context(), connectorAPI.RevokeCommand{Actor: actor, TenantID: tenant, ConnectionID: connectionID, CorrelationID: corr, ExpectedVersion: version, Reason: r.FormValue("reason")})
+        _, err = service.Revoke(r.Context(), connectorAPI.RevokeCommand{Actor: actor, TenantID: tenant, ConnectionID: connectionID, CorrelationID: corr, ExpectedVersion: version, Reason: r.FormValue("reason"), IdempotencyKey: r.FormValue("idempotency_key")})
         if err != nil {
                 redirectWithError(w, r, tenant, err)
                 return
         }
         http.Redirect(w, r, "/app/tenants/"+tenant.String()+"/integrations?saved=1", http.StatusSeeOther)
+}
+
+// verifyCapabilityForm runs the safe read-only probe from the connection card.
+// The result redirects with an honest outcome-specific notice; failures ride
+// the one-shot flash cookie exactly like the other connector forms.
+func (s *Server) verifyCapabilityForm(w http.ResponseWriter, r *http.Request) {
+        actor, tenant, ok := s.connectorScope(w, r)
+        if !ok {
+                return
+        }
+        if !validFormOrigin(r) {
+                s.connectorProblem(w, r, connectorDomain.ErrForbidden)
+                return
+        }
+        connectionID, err := id.Parse(r.PathValue("connection_id"))
+        if err != nil {
+                s.connectorProblem(w, r, connectorDomain.ErrNotFound)
+                return
+        }
+        capabilityID := r.PathValue("capability_id")
+        service := s.connectorService()
+        if service == nil {
+                s.connectorProblem(w, r, connectorDomain.ErrNotFound)
+                return
+        }
+        r.Body = http.MaxBytesReader(w, r.Body, 32<<10)
+        if err = r.ParseForm(); err != nil {
+                s.connectorProblem(w, r, connectorDomain.ErrInvalid)
+                return
+        }
+        corr, _ := correlation.FromContext(r.Context())
+        result, err := service.VerifyCapability(r.Context(), connectorAPI.VerifyCommand{Actor: actor, TenantID: tenant, ConnectionID: connectionID, CorrelationID: corr, Capability: capabilityID, IdempotencyKey: r.FormValue("idempotency_key")})
+        if err != nil {
+                redirectWithError(w, r, tenant, err)
+                return
+        }
+        // Honest redirects: every non-success outcome carries its own flag; any
+        // state outside the terminal vocabulary redirects without claiming
+        // success (R1: a stale replay must never read as a completed check).
+        switch result.Report.State {
+        case connectorDomain.CapStateVerified:
+                http.Redirect(w, r, "/app/tenants/"+tenant.String()+"/integrations?capability_verified=1", http.StatusSeeOther)
+        case connectorDomain.CapStateFailed:
+                http.Redirect(w, r, "/app/tenants/"+tenant.String()+"/integrations?capability_failed=1", http.StatusSeeOther)
+        case connectorDomain.CapStateUnknown:
+                http.Redirect(w, r, "/app/tenants/"+tenant.String()+"/integrations?capability_unknown=1", http.StatusSeeOther)
+        case connectorDomain.CapStateStale:
+                http.Redirect(w, r, "/app/tenants/"+tenant.String()+"/integrations?capability_stale=1", http.StatusSeeOther)
+        default:
+                http.Redirect(w, r, "/app/tenants/"+tenant.String()+"/integrations", http.StatusSeeOther)
+        }
 }
 
 func redirectWithError(w http.ResponseWriter, r *http.Request, tenant id.UUID, err error) {

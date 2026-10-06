@@ -4,9 +4,16 @@ import (
         "context"
         "net/url"
         "regexp"
+        "strconv"
+        "strings"
 
+        connectorAPI "github.com/artemiosu/staffy/internal/connector/api"
         connectorDomain "github.com/artemiosu/staffy/internal/connector/domain"
 )
+
+// AdapterBuild identifies the adapter binary that produced evidence rows.
+// A build change invalidates prior evidence as stale (derived at read time).
+const AdapterBuild = "synthetic/1.1.0"
 
 // sandboxSecret matches the published fictional sandbox credential format.
 var sandboxSecret = regexp.MustCompile(`^sandbox-[a-z0-9][a-z0-9-]{7,63}$`)
@@ -62,6 +69,84 @@ func envSuffix(env connectorDomain.Environment) string {
                 return "test.example"
         }
         return "sandbox.example"
+}
+
+// ProbeResult is the redacted outcome of the deterministic read-only probe.
+// Outcome uses the domain evidence vocabulary (verified/failed/unknown) and
+// DeliveryLevel distinguishes acceptance from delivered business data.
+// RedactedRequest/RedactedResult are fixed server-side strings: the probe
+// never echoes secret material, query parameters or raw provider payloads.
+type ProbeResult = connectorAPI.ProbeResult
+
+// Probe exercises one declared read-only (non-effecting) capability on the
+// synthetic contour. Deterministic scenarios are selected by the endpoint
+// host prefix: "timeout." answers nothing before the deadline (result
+// unknown), "fail." is an honest probe failure; anything else answers at the
+// "delivered" receipt level. A context deadline that already expired maps to
+// unknown as well: a possibly-effective request is never retried blind.
+func (v Synthetic) Probe(ctx context.Context, def connectorDomain.ConnectorDefinition, dec connectorDomain.CapabilityDeclaration, env connectorDomain.Environment, config map[string]string) ProbeResult {
+        // Fail-closed guard: only completed, outbound, probe-allowed query
+        // capabilities may ever be exercised here.
+        if !dec.ProbeVerifiable() {
+                return ProbeResult{
+                        Outcome:         connectorDomain.EvidenceFailed,
+                        DeliveryLevel:   string(connectorDomain.DeliveryUnknown),
+                        RedactedRequest: "probe:" + dec.ID + " — отказ до выполнения",
+                        RedactedResult:  "Probe не разрешён для этой capability: проверка мутирующих функций запрещена архитектурой (Action Gateway, AG-4).",
+                }
+        }
+        endpoint := ""
+        for _, f := range def.ConfigSchema() {
+                if f.Type == connectorDomain.FieldURL {
+                        if value, ok := config[f.Name]; ok {
+                                endpoint = value
+                        }
+                }
+        }
+        host := ""
+        if u, err := url.Parse(strings.TrimSpace(endpoint)); err == nil {
+                host = u.Hostname()
+        }
+        request := "probe:read-only " + dec.ID + " → " + host + " (" + string(env) + "), адаптер " + AdapterBuild
+        if ctx.Err() != nil || strings.HasPrefix(host, "timeout.") {
+                return ProbeResult{
+                        Outcome:         connectorDomain.EvidenceUnknown,
+                        DeliveryLevel:   string(connectorDomain.DeliveryUnknown),
+                        RedactedRequest: request,
+                        RedactedResult:  "Probe не завершился до deadline " + deadlineText(dec) + ": результат неопределён (после возможного эффекта). Повтор вслепую запрещён; владелец reconciliation: " + reconciliationOwner(dec) + ". Безопасный следующий шаг: проверьте состояние вручную и запустите проверку повторно осознанно.",
+                }
+        }
+        if strings.HasPrefix(host, "fail.") {
+                return ProbeResult{
+                        Outcome:         connectorDomain.EvidenceFailed,
+                        DeliveryLevel:   string(connectorDomain.DeliveryUnknown),
+                        RedactedRequest: request,
+                        RedactedResult:  "Синтетический контур отклонил probe (маркер fail. в имени endpoint): возможность не подтверждена для этого аккаунта.",
+                }
+        }
+        return ProbeResult{
+                Outcome:         connectorDomain.EvidenceVerified,
+                DeliveryLevel:   string(connectorDomain.DeliveryDelivered),
+                RedactedRequest: request,
+                RedactedResult:  "Синтетический read-only ответ получен: транк активен; уровень доставки delivered (принятие запроса — не бизнес-результат; committed здесь не заявляется).",
+        }
+}
+
+// Build identifies the adapter build stored with every evidence row.
+func (v Synthetic) Build() string { return AdapterBuild }
+
+func deadlineText(dec connectorDomain.CapabilityDeclaration) string {
+        if dec.TimeoutMS <= 0 {
+                return "не задан"
+        }
+        return strconv.Itoa(dec.TimeoutMS) + " мс"
+}
+
+func reconciliationOwner(dec connectorDomain.CapabilityDeclaration) string {
+        if dec.ReconciliationOwner != "" {
+                return dec.ReconciliationOwner
+        }
+        return "Technical Lead"
 }
 
 func transportOK(endpoint string, env connectorDomain.Environment) bool {

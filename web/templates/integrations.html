@@ -3,7 +3,7 @@
 <body><a class="skip-link" href="#main">К основному содержанию</a><header class="topbar"><a class="brand" href="/app/tenants/{{.TenantID}}">Staffy</a><strong>Пространство → Интеграции</strong></header>
 <div class="shell"><nav aria-label="Основная навигация"><a href="/app/tenants/{{.TenantID}}">Сегодня</a><a href="/app/tenants/{{$.TenantID}}/people">Участники</a></nav><main id="main"><section class="panel"><h1>Интеграции</h1>
 <p>Выберите канал или бизнес-систему из каталога. Подключение создаётся для вашей организации; секрет принимается один раз и больше не показывается. До прохождения gate AG-4 доступны только sandbox и test среды.</p>
-{{if .Error}}<p class="alert" role="alert">{{.Error}}</p>{{end}}{{if .Notice}}<p class="status" role="status">{{.Notice}}</p>{{end}}
+{{if .Error}}<p class="alert" role="alert">{{.Error}}</p>{{end}}{{if .Notice}}<p class="status" role="status" tabindex="-1" id="page-notice">{{.Notice}}</p><script>addEventListener('DOMContentLoaded', () => document.getElementById('page-notice').focus());</script>{{end}}
 
 <h2>Каталог Connector</h2>
 {{range .Groups}}
@@ -51,6 +51,42 @@
 <span>{{statusNote .Status .AuthState .Transport .Environment}}</span>
 {{if .SecretHint}}<span>Секрет: принят, отпечаток {{.SecretHint}} — значение недоступно{{if not .SecretActive}} (отозван){{end}}</span>{{end}}
 <span>Версия: {{.Version}}</span>
+
+{{if .Capabilities}}
+<section class="capability-state" aria-labelledby="caps-{{.ConnectionID}}">
+<h3 id="caps-{{.ConnectionID}}">Возможности (Capability State)</h3>
+<p class="next-note">Заявленные контрактом {{.ConnectorVer}} возможности и их доказанное состояние для этого аккаунта: заявленное адаптером ≠ доказанное для аккаунта.</p>
+<ul class="capability-list">
+{{$conn := .}}
+{{range .Capabilities}}
+<li class="capability" data-capability="{{.ID}}" data-state="{{.State}}">
+<div class="capability-head"><strong>{{.Title}}</strong> <span class="cap-state cap-state-{{.State}}" role="status">{{.StateText}}</span></div>
+<span class="cap-meta">{{.Meta}}</span>
+<span class="cap-reason">{{.Reason}}</span>
+{{if .BlockRequired}}<span class="cap-block">Проверка заблокирована: требуется {{.BlockRequired}}, гейт {{.BlockGate}}, ответственный: {{.BlockOwner}}. Независимые read-only возможности доступны для проверки.</span>{{end}}
+{{if .CanVerify}}
+<form method="post" action="/app/tenants/{{$.TenantID}}/connections/{{$conn.ConnectionID}}/capabilities/{{.ID}}/verify">
+<input type="hidden" name="idempotency_key" value="{{.VerifyKey}}">
+<button class="primary cap-verify" type="submit">Проверить «{{.Title}}»</button>
+</form>
+{{end}}
+{{if .Evidence}}
+<details class="capability-evidence"><summary>Детали доказательства</summary>
+<dl class="capability-evidence-facts">
+<dt>Проверено</dt><dd>{{.Evidence.CheckedAtText}}</dd>
+<dt>Действует до</dt><dd>{{.Evidence.ExpiresAtText}}</dd>
+<dt>Результат</dt><dd>{{.Evidence.Outcome}}</dd>
+<dt>Уровень доставки</dt><dd>{{.Evidence.DeliveryLevel}}</dd>
+<dt>Запрос (сокращено)</dt><dd>{{.Evidence.RedactedRequest}}</dd>
+<dt>Ответ (сокращено)</dt><dd>{{.Evidence.RedactedResult}}</dd>
+</dl>
+</details>
+{{end}}
+</li>
+{{end}}
+</ul>
+</section>
+{{end}}
 {{if ne .Status "revoked"}}
 <details><summary>Изменить конфигурацию</summary>
 <form method="post" action="/app/tenants/{{$.TenantID}}/connections/{{.ConnectionID}}/config">
@@ -70,6 +106,7 @@
 <details><summary>Ротация секрета</summary>
 <form method="post" action="/app/tenants/{{$.TenantID}}/connections/{{.ConnectionID}}/rotate">
 <input type="hidden" name="version" value="{{.Version}}">
+<input type="hidden" name="idempotency_key" value="{{.FormKey}}">
 {{range .SecretFields}}
 <input type="hidden" name="secret_field" value="{{.Name}}">
 <label for="rotate-{{.ElementID}}">{{.Label}}</label><input id="rotate-{{.ElementID}}" name="secret_{{.Name}}" type="password" autocomplete="new-password" required aria-describedby="rotate-{{.ElementID}}-hint">
@@ -82,6 +119,7 @@
 <details><summary>Подключить секрет</summary>
 <form method="post" action="/app/tenants/{{$.TenantID}}/connections/{{.ConnectionID}}/connect">
 <input type="hidden" name="version" value="{{.Version}}">
+<input type="hidden" name="idempotency_key" value="{{.FormKey}}">
 {{range .SecretFields}}
 <input type="hidden" name="secret_field" value="{{.Name}}">
 <label for="connect-{{.ElementID}}">{{.Label}}</label><input id="connect-{{.ElementID}}" name="secret_{{.Name}}" type="password" autocomplete="new-password" required aria-describedby="connect-{{.ElementID}}-hint">
@@ -96,6 +134,7 @@
 <details><summary>Отозвать подключение</summary>
 <form method="post" action="/app/tenants/{{$.TenantID}}/connections/{{.ConnectionID}}/revoke">
 <input type="hidden" name="version" value="{{.Version}}">
+<input type="hidden" name="idempotency_key" value="{{.FormKey}}">
 <label for="reason-{{.ConnectionID}}">Причина отзыва</label><input id="reason-{{.ConnectionID}}" name="reason" type="text" required maxlength="290">
 <label><input type="checkbox" name="confirm_revoke" value="yes" required> Подтверждаю отзыв этого подключения</label>
 <button class="primary" type="submit">Отозвать</button>

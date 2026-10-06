@@ -7,6 +7,7 @@ import (
         "crypto/sha256"
         "encoding/hex"
         "strings"
+        "time"
 
         "github.com/artemiosu/staffy/internal/connector/api"
         "github.com/artemiosu/staffy/internal/connector/catalog"
@@ -17,6 +18,9 @@ import (
         "github.com/artemiosu/staffy/internal/platform/id"
         "github.com/artemiosu/staffy/internal/platform/tenancy"
 )
+
+// capabilityEvidenceTTL bounds how long one probe result proves anything.
+const capabilityEvidenceTTL = 24 * time.Hour
 
 // Service implements the connector application logic. Authorization uses the
 // identity Integrations scope; every command resolves a tenant scope before
@@ -73,6 +77,11 @@ func (s *Service) Create(ctx context.Context, c api.CreateCommand) (api.CreateRe
         def, ok := catalog.Get(c.ConnectorID, c.ConnectorVer)
         if !ok {
                 return api.CreateResult{}, connectorDomain.RuleError{Rule: "connector", Reason: "Connector definition не найден в каталоге."}
+        }
+        // New connections pin the current contract version: the catalog card
+        // only offers the latest definition, and an older pin is refused honestly.
+        if latest, isLatest, exists := catalog.Latest(c.ConnectorID, c.ConnectorVer); exists && !isLatest {
+                return api.CreateResult{}, connectorDomain.RuleError{Rule: "connector", Reason: "Версия контракта устарела: доступна " + latest.Version + ". Создайте подключение с актуальной версией каталога."}
         }
         if !def.Connectable() {
                 return api.CreateResult{}, connectorDomain.RuleError{Rule: "connector", Reason: "Адаптер этого Connector не реализован; подключение недоступно. Следите за обновлениями каталога."}
@@ -176,40 +185,51 @@ func (s *Service) Save(ctx context.Context, c api.SaveCommand) (connectorDomain.
 
 // Connect submits secrets once, runs the allowed synthetic basic check and
 // stores the sealed secret. The result never claims provider capabilities.
-func (s *Service) Connect(ctx context.Context, c api.ConnectCommand) (connectorDomain.Connection, error) {
+// The command is idempotent: a network-failure retry with the same key and
+// the same data replays the stored outcome instead of a false conflict.
+func (s *Service) Connect(ctx context.Context, c api.ConnectCommand) (api.ConnectResult, error) {
         return s.connect(ctx, c, false)
 }
 
 // Rotate replaces the accepted secret: the previous seal is revoked and the
 // check states are reset because the old evidence no longer applies.
-func (s *Service) Rotate(ctx context.Context, c api.ConnectCommand) (connectorDomain.Connection, error) {
+func (s *Service) Rotate(ctx context.Context, c api.ConnectCommand) (api.ConnectResult, error) {
         return s.connect(ctx, c, true)
 }
 
-func (s *Service) connect(ctx context.Context, c api.ConnectCommand, rotate bool) (connectorDomain.Connection, error) {
+func (s *Service) connect(ctx context.Context, c api.ConnectCommand, rotate bool) (api.ConnectResult, error) {
         scope, err := s.scope(ctx, c.Actor, c.TenantID)
         if err != nil {
-                return connectorDomain.Connection{}, err
+                return api.ConnectResult{}, err
         }
-        if !c.ConnectionID.Valid() || !c.CorrelationID.Valid() || c.ExpectedVersion < 1 {
-                return connectorDomain.Connection{}, connectorDomain.ErrInvalid
+        key := strings.TrimSpace(c.IdempotencyKey)
+        if runes := len([]rune(key)); runes < 8 || runes > 200 || !c.ConnectionID.Valid() || !c.CorrelationID.Valid() || c.ExpectedVersion < 1 {
+                return api.ConnectResult{}, connectorDomain.ErrInvalidIdempotency
+        }
+        // Idempotency is answered BEFORE any domain guard: a network-failure retry
+        // with the same key and data replays the stored outcome instead of hitting
+        // "secret already accepted" or a false version conflict (R2 Gap 5).
+        operation := "connector.connect.v1"
+        if rotate {
+                operation = "connector.rotate.v1"
+        }
+        hash := commandHash(operation, c.TenantID, c.ConnectionID, c.ExpectedVersion, secretsDigest(c.Secrets))
+        if snapshot, replayed, err := s.repository.LookupCommand(ctx, scope, operation, key, hash); replayed || err != nil {
+                return api.ConnectResult{Connection: snapshot, Replayed: replayed}, err
         }
         current, err := s.repository.Read(ctx, scope, c.ConnectionID)
         if err != nil {
-                return connectorDomain.Connection{}, err
+                return api.ConnectResult{}, err
         }
         if current.Status == connectorDomain.StatusRevoked {
-                return connectorDomain.Connection{}, connectorDomain.RuleError{Rule: "status", Reason: "Отозванное подключение нельзя проверить; создайте новое."}
-        }
-        if !rotate && current.SecretActive {
-                return connectorDomain.Connection{}, connectorDomain.RuleError{Rule: "secret", Reason: "Секрет уже принят. Для замены используйте ротацию."}
+                return api.ConnectResult{}, connectorDomain.RuleError{Rule: "status", Reason: "Отозванное подключение нельзя проверить; создайте новое."}
         }
         def, ok := catalog.Get(current.ConnectorID, current.ConnectorVer)
         if !ok {
-                return connectorDomain.Connection{}, connectorDomain.ErrInvalid
+                return api.ConnectResult{}, connectorDomain.ErrInvalid
         }
         if err := def.ValidateSecrets(c.Secrets); err != nil {
-                return connectorDomain.Connection{}, err
+                return api.ConnectResult{}, err
         }
         // Basic check runs on the submitted values in memory; the plaintext secret
         // is never persisted, logged, or echoed back.
@@ -219,7 +239,7 @@ func (s *Service) connect(ctx context.Context, c api.ConnectCommand, rotate bool
                 nextStatus = connectorDomain.StatusConnectedUnverified
         }
         if !connectorDomain.ValidTransition(current.Status, nextStatus) {
-                return connectorDomain.Connection{}, connectorDomain.RuleError{Rule: "status", Reason: "Состояние подключения не допускает проверку; обновите страницу."}
+                return api.ConnectResult{}, connectorDomain.RuleError{Rule: "status", Reason: "Состояние подключения не допускает проверку; обновите страницу."}
         }
         now := s.clock.Now().UTC()
         // A secret is sealed only when authentication actually verified: invalid
@@ -227,65 +247,266 @@ func (s *Service) connect(ctx context.Context, c api.ConnectCommand, rotate bool
         seal := check.Authentication == connectorDomain.CheckVerified
         secretID, err := s.ids.New(now)
         if err != nil {
-                return connectorDomain.Connection{}, err
+                return api.ConnectResult{}, err
         }
         eventID, err := s.ids.New(now)
         if err != nil {
-                return connectorDomain.Connection{}, err
+                return api.ConnectResult{}, err
         }
         auditID, err := s.ids.New(now)
         if err != nil {
-                return connectorDomain.Connection{}, err
+                return api.ConnectResult{}, err
         }
-        var sealed, key []byte
+        var sealed, keyBytes []byte
         hint := ""
         if seal {
-                key = make([]byte, 32)
-                if _, err = rand.Read(key); err != nil {
-                        return connectorDomain.Connection{}, err
+                keyBytes = make([]byte, 32)
+                if _, err = rand.Read(keyBytes); err != nil {
+                        return api.ConnectResult{}, err
                 }
-                sealed, hint, err = sealSecret(key, c.Secrets)
+                sealed, hint, err = sealSecret(keyBytes, c.Secrets)
                 if err != nil {
-                        return connectorDomain.Connection{}, err
+                        return api.ConnectResult{}, err
                 }
         }
-        return s.repository.Connect(ctx, port.ConnectParams{Scope: scope, ConnectionID: c.ConnectionID, SecretID: secretID, EventID: eventID, AuditID: auditID, CorrelationID: c.CorrelationID, ExpectedVersion: c.ExpectedVersion, Seal: seal, Sealed: sealed, Key: key, Hint: hint, Check: check, Now: now, Rotate: rotate})
+        connection, replayed, err := s.repository.Connect(ctx, port.ConnectParams{Scope: scope, ConnectionID: c.ConnectionID, SecretID: secretID, EventID: eventID, AuditID: auditID, CorrelationID: c.CorrelationID, ExpectedVersion: c.ExpectedVersion, Seal: seal, Sealed: sealed, Key: keyBytes, Hint: hint, Check: check, Now: now, Rotate: rotate, Operation: operation, IdempotencyKey: key, RequestHash: hash})
+        return api.ConnectResult{Connection: connection, Replayed: replayed}, err
 }
 
-func (s *Service) Revoke(ctx context.Context, c api.RevokeCommand) (connectorDomain.Connection, error) {
+func (s *Service) Revoke(ctx context.Context, c api.RevokeCommand) (api.RevokeResult, error) {
         scope, err := s.scope(ctx, c.Actor, c.TenantID)
         if err != nil {
-                return connectorDomain.Connection{}, err
+                return api.RevokeResult{}, err
         }
-        if !c.ConnectionID.Valid() || !c.CorrelationID.Valid() || c.ExpectedVersion < 1 {
-                return connectorDomain.Connection{}, connectorDomain.ErrInvalid
+        key := strings.TrimSpace(c.IdempotencyKey)
+        if runes := len([]rune(key)); runes < 8 || runes > 200 || !c.ConnectionID.Valid() || !c.CorrelationID.Valid() || c.ExpectedVersion < 1 {
+                return api.RevokeResult{}, connectorDomain.ErrInvalidIdempotency
         }
         reason := strings.TrimSpace(c.Reason)
         // The stored summary is "revoked: " + reason; the rune bound keeps the
         // combined value inside the 300-character history CHECK.
         if reason == "" || len([]rune(reason)) > connectorDomain.MaxRevokeReasonRunes {
-                return connectorDomain.Connection{}, connectorDomain.RuleError{Rule: "reason", Reason: "Укажите причину отзыва (до 290 символов)."}
+                return api.RevokeResult{}, connectorDomain.RuleError{Rule: "reason", Reason: "Укажите причину отзыва (до 290 символов)."}
+        }
+        // Idempotency first: a retry of a revoke with the same key replays the
+        // stored outcome instead of "already revoked" (R2 Gap 5).
+        hash := commandHash("connector.revoke.v1", c.TenantID, c.ConnectionID, c.ExpectedVersion, map[string]string{"reason": reason})
+        if snapshot, replayed, err := s.repository.LookupCommand(ctx, scope, "connector.revoke.v1", key, hash); replayed || err != nil {
+                return api.RevokeResult{Connection: snapshot, Replayed: replayed}, err
         }
         current, err := s.repository.Read(ctx, scope, c.ConnectionID)
         if err != nil {
-                return connectorDomain.Connection{}, err
+                return api.RevokeResult{}, err
         }
         if current.Status == connectorDomain.StatusRevoked {
-                return connectorDomain.Connection{}, connectorDomain.RuleError{Rule: "status", Reason: "Подключение уже отозвано."}
+                return api.RevokeResult{}, connectorDomain.RuleError{Rule: "status", Reason: "Подключение уже отозвано."}
         }
         if !connectorDomain.ValidTransition(current.Status, connectorDomain.StatusRevoked) {
-                return connectorDomain.Connection{}, connectorDomain.RuleError{Rule: "status", Reason: "Состояние подключения не допускает отзыв; обновите страницу."}
+                return api.RevokeResult{}, connectorDomain.RuleError{Rule: "status", Reason: "Состояние подключения не допускает отзыв; обновите страницу."}
         }
         now := s.clock.Now().UTC()
         eventID, err := s.ids.New(now)
         if err != nil {
-                return connectorDomain.Connection{}, err
+                return api.RevokeResult{}, err
         }
         auditID, err := s.ids.New(now)
         if err != nil {
-                return connectorDomain.Connection{}, err
+                return api.RevokeResult{}, err
         }
-        return s.repository.Revoke(ctx, port.RevokeParams{Scope: scope, ConnectionID: c.ConnectionID, EventID: eventID, AuditID: auditID, CorrelationID: c.CorrelationID, ExpectedVersion: c.ExpectedVersion, Reason: reason, Now: now})
+        connection, replayed, err := s.repository.Revoke(ctx, port.RevokeParams{Scope: scope, ConnectionID: c.ConnectionID, EventID: eventID, AuditID: auditID, CorrelationID: c.CorrelationID, ExpectedVersion: c.ExpectedVersion, Reason: reason, Now: now, Operation: "connector.revoke.v1", IdempotencyKey: key, RequestHash: hash})
+        return api.RevokeResult{Connection: connection, Replayed: replayed}, err
+}
+
+// VerifyCapability runs the safe read-only probe for one declared capability
+// of one connection and appends immutable evidence. Guarded fail-closed:
+// only a completed, outbound, probe-allowed query capability of a
+// connected/unverified connection with an active secret may be verified.
+// Mutating capabilities are refused with the managed Action Gateway block;
+// inbound events are refused honestly as "path not implemented in this slice".
+func (s *Service) VerifyCapability(ctx context.Context, c api.VerifyCommand) (api.VerifyResult, error) {
+        scope, err := s.scope(ctx, c.Actor, c.TenantID)
+        if err != nil {
+                return api.VerifyResult{}, err
+        }
+        key := strings.TrimSpace(c.IdempotencyKey)
+        if runes := len([]rune(key)); runes < 8 || runes > 200 || !c.ConnectionID.Valid() || !c.CorrelationID.Valid() {
+                return api.VerifyResult{}, connectorDomain.ErrInvalidIdempotency
+        }
+        // Idempotency is answered before any guard: the same key with the same
+        // data replays the stored evidence; the same key with different data is an
+        // honest conflict no matter which capability the second request names.
+        hash := commandHash("connector.capability.verify.v1", c.TenantID, c.ConnectionID, 0, map[string]string{"capability": strings.TrimSpace(c.Capability)})
+        if existing, found, err := s.repository.LookupEvidence(ctx, scope, c.ConnectionID, key, hash); err != nil || found {
+                if err != nil {
+                        return api.VerifyResult{}, err
+                }
+                state, err := s.CapabilityState(ctx, c.Actor, c.TenantID, c.ConnectionID)
+                if err != nil {
+                        return api.VerifyResult{}, err
+                }
+                for _, report := range state.Capabilities {
+                        if report.ID == existing.Capability {
+                                return api.VerifyResult{Report: report, Replayed: true}, nil
+                        }
+                }
+                return api.VerifyResult{}, connectorDomain.ErrInvalid
+        }
+        connection, err := s.repository.Read(ctx, scope, c.ConnectionID)
+        if err != nil {
+                return api.VerifyResult{}, err
+        }
+        if connection.Status != connectorDomain.StatusConnectedUnverified {
+                return api.VerifyResult{}, connectorDomain.RuleError{Rule: "status", Reason: verifyGuardReason(connection.Status)}
+        }
+        def, ok := catalog.Get(connection.ConnectorID, connection.ConnectorVer)
+        if !ok {
+                return api.VerifyResult{}, connectorDomain.ErrInvalid
+        }
+        var dec connectorDomain.CapabilityDeclaration
+        found := false
+        for _, candidate := range def.Capabilities {
+                if candidate.ID == c.Capability {
+                        dec, found = candidate, true
+                        break
+                }
+        }
+        if !found {
+                return api.VerifyResult{}, connectorDomain.RuleError{Rule: "capability", Reason: "Capability не заявлена контрактом версии " + connection.ConnectorVer + "."}
+        }
+        if !dec.Complete() {
+                return api.VerifyResult{}, connectorDomain.RuleError{Rule: "capability", Reason: "Контракт не декларирует обязательную операционную семантику этой capability: она отображается как unsupported и не проверяется."}
+        }
+        if dec.Mutating() {
+                return api.VerifyResult{}, connectorDomain.RuleError{Rule: "capability", Reason: "Мутирующая capability: проверка заблокирована до Action Gateway (Epic 3), гейт AG-4, ответственный Technical Lead + Security. Read-only возможности этого подключения доступны для проверки независимо."}
+        }
+        if dec.Operation == connectorDomain.OperationEvent {
+                return api.VerifyResult{}, connectorDomain.RuleError{Rule: "capability", Reason: "Путь проверки входящих событий не реализован в текущем срезе: capability остаётся unverified без ложного успеха."}
+        }
+        if !dec.ProbeVerifiable() {
+                return api.VerifyResult{}, connectorDomain.RuleError{Rule: "capability", Reason: "Эта capability не разрешена для read-only probe: проверка отклонена (fail-closed)."}
+        }
+        // The probe runs under the declared deadline; a timeout produces the
+        // honest unknown outcome and is never retried blind.
+        now := s.clock.Now().UTC()
+        deadline := now.Add(time.Duration(dec.TimeoutMS) * time.Millisecond)
+        probeCtx, cancel := context.WithTimeout(ctx, time.Duration(dec.TimeoutMS)*time.Millisecond)
+        probe := s.verifier.Probe(probeCtx, def, dec, connection.Environment, connection.Config)
+        cancel()
+        completed := s.clock.Now().UTC()
+        if completed.Before(now) {
+                completed = now
+        }
+        evidenceID, err := s.ids.New(now)
+        if err != nil {
+                return api.VerifyResult{}, err
+        }
+        eventID, err := s.ids.New(now)
+        if err != nil {
+                return api.VerifyResult{}, err
+        }
+        auditID, err := s.ids.New(now)
+        if err != nil {
+                return api.VerifyResult{}, err
+        }
+        _, replayed, err := s.repository.SaveEvidence(ctx, port.SaveEvidenceParams{
+                Scope: scope, EvidenceID: evidenceID, ConnectionID: c.ConnectionID, SecretID: connection.SecretID,
+                Environment: connection.Environment, ContractVersion: connection.ConnectorVer, AdapterBuild: s.verifier.Build(),
+                Capability: dec.ID, ProbeKind: connectorDomain.EvidenceProbeKind,
+                RequestedAt: now, DeadlineAt: deadline, CompletedAt: completed,
+                Outcome: probe.Outcome, DeliveryLevel: probe.DeliveryLevel,
+                RedactedRequest: probe.RedactedRequest, RedactedResult: probe.RedactedResult,
+                ExpiresAt: completed.Add(capabilityEvidenceTTL),
+                IdempotencyKey: key, RequestHash: hash,
+                EventID: eventID, AuditID: auditID, CorrelationID: c.CorrelationID,
+        })
+        if err != nil {
+                return api.VerifyResult{}, err
+        }
+        // The reported state is derived from facts (never from the response of
+        // this command alone), so the caller sees exactly what any reader sees.
+        state, err := s.CapabilityState(ctx, c.Actor, c.TenantID, c.ConnectionID)
+        if err != nil {
+                return api.VerifyResult{}, err
+        }
+        for _, report := range state.Capabilities {
+                if report.ID == dec.ID {
+                        return api.VerifyResult{Report: report, Replayed: replayed}, nil
+                }
+        }
+        return api.VerifyResult{}, connectorDomain.ErrInvalid
+}
+
+// CapabilityState derives the honest per-capability view of one connection
+// from the pinned contract, the immutable evidence and the connection facts.
+// There is no stored state: the derivation is a pure function of facts.
+func (s *Service) CapabilityState(ctx context.Context, actor identityDomain.Principal, tenantID, connectionID id.UUID) (api.CapabilityStateResult, error) {
+        scope, err := s.scope(ctx, actor, tenantID)
+        if err != nil {
+                return api.CapabilityStateResult{}, err
+        }
+        connection, err := s.repository.Read(ctx, scope, connectionID)
+        if err != nil {
+                return api.CapabilityStateResult{}, err
+        }
+        def, ok := catalog.Get(connection.ConnectorID, connection.ConnectorVer)
+        if !ok {
+                return api.CapabilityStateResult{}, connectorDomain.ErrInvalid
+        }
+        evidence, err := s.repository.ListEvidence(ctx, scope, connectionID)
+        if err != nil {
+                return api.CapabilityStateResult{}, err
+        }
+        now := s.clock.Now().UTC()
+        reports := connectorDomain.DeriveCapabilityStates(def, connection, evidence, s.verifier.Build(), now)
+        return api.CapabilityStateResult{Connection: connection, ContractVersion: connection.ConnectorVer, AdapterBuild: s.verifier.Build(), Capabilities: reports}, nil
+}
+
+func verifyGuardReason(status string) string {
+        switch status {
+        case connectorDomain.StatusDraft:
+                return "Подключение в черновике: сначала выполните базовую проверку (подключение секрета), затем проверяйте возможности."
+        case connectorDomain.StatusFailed:
+                return "Базовая проверка не пройдена: повторите подключение секрета, затем проверяйте возможности."
+        case connectorDomain.StatusRevoked:
+                return "Подключение отозвано: возможности неприменимы."
+        }
+        return "Состояние подключения не допускает проверку возможностей; обновите страницу."
+}
+
+// commandHash canonicalizes a command for idempotency replay/conflict
+// detection: identical retries hash identically, any data change does not.
+func commandHash(operation string, tenant, connection id.UUID, expectedVersion int64, payload map[string]string) string {
+        h := sha256.New()
+        _, _ = h.Write([]byte(operation))
+        _, _ = h.Write([]byte{0})
+        _, _ = h.Write([]byte(tenant.String()))
+        _, _ = h.Write([]byte{0})
+        _, _ = h.Write([]byte(connection.String()))
+        _, _ = h.Write([]byte{0})
+        var version [8]byte
+        for i := 0; i < 8; i++ {
+                version[i] = byte(expectedVersion >> (8 * (7 - i)))
+        }
+        _, _ = h.Write(version[:])
+        for _, name := range sortedKeys(payload) {
+                _, _ = h.Write([]byte{0})
+                _, _ = h.Write([]byte(name))
+                _, _ = h.Write([]byte{0})
+                _, _ = h.Write([]byte(payload[name]))
+        }
+        return hex.EncodeToString(h.Sum(nil))
+}
+
+// secretsDigest renders the submitted secrets as a canonical digest input.
+// The plaintext values never leave this function: only their order-stable
+// concatenation feeds the hash.
+func secretsDigest(secrets map[string]string) map[string]string {
+        out := make(map[string]string, len(secrets))
+        for name, value := range secrets {
+                sum := sha256.Sum256([]byte(value))
+                out[name] = hex.EncodeToString(sum[:])
+        }
+        return out
 }
 
 // sealSecret derives the HMAC envelope of the submitted secrets plus a short
