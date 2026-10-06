@@ -2,9 +2,9 @@
 title: 'Story 1.9 — Проверка capabilities конкретного подключения'
 type: 'feature'
 created: '2026-10-06'
-status: 'in-progress'
+status: 'done'
 route: 'dispatch'
-review_loop_iteration: 0
+review_loop_iteration: 2
 baseline_commit: '3ed539437bf6e8521ceb623b2ba977d75402b2e4'
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-1-context.md'
@@ -100,6 +100,8 @@ context:
 - 2026-10-06, review loop 0: создана спека первого среза Story 1.9 (SM). Статус `backlog` до CHECKPOINT 1 — одобрения владельцем; после одобрения спека и sprint-status.yaml одновременно переходят в `ready-for-dev` (условие синхронности check-continuity).
 - 2026-10-06, CHECKPOINT 1: спека одобрена владельцем без правок («одобряю», чат 2026-10-06). Замороженные секции (Intent / Boundaries & Constraints / I/O & Edge-Case Matrix) не изменялись. Спека и sprint-status.yaml одновременно переведены в `ready-for-dev`; далее — Dev (step-03).
 - 2026-10-06, Dev (step-03): реализован весь срез по Tasks (6/6); полный регрессионный набор на текущем дереве зелёный (`go test ./...` 16 ok, `go vet` чисто, integration OK, journeys 12/12, `git diff --check` чисто). Статус `in-progress` до прохождения review R1 и merge в main.
+- 2026-10-06, review R1 (свежий контекст, дифф 7d20a2d..f10dda0): спека сверена с реализацией по всем строкам матрицы; независимая регрессия зелёная (unit 16 ok, integration 21 тест, journeys 12/12, контракт OpenAPI). Найдены и закрыты в том же круге два honesty-дефекта UI: verify-форма при stale-replay выдавала flash «проверка выполнена» (нарушение Never-правила «не показывать stale как успех») и фокус не восстанавливался после verify-redirect при спека-требовании «без потери focus». Правки — коммит 5392388 (честный capability_stale=1, нейтральный default-редирект, фокусируемый #page-notice по образцу employee.html) + http-тесты ×3 и e2e-проверка фокуса.
+- 2026-10-06, review R2 (дифф правок 5392388): правки минимальны и не затрагивают замороженные секции; повторный полный регресс зелёный. Статус → `done`; ветка готова к PR в main. Наблюдения (не блокеры): namespace идемпотентных ключей verify — per-connection (UNIQUE tenant+connection+key), у connect/rotate/revoke — per-actor+operation; ветка StatusRevoked в staleReason недостижима в текущем порядке derivation и оставлена как защитная.
 
 ## Design Notes
 

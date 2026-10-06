@@ -84,3 +84,23 @@ decisions:
 - stale-причины выводятся в приоритете: отозвано → секрет ротирован/отозван → конфигурация/состояние изменились → версия контракта → сборка адаптера → истечение срока (точная причина текстом)
 next: review R1 свежим контекстом (Reviewer читает спеку + git diff 7d20a2d..HEAD; R1/R2 → правки → PR в main; статусы review/done синхронно со sprint-status.yaml)
 commit: f10dda0
+
+---
+date: 2026-10-06
+task: 10-review
+role: main (Super Z, роли Reviewer R1/R2)
+story: 1-9
+summary: Review R1+R2 свежим контекстом (спека ↔ дифф 7d20a2d..5392388); два honesty-дефекта UI найдены и закрыты; полный регресс зелёный; статус done, ветка готова к PR
+done:
+- R1: полная сверка спеки с git diff 7d20a2d..f10dda0 (27 файлов, +3279/-331): словарь состояний и derivation (чистая функция фактов), migration 00002 (RLS FORCE, append-only гранты INSERT/SELECT, CHECK-словари, UNIQUE tenant+connection+key), синтетический probe (редация фиксированными строками, deadline, delivery-уровни, timeout → unknown), идемпотентность connect/rotate/revoke/verify через LookupCommand/LookupEvidence ДО доменных стражей, конкурентный CAS-тест (R2 Gap 4) и replay-семантика (R2 Gap 5), OpenAPI 2 пути + 4 схемы с контракт-тестом, e2e-доступность (320px, 44px, live region, редация секрета)
+- Независимая регрессия рецензента: go test -count=1 ./... (16 ok), go vet чисто, integration -count=1 (21 тест), journeys 12/12, git diff --check чисто
+- Findings R1 (оба закрыты в 5392388): (1) verifyCapabilityForm default-ветка редиректила с capability_verified=1 при stale-replay — нарушение Never-правила «не показывать expired/unknown/stale как успех»; (2) фокус терялся после verify-redirect при спека-требовании «обновление проверки объявляется без потери focus»
+- Fixes 5392388: capability_stale=1 для stale-replay + нейтральный default-редирект без флага; фокусируемый #page-notice (tabindex=-1 + focus() по DOMContentLoaded, образец employee.html); http-тесты ×3 (stale-replay честно, non-terminal без флага, focusable notice) + e2e toBeFocused
+- R2: повторное чтение диффа правок 5392388 — минимальность подтверждена, замороженные секции не затронуты, регресс зелёный
+- Спека → done (review_loop_iteration: 2, записи R1/R2 в Spec Change Log); sprint-status.yaml → done синхронно
+decisions:
+- Наблюдение (не блокер): namespace идемпотентных ключей verify — per-connection (UNIQUE tenant+connection+key в capability_evidence), тогда как connect/rotate/revoke — per-actor+operation (idempotency_records); асимметрия семантики честна (evidence-строка сама является записью идемпотентности), выровнять при появлении второго верификатора
+- Наблюдение (не блокер): ветка StatusRevoked в staleReason недостижима при текущем порядке derivation (stale считается только для connected/unverified) — оставлена как защитная на случай изменения порядка
+- Наблюдение (не блокер): integrations-страница делает N+1 запросов CapabilityState (Read+ListEvidence на карточку) — приемлемо при текущем масштабе, пересмотреть при >50 подключениях
+next: PR в main по ветке codex/story-1-9-capability-verification (нужен свежий STAFFY_GH_TOKEN от владельца в чате: push ветки + gh pr create; после мержа — CHECKPOINT: epic-1-retrospective или старт story 1-10)
+commit: 5392388
