@@ -478,6 +478,9 @@ func (s *Server) integrationsPage(w http.ResponseWriter, r *http.Request) {
         if v := r.URL.Query().Get("capability_unknown"); v == "1" {
                 data["Notice"] = "Проверка возможности не завершилась до срока: результат неопределён, повтор вслепую исключён. Владелец сверки и безопасный шаг — в карточке."
         }
+        if v := r.URL.Query().Get("capability_stale"); v == "1" {
+                data["Notice"] = "Доказательство устарело (факты подключения изменились): состояние и причина — в карточке подключения; повторите проверку осознанно."
+        }
         // Error flash rides a short-lived HttpOnly cookie, never the URL: an
         // attacker-chosen ?error=… can no longer render as a system alert.
         if message := flashError(r, tenant); message != "" {
@@ -773,6 +776,9 @@ func (s *Server) verifyCapabilityForm(w http.ResponseWriter, r *http.Request) {
                 redirectWithError(w, r, tenant, err)
                 return
         }
+        // Honest redirects: every non-success outcome carries its own flag; any
+        // state outside the terminal vocabulary redirects without claiming
+        // success (R1: a stale replay must never read as a completed check).
         switch result.Report.State {
         case connectorDomain.CapStateVerified:
                 http.Redirect(w, r, "/app/tenants/"+tenant.String()+"/integrations?capability_verified=1", http.StatusSeeOther)
@@ -780,8 +786,10 @@ func (s *Server) verifyCapabilityForm(w http.ResponseWriter, r *http.Request) {
                 http.Redirect(w, r, "/app/tenants/"+tenant.String()+"/integrations?capability_failed=1", http.StatusSeeOther)
         case connectorDomain.CapStateUnknown:
                 http.Redirect(w, r, "/app/tenants/"+tenant.String()+"/integrations?capability_unknown=1", http.StatusSeeOther)
+        case connectorDomain.CapStateStale:
+                http.Redirect(w, r, "/app/tenants/"+tenant.String()+"/integrations?capability_stale=1", http.StatusSeeOther)
         default:
-                http.Redirect(w, r, "/app/tenants/"+tenant.String()+"/integrations?capability_verified=1", http.StatusSeeOther)
+                http.Redirect(w, r, "/app/tenants/"+tenant.String()+"/integrations", http.StatusSeeOther)
         }
 }
 

@@ -154,6 +154,8 @@ test('capability state shows declared vs proven, verifies a read-only probe, blo
   const verifiedPanel = page.locator('.connection-list .employee-card', { hasText: 'Возможности Олега' }).locator('.capability-state');
   await expect(verifiedPanel.locator('.capability', { hasText: 'Статус транка' }).locator('.cap-state')).toHaveText('проверено');
   await expect(page.locator('.status')).toContainText('Проверка возможности выполнена');
+  // The update is announced without losing focus: the notice receives it after the redirect.
+  await expect(page.locator('#page-notice')).toBeFocused();
   const evidence = verifiedPanel.locator('.capability', { hasText: 'Статус транка' }).locator('.capability-evidence');
   await evidence.locator('summary').click();
   await expect(evidence).toContainText('Уровень доставки');

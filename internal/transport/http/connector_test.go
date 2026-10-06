@@ -343,86 +343,147 @@ func TestConnectFormFailedCheckRedirectsToHonestNotice(t *testing.T) {
 }
 
 func TestCapabilityStateAPIShowsDeclaredAndProven(t *testing.T) {
-	server := newConnectorTestServer(t, &fakeConnector{})
-	path := "/v1/tenants/" + testTenantID.String() + "/connections/" + testCorrelation.String() + "/capabilities"
-	r := httptest.NewRequest(http.MethodGet, path, nil)
-	w := httptest.NewRecorder()
-	server.Handler().ServeHTTP(w, r)
-	if w.Code != http.StatusOK {
-		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
-	}
-	body := w.Body.String()
-	for _, want := range []string{`"contract_version":"1.1.0"`, "query.trunk-status", `"verified"`, "command.send-sms", `"unverified"`, "event.inbound-call", "Action Gateway", `"AG-4"`, "Technical Lead + Security"} {
-		if !strings.Contains(body, want) {
-			t.Fatalf("capability state missing %q: %s", want, body)
-		}
-	}
+        server := newConnectorTestServer(t, &fakeConnector{})
+        path := "/v1/tenants/" + testTenantID.String() + "/connections/" + testCorrelation.String() + "/capabilities"
+        r := httptest.NewRequest(http.MethodGet, path, nil)
+        w := httptest.NewRecorder()
+        server.Handler().ServeHTTP(w, r)
+        if w.Code != http.StatusOK {
+                t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+        }
+        body := w.Body.String()
+        for _, want := range []string{`"contract_version":"1.1.0"`, "query.trunk-status", `"verified"`, "command.send-sms", `"unverified"`, "event.inbound-call", "Action Gateway", `"AG-4"`, "Technical Lead + Security"} {
+                if !strings.Contains(body, want) {
+                        t.Fatalf("capability state missing %q: %s", want, body)
+                }
+        }
 }
 
 func TestVerifyCapabilityAPIRunsProbeAndReportsReplayHeader(t *testing.T) {
-	fake := &fakeConnector{verifyReplayed: true}
-	server := newConnectorTestServer(t, fake)
-	path := "/v1/tenants/" + testTenantID.String() + "/connections/" + testCorrelation.String() + "/capabilities/query.trunk-status/verify"
-	r := httptest.NewRequest(http.MethodPost, path, nil)
-	r.Header.Set("Idempotency-Key", "verify-http-key")
-	w := httptest.NewRecorder()
-	server.Handler().ServeHTTP(w, r)
-	if w.Code != http.StatusOK {
-		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
-	}
-	if w.Header().Get("Idempotency-Replayed") != "true" {
-		t.Fatalf("replay header missing: %s", w.Body.String())
-	}
-	if !strings.Contains(w.Body.String(), `"replayed":true`) || !strings.Contains(w.Body.String(), "query.trunk-status") {
-		t.Fatalf("verify response body: %s", w.Body.String())
-	}
+        fake := &fakeConnector{verifyReplayed: true}
+        server := newConnectorTestServer(t, fake)
+        path := "/v1/tenants/" + testTenantID.String() + "/connections/" + testCorrelation.String() + "/capabilities/query.trunk-status/verify"
+        r := httptest.NewRequest(http.MethodPost, path, nil)
+        r.Header.Set("Idempotency-Key", "verify-http-key")
+        w := httptest.NewRecorder()
+        server.Handler().ServeHTTP(w, r)
+        if w.Code != http.StatusOK {
+                t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+        }
+        if w.Header().Get("Idempotency-Replayed") != "true" {
+                t.Fatalf("replay header missing: %s", w.Body.String())
+        }
+        if !strings.Contains(w.Body.String(), `"replayed":true`) || !strings.Contains(w.Body.String(), "query.trunk-status") {
+                t.Fatalf("verify response body: %s", w.Body.String())
+        }
 }
 
 func TestVerifyCapabilityAPIBlockedCapabilityMapsTo400WithBlockReason(t *testing.T) {
-	fake := &fakeConnector{verifyErr: connectorDomain.RuleError{Rule: "capability", Reason: "Мутирующая capability: проверка заблокирована до Action Gateway (Epic 3), гейт AG-4, ответственный Technical Lead + Security."}}
-	server := newConnectorTestServer(t, fake)
-	path := "/v1/tenants/" + testTenantID.String() + "/connections/" + testCorrelation.String() + "/capabilities/command.send-sms/verify"
-	r := httptest.NewRequest(http.MethodPost, path, nil)
-	r.Header.Set("Idempotency-Key", "verify-http-key")
-	w := httptest.NewRecorder()
-	server.Handler().ServeHTTP(w, r)
-	if w.Code != http.StatusBadRequest {
-		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
-	}
-	if !strings.Contains(w.Body.String(), "Action Gateway") {
-		t.Fatalf("block reason missing: %s", w.Body.String())
-	}
+        fake := &fakeConnector{verifyErr: connectorDomain.RuleError{Rule: "capability", Reason: "Мутирующая capability: проверка заблокирована до Action Gateway (Epic 3), гейт AG-4, ответственный Technical Lead + Security."}}
+        server := newConnectorTestServer(t, fake)
+        path := "/v1/tenants/" + testTenantID.String() + "/connections/" + testCorrelation.String() + "/capabilities/command.send-sms/verify"
+        r := httptest.NewRequest(http.MethodPost, path, nil)
+        r.Header.Set("Idempotency-Key", "verify-http-key")
+        w := httptest.NewRecorder()
+        server.Handler().ServeHTTP(w, r)
+        if w.Code != http.StatusBadRequest {
+                t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+        }
+        if !strings.Contains(w.Body.String(), "Action Gateway") {
+                t.Fatalf("block reason missing: %s", w.Body.String())
+        }
 }
 
 func TestIntegrationsPageRendersCapabilityPanelWithBlockAndEvidence(t *testing.T) {
-	server := newConnectorTestServer(t, &fakeConnector{withConnection: true})
-	r := httptest.NewRequest(http.MethodGet, "/app/tenants/"+testTenantID.String()+"/integrations", nil)
-	w := httptest.NewRecorder()
-	server.Handler().ServeHTTP(w, r)
-	if w.Code != http.StatusOK {
-		t.Fatalf("status=%d", w.Code)
-	}
-	body := w.Body.String()
-	for _, want := range []string{"Возможности (Capability State)", "Заявленные контрактом", "проверено", "Проверка заблокирована: требуется Action Gateway (Epic 3)", "гейт AG-4", "Проверить «Статус транка»", "cap-verify"} {
-		if !strings.Contains(body, want) {
-			t.Fatalf("page missing %q", want)
-		}
-	}
+        server := newConnectorTestServer(t, &fakeConnector{withConnection: true})
+        r := httptest.NewRequest(http.MethodGet, "/app/tenants/"+testTenantID.String()+"/integrations", nil)
+        w := httptest.NewRecorder()
+        server.Handler().ServeHTTP(w, r)
+        if w.Code != http.StatusOK {
+                t.Fatalf("status=%d", w.Code)
+        }
+        body := w.Body.String()
+        for _, want := range []string{"Возможности (Capability State)", "Заявленные контрактом", "проверено", "Проверка заблокирована: требуется Action Gateway (Epic 3)", "гейт AG-4", "Проверить «Статус транка»", "cap-verify"} {
+                if !strings.Contains(body, want) {
+                        t.Fatalf("page missing %q", want)
+                }
+        }
 }
 
 func TestVerifyCapabilityFormRedirectsWithOutcomeNotice(t *testing.T) {
-	fake := &fakeConnector{}
-	server := newConnectorTestServer(t, fake)
-	path := "/app/tenants/" + testTenantID.String() + "/connections/" + testCorrelation.String() + "/capabilities/query.trunk-status/verify"
-	form := url.Values{"idempotency_key": {"verify-form-key"}}
-	r := connectorFormRequest(http.MethodPost, path, form)
-	w := httptest.NewRecorder()
-	server.Handler().ServeHTTP(w, r)
-	if w.Code != http.StatusSeeOther {
-		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
-	}
-	location := w.Header().Get("Location")
-	if !strings.Contains(location, "capability_verified=1") {
-		t.Fatalf("redirect must carry the honest outcome: %s", location)
-	}
+        fake := &fakeConnector{}
+        server := newConnectorTestServer(t, fake)
+        path := "/app/tenants/" + testTenantID.String() + "/connections/" + testCorrelation.String() + "/capabilities/query.trunk-status/verify"
+        form := url.Values{"idempotency_key": {"verify-form-key"}}
+        r := connectorFormRequest(http.MethodPost, path, form)
+        w := httptest.NewRecorder()
+        server.Handler().ServeHTTP(w, r)
+        if w.Code != http.StatusSeeOther {
+                t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+        }
+        location := w.Header().Get("Location")
+        if !strings.Contains(location, "capability_verified=1") {
+                t.Fatalf("redirect must carry the honest outcome: %s", location)
+        }
+}
+
+// R1: a replay whose derived state went stale (e.g. the secret was rotated
+// between the original verify and the retry) must never read as success.
+func TestVerifyCapabilityFormStaleReplayRedirectsHonestly(t *testing.T) {
+        fake := &fakeConnector{verifyState: connectorDomain.CapStateStale, verifyReplayed: true}
+        server := newConnectorTestServer(t, fake)
+        path := "/app/tenants/" + testTenantID.String() + "/connections/" + testCorrelation.String() + "/capabilities/query.trunk-status/verify"
+        form := url.Values{"idempotency_key": {"verify-form-key"}}
+        r := connectorFormRequest(http.MethodPost, path, form)
+        w := httptest.NewRecorder()
+        server.Handler().ServeHTTP(w, r)
+        if w.Code != http.StatusSeeOther {
+                t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+        }
+        location := w.Header().Get("Location")
+        if !strings.Contains(location, "capability_stale=1") {
+                t.Fatalf("stale replay must carry the stale flag, got: %s", location)
+        }
+        if strings.Contains(location, "capability_verified=1") {
+                t.Fatalf("stale replay must never claim success: %s", location)
+        }
+}
+
+// R1: any state outside the terminal outcome vocabulary redirects without a
+// success flag at all — the card carries the honest state.
+func TestVerifyCapabilityFormUnknownStateRedirectsWithoutSuccessClaim(t *testing.T) {
+        fake := &fakeConnector{verifyState: connectorDomain.CapStateVerifying}
+        server := newConnectorTestServer(t, fake)
+        path := "/app/tenants/" + testTenantID.String() + "/connections/" + testCorrelation.String() + "/capabilities/query.trunk-status/verify"
+        form := url.Values{"idempotency_key": {"verify-form-key"}}
+        r := connectorFormRequest(http.MethodPost, path, form)
+        w := httptest.NewRecorder()
+        server.Handler().ServeHTTP(w, r)
+        if w.Code != http.StatusSeeOther {
+                t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+        }
+        location := w.Header().Get("Location")
+        for _, flag := range []string{"capability_verified", "capability_failed", "capability_unknown", "capability_stale"} {
+                if strings.Contains(location, flag) {
+                        t.Fatalf("non-terminal state must not claim any outcome flag (%s): %s", flag, location)
+                }
+        }
+}
+
+// R1: the outcome notice is focusable so the post-verify announcement does
+// not silently drop focus to the top of the reloaded page.
+func TestIntegrationsPageNoticeIsFocusableAfterCapabilityRedirect(t *testing.T) {
+        server := newConnectorTestServer(t, &fakeConnector{withConnection: true})
+        r := httptest.NewRequest(http.MethodGet, "/app/tenants/"+testTenantID.String()+"/integrations?capability_stale=1", nil)
+        w := httptest.NewRecorder()
+        server.Handler().ServeHTTP(w, r)
+        if w.Code != http.StatusOK {
+                t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+        }
+        body := w.Body.String()
+        for _, want := range []string{`id="page-notice"`, `tabindex="-1"`, "Доказательство устарело", "page-notice').focus()"} {
+                if !strings.Contains(body, want) {
+                        t.Fatalf("focusable notice missing %q", want)
+                }
+        }
 }

@@ -3,7 +3,7 @@
 <body><a class="skip-link" href="#main">К основному содержанию</a><header class="topbar"><a class="brand" href="/app/tenants/{{.TenantID}}">Staffy</a><strong>Пространство → Интеграции</strong></header>
 <div class="shell"><nav aria-label="Основная навигация"><a href="/app/tenants/{{.TenantID}}">Сегодня</a><a href="/app/tenants/{{$.TenantID}}/people">Участники</a></nav><main id="main"><section class="panel"><h1>Интеграции</h1>
 <p>Выберите канал или бизнес-систему из каталога. Подключение создаётся для вашей организации; секрет принимается один раз и больше не показывается. До прохождения gate AG-4 доступны только sandbox и test среды.</p>
-{{if .Error}}<p class="alert" role="alert">{{.Error}}</p>{{end}}{{if .Notice}}<p class="status" role="status">{{.Notice}}</p>{{end}}
+{{if .Error}}<p class="alert" role="alert">{{.Error}}</p>{{end}}{{if .Notice}}<p class="status" role="status" tabindex="-1" id="page-notice">{{.Notice}}</p><script>addEventListener('DOMContentLoaded', () => document.getElementById('page-notice').focus());</script>{{end}}
 
 <h2>Каталог Connector</h2>
 {{range .Groups}}
