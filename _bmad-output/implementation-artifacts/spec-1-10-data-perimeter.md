@@ -2,7 +2,7 @@
 title: 'Story 1.10 — Управление периметром данных: Artifact Data Map и retention (первый срез)'
 type: 'feature'
 created: '2026-10-06'
-status: 'backlog'
+status: 'ready-for-dev'
 route: 'dispatch'
 review_loop_iteration: 0
 baseline_commit: '07871271280ed8da327766027ea299b5df6a6520'
@@ -103,6 +103,7 @@ context:
 ## Spec Change Log
 
 - 2026-10-06, review loop 0: создана спека первого среза Story 1.10 (SM). Статус `backlog` до CHECKPOINT 1 — одобрения владельцем; после одобрения спека и sprint-status.yaml одновременно переходят в `ready-for-dev` (условие синхронности check-continuity).
+- 2026-10-07, CHECKPOINT 1: спека одобрена владельцем без правок («одобряю», чат 2026-10-07; выбор «ретроспектива vs 1-10» делегирован экспертности и решён в пользу продолжения разработки). Замороженные секции (Intent / Boundaries & Constraints / I/O & Edge-Case Matrix) не изменялись. Спека и sprint-status.yaml одновременно переведены в `ready-for-dev`; далее — Dev (step-03).
 
 ## Design Notes
 
