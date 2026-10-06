@@ -1,0 +1,45 @@
+{{define "receipt"}}
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Квитанция удаления · Staffy</title><link rel="stylesheet" href="/assets/app.css"></head>
+<body><a class="skip-link" href="#main">К основному содержанию</a><header class="topbar"><a class="brand" href="/app/tenants/{{.TenantID}}">Staffy</a><strong>Пространство → Карта данных → Квитанция</strong></header>
+<div class="shell"><nav aria-label="Основная навигация"><a href="/app/tenants/{{.TenantID}}">Сегодня</a><a href="/app/tenants/{{$.TenantID}}/datamap">Карта данных</a></nav><main id="main"><section class="panel"><h1 id="receipt-heading" tabindex="-1">Квитанция Data Lifecycle Receipt</h1>
+<script>addEventListener('DOMContentLoaded', () => document.getElementById('receipt-heading').focus());</script>
+<p>Квитанция фиксирует запрос, полномочия, применённые версии политик и честный результат по каждому классу. Удалённое содержимое в квитанцию не входит: только идентификаторы, счётчики и хэш-доказательство.</p>
+
+<h2>Идентичность запроса</h2>
+<dl class="receipt-facts">
+<dt>Запрос</dt><dd>{{.Receipt.RequestID}}</dd>
+<dt>Квитанция</dt><dd>{{.Receipt.ReceiptID}}</dd>
+<dt>Полномочие</dt><dd>{{.Receipt.Authority}}</dd>
+<dt>Выполнен</dt><dd>{{.Receipt.CompletedAt}}</dd>
+<dt>Хэш-доказательство (SHA-256)</dt><dd class="receipt-hash">{{.Receipt.Hash}}</dd>
+</dl>
+
+<h2>Применённые политики</h2>
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Применённые версии политик">
+<table class="datamap-table">
+<caption>Версии retention-политик, применённых к запросу</caption>
+<thead><tr><th scope="col">Класс</th><th scope="col">Версия политики</th><th scope="col">Терминальное событие</th></tr></thead>
+<tbody>
+{{range .Receipt.Policies}}
+<tr><th scope="row">{{.Class}}</th><td>v{{.Version}}</td><td>{{.TerminalEvent}}</td></tr>
+{{end}}
+</tbody>
+</table>
+</div>
+
+<h2>Результаты по классам</h2>
+<ul class="outcome-list">
+{{range .Receipt.Outcomes}}
+<li class="outcome-card {{.OutcomeClass}}">
+<strong>{{.ClassTitle}}</strong> <span class="cap-state">{{.OutcomeText}}</span>
+{{if .Count}}<span>Затронуто строк: {{.Count}}</span>{{end}}
+{{if .DueAt}}<span>Запланировано на: {{.DueAt}}</span>{{end}}
+<span class="cap-reason">{{.Note}}</span>
+{{if .BlockRequired}}<p class="cap-block">Блокировка: {{.BlockRequired}}{{if .BlockGate}} (гейт {{.BlockGate}}){{end}}. Ответственный: {{.BlockOwner}}.</p>{{end}}
+{{if .Reconciliation}}<p class="cap-block">{{.Reconciliation}}</p>{{end}}
+</li>
+{{end}}
+</ul>
+<p><a class="primary" href="/app/tenants/{{.TenantID}}/datamap">Вернуться к карте данных</a></p>
+</section></main></div></body></html>
+{{end}}

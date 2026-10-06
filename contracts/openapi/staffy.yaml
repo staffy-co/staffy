@@ -1028,6 +1028,209 @@ paths:
         '403': { $ref: '#/components/responses/Problem' }
         '409': { $ref: '#/components/responses/Problem' }
         '415': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/data-map:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+    get:
+      operationId: readDataMap
+      summary: Artifact Data Map — производные текущие версии по классам, политики, удержания
+      description: Просмотр требует scope data_governance или audit; чужой Tenant изолирован (404).
+      x-staffy-principal-required: true
+      responses:
+        '200':
+          description: Карта данных с честными статусами (complete/incomplete/undocumented) и due-позициями
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [classes]
+                properties:
+                  classes: { type: array, items: { $ref: '#/components/schemas/DataClassView' } }
+                  receipts: { type: array, items: { $ref: '#/components/schemas/LifecycleReceipt' } }
+                  hold_events: { type: array, items: { $ref: '#/components/schemas/LegalHoldEvent' } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/data-map/entries:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+    post:
+      operationId: publishDataMapEntry
+      summary: Опубликовать новую append-only версию записи класса (неизвестные атрибуты остаются пустыми)
+      description: Требует scope data_governance. Пустой обязательный атрибут хранится честно как incomplete.
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [class]
+              properties:
+                class: { type: string }
+                purpose: { type: string, maxLength: 600 }
+                legal_basis: { type: string, maxLength: 300 }
+                controller: { type: string, maxLength: 300 }
+                processor: { type: string, maxLength: 300 }
+                recipients: { type: array, items: { type: string } }
+                sub_processors: { type: array, items: { type: string } }
+                locations: { type: array, items: { type: string } }
+                accessible_roles: { type: array, items: { type: string } }
+                known_copies: { type: array, items: { type: string } }
+                retention_policy_ref: { type: string, maxLength: 300 }
+                deletion_method: { type: string, maxLength: 600 }
+                export_method: { type: string, maxLength: 600 }
+      responses:
+        '201':
+          description: Опубликованная версия записи
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataMapEntry' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '415': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/retention-policies:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+    post:
+      operationId: publishRetentionPolicy
+      summary: Опубликовать версию retention-политики строго одного класса (blanket без класса отклоняется)
+      description: Требует scope data_governance. Политика предпрослушиваний не может обещать срок дольше 24-часового security-инварианта.
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [class, purpose, legal_basis, source, terminal_event, active_use_days, archive_days, deletion_days, backup_expiry_days, legal_hold_exception, owner_note]
+              properties:
+                class: { type: string }
+                purpose: { type: string, minLength: 1, maxLength: 300 }
+                legal_basis: { type: string, minLength: 1, maxLength: 300 }
+                source: { type: string, enum: ['tenant_decision','legal_requirement','contract','default'] }
+                terminal_event: { type: string, enum: ['last_change','source_retired','employee_deleted','invitation_expired','membership_revoked','connection_revoked','preview_expired','tenant_closure'] }
+                active_use_days: { type: integer, minimum: 0, maximum: 3650 }
+                archive_days: { type: integer, minimum: 0, maximum: 3650 }
+                deletion_days: { type: integer, minimum: 0, maximum: 3650 }
+                backup_expiry_days: { type: integer, minimum: 0, maximum: 3650 }
+                legal_hold_exception: { type: string, minLength: 1, maxLength: 300 }
+                owner_note: { type: string, minLength: 1, maxLength: 300 }
+      responses:
+        '201':
+          description: Опубликованная версия политики
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RetentionPolicy' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '415': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/legal-holds:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+    post:
+      operationId: activateLegalHold
+      summary: Зафиксировать активацию юридического удержания на наборе классов
+      description: Требует scope data_governance. Удержание выводится из событий при чтении; истёкший срок пересмотра показывается честно.
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [classes, basis, approver, review_deadline]
+              properties:
+                classes: { type: array, minItems: 1, items: { type: string } }
+                basis: { type: string, minLength: 1, maxLength: 600 }
+                approver: { type: string, minLength: 1, maxLength: 300 }
+                review_deadline: { type: string, format: date-time }
+      responses:
+        '204': { description: Событие удержания зафиксировано }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '415': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/legal-holds/release:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+    post:
+      operationId: releaseLegalHold
+      summary: Зафиксировать снятие юридического удержания
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [classes, basis, approver]
+              properties:
+                classes: { type: array, minItems: 1, items: { type: string } }
+                basis: { type: string, minLength: 1, maxLength: 600 }
+                approver: { type: string, minLength: 1, maxLength: 300 }
+      responses:
+        '204': { description: Событие снятия зафиксировано }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '415': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/deletion-requests:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+    post:
+      operationId: runDeletionWorkflow
+      summary: Идемпотентная команда удаления классов данных с квитанцией
+      description: Требует scope data_governance. Исходы по классам честны — deleted/scheduled/retained_by_law/unsupported/unknown; повтор ключа replay-ит квитанцию.
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [classes, idempotency_key]
+              properties:
+                classes: { type: array, minItems: 1, items: { type: string } }
+                idempotency_key: { type: string, minLength: 8, maxLength: 200 }
+      responses:
+        '201':
+          description: Квитанция Data Lifecycle Receipt (без удалённого содержимого)
+          headers:
+            Idempotency-Replayed: { schema: { type: string, enum: ['true'] } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LifecycleReceipt' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+        '415': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/deletion-requests/{request_id}/receipt:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - name: request_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: readDeletionReceipt
+      summary: Квитанция запроса удаления (просмотр data_governance/audit)
+      x-staffy-principal-required: true
+      responses:
+        '200':
+          description: Квитанция с исходами по классам
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LifecycleReceipt' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
 components:
   parameters:
     EmployeeID:
@@ -1046,6 +1249,129 @@ components:
       required: true
       schema: { type: string, format: uuid }
   schemas:
+    DataClassView:
+      type: object
+      required: [spec, status, hold]
+      properties:
+        spec:
+          type: object
+          required: [id, title, tables]
+          properties:
+            id: { type: string }
+            title: { type: string }
+            tables: { type: array, items: { type: string } }
+            executor: { type: string }
+            block: { $ref: '#/components/schemas/PrivacyManagedBlock' }
+            audit_min_term: { type: boolean }
+        status: { type: string, enum: ['complete','incomplete','undocumented'] }
+        missing: { type: array, items: { type: string } }
+        entry: { $ref: '#/components/schemas/DataMapEntry' }
+        policy: { $ref: '#/components/schemas/RetentionPolicy' }
+        hold:
+          type: object
+          required: [status]
+          properties:
+            status: { type: string, enum: ['none','active','requires_decision'] }
+            basis: { type: string }
+            approver: { type: string }
+            review_deadline: { type: string, format: date-time }
+        reference_time: { type: string, format: date-time, nullable: true }
+        deletion_due_at: { type: string, format: date-time, nullable: true }
+        mandatory_due_at: { type: string, format: date-time, nullable: true }
+    DataMapEntry:
+      type: object
+      required: [class, version, created_at]
+      properties:
+        tenant_id: { type: string }
+        class: { type: string }
+        version: { type: integer, minimum: 1 }
+        purpose: { type: string }
+        legal_basis: { type: string }
+        controller: { type: string }
+        processor: { type: string }
+        recipients: { type: array, items: { type: string } }
+        sub_processors: { type: array, items: { type: string } }
+        locations: { type: array, items: { type: string } }
+        accessible_roles: { type: array, items: { type: string } }
+        known_copies: { type: array, items: { type: string } }
+        retention_policy_ref: { type: string }
+        deletion_method: { type: string }
+        export_method: { type: string }
+        actor_id: { type: string }
+        created_at: { type: string, format: date-time }
+    RetentionPolicy:
+      type: object
+      required: [class, version, purpose, legal_basis, source, terminal_event, active_use_days, archive_days, deletion_days, backup_expiry_days, legal_hold_exception, owner_note, created_at]
+      properties:
+        tenant_id: { type: string }
+        class: { type: string }
+        version: { type: integer, minimum: 1 }
+        purpose: { type: string }
+        legal_basis: { type: string }
+        source: { type: string, enum: ['tenant_decision','legal_requirement','contract','default'] }
+        terminal_event: { type: string }
+        active_use_days: { type: integer }
+        archive_days: { type: integer }
+        deletion_days: { type: integer }
+        backup_expiry_days: { type: integer }
+        legal_hold_exception: { type: string }
+        owner_note: { type: string }
+        actor_id: { type: string }
+        created_at: { type: string, format: date-time }
+    LegalHoldEvent:
+      type: object
+      required: [event_id, event, classes, basis, approver, review_deadline, created_at]
+      properties:
+        tenant_id: { type: string }
+        event_id: { type: string }
+        event: { type: string, enum: ['activated','released'] }
+        classes: { type: array, items: { type: string } }
+        basis: { type: string }
+        approver: { type: string }
+        review_deadline: { type: string, format: date-time }
+        actor_id: { type: string }
+        created_at: { type: string, format: date-time }
+    LifecycleReceipt:
+      type: object
+      required: [receipt_id, request_id, receipt_hash, authority, policy_versions, outcomes, completed_at]
+      description: Квитанция хранит только идентификаторы, счётчики и хэш-доказательство; удалённое содержимое не входит никогда.
+      properties:
+        tenant_id: { type: string }
+        receipt_id: { type: string }
+        request_id: { type: string }
+        receipt_hash: { type: string }
+        authority: { type: string, enum: ['data_governance'] }
+        policy_versions:
+          type: array
+          items:
+            type: object
+            required: [class, version, terminal_event]
+            properties:
+              class: { type: string }
+              version: { type: integer }
+              terminal_event: { type: string }
+        outcomes: { type: array, items: { $ref: '#/components/schemas/DeletionOutcome' } }
+        completed_at: { type: string, format: date-time }
+        actor_id: { type: string }
+    DeletionOutcome:
+      type: object
+      required: [class, outcome, affected_count, note]
+      properties:
+        class: { type: string }
+        outcome: { type: string, enum: ['deleted','scheduled','retained_by_law','unsupported','unknown'] }
+        affected_count: { type: integer, minimum: 0 }
+        due_at: { type: string, format: date-time, nullable: true }
+        note: { type: string }
+        block: { $ref: '#/components/schemas/PrivacyManagedBlock' }
+        reconciliation_owner: { type: string }
+        reconciliation_deadline: { type: string, format: date-time, nullable: true }
+    PrivacyManagedBlock:
+      type: object
+      required: [required, gate, owner]
+      properties:
+        required: { type: string }
+        gate: { type: string }
+        owner: { type: string }
     VoiceProfile:
       type: object
       required: [id, language, styles, min_tempo, max_tempo, preview_status, restrictions]

@@ -21,6 +21,10 @@ import (
         employeeStore "github.com/artemiosu/staffy/internal/employee/store"
         "github.com/artemiosu/staffy/internal/identity/app"
         "github.com/artemiosu/staffy/internal/identity/store"
+        privacyApp "github.com/artemiosu/staffy/internal/privacy/app"
+        privacyDomain "github.com/artemiosu/staffy/internal/privacy/domain"
+        privacyPort "github.com/artemiosu/staffy/internal/privacy/port"
+        privacyStore "github.com/artemiosu/staffy/internal/privacy/store"
         "github.com/artemiosu/staffy/internal/platform/id"
         httptransport "github.com/artemiosu/staffy/internal/transport/http"
         "github.com/jackc/pgx/v5"
@@ -84,8 +88,14 @@ func run(logger *slog.Logger) error {
         if binary := os.Getenv("STAFFY_DEV_ESPEAK_NG_BIN"); binary != "" {
                 testTTS = &employeeApp.ESpeakNG{Binary: binary, DataParent: os.Getenv("STAFFY_DEV_ESPEAK_DATA_PATH"), LibraryPath: os.Getenv("STAFFY_DEV_ESPEAK_LIBRARY_PATH")}
         }
-        transport.BindEmployee(employeeApp.NewWithTestTTS(employeeStore.NewPostgres(pool), identityService, clock, ids, testTTS))
+        employeeService := employeeApp.NewWithTestTTS(employeeStore.NewPostgres(pool), identityService, clock, ids, testTTS)
+        transport.BindEmployee(employeeService)
         transport.BindConnector(connectorApp.New(connectorStore.NewPostgres(pool), identityService, connectorVerifier.Synthetic{}, clock, ids))
+        privacyExecutors := map[string]privacyPort.ClassDeletionExecutor{
+                privacyDomain.ExecutorEmployee: employeeService.PrivacyDeletionExecutor(),
+                privacyDomain.ExecutorIdentity: identityService.PrivacyDeletionExecutor(),
+        }
+        transport.BindPrivacy(privacyApp.New(privacyStore.NewPostgres(pool), identityService, privacyExecutors, clock, ids))
         server := &http.Server{
                 Addr:              listenAddress,
                 Handler:           transport.Handler(),

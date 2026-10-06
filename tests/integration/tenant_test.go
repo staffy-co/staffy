@@ -59,7 +59,7 @@ func TestMain(m *testing.M) {
                 panic(err)
         }
         if os.Getenv("STAFFY_TEST_DATABASE_URL") != "" {
-                if _, err = adminPool.Exec(ctx, "drop schema if exists employee cascade; drop schema if exists identity cascade; drop schema if exists connector cascade; drop role if exists staffy_app"); err != nil {
+                if _, err = adminPool.Exec(ctx, "drop schema if exists employee cascade; drop schema if exists identity cascade; drop schema if exists connector cascade; drop schema if exists privacy cascade; drop role if exists staffy_app"); err != nil {
                         panic(err)
                 }
         }
@@ -145,6 +145,27 @@ func TestMain(m *testing.M) {
                 panic(err)
         }
         if _, err = adminPool.Exec(ctx, strings.Split(string(capabilityMigration), "-- +goose Down")[0]); err != nil {
+                panic(err)
+        }
+        employeePurgeMigration, err := os.ReadFile("../../migrations/employee/00009_data_perimeter_purge.sql")
+        if err != nil {
+                panic(err)
+        }
+        if _, err = adminPool.Exec(ctx, strings.Split(string(employeePurgeMigration), "-- +goose Down")[0]); err != nil {
+                panic(err)
+        }
+        identityPurgeMigration, err := os.ReadFile("../../migrations/identity/00003_data_perimeter_purge.sql")
+        if err != nil {
+                panic(err)
+        }
+        if _, err = adminPool.Exec(ctx, strings.Split(string(identityPurgeMigration), "-- +goose Down")[0]); err != nil {
+                panic(err)
+        }
+        privacyMigration, err := os.ReadFile("../../migrations/privacy/00001_data_perimeter.sql")
+        if err != nil {
+                panic(err)
+        }
+        if _, err = adminPool.Exec(ctx, strings.Split(string(privacyMigration), "-- +goose Down")[0]); err != nil {
                 panic(err)
         }
         if _, err = adminPool.Exec(ctx, "alter role staffy_app login password 'staffy-runtime-test'"); err != nil {

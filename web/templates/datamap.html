@@ -1,0 +1,189 @@
+{{define "datamap"}}
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Карта данных · Staffy</title><link rel="stylesheet" href="/assets/app.css"></head>
+<body><a class="skip-link" href="#main">К основному содержанию</a><header class="topbar"><a class="brand" href="/app/tenants/{{.TenantID}}">Staffy</a><strong>Пространство → Карта данных</strong></header>
+<div class="shell"><nav aria-label="Основная навигация"><a href="/app/tenants/{{.TenantID}}">Сегодня</a><a href="/app/tenants/{{$.TenantID}}/people">Участники</a><a href="/app/tenants/{{$.TenantID}}/integrations">Интеграции</a></nav><main id="main"><section class="panel"><h1>Карта данных (Artifact Data Map)</h1>
+<p>Честный реестр: какие классы данных система хранит, зачем, на каком основании, где, кто видит, сколько хранится и как удаляется. Карта заполняется по версиям; неизвестный атрибут помечается, а не угадывается.</p>
+{{if .Error}}<p class="alert" role="alert">{{.Error}}</p>{{end}}{{if .Notice}}<p class="status" role="status" tabindex="-1" id="page-notice">{{.Notice}}</p><script>addEventListener('DOMContentLoaded', () => document.getElementById('page-notice').focus());</script>{{end}}
+
+<h2>Классы артефактов</h2>
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Карта данных по классам">
+<table class="datamap-table">
+<caption>Классы данных, статус карты, политики хранения и удержания</caption>
+<thead><tr><th scope="col">Класс</th><th scope="col">Статус карты</th><th scope="col">Политика хранения</th><th scope="col">Удаление с</th><th scope="col">Удержание</th></tr></thead>
+<tbody>
+{{range .Classes}}
+<tr class="{{.StatusClass}}">
+<th scope="row">{{.Title}}<span class="class-id">{{.ID}}</span></th>
+<td><span class="map-state">{{.StatusText}}</span>{{if .MissingText}}<span class="map-missing">{{.MissingText}}</span>{{end}}
+{{if .Entry}}<details class="map-entry"><summary>Атрибуты записи v{{.Entry.Version}}</summary>
+<dl class="map-attributes">
+<dt>Назначение</dt><dd>{{or .Entry.Purpose "— неизвестно —"}}</dd>
+<dt>Правовое основание</dt><dd>{{or .Entry.LegalBasis "— неизвестно —"}}</dd>
+<dt>Контролёр</dt><dd>{{or .Entry.Controller "— неизвестно —"}}</dd>
+<dt>Обработчик</dt><dd>{{or .Entry.Processor "— неизвестно —"}}</dd>
+<dt>Получатели</dt><dd>{{.Entry.Recipients}}</dd>
+<dt>Суб-обработчики</dt><dd>{{.Entry.SubProcessors}}</dd>
+<dt>Место обработки и хранения</dt><dd>{{.Entry.Locations}}</dd>
+<dt>Доступные роли</dt><dd>{{.Entry.AccessRoles}}</dd>
+<dt>Известные копии</dt><dd>{{.Entry.KnownCopies}}</dd>
+<dt>Ссылка на политику</dt><dd>{{or .Entry.PolicyRef "— неизвестно —"}}</dd>
+<dt>Способ удаления</dt><dd>{{or .Entry.DeletionMethod "— неизвестно —"}}</dd>
+<dt>Способ экспорта</dt><dd>{{or .Entry.ExportMethod "— неизвестно —"}}</dd>
+<dt>Опубликовано</dt><dd>{{.Entry.PublishedAt}}</dd>
+</dl></details>{{end}}</td>
+<td>{{if .Policy}}v{{.Policy.Version}}: {{.Policy.TermsText}}<span class="map-missing">событие отсчёта: {{.Policy.TerminalEvent}}; копии в бэкапах истекают через {{.Policy.BackupText}}</span>{{else}}— нет политики —{{end}}</td>
+<td>{{if .DeletionDue}}{{.DeletionDue}}{{else}}—{{end}}{{if .MandatoryDue}}<span class="map-missing">крайний срок: {{.MandatoryDue}}</span>{{end}}</td>
+<td>{{if .HoldText}}<span class="{{.HoldClass}}">{{.HoldText}}</span>{{else}}—{{end}}</td>
+</tr>
+{{end}}
+</tbody>
+</table>
+</div>
+<p class="next-note">Таблицы: физические таблицы класса. Словарь классов синхронизирован с фактическими таблицами миграций тестом целостности периметра: незарегистрированные данные невозможны.</p>
+
+<h2>Опубликовать запись карты</h2>
+<details class="map-form"><summary>Новая версия записи класса</summary>
+<form method="post" action="/app/tenants/{{.TenantID}}/datamap/entry" class="datamap-form">
+<label for="entry-class">Класс артефактов</label>
+<select id="entry-class" name="class" required>
+{{range .ClassOptions}}<option value="{{.ID}}">{{.Title}}</option>{{end}}
+</select>
+<label for="entry-purpose">Назначение обработки (неизвестное — оставить пустым: запись станет неполной)</label>
+<input id="entry-purpose" name="purpose" type="text" maxlength="600">
+<label for="entry-legal-basis">Правовое основание</label>
+<input id="entry-legal-basis" name="legal_basis" type="text" maxlength="300">
+<label for="entry-controller">Контролёр данных</label>
+<input id="entry-controller" name="controller" type="text" maxlength="300">
+<label for="entry-processor">Обработчик данных</label>
+<input id="entry-processor" name="processor" type="text" maxlength="300">
+<label for="entry-recipients">Получатели (по одному в строке)</label>
+<textarea id="entry-recipients" name="recipients" rows="3"></textarea>
+<label for="entry-sub-processors">Суб-обработчики (по одному в строке)</label>
+<textarea id="entry-sub-processors" name="sub_processors" rows="3"></textarea>
+<label for="entry-locations">Место обработки и хранения (по одному в строке)</label>
+<textarea id="entry-locations" name="locations" rows="3"></textarea>
+<fieldset><legend>Доступные роли</legend>
+<label><input type="checkbox" name="accessible_roles" value="owner"> Owner</label>
+<label><input type="checkbox" name="accessible_roles" value="configurator"> Configurator</label>
+<label><input type="checkbox" name="accessible_roles" value="operator"> Operator</label>
+<label><input type="checkbox" name="accessible_roles" value="expert_qa"> Expert/QA</label>
+<label><input type="checkbox" name="accessible_roles" value="integration_admin"> Integration Admin</label>
+</fieldset>
+<label for="entry-copies">Известные копии (по одному в строке)</label>
+<textarea id="entry-copies" name="known_copies" rows="3"></textarea>
+<label for="entry-policy-ref">Ссылка на retention-политику</label>
+<input id="entry-policy-ref" name="retention_policy_ref" type="text" maxlength="300">
+<label for="entry-deletion">Способ удаления</label>
+<input id="entry-deletion" name="deletion_method" type="text" maxlength="600">
+<label for="entry-export">Способ экспорта</label>
+<input id="entry-export" name="export_method" type="text" maxlength="600">
+<button class="primary" type="submit">Опубликовать запись</button>
+</form></details>
+
+<h2>Retention-политики</h2>
+<details class="map-form"><summary>Новая версия политики класса</summary>
+<form method="post" action="/app/tenants/{{.TenantID}}/datamap/policy" class="datamap-form">
+<label for="policy-class">Класс артефактов (политика привязывается строго к одному классу)</label>
+<select id="policy-class" name="class" required>
+{{range .ClassOptions}}<option value="{{.ID}}">{{.Title}}</option>{{end}}
+</select>
+<label for="policy-purpose">Назначение политики</label>
+<input id="policy-purpose" name="purpose" type="text" maxlength="300" required>
+<label for="policy-legal-basis">Правовое основание</label>
+<input id="policy-legal-basis" name="legal_basis" type="text" maxlength="300" required>
+<label for="policy-source">Источник</label>
+<select id="policy-source" name="source">
+<option value="tenant_decision">tenant_decision</option>
+<option value="legal_requirement">legal_requirement</option>
+<option value="contract">contract</option>
+<option value="default">default</option>
+</select>
+<label for="policy-terminal">Терминальное событие отсчёта</label>
+<select id="policy-terminal" name="terminal_event">
+<option value="last_change">last_change</option>
+<option value="source_retired">source_retired</option>
+<option value="employee_deleted">employee_deleted</option>
+<option value="invitation_expired">invitation_expired</option>
+<option value="membership_revoked">membership_revoked</option>
+<option value="connection_revoked">connection_revoked</option>
+<option value="preview_expired">preview_expired</option>
+<option value="tenant_closure">tenant_closure</option>
+</select>
+<label for="policy-active">Активное использование, дней</label>
+<input id="policy-active" name="active_use_days" type="number" min="0" max="3650" value="0" required>
+<label for="policy-archive">Архив, дней</label>
+<input id="policy-archive" name="archive_days" type="number" min="0" max="3650" value="0" required>
+<label for="policy-deletion">Максимальный срок хранения, дней</label>
+<input id="policy-deletion" name="deletion_days" type="number" min="0" max="3650" value="365" required>
+<label for="policy-backup">Истечение копий в бэкапах, дней</label>
+<input id="policy-backup" name="backup_expiry_days" type="number" min="0" max="3650" value="30" required>
+<label for="policy-hold">Исключение legal hold</label>
+<input id="policy-hold" name="legal_hold_exception" type="text" maxlength="300" required>
+<label for="policy-owner">Владелец политики</label>
+<input id="policy-owner" name="owner_note" type="text" maxlength="300" required>
+<button class="primary" type="submit">Опубликовать политику</button>
+</form></details>
+<p class="next-note">Политика предпрослушиваний не может обещать срок дольше 24-часового security-инварианта очистки.</p>
+
+<h2>Юридические удержания</h2>
+{{if .HoldEvents}}
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="События юридических удержаний">
+<table class="datamap-table">
+<caption>События юридических удержаний</caption>
+<thead><tr><th scope="col">Событие</th><th scope="col">Классы</th><th scope="col">Основание</th><th scope="col">Утвердил</th><th scope="col">Пересмотр до</th><th scope="col">Зафиксировано</th></tr></thead>
+<tbody>
+{{range .HoldEvents}}
+<tr><th scope="row">{{.EventText}}</th><td>{{.Classes}}</td><td>{{.Basis}}</td><td>{{.Approver}}</td><td>{{if .ReviewText}}{{.ReviewText}}{{else}}—{{end}}</td><td>{{.CreatedAt}}</td></tr>
+{{end}}
+</tbody>
+</table>
+</div>
+{{end}}
+<details class="map-form"><summary>Зафиксировать событие удержания</summary>
+<form method="post" action="/app/tenants/{{.TenantID}}/datamap/hold" class="datamap-form">
+<label for="hold-action">Действие</label>
+<select id="hold-action" name="action">
+<option value="activate">activate — активировать удержание</option>
+<option value="release">release — снять удержание</option>
+</select>
+<fieldset><legend>Классы</legend>
+{{range .ClassOptions}}<label><input type="checkbox" name="classes" value="{{.ID}}"> {{.Title}}</label>{{end}}
+</fieldset>
+<label for="hold-basis">Основание</label>
+<input id="hold-basis" name="basis" type="text" maxlength="600" required>
+<label for="hold-approver">Утвердивший</label>
+<input id="hold-approver" name="approver" type="text" maxlength="300" required>
+<label for="hold-deadline">Срок пересмотра (для активации)</label>
+<input id="hold-deadline" name="review_deadline" type="date">
+<button class="primary" type="submit">Зафиксировать событие</button>
+</form></details>
+
+<h2>Запрос удаления данных</h2>
+<form method="post" action="/app/tenants/{{.TenantID}}/datamap/delete" class="datamap-form deletion-form">
+<input type="hidden" name="idempotency_key" value="{{.DeletionKey}}">
+<fieldset><legend>Классы в области удаления</legend>
+{{range .ClassOptions}}<label><input type="checkbox" name="classes" value="{{.ID}}"> {{.Title}}</label>{{end}}
+</fieldset>
+<label class="overwrite-confirm"><input type="checkbox" name="confirm_deletion" value="yes" required> Подтверждаю необратимое удаление данных выбранных классов и создание квитанции</label>
+<button class="primary" type="submit">Выполнить удаление</button>
+</form>
+<p class="next-note">Удаление идемпотентно: повторный запрос с тем же ключом вернёт сохранённую квитанцию. Результат по каждому классу честен: удалено / запланировано / сохранено по закону / не поддерживается / неопределённо.</p>
+
+<h2>Квитанции</h2>
+{{if .Receipts}}
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Квитанции жизненного цикла данных">
+<table class="datamap-table">
+<caption>Квитанции запросов удаления</caption>
+<thead><tr><th scope="col">Запрос</th><th scope="col">Выполнен</th><th scope="col">Отпечаток</th><th scope="col">Результат</th><th scope="col">Детали</th></tr></thead>
+<tbody>
+{{range .Receipts}}
+<tr><th scope="row">{{.RequestID}}</th><td>{{.CompletedAt}}</td><td>{{.HashPrefix}}…</td><td>{{.OutcomeText}}</td><td><a href="/app/tenants/{{$.TenantID}}/datamap/receipts/{{.RequestID}}">Открыть квитанцию</a></td></tr>
+{{end}}
+</tbody>
+</table>
+</div>
+{{else}}
+<p class="next-note">Запросов удаления пока не было.</p>
+{{end}}
+</section></main></div></body></html>
+{{end}}

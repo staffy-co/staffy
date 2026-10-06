@@ -2,7 +2,7 @@
 title: 'Story 1.10 — Управление периметром данных: Artifact Data Map и retention (первый срез)'
 type: 'feature'
 created: '2026-10-06'
-status: 'ready-for-dev'
+status: 'in-progress'
 route: 'dispatch'
 review_loop_iteration: 0
 baseline_commit: '07871271280ed8da327766027ea299b5df6a6520'
@@ -68,12 +68,12 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `internal/privacy/domain/` — словарь классов, словари атрибутов/исходов, версионирование, derivation, правила блокировок; тест целостности периметра.
-- [ ] `migrations/privacy/00001_data_perimeter.sql` — append-only таблицы, RLS, гранты, CHECK-словари.
-- [ ] `internal/privacy/{app,port,store}/` + исполнители в `employee`/`identity` — DataMap, Policies, RunDeletion (идемпотентный, исходы по классам), Holds, Receipts.
-- [ ] `internal/identity/domain/model.go` + `people.html` — scope `data_governance`.
-- [ ] `internal/transport/http/`, `contracts/openapi/staffy.yaml`, `web/templates/datamap.html` — UI и API-контракт.
-- [ ] `tests/integration/privacy_test.go`, unit-набор, `tests/journeys/` — все строки матрицы и доступность.
+- [x] `internal/privacy/domain/` — словарь классов, словари атрибутов/исходов, версионирование, derivation, правила блокировок; тест целостности периметра.
+- [x] `migrations/privacy/00001_data_perimeter.sql` — append-only таблицы, RLS, гранты, CHECK-словари.
+- [x] `internal/privacy/{app,port,store}/` + исполнители в `employee`/`identity` — DataMap, Policies, RunDeletion (идемпотентный, исходы по классам), Holds, Receipts.
+- [x] `internal/identity/domain/model.go` + `people.html` — scope `data_governance`.
+- [x] `internal/transport/http/`, `contracts/openapi/staffy.yaml`, `web/templates/datamap.html` — UI и API-контракт.
+- [x] `tests/integration/privacy_test.go`, unit-набор, `tests/journeys/` — все строки матрицы и доступность.
 
 **Acceptance Criteria:**
 - Given Tenant с артефактами, when Data/Privacy Admin открывает Data Map, then для каждого класса показаны назначение, правовое основание, controller/processor, получатели, место обработки/хранения, доступные роли, известные копии, ссылка на политику, способы удаления/экспорта, версия записи и статус.
@@ -104,6 +104,7 @@ context:
 
 - 2026-10-06, review loop 0: создана спека первого среза Story 1.10 (SM). Статус `backlog` до CHECKPOINT 1 — одобрения владельцем; после одобрения спека и sprint-status.yaml одновременно переходят в `ready-for-dev` (условие синхронности check-continuity).
 - 2026-10-07, CHECKPOINT 1: спека одобрена владельцем без правок («одобряю», чат 2026-10-07; выбор «ретроспектива vs 1-10» делегирован экспертности и решён в пользу продолжения разработки). Замороженные секции (Intent / Boundaries & Constraints / I/O & Edge-Case Matrix) не изменялись. Спека и sprint-status.yaml одновременно переведены в `ready-for-dev`; далее — Dev (step-03).
+- 2026-10-07, Dev step-03: реализован весь срез (Execution 6/6). Полный регресс зелёный: build, vet, unit (17 пакетов), integration (включая 8 новых privacy-тестов), journeys 13/13 (включая zzzzz-datamap), git diff --check чист. Статус → `in-progress` до review R1.
 
 ## Design Notes
 
