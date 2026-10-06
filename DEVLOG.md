@@ -192,3 +192,20 @@ decisions:
 - Спека и sprint-status.yaml остаются в backlog до CHECKPOINT 1; после одобрения — одновременно ready-for-dev
 next: CHECKPOINT 1 — владелец одобряет или правит спеку 1-10 (файл на ветке codex/story-1-10-data-perimeter, запушена). После одобрения: перевод спеки и sprint-status.yaml в ready-for-dev на той же ветке → Dev (step-03) реализует срез
 commit: 0787127
+
+---
+date: 2026-10-07
+task: 14-sm
+role: main (Super Z, роль SM)
+story: 1-10
+summary: CHECKPOINT 1 пройден — владелец одобрил спеку 1-10 без правок («одобряю», чат 2026-10-07); спека и sprint-status.yaml одновременно переведены в ready-for-dev на ветке
+done:
+- Владелец ответил «одобряю» (чат 2026-10-07) — CHECKPOINT 1 закрыт без правок спеки
+- Делегированный выбор (ретроспектива vs 1-10) решён в пользу продолжения разработки ещё в прошлой сессии и подтверждён этим одобрением
+- На ветке codex/story-1-10-data-perimeter: статус спеки и sprint-status.yaml одновременно переведены в ready-for-dev (коммит 9bf55fe); замороженные секции не тронуты; Spec Change Log дополнен записью CHECKPOINT 1
+- DEVLOG-запись чекпоинта ведётся на ветке (а не пушем в main) — урок конфликта PR #10: параллельные записи DEVLOG в main и ветке порождают merge-конфликт; записи story 1-10 копятся на ветке и попадут в main через PR
+decisions:
+- Все DEVLOG-записи story 1-10 — только на ветке до merge PR; docs-пуши в main в этом цикле не используются
+- Одобрение зафиксировано как есть: frozen-секции (Intent / Boundaries / I/O Matrix) неизменны
+next: Dev (step-03) реализует срез story 1-10 по Tasks & Acceptance спеки (файл _bmad-output/implementation-artifacts/spec-1-10-data-perimeter.md; входы в frontmatter context:); работа на ветке codex/story-1-10-data-perimeter; подшаги с зелёными тестами — чекпоинт-коммит + push
+commit: 9bf55fe
