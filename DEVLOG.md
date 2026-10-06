@@ -209,3 +209,30 @@ decisions:
 - Одобрение зафиксировано как есть: frozen-секции (Intent / Boundaries / I/O Matrix) неизменны
 next: Dev (step-03) реализует срез story 1-10 по Tasks & Acceptance спеки (файл _bmad-output/implementation-artifacts/spec-1-10-data-perimeter.md; входы в frontmatter context:); работа на ветке codex/story-1-10-data-perimeter; подшаги с зелёными тестами — чекпоинт-коммит + push
 commit: 9bf55fe
+
+---
+date: 2026-10-07
+task: 15-dev
+role: main (Super Z, роль Dev)
+story: 1-10
+summary: Dev step-03 — реализован весь первый срез data perimeter (модуль privacy: Artifact Data Map, retention-политики, идемпотентный deletion workflow с квитанциями, legal hold, scope data_governance); полный регресс зелёный
+done:
+- migrations/privacy/00001_data_perimeter.sql: 6 append-only таблиц (data_map_entries, retention_policies, legal_hold_events, deletion_requests, deletion_outcomes, lifecycle_receipts), RLS + FORCE, INSERT/SELECT-only гранты, CHECK-словари классов/исходов/источников/терминальных событий
+- migrations/employee/00009 + identity/00003: SECURITY DEFINER purge-функции для классов исполнителей (knowledge payload, drafts-агрегат, voice previews/assessments, истёкшие invitations с параметром cutoff); identity/00003 также расширяет default scopes владельца и апгрейдит существующих владельцев data_governance-ом
+- internal/privacy/domain: словарь 15 классов с привязкой к 28 физическим таблицам, ManagedBlock-и (AG-4 seal, immutable evidence, audit maintenance, offboarding), честная механика incomplete-карты (пустые обязательные атрибуты хранятся, не угадываются), derivation hold-состояний с тай-брейком по event_id, политики с 24-часовым инвариантом предпрослушиваний
+- internal/privacy/{api,port,store,app}: DataMap/Policies/Holds/Receipts + идемпотентный RunDeletion (advisory-lock + request_hash, replay квитанции, честный конфликт), словарь исходов deleted/scheduled/retained_by_law/unsupported/unknown, порядок проверки hold → block → audit-min-term → term → executor → unknown, sha256 receipt-хэш без содержимого
+- исполнители через порты: employee/app/privacy.go (4 purge-класса), identity/app/privacy.go (invitations + честный unsupported для активных участников с блоком offboarding/DSAR) — privacy не пишет в чужие таблицы
+- identity/domain: scope data_governance (Owner неявно через allScopes, Configurator — только явное назначение через membership); people.html — чекбоксы новой области
+- HTTP: BindPrivacy + 7 JSON-эндпоинтов + страницы /app/tenants/{id}/datamap и /receipts/{id} (таблицы с заголовками, 320px, ≥44px, доступное подтверждение irreversible-удаления, восстановление фокуса после редиректа); OpenAPI + контракт-тест; main.go проводка
+- тесты: домен (целостность периметра: словарь == таблицы миграций, 6 юнит-файлов), интеграция privacy_test.go (8 тестов: полный жизненный цикл, scheduled, hold activate/release/requires_decision, fail-closed gate-ы, версионирование, invitations, unknown-инжекция, авторизация+RLS), journeys zzzzz-datamap.spec.ts (доступность 320px/клавиатура/фокус, отказ без подтверждения, честная квитанция без содержимого)
+- фикстура privacy для journeys-сервера (полный in-memory цикл) + запуск каталога вместо одного файла в playwright.config
+decisions:
+- Purge-функции SECURITY DEFINER по образцу 24-часовой очистки voice (00008): приложение не получает DELETE на таблицы, каждая функция фильтрует по tenant и возвращает счётчики для квитанции
+- Класс employee-draft удаляется как агрегат данных ИИ-сотрудника (FK сцепляет knowledge/behavior/voice/preview/assessment/audit/outbox/idempotency с черновиком): квитанция честно считает все зависимые строки; знания удаляются отдельной командой до агрегата
+- Аудит-класс: до истечения минимального срока политики — retained_by_law с датой; после — unsupported с блоком «выделенная maintenance-процедура» (журнал не удаляется «молча» и не маскируется под успех)
+- Классы без исполнителя в срезе (конфигурации, идемпотентные записи, outbox) → честный unknown с владельцем/сроком/reconciliation (по frozen-тексту «копия без локального исполнителя → unknown»)
+- Точка отсчёта срока политики — последнее изменение данных класса (ClassReferenceTime из RLS-контекста); терминальное событие политики остаётся частью контракта и отображается честно
+- Flash-cookie обобщён на путь тенанта (работает и для /integrations, и для /datamap)
+- Уроки отладки: GRANT USAGE ON SCHEMA обязателен для новых схем; тай-брейк DeriveHolds по event_id при равных created_at (фиксированные часы тестов); journey-шаг «подтверждение без галочки» требует снять required в DOM, чтобы проверить серверный fail-closed
+next: review R1 свежим контекстом (спека + git diff 6b6f3a6..HEAD), затем R1/R2 → правки → PR в main → done
+commit: e4291bf
