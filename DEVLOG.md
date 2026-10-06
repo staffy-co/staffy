@@ -60,3 +60,21 @@ decisions:
 - Замечание окружения песочницы: env-переменные не переживают между вызовами shell — STAFFY_GH_TOKEN экспортировать в той же команде, что и git-операции
 next: SM создаёт спеку story 1-9 «Проверка capabilities конкретного подключения» (bmad-build step-01/02; вход: sprint-status.yaml → epic-1-context.md → epics.md §Story 1.9 → spec-1-8 → deferred-work.md; затем CHECKPOINT 1 — одобрение владельцем)
 commit: 243dfd6
+
+---
+date: 2026-10-06
+task: 6-sm
+role: main (Super Z, роль SM)
+story: 1-9
+summary: SM-шаг story 1-9 — спека первого среза написана, запушена на ветку, ожидает CHECKPOINT 1 (одобрение владельцем)
+done:
+- Возобновление после сброса сессии И окружения по протоколу AGENTS.md: fresh clone → bootstrap (exit 0, полное окружение) → check-continuity OK (fail=0, warn=0) — система непрерывности пережила реальный сброс без потерь
+- Входы SM прочитаны: epics.md §Story 1.9 (FR-8), epic-1-context.md, spec-1-8, deferred-work.md (3 записи нацелены на 1-9), GATE-REGISTRY.md (AG-4), PRD FR-8
+- Написана и запушена спека первого среза: `_bmad-output/implementation-artifacts/spec-1-9-capability-verification.md` на ветке `codex/story-1-9-capability-verification` (коммит a188786, [skip ci])
+- Спека закрывает три долга 1-8: stale-пометка evidence при ротации/отзыве, конкурентный CAS-тест connect/rotate, идемпотентные повторы connect/rotate/revoke
+decisions:
+- Состояние capabilities — derived из фактов (evidence + активный secret_id + история версий + пинн контракта + срок действия), без mutable-таблицы состояний: один источник истины, рассинхрон невозможен по построению
+- Спека и sprint-status.yaml остаются в статусе `backlog` до CHECKPOINT 1; после одобрения владельцем — одновременно `ready-for-dev` (условие синхронности check-continuity)
+- Срез остаётся на локальном синтетическом контуре: AG-4 не тронут; Action Gateway, Employee readiness-блокировки и автоматический reconciliation — честные отклонения среза (Design Notes спеки)
+next: CHECKPOINT 1 — владелец одобряет или правит спеку 1-9 (файл на ветке codex/story-1-9-capability-verification; ветка запушена). После одобрения: перевести спеку и sprint-status.yaml в ready-for-dev на той же ветке → Dev (step-03) реализует срез по Tasks & Acceptance
+commit: a188786
