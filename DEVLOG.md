@@ -259,3 +259,20 @@ decisions:
 - Пробельная индентация — исторический стиль всей кодовой базы (CI gofmt не проверяет): не трогаем, чтобы не создавать дифф-шум
 next: PR ветки codex/story-1-10-data-perimeter в main (нужен свежий STAFFY_GH_TOKEN от владельца: push ветки + PR через GitHub API + merge); после мержа — CHECKPOINT: story 1-11 (entitlement-лимиты) или ретроспектива epic-1
 commit: f313844
+
+---
+date: 2026-10-07
+task: 17-pr
+role: main (Super Z)
+story: 1-10
+summary: Ветка 1-10 запушена (2 коммита ревью), PR #11 создан через GitHub API; CI-триггер восстановлен этим push-коммитом (событие push по ветке + synchronize по PR)
+done:
+- Push ветки codex/story-1-10-data-perimeter: коммиты f313844 (правки R1/R2 + юнит-тест) и bbc3701 (DEVLOG-фиксация) доставлены в origin — RPO = 0
+- PR #11 (base: main) создан через GitHub API, title/body в стиле PR #9/#10; check-continuity после пуша: OK (fail=0, warn=0)
+- CI не запустился: оба коммита ушли одним push-ом с head-коммитом [skip ci] (GitHub гасит весь push) — 0 runs по ветке; тот же урок, что и PR #10
+- Триггер: этот DEVLOG-коммит без [skip ci] даёт события push (ветка) и synchronize (PR)
+decisions:
+- Bundle-пуш с head [skip ci] гасит CI для всех коммитов пуша: завершающий подшаг пуша должен идти либо одиночным коммитом без маркера, либо отдельным триггер-коммитом
+- Инлайн-подстановка ${STAFFY_GH_TOKEN} в аргументы curl раскрывается до назначения env (пустой заголовок → 401); токен передаётся через env скрипта или export+unset в одной команде
+next: дождаться зелёного CI на PR #11; затем merge PR #11 в main (GitHub API); после мержа — CHECKPOINT для владельца: story 1-11 (entitlement-лимиты) или epic-1-retrospective
+commit: <pending>
