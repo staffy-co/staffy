@@ -1,8 +1,10 @@
 package httptransport
 
 import (
+        "strconv"
         "strings"
 
+        connectorAPI "github.com/artemiosu/staffy/internal/connector/api"
         connectorDomain "github.com/artemiosu/staffy/internal/connector/domain"
         "github.com/artemiosu/staffy/internal/platform/id"
 )
@@ -49,6 +51,97 @@ type connectionView struct {
         ConfigFields  []fieldView
         SecretFields  []fieldView
         HasSecretForm bool
+        Capabilities  []capabilityView
+        FormKey       string
+}
+
+// capabilityView is one derived capability report prepared for the card.
+type capabilityView struct {
+        ID            string
+        Title         string
+        State         string
+        StateText     string
+        Reason        string
+        Meta          string
+        CanVerify     bool
+        VerifyKey     string
+        BlockRequired string
+        BlockGate     string
+        BlockOwner    string
+        Evidence      *evidenceView
+}
+
+type evidenceView struct {
+        CheckedAtText  string
+        ExpiresAtText  string
+        DeliveryLevel  string
+        Outcome        string
+        RedactedRequest string
+        RedactedResult  string
+}
+
+// prepareCapabilityViews projects the derived reports into template values.
+// The verify button appears only for probe-verifiable capabilities.
+func prepareCapabilityViews(state connectorAPI.CapabilityStateResult, verifyKey string) []capabilityView {
+        out := make([]capabilityView, 0, len(state.Capabilities))
+        for _, report := range state.Capabilities {
+                view := capabilityView{
+                        ID: report.ID, Title: report.Title,
+                        State: report.State, StateText: capabilityStateText(report.State),
+                        Reason: report.StateReason,
+                        Meta: capabilityMetaText(report),
+                        CanVerify: report.CanVerify, VerifyKey: verifyKey,
+                }
+                if report.Block != nil {
+                        view.BlockRequired = report.Block.Required
+                        view.BlockGate = report.Block.Gate
+                        view.BlockOwner = report.Block.Owner
+                }
+                if report.Evidence != nil {
+                        view.Evidence = &evidenceView{
+                                CheckedAtText: report.Evidence.CheckedAt.Format("02.01.2006 15:04 UTC"),
+                                ExpiresAtText: report.Evidence.ExpiresAt.Format("02.01.2006 15:04 UTC"),
+                                DeliveryLevel: report.Evidence.DeliveryLevel,
+                                Outcome: report.Evidence.Outcome,
+                                RedactedRequest: report.Evidence.RedactedRequest,
+                                RedactedResult: report.Evidence.RedactedResult,
+                        }
+                }
+                out = append(out, view)
+        }
+        return out
+}
+
+// capabilityStateText renders the machine state as readable Russian so a
+// state never reads as success when it is not.
+func capabilityStateText(state string) string {
+        switch state {
+        case connectorDomain.CapStateUnverified:
+                return "не проверено"
+        case connectorDomain.CapStateVerifying:
+                return "проверяется"
+        case connectorDomain.CapStateVerified:
+                return "проверено"
+        case connectorDomain.CapStateUnsupported:
+                return "не поддерживается"
+        case connectorDomain.CapStateFailed:
+                return "проверка не прошла"
+        case connectorDomain.CapStateUnknown:
+                return "результат неопределён"
+        case connectorDomain.CapStateStale:
+                return "устарело"
+        }
+        return state
+}
+
+// capabilityMetaText renders the declared operational semantics compactly.
+func capabilityMetaText(r connectorDomain.CapabilityReport) string {
+        direction := "исходящая"
+        if r.Direction == connectorDomain.DirectionInbound {
+                direction = "входящая"
+        }
+        operation := string(r.Operation)
+        return direction + " · " + operation + " · таймаут " + strconv.Itoa(r.TimeoutMS) + " мс · лимиты: " + r.RateLimit + ", " + r.SizeLimit + " · receipt: " + r.Receipt
 }
 
 type connectorTypeGroupView struct {

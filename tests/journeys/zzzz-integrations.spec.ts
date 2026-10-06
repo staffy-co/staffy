@@ -101,3 +101,78 @@ test('integrations catalog shows honest statuses and connects a synthetic accoun
     }
   }
 });
+
+test('capability state shows declared vs proven, verifies a read-only probe, blocks mutating capabilities honestly', async ({ browser }) => {
+  test.setTimeout(90_000);
+  const page = await browser.newPage({ viewport: { width: 320, height: 800 } });
+  await page.goto(tenantPath);
+
+  // Create and connect the synthetic account.
+  const synthetic = page.locator('.connector-card', { hasText: 'Staffy Synthetic Telephony' });
+  await synthetic.locator('summary').focus();
+  await page.keyboard.press('Enter');
+  await synthetic.getByLabel('Назначение подключения').fill('Возможности Олега');
+  await synthetic.getByLabel('Endpoint (обязательно)').fill('https://caps.sandbox.example');
+  await synthetic.getByRole('button', { name: 'Создать черновик подключения' }).click();
+  const connection = page.locator('.connection-list .employee-card', { hasText: 'Возможности Олега' });
+  await connection.locator('summary', { hasText: 'Подключить секрет' }).click();
+  await connection.getByLabel('API-ключ (sandbox)').fill('sandbox-caps-journey');
+  await connection.getByRole('button', { name: 'Проверить и подключить' }).click();
+
+  // The capability panel appears with declared vs proven semantics.
+  const connected = page.locator('.connection-list .employee-card', { hasText: 'Возможности Олега' });
+  const panel = connected.locator('.capability-state');
+  await expect(panel.getByRole('heading', { name: 'Возможности (Capability State)' })).toBeVisible();
+  await expect(panel).toContainText('Заявленные контрактом 1.1.0');
+  const trunk = panel.locator('.capability', { hasText: 'Статус транка' });
+  await expect(trunk.locator('.cap-state')).toHaveText('не проверено');
+  await expect(trunk).toContainText('исходящая · query');
+  await expect(trunk).toContainText('таймаут 5000 мс');
+
+  // Mutating capability carries the honest managed block, no verify button.
+  const sms = panel.locator('.capability', { hasText: 'Отправка SMS' });
+  await expect(sms.locator('.cap-state')).toHaveText('не проверено');
+  await expect(sms.locator('.cap-block')).toContainText('требуется Action Gateway (Epic 3)');
+  await expect(sms.locator('.cap-block')).toContainText('гейт AG-4');
+  await expect(sms.locator('.cap-block')).toContainText('Technical Lead + Security');
+  await expect(sms.locator('.cap-verify')).toHaveCount(0);
+
+  // Inbound event stays honestly unverified without a block button.
+  const call = panel.locator('.capability', { hasText: 'Входящий звонок' });
+  await expect(call.locator('.cap-state')).toHaveText('не проверено');
+  await expect(call).toContainText('путь проверки не реализован в текущем срезе');
+
+  // Keyboard: the verify control reaches 44px and announces the update.
+  const verifyButton = trunk.getByRole('button', { name: 'Проверить «Статус транка»' });
+  const box = await verifyButton.boundingBox();
+  if (box) {
+    expect(box.height).toBeGreaterThanOrEqual(44);
+  }
+  await verifyButton.click();
+
+  // The state flips to verified inside a live region, evidence discloses progressively.
+  const verifiedPanel = page.locator('.connection-list .employee-card', { hasText: 'Возможности Олега' }).locator('.capability-state');
+  await expect(verifiedPanel.locator('.capability', { hasText: 'Статус транка' }).locator('.cap-state')).toHaveText('проверено');
+  await expect(page.locator('.status')).toContainText('Проверка возможности выполнена');
+  const evidence = verifiedPanel.locator('.capability', { hasText: 'Статус транка' }).locator('.capability-evidence');
+  await evidence.locator('summary').click();
+  await expect(evidence).toContainText('Уровень доставки');
+  await expect(evidence).toContainText('delivered');
+  await expect(evidence).toContainText('Действует до');
+  // Redacted fields never carry the secret.
+  await expect(evidence).not.toContainText('sandbox-caps-journey');
+
+  // The mutating block survives independent verification of the read-only
+  // capability: read-only proof does not leak into send-sms.
+  const smsAfter = verifiedPanel.locator('.capability', { hasText: 'Отправка SMS' });
+  await expect(smsAfter.locator('.cap-state')).toHaveText('не проверено');
+  await expect(smsAfter.locator('.cap-verify')).toHaveCount(0);
+
+  // Rotation marks the proof stale with the concrete reason.
+  await page.locator('.connection-list .employee-card', { hasText: 'Возможности Олега' }).locator('summary', { hasText: 'Ротация секрета' }).click();
+  await page.locator('.connection-list .employee-card', { hasText: 'Возможности Олега' }).getByLabel('API-ключ (sandbox)').fill('sandbox-rotated-caps');
+  await page.locator('.connection-list .employee-card', { hasText: 'Возможности Олега' }).getByRole('button', { name: 'Заменить секрет' }).click();
+  const rotatedPanel = page.locator('.connection-list .employee-card', { hasText: 'Возможности Олега' }).locator('.capability-state');
+  await expect(rotatedPanel.locator('.capability', { hasText: 'Статус транка' }).locator('.cap-state')).toHaveText('устарело');
+  await expect(rotatedPanel.locator('.capability', { hasText: 'Статус транка' })).toContainText('секрет ротирован или отозван');
+});

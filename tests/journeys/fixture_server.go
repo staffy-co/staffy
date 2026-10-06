@@ -3,6 +3,7 @@ package main
 import (
         "context"
         "encoding/binary"
+        "fmt"
         "io"
         "log/slog"
         "net/http"
@@ -279,13 +280,17 @@ var fixtureEmployeeID = id.MustParse("01994f64-6c00-7000-8000-000000000004")
 var fixtureSourceID = id.MustParse("01994f64-6c00-7000-8000-000000000005")
 var fixtureConnectionID = id.MustParse("01994f64-6c00-7000-8000-000000000006")
 var fixtureSecretID = id.MustParse("01994f64-6c00-7000-8000-000000000007")
+var fixtureSecretID2 = id.MustParse("01994f64-6c00-7000-8000-000000000009")
+var fixtureEvidenceID = id.MustParse("01994f64-6c00-7000-8000-000000000008")
 
 // connectorFixture serves the integrations journey with the real binary
 // catalog and the real synthetic verifier, keeping state in memory only.
 type connectorFixture struct {
         mu          sync.Mutex
         connections map[id.UUID]connectorDomain.Connection
+        evidence    map[string]connectorDomain.CapabilityEvidence // key: connectionID + ":" + idempotency key
         next        int
+        sealSeq     int
 }
 
 var fixtureVerifier = verifier.Synthetic{}
@@ -385,16 +390,19 @@ func (f *connectorFixture) Save(_ context.Context, c connectorAPI.SaveCommand) (
         current.Status = connectorDomain.StatusDraft
         current.AuthState = connectorDomain.CheckPending
         current.Transport = connectorDomain.CheckPending
+        current.UpdatedAt = time.Now().UTC()
         f.connections[c.ConnectionID] = current
         return current, nil
 }
 
-func (f *connectorFixture) Connect(_ context.Context, c connectorAPI.ConnectCommand) (connectorDomain.Connection, error) {
-        return f.check(c, false)
+func (f *connectorFixture) Connect(_ context.Context, c connectorAPI.ConnectCommand) (connectorAPI.ConnectResult, error) {
+        connection, err := f.check(c, false)
+        return connectorAPI.ConnectResult{Connection: connection}, err
 }
 
-func (f *connectorFixture) Rotate(_ context.Context, c connectorAPI.ConnectCommand) (connectorDomain.Connection, error) {
-        return f.check(c, true)
+func (f *connectorFixture) Rotate(_ context.Context, c connectorAPI.ConnectCommand) (connectorAPI.ConnectResult, error) {
+        connection, err := f.check(c, true)
+        return connectorAPI.ConnectResult{Connection: connection}, err
 }
 
 func (f *connectorFixture) check(c connectorAPI.ConnectCommand, rotate bool) (connectorDomain.Connection, error) {
@@ -419,7 +427,13 @@ func (f *connectorFixture) check(c connectorAPI.ConnectCommand, rotate bool) (co
         current.AuthState = check.Authentication
         current.Transport = check.Transport
         if check.Authentication == connectorDomain.CheckVerified {
-                current.SecretID = fixtureSecretID
+                // Mirrors the real store: every accepted seal is a NEW secret id,
+                // so rotation honestly invalidates prior evidence anchors.
+                f.sealSeq++
+                current.SecretID = id.MustParse(fmt.Sprintf("01994f64-6c00-7000-8000-%012d", 99+f.sealSeq))
+                if f.sealSeq == 1 {
+                        current.SecretID = fixtureSecretID
+                }
                 current.SecretHint = "a1b2c3d4e5f6"
                 current.SecretActive = true
         }
@@ -428,25 +442,126 @@ func (f *connectorFixture) check(c connectorAPI.ConnectCommand, rotate bool) (co
         } else {
                 current.Status = connectorDomain.StatusFailed
         }
+        current.UpdatedAt = time.Now().UTC()
         f.connections[c.ConnectionID] = current
         return current, nil
 }
 
-func (f *connectorFixture) Revoke(_ context.Context, c connectorAPI.RevokeCommand) (connectorDomain.Connection, error) {
+func (f *connectorFixture) Revoke(_ context.Context, c connectorAPI.RevokeCommand) (connectorAPI.RevokeResult, error) {
         f.mu.Lock()
         defer f.mu.Unlock()
         current, ok := f.connections[c.ConnectionID]
         if !ok || c.TenantID != tenantID {
-                return connectorDomain.Connection{}, connectorDomain.ErrNotFound
+                return connectorAPI.RevokeResult{}, connectorDomain.ErrNotFound
         }
         if current.Version != c.ExpectedVersion {
-                return connectorDomain.Connection{}, connectorDomain.ErrConflict
+                return connectorAPI.RevokeResult{}, connectorDomain.ErrConflict
         }
         current.Version++
         current.Status = connectorDomain.StatusRevoked
         current.SecretActive = false
+        current.UpdatedAt = time.Now().UTC()
         f.connections[c.ConnectionID] = current
-        return current, nil
+        return connectorAPI.RevokeResult{Connection: current}, nil
+}
+
+// VerifyCapability mirrors the real service contract: fail-closed guards,
+// deterministic probe via the real synthetic verifier, in-memory evidence
+// with idempotent replay by key.
+func (f *connectorFixture) VerifyCapability(_ context.Context, c connectorAPI.VerifyCommand) (connectorAPI.VerifyResult, error) {
+        f.mu.Lock()
+        defer f.mu.Unlock()
+        current, ok := f.connections[c.ConnectionID]
+        if !ok || c.TenantID != tenantID {
+                return connectorAPI.VerifyResult{}, connectorDomain.ErrNotFound
+        }
+        if current.Status != connectorDomain.StatusConnectedUnverified {
+                return connectorAPI.VerifyResult{}, connectorDomain.RuleError{Rule: "status", Reason: "Подключение в черновике: сначала выполните базовую проверку (подключение секрета), затем проверяйте возможности."}
+        }
+        def, _ := connectorCatalog.Get(current.ConnectorID, current.ConnectorVer)
+        var dec connectorDomain.CapabilityDeclaration
+        declared := false
+        for _, candidate := range def.Capabilities {
+                if candidate.ID == c.Capability {
+                        dec, declared = candidate, true
+                }
+        }
+        if !declared {
+                return connectorAPI.VerifyResult{}, connectorDomain.RuleError{Rule: "capability", Reason: "Capability не заявлена контрактом версии " + current.ConnectorVer + "."}
+        }
+        if dec.Mutating() {
+                return connectorAPI.VerifyResult{}, connectorDomain.RuleError{Rule: "capability", Reason: "Мутирующая capability: проверка заблокирована до Action Gateway (Epic 3), гейт AG-4, ответственный Technical Lead + Security. Read-only возможности этого подключения доступны для проверки независимо."}
+        }
+        if dec.Operation == connectorDomain.OperationEvent {
+                return connectorAPI.VerifyResult{}, connectorDomain.RuleError{Rule: "capability", Reason: "Путь проверки входящих событий не реализован в текущем срезе: capability остаётся unverified без ложного успеха."}
+        }
+        if !dec.ProbeVerifiable() {
+                return connectorAPI.VerifyResult{}, connectorDomain.RuleError{Rule: "capability", Reason: "Эта capability не разрешена для read-only probe: проверка отклонена (fail-closed)."}
+        }
+        if f.evidence == nil {
+                f.evidence = map[string]connectorDomain.CapabilityEvidence{}
+        }
+        slot := c.ConnectionID.String() + ":" + c.IdempotencyKey
+        if _, seen := f.evidence[slot]; seen {
+                state, err := f.capabilityStateLocked(current, def)
+                if err != nil {
+                        return connectorAPI.VerifyResult{}, err
+                }
+                for _, report := range state.Capabilities {
+                        if report.ID == dec.ID {
+                                return connectorAPI.VerifyResult{Report: report, Replayed: true}, nil
+                        }
+                }
+        }
+        now := time.Now().UTC()
+        probe := fixtureVerifier.Probe(context.Background(), def, dec, current.Environment, current.Config)
+        row := connectorDomain.CapabilityEvidence{
+                TenantID: tenantID, EvidenceID: fixtureEvidenceID, ConnectionID: current.ConnectionID, SecretID: current.SecretID,
+                Environment: current.Environment, ContractVersion: current.ConnectorVer, AdapterBuild: fixtureVerifier.Build(),
+                Capability: dec.ID, ProbeKind: connectorDomain.EvidenceProbeKind, ActorID: c.Actor.ID,
+                RequestedAt: now, DeadlineAt: now.Add(time.Duration(dec.TimeoutMS) * time.Millisecond), CompletedAt: now,
+                Outcome: probe.Outcome, DeliveryLevel: probe.DeliveryLevel,
+                RedactedRequest: probe.RedactedRequest, RedactedResult: probe.RedactedResult,
+                ExpiresAt: now.Add(24 * time.Hour), IdempotencyKey: c.IdempotencyKey,
+        }
+        f.evidence[slot] = row
+        state, err := f.capabilityStateLocked(current, def)
+        if err != nil {
+                return connectorAPI.VerifyResult{}, err
+        }
+        for _, report := range state.Capabilities {
+                if report.ID == dec.ID {
+                        return connectorAPI.VerifyResult{Report: report}, nil
+                }
+        }
+        return connectorAPI.VerifyResult{}, connectorDomain.ErrInvalid
+}
+
+// CapabilityState derives the honest view with the real domain function.
+func (f *connectorFixture) CapabilityState(_ context.Context, _ domain.Principal, tenant, connectionID id.UUID) (connectorAPI.CapabilityStateResult, error) {
+        f.mu.Lock()
+        defer f.mu.Unlock()
+        if tenant != tenantID {
+                return connectorAPI.CapabilityStateResult{}, connectorDomain.ErrNotFound
+        }
+        current, ok := f.connections[connectionID]
+        if !ok {
+                return connectorAPI.CapabilityStateResult{}, connectorDomain.ErrNotFound
+        }
+        def, _ := connectorCatalog.Get(current.ConnectorID, current.ConnectorVer)
+        return f.capabilityStateLocked(current, def)
+}
+
+func (f *connectorFixture) capabilityStateLocked(current connectorDomain.Connection, def connectorDomain.ConnectorDefinition) (connectorAPI.CapabilityStateResult, error) {
+        rows := []connectorDomain.CapabilityEvidence{}
+        for _, row := range f.evidence {
+                if row.ConnectionID == current.ConnectionID {
+                        rows = append(rows, row)
+                }
+        }
+        now := time.Now().UTC()
+        reports := connectorDomain.DeriveCapabilityStates(def, current, rows, fixtureVerifier.Build(), now)
+        return connectorAPI.CapabilityStateResult{Connection: current, ContractVersion: current.ConnectorVer, AdapterBuild: fixtureVerifier.Build(), Capabilities: reports}, nil
 }
 
 func (f *employeeFixture) Create(_ context.Context, _ employeeAPI.CreateCommand) (employeeAPI.CreateResult, error) {

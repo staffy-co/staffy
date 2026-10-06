@@ -140,6 +140,13 @@ func TestMain(m *testing.M) {
         if _, err = adminPool.Exec(ctx, strings.Split(string(connectorMigration), "-- +goose Down")[0]); err != nil {
                 panic(err)
         }
+        capabilityMigration, err := os.ReadFile("../../migrations/connector/00002_capability_evidence.sql")
+        if err != nil {
+                panic(err)
+        }
+        if _, err = adminPool.Exec(ctx, strings.Split(string(capabilityMigration), "-- +goose Down")[0]); err != nil {
+                panic(err)
+        }
         if _, err = adminPool.Exec(ctx, "alter role staffy_app login password 'staffy-runtime-test'"); err != nil {
                 panic(err)
         }

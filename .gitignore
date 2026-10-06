@@ -28,3 +28,4 @@ scripts/env.sh
 *.integration.log
 *.unit.log
 
+journeys

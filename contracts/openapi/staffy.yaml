@@ -149,6 +149,78 @@ paths:
                 properties:
                   versions: { type: array, items: { $ref: '#/components/schemas/ConnectionVersion' } }
         '404': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/connections/{connection_id}/capabilities:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/ConnectionID'
+    get:
+      operationId: readCapabilityState
+      summary: 'Capability State: заявленные контрактом и доказанные для аккаунта возможности'
+      description: >-
+        Состояние каждой capability выводится из фактов при чтении (без второй
+        таблицы состояний): заявленные — из пинн-версии контракта Connection,
+        доказанные — из применимой immutable evidence (совпадение connection,
+        активного secret_id, среды, версии контракта, сборки адаптера, срока).
+        Истёкшая/неприменимая evidence читается как stale с точной причиной;
+        мутирующая capability несёт управляемую блокировку до Action Gateway.
+      x-staffy-principal-required: true
+      responses:
+        '200':
+          description: Derived capability state подключения
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [connection_id, contract_version, adapter_build, capabilities]
+                properties:
+                  connection_id: { type: string, format: uuid }
+                  contract_version: { type: string }
+                  adapter_build: { type: string }
+                  capabilities:
+                    type: array
+                    items: { $ref: '#/components/schemas/CapabilityReport' }
+        '404': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/connections/{connection_id}/capabilities/{capability_id}/verify:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/ConnectionID'
+      - name: capability_id
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      operationId: verifyCapability
+      summary: Запустить безопасный read-only probe одной заявленной capability
+      description: >-
+        Проверяется только завершённая outbound read-only probe-capability
+        подключения в состоянии connected/unverified. Мутирующие capability
+        отклоняются fail-closed с блокировкой (Action Gateway, AG-4); входящие
+        события — честным отказом «путь не реализован в срезе». Timeout даёт
+        unknown с владельцем reconciliation; повтор вслепую исключён. Повтор
+        команды с тем же ключом replay-ится тем же результатом; тот же ключ
+        с другими данными — конфликт 409.
+      x-staffy-principal-required: true
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, minLength: 8, maxLength: 200 }
+      responses:
+        '200':
+          description: Состояние capability после проверки (derived из фактов)
+          headers:
+            Idempotency-Replayed: { schema: { type: string } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [capability, replayed]
+                properties:
+                  capability: { $ref: '#/components/schemas/CapabilityReport' }
+                  replayed: { type: boolean }
+        '400': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
   /v1/tenants/{tenant_id}/connections/{connection_id}/connect:
     parameters:
       - $ref: '#/components/parameters/TenantID'
@@ -161,6 +233,15 @@ paths:
         Исходное значение недоступно после приёма. Успешная проверка не подтверждает
         capabilities: статус остаётся connected/unverified.
       x-staffy-principal-required: true
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, minLength: 8, maxLength: 200 }
+          description: >-
+            Повтор той же команды после сетевого сбоя читается как replay её
+            результата (заголовок ответа Idempotency-Replayed: true), а не как
+            «изменено другим участником»; тот же ключ с другими данными — конфликт 409.
       requestBody:
         required: true
         content:
@@ -175,6 +256,8 @@ paths:
       responses:
         '200':
           description: Подключение с отдельными состояниями authentication и transport
+          headers:
+            Idempotency-Replayed: { schema: { type: string } }
           content:
             application/json:
               schema:
@@ -193,6 +276,15 @@ paths:
       operationId: rotateConnectionSecret
       summary: 'Ротация секрета: новая версия Connection, прежняя ссылка отзывается'
       x-staffy-principal-required: true
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, minLength: 8, maxLength: 200 }
+          description: >-
+            Повтор той же команды после сетевого сбоя читается как replay её
+            результата (заголовок ответа Idempotency-Replayed: true), а не как
+            «изменено другим участником»; тот же ключ с другими данными — конфликт 409.
       requestBody:
         required: true
         content:
@@ -207,6 +299,8 @@ paths:
       responses:
         '200':
           description: Подключение с новой версией и отозванным прежним seal
+          headers:
+            Idempotency-Replayed: { schema: { type: string } }
           content:
             application/json:
               schema:
@@ -225,6 +319,15 @@ paths:
       operationId: revokeConnection
       summary: Терминальный отзыв подключения и секрета
       x-staffy-principal-required: true
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, minLength: 8, maxLength: 200 }
+          description: >-
+            Повтор той же команды после сетевого сбоя читается как replay её
+            результата (заголовок ответа Idempotency-Replayed: true), а не как
+            «изменено другим участником»; тот же ключ с другими данными — конфликт 409.
       requestBody:
         required: true
         content:
@@ -239,6 +342,8 @@ paths:
       responses:
         '200':
           description: Отозванное подключение
+          headers:
+            Idempotency-Replayed: { schema: { type: string } }
           content:
             application/json:
               schema:
@@ -1347,6 +1452,76 @@ components:
         documentation_url: { type: string }
         priority_note: { type: string }
         fields: { type: array, items: { $ref: '#/components/schemas/ConnectorField' } }
+    CapabilityDeclaration:
+      type: object
+      required: [id, title, direction, operation, timeout_ms, ordering, rate_limit, size_limit, idempotent, receipt, receipt_level, cancel_compensation, reconciliation, reconciliation_owner, probe_allowed]
+      additionalProperties: false
+      properties:
+        id: { type: string }
+        title: { type: string }
+        description: { type: string }
+        direction: { type: string, enum: [outbound, inbound] }
+        operation: { type: string, enum: [query, command, event] }
+        timeout_ms: { type: integer, minimum: 1 }
+        ordering: { type: string }
+        rate_limit: { type: string }
+        size_limit: { type: string }
+        idempotent: { type: boolean }
+        receipt: { type: string }
+        receipt_level: { type: string, enum: [accepted, delivered, committed] }
+        cancel_compensation: { type: string }
+        reconciliation: { type: string }
+        reconciliation_owner: { type: string }
+        probe_allowed: { type: boolean }
+    CapabilityBlock:
+      type: object
+      required: [required, gate, owner]
+      additionalProperties: false
+      properties:
+        required: { type: string, description: 'Требуемый архитектурный capability, например Action Gateway (Epic 3)' }
+        gate: { type: string, description: 'Архитектурный гейт, например AG-4' }
+        owner: { type: string, description: 'Ответственный, например Technical Lead + Security' }
+    CapabilityEvidenceSummary:
+      type: object
+      required: [evidence_id, outcome, delivery_level, probe_kind, checked_at, expires_at, redacted_request, redacted_result]
+      additionalProperties: false
+      properties:
+        evidence_id: { type: string, format: uuid }
+        outcome: { type: string, enum: [verified, failed, unknown] }
+        delivery_level: { type: string, enum: [accepted, delivered, committed, unknown] }
+        probe_kind: { type: string, enum: [read_only_probe] }
+        checked_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
+        redacted_request: { type: string, description: 'Редаксированная сводка запроса: без секрета и сырых данных' }
+        redacted_result: { type: string, description: 'Редаксированная сводка результата: без сырого ответа провайдера' }
+    CapabilityReport:
+      type: object
+      required: [id, title, direction, operation, timeout_ms, ordering, rate_limit, size_limit, idempotent, receipt, receipt_level, cancel_compensation, reconciliation, reconciliation_owner, probe_allowed, state, state_reason, can_verify]
+      additionalProperties: false
+      properties:
+        id: { type: string }
+        title: { type: string }
+        description: { type: string }
+        direction: { type: string, enum: [outbound, inbound] }
+        operation: { type: string, enum: [query, command, event] }
+        timeout_ms: { type: integer, minimum: 1 }
+        ordering: { type: string }
+        rate_limit: { type: string }
+        size_limit: { type: string }
+        idempotent: { type: boolean }
+        receipt: { type: string }
+        receipt_level: { type: string, enum: [accepted, delivered, committed] }
+        cancel_compensation: { type: string }
+        reconciliation: { type: string }
+        reconciliation_owner: { type: string }
+        probe_allowed: { type: boolean }
+        state: { type: string, enum: [unverified, verifying, verified, unsupported, failed, unknown, stale] }
+        state_reason: { type: string }
+        checked_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
+        evidence: { $ref: '#/components/schemas/CapabilityEvidenceSummary' }
+        block: { $ref: '#/components/schemas/CapabilityBlock' }
+        can_verify: { type: boolean }
     Connection:
       type: object
       additionalProperties: false

@@ -107,3 +107,25 @@ details summary { min-height: 44px; padding: .6rem; cursor: pointer; font-weight
 .connection-list button{min-height:44px}
 .connection-list label:has(input[type=checkbox]){min-height:44px}
 .connection-list input[type=checkbox]{width:44px;height:44px;flex:0 0 44px}
+/* Capability State: honest per-capability proof panel (Story 1-9). */
+.capability-state{margin-top:.6rem;border:1px solid var(--line);border-radius:.6rem;padding:1rem;display:grid;gap:.5rem;min-width:0}
+.capability-state h3{margin:0}
+.capability-list{display:grid;gap:.75rem;padding:0;list-style:none;min-width:0}
+.capability{display:grid;gap:.3rem;border:1px solid var(--line);border-radius:.5rem;padding:.75rem;min-width:0}
+.capability>span{display:block;overflow-wrap:anywhere}
+.capability-head{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;justify-content:space-between}
+.cap-meta{color:#52604f;font-size:.9rem}
+.cap-reason{font-size:.95rem}
+.cap-block{border-left:4px solid #b3642a;background:#fdf3e8;padding:.5rem .75rem;border-radius:.3rem}
+.cap-state{font-weight:800;padding:.15rem .6rem;border-radius:999px;border:1px solid var(--line);min-height:44px;display:inline-flex;align-items:center}
+.cap-state-verified{background:#e8f6ec;border-color:#3c8a55;color:#1f5c33}
+.cap-state-failed{background:#fbeaea;border-color:#b04a4a;color:#7a2e2e}
+.cap-state-unknown{background:#fff6e0;border-color:#b38f2a;color:#6e5416}
+.cap-state-stale{background:#f2f0ec;border-color:#8a857a;color:#55524a}
+.cap-state-unsupported{background:#efeef2;border-color:#6f6d80;color:#454356}
+.cap-state-unverified{background:#f4f6f8;border-color:#7b8a80;color:#3c4740}
+.cap-verify{min-height:44px;min-width:44px;margin-top:.3rem}
+.capability-evidence summary{min-height:44px;display:flex;align-items:center;cursor:pointer}
+.capability-evidence-facts{display:grid;grid-template-columns:auto 1fr;gap:.3rem .75rem;margin:.5rem 0 0;min-width:0}
+.capability-evidence-facts dt{font-weight:700;white-space:nowrap}
+.capability-evidence-facts dd{margin:0;overflow-wrap:anywhere}

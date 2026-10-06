@@ -60,3 +60,27 @@ decisions:
 - Замечание окружения песочницы: env-переменные не переживают между вызовами shell — STAFFY_GH_TOKEN экспортировать в той же команде, что и git-операции
 next: SM создаёт спеку story 1-9 «Проверка capabilities конкретного подключения» (bmad-build step-01/02; вход: sprint-status.yaml → epic-1-context.md → epics.md §Story 1.9 → spec-1-8 → deferred-work.md; затем CHECKPOINT 1 — одобрение владельцем)
 commit: 243dfd6
+
+---
+date: 2026-10-06
+task: 8-dev
+role: main (Super Z, роль Dev)
+story: 1-9
+summary: Dev step-03 — реализован весь срез story 1-9 (capability verification); полный регресс зелёный; статус in-progress до review R1
+done:
+- Домен: internal/connector/domain/capability.go — словарь состояний (unverified/verifying/verified/unsupported/failed/unknown/stale), CapabilityDeclaration с обязательной операционной семантикой (+Complete-валидация), CapabilityEvidence (append-only факты), derivation-функция DeriveCapabilityStates (чистая, без второго писателя), managed-блокировка ActionGatewayBlock (AG-4, Technical Lead + Security)
+- Каталог: контракт staffy-synthetic-telephony 1.1.0 с тремя capabilities (query.trunk-status probe-разрешена; command.send-sms мутирующая — блок; event.inbound-call — честный unverified); 1.0.0 неизменяем и резолвится для пиннов; List показывает только актуальные версии; Create отвергает устаревший пинн честной причиной
+- Миграция 00002: connector.capability_evidence (append-only, RLS, INSERT/SELECT для staffy_app, CHECK-и outcome/delivery/probe_kind/redaction, UNIQUE (tenant, connection, idempotency_key)); idempotency_records.resulting_version; audit outcome CHECK расширен (replayed/idempotency_conflict/capability_*)
+- Верификатор: Probe (детерминированный, host-маркеры timeout./fail., ctx-deadline → unknown, редакция — только host, AdapterBuild synthetic/1.1.0, Build())
+- app/port/store: VerifyCapability (guards → probe с deadline → SaveEvidence идемпотентно), CapabilityState (derived при чтении), LookupCommand/LookupEvidence ДО доменных стражей (повтор после сетевого сбоя = replay, а не ложный конфликт), идемпотентность connect/rotate/revoke через idempotency_records + replay снапшота версии; single-secret правило перенесено под row-lock (гонка connect/connect = ровно один seal + один ErrConflict — R2 Gap 4 закрыт конкурентным integration-тестом; R2 Gap 5 закрыт replay-семантикой)
+- HTTP/UI: GET .../capabilities, POST .../capabilities/{id}/verify (+Idempotency-Key и Idempotency-Replayed на connect/rotate/revoke/verify); панель Capability State в карточке (заявленные vs доказанные, state/reason/время/срок, managed-блокировка, verify-кнопка ≥44px, прогрессивное раскрытие evidence, role=status); flash/notice по исходу (verified/failed/unknown)
+- OpenAPI: 2 новых пути + 4 схемы (CapabilityDeclaration/Report/Block/EvidenceSummary, enum-ы состояний и delivery-уровней), идемпотентные заголовки документированы; контрактный тест
+- Тесты: домен (derivation-матрица: stale-причины по фактам, unsupported, блок, unknown+владелец, latest-per-capability), верификатор (probe-сценарии, редакция), app (guards, replay/conflict, stale после ротации), http (API+формы+панель), интеграция (полный жизненный цикл evidence, таймаут→unknown, истечение TTL, изоляция чужих доказательств, гранты immutable, конкурентный CAS), e2e (панель, verify, блок, stale после ротации, 44px, live region)
+- Проверки на дереве: go test ./... (16 ok), go vet ./... (чисто), go test -tags=integration ./tests/integration/... (ok), npm test --prefix tests/journeys (12/12), git diff --check (чисто)
+decisions:
+- Порядок идемпотентность-раньше-стражей: повторы команд и verify отвечаются LookupCommand/LookupEvidence до доменных guard-ов, иначе повтор после сбоя сети падал бы в «секрет уже принят»/«уже отозвано» вместо replay (спека: повтор = replay результата)
+- Single-secret rule под row-lock в store (не в service): при конкурентных connect побеждает детерминированный CAS-конфликт, при последовательном двойном connect — честная rule-ошибка 400
+- Адаптер и фикстура: каждый принятый seal = НОВЫЙ secret_id + UpdatedAt-bump (как в SQL) — иначе derivation не видит stale при ротации в e2e
+- stale-причины выводятся в приоритете: отозвано → секрет ротирован/отозван → конфигурация/состояние изменились → версия контракта → сборка адаптера → истечение срока (точная причина текстом)
+next: review R1 свежим контекстом (Reviewer читает спеку + git diff 7d20a2d..HEAD; R1/R2 → правки → PR в main; статусы review/done синхронно со sprint-status.yaml)
+commit: (см. следующий коммит)

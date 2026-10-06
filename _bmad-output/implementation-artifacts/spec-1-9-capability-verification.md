@@ -2,7 +2,7 @@
 title: 'Story 1.9 — Проверка capabilities конкретного подключения'
 type: 'feature'
 created: '2026-10-06'
-status: 'ready-for-dev'
+status: 'in-progress'
 route: 'dispatch'
 review_loop_iteration: 0
 baseline_commit: '3ed539437bf6e8521ceb623b2ba977d75402b2e4'
@@ -64,12 +64,12 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `internal/connector/domain/` — `CapabilityDeclaration`, контракт 1.1.0 (`query.trunk-status` / `command.send-sms` / `event.inbound-call`), состояния и derivation.
-- [ ] `migrations/connector/00002_capability_evidence.sql` — immutable evidence, RLS, гранты.
-- [ ] `internal/connector/verifier/` — probe с deadline, редацией, delivery-уровнями, таймаут → `unknown`.
-- [ ] `internal/connector/{app,port,store}/` — `VerifyCapability` (idempotent replay/conflict), `CapabilityState` (derived), идемпотентность connect/rotate/revoke, конкурентный CAS.
-- [ ] `internal/transport/http/`, `contracts/openapi/staffy.yaml`, `web/templates/integrations.html` — Capability State UI и контракт API.
-- [ ] `tests/integration/connector_test.go`, unit-набор, `tests/journeys/` — все строки матрицы и доступность.
+- [x] `internal/connector/domain/` — `CapabilityDeclaration`, контракт 1.1.0 (`query.trunk-status` / `command.send-sms` / `event.inbound-call`), состояния и derivation.
+- [x] `migrations/connector/00002_capability_evidence.sql` — immutable evidence, RLS, гранты.
+- [x] `internal/connector/verifier/` — probe с deadline, редацией, delivery-уровнями, таймаут → `unknown`.
+- [x] `internal/connector/{app,port,store}/` — `VerifyCapability` (idempotent replay/conflict), `CapabilityState` (derived), идемпотентность connect/rotate/revoke, конкурентный CAS.
+- [x] `internal/transport/http/`, `contracts/openapi/staffy.yaml`, `web/templates/integrations.html` — Capability State UI и контракт API.
+- [x] `tests/integration/connector_test.go`, unit-набор, `tests/journeys/` — все строки матрицы и доступность.
 
 **Acceptance Criteria:**
 - Given Connection `connected/unverified`, when пользователь открывает Capability State, then заявленные адаптером и доказанные для аккаунта capabilities показаны отдельно, каждая с состоянием, временем проверки, сроком действия и причиной текстом.
@@ -99,6 +99,7 @@ context:
 
 - 2026-10-06, review loop 0: создана спека первого среза Story 1.9 (SM). Статус `backlog` до CHECKPOINT 1 — одобрения владельцем; после одобрения спека и sprint-status.yaml одновременно переходят в `ready-for-dev` (условие синхронности check-continuity).
 - 2026-10-06, CHECKPOINT 1: спека одобрена владельцем без правок («одобряю», чат 2026-10-06). Замороженные секции (Intent / Boundaries & Constraints / I/O & Edge-Case Matrix) не изменялись. Спека и sprint-status.yaml одновременно переведены в `ready-for-dev`; далее — Dev (step-03).
+- 2026-10-06, Dev (step-03): реализован весь срез по Tasks (6/6); полный регрессионный набор на текущем дереве зелёный (`go test ./...` 16 ok, `go vet` чисто, integration OK, journeys 12/12, `git diff --check` чисто). Статус `in-progress` до прохождения review R1 и merge в main.
 
 ## Design Notes
 

@@ -26,6 +26,10 @@ type fakeConnector struct {
         lastConnect  *connectorAPI.ConnectCommand
         lastCreate   *connectorAPI.CreateCommand
         revokeErr    error
+        verifyErr    error
+        verifyState  string
+        verifyReplayed bool
+        withConnection bool
 }
 
 func (f *fakeConnector) Catalog(context.Context, domain.Principal, id.UUID) ([]connectorDomain.ConnectorDefinition, error) {
@@ -47,7 +51,10 @@ func (f *fakeConnector) Create(_ context.Context, c connectorAPI.CreateCommand) 
 }
 
 func (f *fakeConnector) List(context.Context, domain.Principal, id.UUID) ([]connectorDomain.Connection, error) {
-        return nil, nil
+        if f.connectCalls == 0 && !f.withConnection {
+                return nil, nil
+        }
+        return []connectorDomain.Connection{{TenantID: testTenantID, ConnectionID: testCorrelation, ConnectorID: "staffy-synthetic-telephony", ConnectorVer: "1.1.0", Label: "Тестовая телефония", Status: connectorDomain.StatusConnectedUnverified, AuthState: connectorDomain.CheckVerified, Transport: connectorDomain.CheckVerified, SecretID: testCorrelation, SecretHint: "abcdef012345", SecretActive: true, Version: 2, Config: map[string]string{"endpoint": "https://demo.sandbox.example"}}}, nil
 }
 
 func (f *fakeConnector) Read(context.Context, domain.Principal, id.UUID, id.UUID) (connectorDomain.Connection, error) {
@@ -62,28 +69,56 @@ func (f *fakeConnector) Save(context.Context, connectorAPI.SaveCommand) (connect
         return connectorDomain.Connection{}, connectorDomain.ErrConflict
 }
 
-func (f *fakeConnector) Connect(_ context.Context, c connectorAPI.ConnectCommand) (connectorDomain.Connection, error) {
+func (f *fakeConnector) Connect(_ context.Context, c connectorAPI.ConnectCommand) (connectorAPI.ConnectResult, error) {
         f.connectCalls++
         f.lastConnect = &c
         if f.connectErr != nil {
-                return connectorDomain.Connection{}, f.connectErr
+                return connectorAPI.ConnectResult{}, f.connectErr
         }
         status := f.connectStatus
         if status == "" {
                 status = connectorDomain.StatusConnectedUnverified
         }
-        return connectorDomain.Connection{TenantID: c.TenantID, ConnectionID: c.ConnectionID, Status: status, AuthState: connectorDomain.CheckVerified, Transport: connectorDomain.CheckVerified, SecretID: testCorrelation, SecretHint: "abcdef012345", SecretActive: true, Version: 2}, nil
+        return connectorAPI.ConnectResult{Connection: connectorDomain.Connection{TenantID: c.TenantID, ConnectionID: c.ConnectionID, Status: status, AuthState: connectorDomain.CheckVerified, Transport: connectorDomain.CheckVerified, SecretID: testCorrelation, SecretHint: "abcdef012345", SecretActive: true, Version: 2}}, nil
 }
 
-func (f *fakeConnector) Rotate(context.Context, connectorAPI.ConnectCommand) (connectorDomain.Connection, error) {
-        return connectorDomain.Connection{}, connectorDomain.ErrInvalid
+func (f *fakeConnector) Rotate(context.Context, connectorAPI.ConnectCommand) (connectorAPI.ConnectResult, error) {
+        return connectorAPI.ConnectResult{}, connectorDomain.ErrInvalid
 }
 
-func (f *fakeConnector) Revoke(context.Context, connectorAPI.RevokeCommand) (connectorDomain.Connection, error) {
+func (f *fakeConnector) Revoke(_ context.Context, c connectorAPI.RevokeCommand) (connectorAPI.RevokeResult, error) {
         if f.revokeErr != nil {
-                return connectorDomain.Connection{}, f.revokeErr
+                return connectorAPI.RevokeResult{}, f.revokeErr
         }
-        return connectorDomain.Connection{Status: connectorDomain.StatusRevoked}, nil
+        return connectorAPI.RevokeResult{Connection: connectorDomain.Connection{Status: connectorDomain.StatusRevoked, ConnectionID: c.ConnectionID}}, nil
+}
+
+func (f *fakeConnector) VerifyCapability(_ context.Context, c connectorAPI.VerifyCommand) (connectorAPI.VerifyResult, error) {
+        if f.verifyErr != nil {
+                return connectorAPI.VerifyResult{}, f.verifyErr
+        }
+        state := f.verifyState
+        if state == "" {
+                state = connectorDomain.CapStateVerified
+        }
+        return connectorAPI.VerifyResult{Report: connectorDomain.CapabilityReport{
+                CapabilityDeclaration: connectorDomain.CapabilityDeclaration{ID: c.Capability, Title: "Статус транка", TimeoutMS: 5000, Receipt: "query_result", ReceiptLevel: connectorDomain.DeliveryDelivered, RateLimit: "60 запросов/мин", SizeLimit: "4 КБ ответа", Ordering: "unordered", CancelCompensation: "не применимо", Reconciliation: "не требуется", ReconciliationOwner: "Technical Lead"},
+                State:     state,
+                CanVerify: true,
+        }, Replayed: f.verifyReplayed}, nil
+}
+
+func (f *fakeConnector) CapabilityState(_ context.Context, _ domain.Principal, _ id.UUID, connectionID id.UUID) (connectorAPI.CapabilityStateResult, error) {
+        return connectorAPI.CapabilityStateResult{
+                Connection:      connectorDomain.Connection{ConnectionID: connectionID, Status: connectorDomain.StatusConnectedUnverified, ConnectorVer: "1.1.0"},
+                ContractVersion: "1.1.0",
+                AdapterBuild:    "synthetic/1.1.0",
+                Capabilities: []connectorDomain.CapabilityReport{
+                        {CapabilityDeclaration: connectorDomain.CapabilityDeclaration{ID: "query.trunk-status", Title: "Статус транка", Direction: connectorDomain.DirectionOutbound, Operation: connectorDomain.OperationQuery, TimeoutMS: 5000, Ordering: "unordered", RateLimit: "60 запросов/мин", SizeLimit: "4 КБ ответа", Receipt: "query_result", ReceiptLevel: connectorDomain.DeliveryDelivered, CancelCompensation: "не применимо", Reconciliation: "не требуется", ReconciliationOwner: "Technical Lead", ProbeAllowed: true}, State: connectorDomain.CapStateVerified, StateReason: "Доказано синтетическим read-only probe.", CanVerify: true},
+                        {CapabilityDeclaration: connectorDomain.CapabilityDeclaration{ID: "command.send-sms", Title: "Отправка SMS", Direction: connectorDomain.DirectionOutbound, Operation: connectorDomain.OperationCommand, TimeoutMS: 10000, Ordering: "fifo", RateLimit: "30 сообщений/мин", SizeLimit: "1 КБ", Receipt: "accepted → delivered → committed", ReceiptLevel: connectorDomain.DeliveryCommitted, CancelCompensation: "отмена недоступна", Reconciliation: "query_reconcilable", ReconciliationOwner: "Technical Lead", ProbeAllowed: false}, State: connectorDomain.CapStateUnverified, StateReason: "Мутирующая capability: тестовое выполнение запрещено архитектурой до Action Gateway.", Block: &connectorDomain.ActionGatewayBlock},
+                        {CapabilityDeclaration: connectorDomain.CapabilityDeclaration{ID: "event.inbound-call", Title: "Входящий звонок", Direction: connectorDomain.DirectionInbound, Operation: connectorDomain.OperationEvent, TimeoutMS: 5000, Ordering: "fifo", RateLimit: "120 событий/мин", SizeLimit: "16 КБ", Receipt: "event_ack", ReceiptLevel: connectorDomain.DeliveryAccepted, CancelCompensation: "не применимо", Reconciliation: "дедупликация по event_id", ReconciliationOwner: "Technical Lead", ProbeAllowed: false}, State: connectorDomain.CapStateUnverified, StateReason: "Путь проверки входящих событий не реализован в текущем срезе."},
+                },
+        }, nil
 }
 
 func newConnectorTestServer(t *testing.T, fake *fakeConnector) *Server {
@@ -305,4 +340,89 @@ func TestConnectFormFailedCheckRedirectsToHonestNotice(t *testing.T) {
         if !strings.Contains(rendered.Body.String(), "Синтетическая проверка не прошла") {
                 t.Fatalf("honest failure notice missing: %s", rendered.Body.String())
         }
+}
+
+func TestCapabilityStateAPIShowsDeclaredAndProven(t *testing.T) {
+	server := newConnectorTestServer(t, &fakeConnector{})
+	path := "/v1/tenants/" + testTenantID.String() + "/connections/" + testCorrelation.String() + "/capabilities"
+	r := httptest.NewRequest(http.MethodGet, path, nil)
+	w := httptest.NewRecorder()
+	server.Handler().ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+	}
+	body := w.Body.String()
+	for _, want := range []string{`"contract_version":"1.1.0"`, "query.trunk-status", `"verified"`, "command.send-sms", `"unverified"`, "event.inbound-call", "Action Gateway", `"AG-4"`, "Technical Lead + Security"} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("capability state missing %q: %s", want, body)
+		}
+	}
+}
+
+func TestVerifyCapabilityAPIRunsProbeAndReportsReplayHeader(t *testing.T) {
+	fake := &fakeConnector{verifyReplayed: true}
+	server := newConnectorTestServer(t, fake)
+	path := "/v1/tenants/" + testTenantID.String() + "/connections/" + testCorrelation.String() + "/capabilities/query.trunk-status/verify"
+	r := httptest.NewRequest(http.MethodPost, path, nil)
+	r.Header.Set("Idempotency-Key", "verify-http-key")
+	w := httptest.NewRecorder()
+	server.Handler().ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+	}
+	if w.Header().Get("Idempotency-Replayed") != "true" {
+		t.Fatalf("replay header missing: %s", w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), `"replayed":true`) || !strings.Contains(w.Body.String(), "query.trunk-status") {
+		t.Fatalf("verify response body: %s", w.Body.String())
+	}
+}
+
+func TestVerifyCapabilityAPIBlockedCapabilityMapsTo400WithBlockReason(t *testing.T) {
+	fake := &fakeConnector{verifyErr: connectorDomain.RuleError{Rule: "capability", Reason: "Мутирующая capability: проверка заблокирована до Action Gateway (Epic 3), гейт AG-4, ответственный Technical Lead + Security."}}
+	server := newConnectorTestServer(t, fake)
+	path := "/v1/tenants/" + testTenantID.String() + "/connections/" + testCorrelation.String() + "/capabilities/command.send-sms/verify"
+	r := httptest.NewRequest(http.MethodPost, path, nil)
+	r.Header.Set("Idempotency-Key", "verify-http-key")
+	w := httptest.NewRecorder()
+	server.Handler().ServeHTTP(w, r)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "Action Gateway") {
+		t.Fatalf("block reason missing: %s", w.Body.String())
+	}
+}
+
+func TestIntegrationsPageRendersCapabilityPanelWithBlockAndEvidence(t *testing.T) {
+	server := newConnectorTestServer(t, &fakeConnector{withConnection: true})
+	r := httptest.NewRequest(http.MethodGet, "/app/tenants/"+testTenantID.String()+"/integrations", nil)
+	w := httptest.NewRecorder()
+	server.Handler().ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status=%d", w.Code)
+	}
+	body := w.Body.String()
+	for _, want := range []string{"Возможности (Capability State)", "Заявленные контрактом", "проверено", "Проверка заблокирована: требуется Action Gateway (Epic 3)", "гейт AG-4", "Проверить «Статус транка»", "cap-verify"} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("page missing %q", want)
+		}
+	}
+}
+
+func TestVerifyCapabilityFormRedirectsWithOutcomeNotice(t *testing.T) {
+	fake := &fakeConnector{}
+	server := newConnectorTestServer(t, fake)
+	path := "/app/tenants/" + testTenantID.String() + "/connections/" + testCorrelation.String() + "/capabilities/query.trunk-status/verify"
+	form := url.Values{"idempotency_key": {"verify-form-key"}}
+	r := connectorFormRequest(http.MethodPost, path, form)
+	w := httptest.NewRecorder()
+	server.Handler().ServeHTTP(w, r)
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+	}
+	location := w.Header().Get("Location")
+	if !strings.Contains(location, "capability_verified=1") {
+		t.Fatalf("redirect must carry the honest outcome: %s", location)
+	}
 }
