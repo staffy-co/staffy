@@ -2,9 +2,9 @@
 title: 'Story 1.10 — Управление периметром данных: Artifact Data Map и retention (первый срез)'
 type: 'feature'
 created: '2026-10-06'
-status: 'in-progress'
+status: 'done'
 route: 'dispatch'
-review_loop_iteration: 0
+review_loop_iteration: 2
 baseline_commit: '07871271280ed8da327766027ea299b5df6a6520'
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-1-context.md'
@@ -94,6 +94,7 @@ context:
 
 - Словарь классов первого среза (реальные таблицы): `tenant-configuration`, `member-identity` (principals/memberships/invitations), `employee-draft`, `domain-pack-pin`, `knowledge-source-payload` (sources/versions/chunks + checksum-ключи), `behavior-configuration`, `voice-configuration`, `voice-preview-media`, `voice-assessment`, `connection-configuration` (+versions), `connection-secret-seal`, `capability-evidence`, `idempotency-records` (identity+connector), `audit-trail`, `outbox-events`. Тест целостности сверяет словарь с инвентарём таблиц миграций — единый источник «что система реально хранит».
 - Исполнение удаления — только через порты владеющих модулей («модули владеют своими таблицами»): privacy-оркестратор не пишет в employee/identity таблицы напрямую. Каждый шаг — самостоятельная транзакция исполнителя; исход шага фиксируется в `deletion_outcomes`; частичный успех честен по построению (это и есть словарь исходов).
+- Аудит-строки, физически сцепленные внешним ключом с агрегатом класса (`employee.knowledge_audit` → `knowledge_sources`, `employee.audit` → `drafts`), удаляются вместе с агрегатом и честно считаются в квитанции как зависимые строки: схема БД не допускает другого порядка удаления. Минимальный срок класса `audit-trail` управляет маршрутом удаления самого класса аудита (запрос deletion по audit-trail), а не сцепленными строками агрегатов других классов — это осознанная семантика co-location, зафиксированная review R1.
 - Voice previews: существующая 24-часовая очистка (миграция 00008) остаётся security-инвариантом; policy-срок для класса не может быть слабее (CHECK/валидация при публикации); on-demand удаление — дополнительный путь.
 - `unknown`-путь тестируется инжекцией неоднозначного отказа исполнителя (по образцу host-маркеров timeout./fail. синтетического probe 1-9), включая сбой после фиксации исхода — квитанция получает owner + deadline + reconciliation.
 - Идемпотентность: механика `idempotency_records` расширяется на deletion-команду (per-actor+operation, как connect/rotate/revoke из 1-9); replay возвращает сохранённую квитанцию.
@@ -105,6 +106,8 @@ context:
 - 2026-10-06, review loop 0: создана спека первого среза Story 1.10 (SM). Статус `backlog` до CHECKPOINT 1 — одобрения владельцем; после одобрения спека и sprint-status.yaml одновременно переходят в `ready-for-dev` (условие синхронности check-continuity).
 - 2026-10-07, CHECKPOINT 1: спека одобрена владельцем без правок («одобряю», чат 2026-10-07; выбор «ретроспектива vs 1-10» делегирован экспертности и решён в пользу продолжения разработки). Замороженные секции (Intent / Boundaries & Constraints / I/O & Edge-Case Matrix) не изменялись. Спека и sprint-status.yaml одновременно переведены в `ready-for-dev`; далее — Dev (step-03).
 - 2026-10-07, Dev step-03: реализован весь срез (Execution 6/6). Полный регресс зелёный: build, vet, unit (17 пакетов), integration (включая 8 новых privacy-тестов), journeys 13/13 (включая zzzzz-datamap), git diff --check чист. Статус → `in-progress` до review R1.
+- 2026-10-07, review R1: закрыты три находки — (1) RunDeletion больше не делает двойной LookupDeletion в replay-пути (один запрос вместо двух); (2) сбой запроса точки отсчёта класса при term-check теперь честный `unknown` с reconciliation (раньше — молчаливый fallback на дату публикации политики; добавлен юнит-тест TestRunDeletionAnchorFailureIsUnknown); (3) в Implementation Notes задокументирована сцепленность аудит-строк FK с агрегатами классов (co-location семантика). Замороженные секции (Intent / Boundaries / I/O Matrix) не изменялись. Статус → `done` после R2.
+- 2026-10-07, review R2 (дифф правок R1): повторное чтение — правки минимальны, конфликт-путь идемпотентности идентичен прежнему, honest-unknown соответствует прецеденту аудита-маршрута; повторный полный регресс зелёный (build, vet, unit 18 пакетов включая новый app-тест, integration, journeys 13/13, git diff --check чист). Статус → `done`; ветка готова к PR в main. Наблюдения (не блокеры): окно потери квитанции между коммитом исполнителя и SaveDeletion и видимость форм карты для audit-only зрителей — зафиксированы в deferred-work.md; пробельная индентация — исторический стиль кодовой базы, CI gofmt не проверяет.
 
 ## Design Notes
 

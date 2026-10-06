@@ -368,16 +368,16 @@ func (s *Service) RunDeletion(ctx context.Context, c api.DeletionCommand) (api.D
                 }
         }
         hash := deletionRequestHash(scope.TenantID(), classes)
-        if _, _, _, found, err := s.repository.LookupDeletion(ctx, scope, scope.PrincipalID(), key, hash); err != nil {
+        // One read answers the idempotency question: a stored key with the
+        // same hash replays the stored receipt; a different hash conflicts.
+        priorRequest, priorOutcomes, priorReceipt, found, err := s.repository.LookupDeletion(ctx, scope, scope.PrincipalID(), key, hash)
+        if err != nil {
                 return api.DeletionResult{}, err
-        } else if found {
-                request, outcomes, receipt, _, err := s.repository.LookupDeletion(ctx, scope, scope.PrincipalID(), key, hash)
-                if err != nil {
-                        return api.DeletionResult{}, err
-                }
-                receipt.Outcomes = outcomes
-                _ = request
-                return api.DeletionResult{Receipt: receipt, Replayed: true}, nil
+        }
+        if found {
+                priorReceipt.Outcomes = priorOutcomes
+                _ = priorRequest
+                return api.DeletionResult{Receipt: priorReceipt, Replayed: true}, nil
         }
         // Fail-closed gate: every requested class needs a complete map entry and
         // a current retention policy before anything is deleted.
@@ -499,8 +499,15 @@ func (s *Service) classOutcome(ctx context.Context, scope tenancy.Context, spec 
                 }
         }
         // 4. Term check: an unexpired policy schedules the deletion honestly.
+        // A failing anchor query is an honest unknown (the same shape as the
+        // audit path): the term decision never silently falls back to the
+        // policy publication time.
         anchor := policy.CreatedAt
-        if reference, err := s.repository.ClassReferenceTime(ctx, scope, spec.ID); err == nil && reference != nil {
+        reference, err := s.repository.ClassReferenceTime(ctx, scope, spec.ID)
+        if err != nil {
+                return unknownOutcome(spec, now, "не удалось определить точку отсчёта данных класса; статус неопределён, повтор вслепую исключён")
+        }
+        if reference != nil {
                 anchor = *reference
         }
         due := policy.DeletionDueAt(anchor)

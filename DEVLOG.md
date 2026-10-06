@@ -236,3 +236,26 @@ decisions:
 - Уроки отладки: GRANT USAGE ON SCHEMA обязателен для новых схем; тай-брейк DeriveHolds по event_id при равных created_at (фиксированные часы тестов); journey-шаг «подтверждение без галочки» требует снять required в DOM, чтобы проверить серверный fail-closed
 next: review R1 свежим контекстом (спека + git diff 6b6f3a6..HEAD), затем R1/R2 → правки → PR в main → done
 commit: e4291bf
+
+---
+date: 2026-10-07
+task: 16-review
+role: main (Super Z, роль Reviewer R1/R2)
+story: 1-10
+summary: Review R1/R2 story 1-10 — спека сверена с реализацией по всей матрице, независимый регресс зелёный, закрыты 3 находки (двойной LookupDeletion, молчаливый fallback точки отсчёта, недокументированная co-location семантика аудита); спека и sprint-status → done
+done:
+- Восстановление окружения после сброса: bootstrap.sh (Go 1.27.1, PG 16.4 на 54329), check-continuity OK до и после ревью (fail=0, warn=0)
+- R1: прочитаны спека и весь дифф 6b6f3a6..e4291bf (33 файла, +5181/-121): миграции privacy/employee/identity, домен (словарь 15 классов == 28 таблиц), app-оркестратор, store (advisory-lock, replay, конфликт), исполнители purge через порты, HTTP/шаблоны/OpenAPI, все тесты
+- Независимая регрессия R1: build, vet, unit -count=1 (17 ok), integration -count=1, journeys 13/13, git diff --check чист
+- Finding R1-1 (docs): purge knowledge/drafts удаляет аудит-строки модулей (knowledge_audit FK→sources, audit FK→drafts) — схема не допускает иного порядка; семантика co-location задокументирована в Implementation Notes + Change Log, замороженные секции не тронуты
+- Finding R1-2 (perf/чистота): RunDeletion делал двойной LookupDeletion в replay-пути — свернут в один запрос (поведение идентично, конфликт-путь сохранён)
+- Finding R1-3 (honesty): сбой ClassReferenceTime в term-check молчаливо подменял точку отсчёта датой публикации политики — теперь честный unknown с reconciliation (прецедент аудита-маршрута); добавлен юнит-тест TestRunDeletionAnchorFailureIsUnknown (internal/privacy/app/service_test.go)
+- Finding R1-4 (deferred-work): окно потери квитанции (крэш между коммитом исполнителя и SaveDeletion) и видимость форм карты для audit-only зрителей — две записи в deferred-work.md
+- R2: повторное чтение диффа правок — PASS; повторный полный регресс зелёный (unit 18 пакетов, integration, journeys 13/13)
+- Спека → done (review_loop_iteration 2), sprint-status.yaml → done; случайный go fmt откачен (рабочее дерево чисто)
+decisions:
+- Co-location аудит-строк внутри агрегата — осознанная семантика: FK физически требует этот порядок; минимальный срок audit-trail управляет маршрутом самого класса аудита, а не зависимыми строками агрегатов
+- Сбой anchor-запроса при удалении — unknown, а не fallback: решения о сроке удаления не принимаются на подставных датах; DataView (отображение) сохраняет мягкий fallback
+- Пробельная индентация — исторический стиль всей кодовой базы (CI gofmt не проверяет): не трогаем, чтобы не создавать дифф-шум
+next: PR ветки codex/story-1-10-data-perimeter в main (нужен свежий STAFFY_GH_TOKEN от владельца: push ветки + PR через GitHub API + merge); после мержа — CHECKPOINT: story 1-11 (entitlement-лимиты) или ретроспектива epic-1
+commit: <pending>
