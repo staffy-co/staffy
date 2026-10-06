@@ -156,3 +156,20 @@ decisions:
 - Повторное нарушение «токен в remote URL» недопустимо: с этой сессии только credential helper + STAFFY_GH_TOKEN в той же shell-команде
 next: дождаться зелёного CI на PR #10; затем merge PR #10 в main (GitHub API); после мержа — CHECKPOINT для владельца: epic-1-retrospective или старт story 1-10
 commit: b94ba61
+
+---
+date: 2026-10-06
+task: 12-merge
+role: main (Super Z)
+story: 1-9
+summary: PR #10 влит в main (merge d368aa8) — цикл story 1-9 полностью закрыт: спека → CHECKPOINT 1 → реализация → review R1/R2 → PR → merge; CI зелёный на всех чекпоинтах
+done:
+- Merge-конфликт main↔ветка (двусторонние записи DEVLOG после общего предка) разрешён append-only объединением: записи 6-sm/7-sm (main) поставлены перед 8-dev/10-review/11-pr (ветка) — хронология восстановлена, коммит 23c518b
+- CI #35 (push) и #36 (pull_request synchronize) — оба зелёные на merge-коммите ветки
+- PR #10 влит через GitHub API: merge commit d368aa85cd0597a748726241b711af088698587b, история ветки сохранена
+- Локальный main синхронизирован (ff-only до d368aa8); check-continuity: OK (fail=0, warn=0)
+decisions:
+- Epic 1: stories 1-1…1-9 done; в backlog остались 1-10 (периметр данных), 1-11 (entitlement-лимиты), 1-12 (версии конфигурации и release manifest)
+- Финальная фиксация мержа — прямой docs-пуш в main (разрешено протоколом: инфраструктура/docs, зелёное состояние только что подтверждено CI #35/#36)
+next: CHECKPOINT для владельца: провести epic-1-retrospective сейчас или продолжить разработку stories 1-10…1-12 (следующий по порядку — 1-10 «Управление периметром данных, сроками хранения и правами субъектов»)
+commit: d368aa8
