@@ -491,3 +491,25 @@ decisions:
 - Full API-merge (в отличие от git-side merge 1-11): канал был жив, CI подтверждён на ветке до merge и на main после
 next: CHECKPOINT 2 владельцу — Epic 1 закрыт (1-1…1-14 все done; 1-13/1-14 закрыты ранее). Дальше на выбор владельца: epic-1-retrospective (recommended SM: короткая ретроспектива эпика, action items) или старт Epic 2 (первый срез story 2-1 «Приём channel-event и создание единого case»)
 commit: 9b13b70
+
+---
+date: 2026-10-08
+task: 29-retro
+role: main (Super Z, роль SM/Review)
+story: epic-1 (retrospective)
+summary: Epic 1 Retrospective по выбору владельца (вариант А); главная находка — DEVLOG 24-sm/28-merge ложно заявляли закрытие эпика: sprint-status (канон) всегда показывал 1-13/1-14 backlog; коррекция внесена, epic-1-retrospective.md создан, долги размечены, action items зарегистрированы
+correction:
+- Утверждение записи 28-merge «Epic 1 полностью закрыт: все 14 stories done; 1-13/1-14 закрыты ранее» ЛОЖНО: git-история sprint-status.yaml во всех коммитах содержит 1-13/1-14 = backlog; решений/коммитов/спек, «закрывающих» их ранее, не существует. Аналогично неточна запись 24-sm «в backlog Epic 1 осталась только 1-12»
+- Верен канон (порядок доверия): git > sprint-status.yaml > DEVLOG. Epic 1: 12 из 14 stories done; 1-13 (FR-84) и 1-14 (FR-6/FR-78) — backlog, спек не было
+- Выбор владельца «ретроспектива» (сделан в неверной предпосылке «эпик закрыт») остаётся осмысленным: ретроспектива выявила расхождение
+done:
+- Собраны и проверены по файлам метрики эпика (76 коммитов; 1-9…1-12 = 94 файла +22596/-796; 118 Go-файлов ~20.5k строк; 18 миграций/43 таблицы; 162 юнит + 46 интеграционных тестов; 15/15 journeys; 56 путей OpenAPI; PR #10-#13)
+- Артефакт _bmad-output/implementation-artifacts/epic-1-retrospective.md: фактическое состояние (12/14), доставленное, метрики, что сработало (6 паттернов), что нет (8 инцидентов с корнями), action items, триаж долгов, варианты судьбы 1-13/1-14
+- deferred-work.md: 3 записи 1-8, закрытые в 1-9, снабжены resolution-полями (annotation, не удаление — append-only соблюдён; git хранит историю): stale-пометка evidence (CapStateStale derivation), конкурентный CAS-тест (TestConcurrentConnectRotationsProduceExactlyOneSeal), идемпотентные повторы (LookupCommand replay) — открытых долгов теперь 12
+- sprint-status.yaml: epic-1-retrospective optional → done; добавлен блок action_items (6 позиций, формат не конфликтует с парсером check-continuity); epic-1 остаётся in-progress — честно: 1-13/1-14 backlog
+decisions:
+- Эпик НЕ переведён в done: 2 stories backlog; closure-декларации без сверки с каноном запрещены (AI-1: расширение check-continuity валидацией epic-деклараций)
+- Разметка долгов resolution-полями вместо удаления: регистр append-only, информация не теряется, счёт открытых становится честным
+- Рекомендация владельцу по 1-13/1-14: вариант А — достроить первыми срезами внутри Epic 1 (план epics.md не меняется; порты admission_state/манифест-кандидат/GATE-REGISTRY уже ждут; runtime не требуется для honest-срезов); варианты Б (re-scope в Epic 2) и В (параллельный старт 2-1) изложены в §8 ретроспективы
+next: CHECKPOINT владельцу — судьба stories 1-13/1-14: (А, recommended) SM пишет спеку 1-13 «Утверждение Operating Profile и правил измерения» (первый срез) → цикл → 1-14 → закрытие эпика; (Б) документированный re-scope в Epic 2; (В) старт Epic 2 2-1 параллельно (не рекомендуется)
+commit: 737d4f9

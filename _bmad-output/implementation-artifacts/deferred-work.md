@@ -29,6 +29,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-8-integrations-catalog.md`
   summary: Пометка зависимых capability evidence как `stale` при ротации и отзыве секрета реализуется вместе с capability verification Story 1.9.
   evidence: Текущий срез сбрасывает состояния authentication/transport в pending и не заявляет capabilities; `connected/unverified` — честное терминальное состояние среза, evidence-таблица появится в Story 1.9.
+  resolution: closed in 1.9 — derivation `CapStateStale` с конкретной причиной (internal/connector/domain/capability.go, staleReason); подтверждено epic-1-retrospective (2026-10-08).
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-8-integrations-catalog.md`
   summary: Восстановление фокуса в конкретное поле после ошибок форм интеграций — вместе с общим accessibility-проходом UI.
@@ -37,10 +38,12 @@
 - source_spec: `spec-1-8-integrations-catalog.md`
   summary: Добавить конкурентный (параллельные горутины) integration-тест CAS для connect/rotate: доказать, что одновременные команды дают ровно один seal и один конфликт.
   evidence: Последовательный stale-CAS тест и конструкция `select … for update` + сверка версии в транзакции исключают двойное запечатывание; параллельный тест не написан из-за фиксированной последовательности ID в текущей фикстуре (R2 Gap 4).
+  resolution: closed in 1.9 — TestConcurrentConnectRotationsProduceExactlyOneSeal (tests/integration/connector_test.go); подтверждено epic-1-retrospective (2026-10-08).
 
 - source_spec: `spec-1-8-integrations-catalog.md`
   summary: Определить идемпотентную семантику повторов connect/rotate/revoke после сетевого сбоя, чтобы собственный retry пользователя не читался как «изменено другим участником».
   evidence: OpenAPI контракт документирует отсутствие Idempotency-Key на этих путях; CAS и блокировка строки исключают дубликаты, но сообщение о конфликте после успешного коммита вводит в заблуждение (R2 Gap 5).
+  resolution: closed in 1.9 — replay сохранённого исхода по tenant-scoped ключу + payload hash до стражей (internal/connector/app/service.go, LookupCommand); подтверждено epic-1-retrospective (2026-10-08).
 
 - source_spec: `spec-1-10-data-perimeter.md`
   summary: Закрыть окно потери квитанции между коммитом purge-исполнителя и сохранением deletion-запроса: записывать запрос (in-progress) до исполнения шагов, исходы и квитанцию — после.
