@@ -91,8 +91,12 @@ func run(logger *slog.Logger) error {
                 testTTS = &employeeApp.ESpeakNG{Binary: binary, DataParent: os.Getenv("STAFFY_DEV_ESPEAK_DATA_PATH"), LibraryPath: os.Getenv("STAFFY_DEV_ESPEAK_LIBRARY_PATH")}
         }
         employeeService := employeeApp.NewWithTestTTS(employeeStore.NewPostgres(pool), identityService, clock, ids, testTTS)
+        connectorService := connectorApp.New(connectorStore.NewPostgres(pool), identityService, connectorVerifier.Synthetic{}, clock, ids)
+        // The release surface (Story 1-12) consumes connection facts through the
+        // narrow port; without it sealing and restoring honestly refuse.
+        employeeService = employeeService.WithConnectorFacts(connectorService)
         transport.BindEmployee(employeeService)
-        transport.BindConnector(connectorApp.New(connectorStore.NewPostgres(pool), identityService, connectorVerifier.Synthetic{}, clock, ids))
+        transport.BindConnector(connectorService)
         privacyExecutors := map[string]privacyPort.ClassDeletionExecutor{
                 privacyDomain.ExecutorEmployee: employeeService.PrivacyDeletionExecutor(),
                 privacyDomain.ExecutorIdentity: identityService.PrivacyDeletionExecutor(),

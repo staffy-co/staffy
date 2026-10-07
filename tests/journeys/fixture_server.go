@@ -798,10 +798,13 @@ func main() {
         if err != nil {
                 panic(err)
         }
-        server.BindEmployee(&employeeFixture{})
-        server.BindConnector(&connectorFixture{})
+        employees := &employeeFixture{}
+        connectors := &connectorFixture{}
+        server.BindEmployee(employees)
+        server.BindConnector(connectors)
         server.BindPrivacy(&privacyFixture{})
         server.BindEntitlement(&entitlementFixture{})
+        server.BindRelease(newReleaseFixture(employees, connectors))
         if err := http.ListenAndServe("127.0.0.1:18081", server.Handler()); err != nil {
                 panic(err)
         }

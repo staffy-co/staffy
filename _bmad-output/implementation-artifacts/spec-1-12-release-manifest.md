@@ -65,11 +65,11 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `internal/employee/domain/release.go` — модель, словари, derivation присутствия/статуса/совместимости, канонический digest, чтение по версии схемы; юнит-тесты (включая `candidate` на полном наборе и quarantine).
-- [ ] `migrations/employee/00010_release_manifest.sql` — три таблицы, RLS, гранты, UNIQUE, CHECK-словари.
-- [ ] `internal/employee/{port,app,store,api}` — порт фактов подключений, команды сборки/версии/запечатывания/восстановления/чтения, CAS-транзакции, полномочия в сервисе.
-- [ ] `internal/transport/http/release{,_view}.go`, `contracts/openapi/staffy.yaml`, `web/templates/release.html` — поверхность и API-контракт.
-- [ ] `tests/integration/release_test.go`, unit-набор, `tests/journeys/` — все строки матрицы и доступность.
+- [x] `internal/employee/domain/release.go` — модель, словари, derivation присутствия/статуса/совместимости, канонический digest, чтение по версии схемы; юнит-тесты (включая `candidate` на полном наборе и quarantine).
+- [x] `migrations/employee/00010_release_manifest.sql` — три таблицы, RLS, гранты, UNIQUE, CHECK-словари.
+- [x] `internal/employee/{port,app,store,api}` — порт фактов подключений, команды сборки/версии/запечатывания/восстановления/чтения, CAS-транзакции, полномочия в сервисе.
+- [x] `internal/transport/http/release{,_view}.go`, `contracts/openapi/staffy.yaml`, `web/templates/release.html` — поверхность и API-контракт.
+- [x] `tests/integration/release_test.go`, unit-набор, `tests/journeys/` — все строки матрицы и доступность.
 
 **Acceptance Criteria:**
 - Given сохранённый черновик Employee, when уполномоченный настройщик создаёт новую конфигурационную версию, then система присваивает ей стабильный идентификатор, монотонный номер, время, actor и описание изменения; версия ссылается на точные версии Employee Brief, Domain Pack, Tenant-вариантов, поведения, Knowledge Sources и Voice Profile; ранее созданная версия остаётся неизменной; отсутствующий компонент записан честно.
