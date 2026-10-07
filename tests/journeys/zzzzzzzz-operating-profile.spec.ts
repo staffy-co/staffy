@@ -49,10 +49,10 @@ const profileContent = {
     decision_deadline: 'До старта пилота', fail_closed_fallback: 'block_route', allow_role_coincidence: false
   }],
   coverage_matrix: [
-    { journey: 'поиск детали', route: { channel: 'phone', direction: 'inbound' }, conversation_mode: 'sales', autonomy_class: 'assisted', eval_ref: 'eval://auto-parts/search/voice-v1', gate_refs: ['knowledge_eval'], human_fallback: 'human_callback по регламенту' },
-    { journey: 'поиск детали', route: { channel: 'web_chat', direction: 'inbound' }, conversation_mode: 'sales', autonomy_class: 'assisted', eval_ref: 'eval://auto-parts/search/text-v1', human_fallback: 'human_callback по регламенту' },
-    { journey: 'уточнение аналога', route: { channel: 'phone', direction: 'inbound' }, conversation_mode: 'sales', autonomy_class: 'assisted', not_admitted: true, not_admitted_reason: 'Голосовой сценарий аналогов требует доработки pack.' },
-    { journey: 'уточнение аналога', route: { channel: 'web_chat', direction: 'inbound' }, conversation_mode: 'sales', autonomy_class: 'assisted', eval_ref: 'eval://auto-parts/analog/text-v1', human_fallback: 'human_callback по регламенту' }
+    { journey: 'поиск детали', route: { channel: 'phone', direction: 'inbound' }, modality: 'voice', conversation_mode: 'sales', autonomy_class: 'assisted', eval_ref: 'eval://auto-parts/search/voice-v1', gate_refs: ['knowledge_eval'], human_fallback: 'human_callback по регламенту' },
+    { journey: 'поиск детали', route: { channel: 'web_chat', direction: 'inbound' }, modality: 'text', conversation_mode: 'sales', autonomy_class: 'assisted', eval_ref: 'eval://auto-parts/search/text-v1', human_fallback: 'human_callback по регламенту' },
+    { journey: 'уточнение аналога', route: { channel: 'phone', direction: 'inbound' }, modality: 'voice', conversation_mode: 'sales', autonomy_class: 'assisted', not_admitted: true, not_admitted_reason: 'Голосовой сценарий аналогов требует доработки pack.' },
+    { journey: 'уточнение аналога', route: { channel: 'web_chat', direction: 'inbound' }, modality: 'text', conversation_mode: 'sales', autonomy_class: 'assisted', eval_ref: 'eval://auto-parts/analog/text-v1', human_fallback: 'human_callback по регламенту' }
   ],
   conversation_modes: ['sales'],
   autonomy_classes: ['assisted']
@@ -64,7 +64,10 @@ const employeeUUID = '01994f64-6c00-7000-8000-000000000004';
 test('operating profile: draft→approval with step-up, thresholds, matrix and honest boundaries at 320px', async ({ browser }) => {
   test.setTimeout(120_000);
   const page = await browser.newPage({ viewport: { width: 320, height: 800 } });
-
+  // The fixture step-up flag is global server state: the finally block
+  // guarantees the reset even when the journey fails midway, so the later
+  // journeys never inherit the enabled step-up (state pollution guard).
+  try {
   // Create (or reuse) the fixture employee, then pin auto-parts so the
   // manifest's pack journeys are deterministic regardless of the earlier
   // journeys (the domain-pack journey may have switched the pack).
@@ -191,6 +194,11 @@ test('operating profile: draft→approval with step-up, thresholds, matrix and h
   const scrolledAgain = await page.evaluate(() => document.documentElement.scrollWidth);
   expect(scrolledAgain).toBeLessThanOrEqual(320);
 
-  // Reset the step-up flag for the other journeys (fixture hygiene).
-  await page.request.post('/fixture/step-up', { form: { enabled: '0' } });
+
+  } finally {
+    // Reset the step-up flag for the other journeys (fixture hygiene): the
+    // flag is global server state, an midway failure must not pollute the
+    // later journeys.
+    await page.request.post('/fixture/step-up', { form: { enabled: '0' } });
+  }
 });

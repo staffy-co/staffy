@@ -97,6 +97,48 @@ func auditChange(ctx context.Context, tx pgx.Tx, tenant, actor id.UUID, subject 
 	return err
 }
 
+// MembersFacts is the caller-authority projection: active memberships only,
+// no owner gate — the caller surface has already verified the actor's scope
+// (the fact-port precedent; the tenancy GUC still isolates the tenant).
+func (s *Postgres) MembersFacts(ctx context.Context, scope tenancy.Context) ([]domain.Membership, error) {
+	if !scope.Valid() {
+		return nil, tenancy.ErrMissingContext
+	}
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{AccessMode: pgx.ReadOnly})
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if err = scopedTx(ctx, tx, scope.PrincipalID(), scope.TenantID()); err != nil {
+		return nil, err
+	}
+	rows, err := tx.Query(ctx, `select principal_id,coalesce(email,''),roles,scopes,status,version from identity.memberships where tenant_id=$1 and status='active' order by 2`, scope.TenantID().String())
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []domain.Membership{}
+	for rows.Next() {
+		var principal *id.UUID
+		var email string
+		var roles, scopes []string
+		var status string
+		var version int64
+		if err := rows.Scan(&principal, &email, &roles, &scopes, &status, &version); err != nil {
+			return nil, err
+		}
+		m := domain.Membership{TenantID: scope.TenantID(), Email: email, Roles: rolesFrom(roles), Scopes: scopesFrom(scopes), Status: status, Version: version}
+		if principal != nil {
+			m.PrincipalID = principal
+		}
+		out = append(out, m)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	return out, tx.Commit(ctx)
+}
+
 func (s *Postgres) ListMembers(ctx context.Context, scope tenancy.Context) ([]domain.Membership, error) {
 	if !scope.Valid() {
 		return nil, tenancy.ErrMissingContext

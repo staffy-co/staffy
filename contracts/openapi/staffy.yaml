@@ -3111,9 +3111,11 @@ components:
           description: 'Ячейки (journey × маршрут × режим × класс); пустая ячейка декартова произведения — явный gap; wildcards отсутствуют'
           items:
             type: object
+            required: [journey, route, modality, conversation_mode, autonomy_class]
             properties:
               journey: { type: string }
               route: { $ref: '#/components/schemas/ProfileRoute' }
+              modality: { type: string, enum: [voice, text], description: 'Хранится явно и согласуется с каналом маршрута: phone → voice, остальные → text; голос и текст измеряются раздельно' }
               conversation_mode: { type: string, enum: [sales, service_status, safety, claim, cancellation, privacy_no_contact, human_requested] }
               autonomy_class: { type: string, maxLength: 64 }
               not_admitted: { type: boolean }

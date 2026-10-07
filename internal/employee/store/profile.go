@@ -4,6 +4,7 @@ import (
         "context"
         "encoding/json"
         "errors"
+        "strconv"
         "time"
 
         "github.com/artemiosu/staffy/internal/employee/domain"
@@ -322,35 +323,15 @@ func (s *Postgres) ReadThresholdHistory(ctx context.Context, scope tenancy.Conte
 func relinkThresholdHistory(history []domain.GateThresholdVersion) {
         decidedAt := map[string]time.Time{}
         for _, decision := range history {
-                decidedAt[decision.GateID+"\x00"+itoa64(decision.ThresholdVersion)] = decision.DecidedAt
+                decidedAt[decision.GateID+"\x00"+strconv.FormatInt(decision.ThresholdVersion, 10)] = decision.DecidedAt
         }
         for index := range history {
                 link := history[index].Supersedes
                 if link == nil {
                         continue
                 }
-                if at, ok := decidedAt[history[index].GateID+"\x00"+itoa64(link.ThresholdVersion)]; ok {
+                if at, ok := decidedAt[history[index].GateID+"\x00"+strconv.FormatInt(link.ThresholdVersion, 10)]; ok {
                         link.DecidedAt = at
                 }
         }
-}
-
-// itoa64 is the tiny local int64 formatter.
-func itoa64(value int64) string {
-        if value == 0 {
-                return "0"
-        }
-        negative := value < 0
-        if negative {
-                value = -value
-        }
-        digits := []byte{}
-        for value > 0 {
-                digits = append([]byte{byte('0' + value%10)}, digits...)
-                value /= 10
-        }
-        if negative {
-                return "-" + string(digits)
-        }
-        return string(digits)
 }

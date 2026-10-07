@@ -58,6 +58,15 @@ func (s *Server) profileProblem(w http.ResponseWriter, r *http.Request, err erro
                 fields["expected_revision"] = strconv.FormatInt(conflict.Expected, 10)
                 fields["current_revision"] = strconv.FormatInt(conflict.Current, 10)
                 fields["profile_view"] = "GET /v1/tenants/{tenant_id}/employees/{employee_id}/operating-profile"
+                // The spec requires the conflict to carry the current draft
+                // sections for an honest comparison — the canonical JSON of
+                // the current content travels with the refusal instead of a
+                // blind retry.
+                if conflict.CurrentContent != nil {
+                        if raw, jsonErr := employeeDomain.CanonicalProfileJSON(*conflict.CurrentContent); jsonErr == nil {
+                                fields["current_content"] = string(raw)
+                        }
+                }
         case errors.As(err, &rule):
                 status, code, message = 400, "profile_rule", rule.Reason
                 fields["section"] = rule.Section

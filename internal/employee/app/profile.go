@@ -3,6 +3,7 @@ package app
 import (
         "context"
         "errors"
+        "strconv"
 
         "github.com/artemiosu/staffy/internal/employee/api"
         "github.com/artemiosu/staffy/internal/employee/domain"
@@ -82,12 +83,25 @@ func (s *Service) profileViewScope(ctx context.Context, actor identityDomain.Pri
         return tenancy.Context{}, false, domain.ErrNotFound
 }
 
+// memberFactsSource is the narrow caller-authority fact port to the identity
+// module: the profile surface has already verified the actor's scope, so the
+// projection does not re-require it (the ConnectionsFacts precedent of
+// 1-12). The concrete identity service satisfies it structurally.
+type memberFactsSource interface {
+        MembersFacts(context.Context, identityDomain.Principal, id.UUID) ([]identityDomain.Membership, error)
+}
+
 // memberFacts gathers the caller-authority facts of the tenant members: the
 // identifiers of active memberships (invitations carry no principal yet) and
-// the roles per member. The read runs under the caller's already-verified
-// scope — the fact-port precedent of 1-12; RLS isolates the tenant.
+// the roles per member. The read runs through the narrow caller-authority
+// fact port: ListMembers itself is owner-gated and cannot serve the
+// review/audit members who legitimately view the profile readiness.
 func (s *Service) memberFacts(ctx context.Context, actor identityDomain.Principal, tenantID id.UUID) (map[id.UUID]bool, map[id.UUID][]string, error) {
-        members, err := s.identity.ListMembers(ctx, actor, tenantID)
+        source, ok := s.identity.(memberFactsSource)
+        if !ok {
+                return nil, nil, domain.ProfileRuleError{Section: "identity", Field: "member_facts", Reason: "Порт участников не сконфигурирован: проверка ссылок на участников честно отклоняется, а не пропускается."}
+        }
+        members, err := source.MembersFacts(ctx, actor, tenantID)
         if err != nil {
                 if errors.Is(err, identityDomain.ErrForbidden) {
                         return nil, nil, domain.ErrProfileForbidden
@@ -214,8 +228,19 @@ func (s *Service) ProfileView(ctx context.Context, actor identityDomain.Principa
         if err != nil {
                 return api.ProfileView{}, err
         }
-        if len(manifests) > 0 {
-                link := domain.ManifestLink{ManifestID: manifests[0].Manifest.ManifestID, ConfigVersion: manifests[0].Manifest.ConfigVersion, Digest: manifests[0].Manifest.Digest}
+        // The latest manifest is the highest configuration version — the
+        // monotonic semantic ordering. The list order (sealed_at desc, id
+        // desc) is not deterministic under a fixed clock: equal timestamps
+        // fall back to random UUIDv7 bytes, and applicability must never be
+        // a coin flip.
+        var latest *port.ManifestRecord
+        for index := range manifests {
+                if latest == nil || manifests[index].Manifest.ConfigVersion > latest.Manifest.ConfigVersion {
+                        latest = &manifests[index]
+                }
+        }
+        if latest != nil {
+                link := domain.ManifestLink{ManifestID: latest.Manifest.ManifestID, ConfigVersion: latest.Manifest.ConfigVersion, Digest: latest.Manifest.Digest}
                 view.LatestManifest = &link
         }
 
@@ -232,9 +257,16 @@ func (s *Service) ProfileView(ctx context.Context, actor identityDomain.Principa
                 link = view.Approved.Manifest
         }
         if content != nil {
+                record, recordErr := s.manifestRecord(ctx, scope, employeeID, link)
+                if recordErr != nil && !errors.Is(recordErr, domain.ErrNotFound) {
+                        // An infrastructure failure is never masked as an empty matrix.
+                        return api.ProfileView{}, recordErr
+                }
                 var journeys []string
-                if record, err := s.manifestRecord(ctx, scope, employeeID, link); err == nil {
+                packReferenced := false
+                if recordErr == nil {
                         journeys = packJourneysOfManifest(record)
+                        packReferenced = record.Manifest.Content.Config.Refs.Pack.Status == domain.RefPresent
                 }
                 view.RouteStates = domain.DeriveRouteStates(*content)
                 view.Matrix = domain.DeriveMatrixCoverage(*content, journeys)
@@ -242,8 +274,20 @@ func (s *Service) ProfileView(ctx context.Context, actor identityDomain.Principa
                 // The readiness list validates against the CURRENT facts — members
                 // and pack journeys drift honestly even for an approved version.
                 memberIDs, _, memberErr := s.memberFacts(ctx, actor, tenantID)
-                if memberErr == nil {
-                        view.Readiness = domain.ValidateProfileContent(*content, domain.ProfileFacts{MemberIDs: memberIDs, PackJourneys: journeys})
+                if memberErr != nil {
+                        return api.ProfileView{}, memberErr
+                }
+                view.Readiness = domain.ValidateProfileContent(*content, domain.ProfileFacts{MemberIDs: memberIDs, PackJourneys: journeys})
+                // A manifest without a Pack reference leaves the cartesian
+                // completeness vacuous (zero journeys → zero cells → zero
+                // gaps): the honest refusal says so instead of silently
+                // passing an empty matrix.
+                if !packReferenced {
+                        view.Readiness = append(view.Readiness, domain.ProfileRuleError{
+                                Section: "coverage_matrix", Field: "pack_reference",
+                                Reason: "Манифест профиля не содержит Pack-ссылку: полнота матрицы не может быть выведена (декартово произведение пусто) — утверждение честно блокируется до ссылки на манифест с закреплённым Pack.",
+                                Kind:    domain.ProfileProblemMissing,
+                        })
                 }
         } else if view.Approved == nil && len(thresholds) > 0 {
                 view.Thresholds = domain.DeriveThresholdStates(domain.ProfileContent{}, thresholds)
@@ -337,6 +381,9 @@ func (s *Service) ApproveProfile(ctx context.Context, c api.ProfileApproveComman
         problems := domain.ValidateProfileContent(draft.Content, domain.ProfileFacts{MemberIDs: memberIDs, PackJourneys: packJourneysOfManifest(record)})
         if domain.HasBlockingProfileProblems(problems) {
                 return domain.ProfileVersion{}, profileRejection(problems)
+        }
+        if len(c.EvidenceRefs) == 0 {
+                return domain.ProfileVersion{}, domain.ProfileRuleError{Section: "approval", Field: "evidence_refs", Reason: "Утверждение требует хотя бы одной evidence-ссылки (digest манифеста, использованные версии порогов) — как у порога, минимальный набор не опускается."}
         }
         for _, reference := range c.EvidenceRefs {
                 if !profileRefLength(reference) {
@@ -484,7 +531,7 @@ func profileRejection(problems []domain.ProfileRuleError) domain.ProfileRuleErro
         first := problems[0]
         summary := first.Section + "." + first.Field + ": " + first.Reason
         if len(problems) > 1 {
-                summary += " (и ещё " + itoa(len(problems)-1) + ")"
+                summary += " (и ещё " + strconv.Itoa(len(problems)-1) + ")"
         }
         return domain.ProfileRuleError{Section: first.Section, Field: first.Field, Reason: summary, Problems: problems}
 }
@@ -493,24 +540,4 @@ func profileRejection(problems []domain.ProfileRuleError) domain.ProfileRuleErro
 func profileRefLength(reference string) bool {
         count := len([]rune(reference))
         return count >= 1 && count <= 300
-}
-
-// itoa is the tiny local integer formatter.
-func itoa(value int) string {
-        if value == 0 {
-                return "0"
-        }
-        negative := value < 0
-        if negative {
-                value = -value
-        }
-        digits := []byte{}
-        for value > 0 {
-                digits = append([]byte{byte('0' + value%10)}, digits...)
-                value /= 10
-        }
-        if negative {
-                return "-" + string(digits)
-        }
-        return string(digits)
 }

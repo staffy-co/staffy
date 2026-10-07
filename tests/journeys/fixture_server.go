@@ -42,6 +42,9 @@ func (identityFixture) Workspace(context.Context, domain.Principal, id.UUID) (do
 func (identityFixture) ListMembers(context.Context, domain.Principal, id.UUID) ([]domain.Membership, error) {
         return []domain.Membership{{TenantID: tenantID, PrincipalID: &principalID, Roles: []domain.Role{domain.Owner}, Scopes: domain.AllScopes(), Status: "active", Version: 1}}, nil
 }
+func (identityFixture) MembersFacts(context.Context, domain.Principal, id.UUID) ([]domain.Membership, error) {
+        return []domain.Membership{{TenantID: tenantID, PrincipalID: &principalID, Roles: []domain.Role{domain.Owner}, Status: "active", Version: 1}}, nil
+}
 func (identityFixture) InviteMember(context.Context, api.MembershipCommand) (domain.Membership, string, error) {
         return domain.Membership{}, "", domain.ErrStepUpRequired
 }
@@ -558,22 +561,22 @@ func (f *connectorFixture) VerifyCapability(_ context.Context, c connectorAPI.Ve
 // surface: identifiers, versions, states and derived reports — never
 // secrets or config values.
 func (f *connectorFixture) ConnectionsFacts(_ context.Context, _ tenancy.Context) ([]connectorAPI.ConnectionFacts, error) {
-        f.mu.Lock()
-        defer f.mu.Unlock()
-        facts := make([]connectorAPI.ConnectionFacts, 0, len(f.connections))
-        for _, current := range f.connections {
-                def, _ := connectorCatalog.Get(current.ConnectorID, current.ConnectorVer)
-                result, err := f.capabilityStateLocked(current, def)
-                if err != nil {
-                        return nil, err
-                }
-                facts = append(facts, connectorAPI.ConnectionFacts{
-                        ConnectionID: current.ConnectionID, ConnectorID: current.ConnectorID,
-                        ContractVersion: current.ConnectorVer, AdapterBuild: result.AdapterBuild,
-                        Environment: string(current.Environment), Status: current.Status, Capabilities: result.Capabilities,
-                })
-        }
-        return facts, nil
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	facts := make([]connectorAPI.ConnectionFacts, 0, len(f.connections))
+	for _, current := range f.connections {
+		def, _ := connectorCatalog.Get(current.ConnectorID, current.ConnectorVer)
+		result, err := f.capabilityStateLocked(current, def)
+		if err != nil {
+			return nil, err
+		}
+		facts = append(facts, connectorAPI.ConnectionFacts{
+			ConnectionID: current.ConnectionID, ConnectorID: current.ConnectorID,
+			ContractVersion: current.ConnectorVer, AdapterBuild: result.AdapterBuild,
+			Environment: string(current.Environment), Status: current.Status, Capabilities: result.Capabilities,
+		})
+	}
+	return facts, nil
 }
 
 func (f *connectorFixture) CapabilityState(_ context.Context, _ domain.Principal, tenant, connectionID id.UUID) (connectorAPI.CapabilityStateResult, error) {

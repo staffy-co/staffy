@@ -51,6 +51,24 @@ func (s *Service) ListMembers(ctx context.Context, actor domain.Principal, tenan
 	return repo.ListMembers(ctx, scope)
 }
 
+// MembersFacts is the narrow caller-authority projection of the tenant's
+// active memberships (identifiers and roles, no invitations): the caller
+// surface has ALREADY verified the actor's scope, so this read does not
+// re-require it — the fact-port precedent (ConnectionsFacts, 1-12). Unlike
+// ListMembers it is not owner-gated: review/audit members legitimately need
+// the member facts to render the operating profile readiness honestly.
+func (s *Service) MembersFacts(ctx context.Context, actor domain.Principal, tenantID id.UUID) ([]domain.Membership, error) {
+	scope, err := membershipScope(actor, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	repo, err := s.membershipRepo()
+	if err != nil {
+		return nil, err
+	}
+	return repo.MembersFacts(ctx, scope)
+}
+
 func (s *Service) Authorize(ctx context.Context, actor domain.Principal, tenantID id.UUID, required domain.Scope) error {
 	scope, err := membershipScope(actor, tenantID)
 	if err != nil {

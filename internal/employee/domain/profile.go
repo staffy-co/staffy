@@ -21,7 +21,6 @@ import (
 var (
         ErrProfileForbidden      = errors.New("principal is not allowed on the operating profile surface")
         ErrProfileStepUpRequired = errors.New("profile approval requires step-up confirmation")
-        ErrProfileCorrupt        = errors.New("stored profile content failed the integrity re-check")
 )
 
 // Problem kinds of the profile validation. The three kinds map to the
@@ -39,13 +38,14 @@ const (
 // ProfileRuleError is a named validation rejection that leads to one concrete
 // section and field — the readiness list and the honest form errors share it.
 // Problems carries the full list when the rejection flattens many findings:
-// every item still leads to its own concrete section and field.
+// every item still leads to its own concrete section and field. The wire
+// shape is part of the OpenAPI contract (snake_case, kind enum).
 type ProfileRuleError struct {
-        Section string
-        Field   string
-        Reason  string
-        Kind    string
-        Problems []ProfileRuleError
+        Section  string             `json:"section"`
+        Field    string             `json:"field"`
+        Reason   string             `json:"reason"`
+        Kind     string             `json:"kind"`
+        Problems []ProfileRuleError `json:"problems,omitempty"`
 }
 
 func (e ProfileRuleError) Error() string { return e.Section + "." + e.Field + ": " + e.Reason }
@@ -97,6 +97,21 @@ const (
         OQ11Open = "open"
         OQ11Pass = "pass"
 )
+
+// Cell modalities: voice and text are measured separately; the modality is
+// stored explicitly per matrix cell and must agree with the route's channel.
+const (
+        ModalityVoice = "voice"
+        ModalityText  = "text"
+)
+
+// ModalityOfRoute derives the honest modality of a route's channel.
+func ModalityOfRoute(route Route) string {
+        if route.IsVoice() {
+                return ModalityVoice
+        }
+        return ModalityText
+}
 
 // Route states derived for future admission consumers (Story 1-14, Epic 2).
 const (
@@ -347,10 +362,17 @@ type GateDeclaration struct {
 
 // CoverageCell is one declared cell of the coverage matrix: either admitted
 // work-in-progress (eval link, gate references, human fallback) or an
-// explicit not admitted with a reason. Wildcards do not exist.
+// explicit not admitted with a reason. Wildcards do not exist. The modality
+// is stored explicitly and must agree with the route's channel (phone →
+// voice, every other channel → text): voice and text are measured
+// separately, so a cell cannot leave its modality implicit. The modality
+// is stored explicitly and must agree with the route's channel (phone →
+// voice, every other channel → text) — voice and text are measured
+// separately, so the cell cannot leave the modality implicit.
 type CoverageCell struct {
         Journey           string   `json:"journey"`
         Route             Route    `json:"route"`
+        Modality          string   `json:"modality"`
         ConversationMode  string   `json:"conversation_mode"`
         AutonomyClass     string   `json:"autonomy_class"`
         NotAdmitted       bool     `json:"not_admitted"`
@@ -788,6 +810,9 @@ func ValidateProfileContent(content ProfileContent, facts ProfileFacts) []Profil
                                 absent(key+" · "+purpose, "Назначение обязательно для каждой цели словаря: явное «не используется» или параметры.")
                                 continue
                         }
+                        if row.OQ11State != OQ11Open && row.OQ11State != OQ11Pass {
+                                add(key, "Состояние OQ-11: open или pass (даже для явного «не используется» — мусорное значение не сохраняется).")
+                        }
                         if !row.InUse {
                                 continue
                         }
@@ -800,9 +825,6 @@ func ValidateProfileContent(content ProfileContent, facts ProfileFacts) []Profil
                                 } else if !length(value, 1, 300) {
                                         add(key, "Назначение в использовании: поле "+field+" — не более 300 символов.")
                                 }
-                        }
-                        if row.OQ11State != OQ11Open && row.OQ11State != OQ11Pass {
-                                add(key, "Состояние OQ-11: open или pass.")
                         }
                         if row.OQ11State == OQ11Pass && !length(row.OQ11Evidence, 1, 300) {
                                 add(key, "OQ-11 pass требует ссылку на evidence: заявленный pass без ссылки — ложное утверждение, он отвергается.")
@@ -989,6 +1011,10 @@ func ValidateProfileContent(content ProfileContent, facts ProfileFacts) []Profil
                 }
                 if !declaredModes[cell.ConversationMode] {
                         add(cell.Journey+" · "+cell.Route.String(), "Conversation Mode ячейки не объявлен в профиле.")
+                        continue
+                }
+                if cell.Modality != ModalityOfRoute(cell.Route) {
+                        add(cell.Journey+" · "+cell.Route.String(), "Modality ячейки («"+cell.Modality+"») не согласована с каналом маршрута: phone → voice, остальные → text; голос и текст измеряются раздельно.")
                         continue
                 }
                 if !seenClass[cell.AutonomyClass] {
