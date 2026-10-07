@@ -332,7 +332,7 @@ done:
 decisions:
 - Без правок: срез, границы и словарь исходов приняты как предложено SM
 next: Dev step-03 — полная реализация среза entitlement на ветке codex/story-1-11-entitlement-usage (baseline cf7f992): домен, миграция, app/port/store, scope commercial в identity, HTTP/UI/OpenAPI, интеграционные и journey-тесты; полный регресс; DEVLOG 21-dev
-commit: TBD
+commit: 47e9c8c
 
 ---
 date: 2026-10-07
@@ -357,4 +357,4 @@ decisions:
 - Enforcement admission оставлен портом (1-14/Epic 2); списки продолжающегося и ответственный — часть ответа
 - Дата в формах: time.Parse(time.RFC3339) с честной ошибкой вместо тихого http.ParseTime
 next: review R1 свежим контекстом (спека + git diff 47e9c8c..HEAD), затем R1/R2 → правки → PR → merge → done
-commit: TBD
+commit: c113ff9
