@@ -2,7 +2,7 @@
 title: 'Story 1.12 — Версии конфигурации и Release Manifest (первый срез)'
 type: 'feature'
 created: '2026-10-07'
-status: 'ready-for-dev'
+status: 'in-progress'
 route: 'dispatch'
 review_loop_iteration: 0
 baseline_commit: '57e776a4b772192de96239fe3ac2a77457fc8138'
@@ -99,6 +99,7 @@ context:
 
 - 2026-10-07, review loop 0: создана спека первого среза Story 1.12 (SM). Статус `backlog` до CHECKPOINT 1 — одобрения владельцем; после одобрения спека и sprint-status.yaml одновременно переходят в `ready-for-dev` (условие синхронности check-continuity).
 - 2026-10-08, review loop 0: CHECKPOINT 1 — владелец одобрил спеку («одобряю»). Статус `ready-for-dev` (в frozen-части без изменений; одобрение зафиксировано здесь и в sprint-status.yaml синхронно).
+- 2026-10-08, Dev step-03: реализован весь срез (Execution 5/5). Полный регресс зелёный: build, vet, unit -count=1 (20 пакетов, включая новые employee domain release-тесты), integration -count=1 (включая 6 новых release-тестов: честный флоу с неизменностью digest, гонка запечатывания — ровно один манифест, повторный seal → отказ, restore с отчётом несовместимостей, карантин трёх видов, RLS/полномочия/гранты), journeys 15/15 (включая zzzzzzz-release: 320px, клавиатура, aria-live, перенос digest, конфликт ревизии, restore), контракт-тест OpenAPI, git diff --check чист. Статус → `in-progress` до review R1.
 
 ## Design Notes
 

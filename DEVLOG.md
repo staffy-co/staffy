@@ -433,3 +433,24 @@ done:
 - Коммит b2de7c4 [skip ci] на ветке codex/story-1-12-release-manifest
 next: Dev step-03 — реализация Code Map по спеке: domain/release.go + юнит-тесты, миграция 00010, port/app/store/api, transport+OpenAPI+шаблон, integration+journeys; полный регресс; затем DEVLOG dev-запись, push, PR, CHECKPOINT 2
 commit: b2de7c4
+
+---
+date: 2026-10-08
+task: 26-dev
+role: main (Super Z, роль Dev)
+story: 1-12
+summary: Dev step-03 — полная реализация среза версий конфигурации и Release Manifest (FR-5): домен с честными отсутствиями и quarantine, миграция 00010, port/app/store/api с CAS, transport + OpenAPI + страница релиза, privacy-класс, полный тестовый набор; весь регресс зелёный
+done:
+- internal/employee/domain/release.go: ConfigRefs (brief/pack/behavior/knowledge/voice со статусами present/absent/not_applicable и пояснениями; голос обязателен iff phone в Brief), ReleaseDraft с CAS-ревизией, ConfigVersion (append-only, монотонный номер), ManifestContent (конфигурация + подключения с capability-фактами и gap-ами + runtime-словарь из 8 фиксированных компонентов), канонический sha256-digest, DeriveManifestStatus (candidate iff ноль gap-ов; в срезе всегда incomplete — runtime-поверхностей нет), ReadManifestPayload (schema_version → строгий decode с DisallowUnknownFields → digest-перепроверка; явный quarantine с сохранением payload), RestoreCompatibility (дрейф в обе стороны: смещение версии и появление компонента после версии)
+- migrations/employee/00010_release_manifest.sql: release_drafts — единственная mutable таблица (INSERT/SELECT/UPDATE, ревизия CAS), config_versions и release_manifests — append-only (INSERT/SELECT), UNIQUE (tenant,employee,config_version) — не более одного манифеста на версию, digest char(64), schema_version, CHECK-словари, RLS на всех трёх; purge_employee_drafts расширен release-таблицами через CREATE OR REPLACE (прошлая миграция не редактируется); исход 00009 восстановлен в Down
+- internal/employee/{port,app,store,api}: узкий порт ConnectorFacts (List + CapabilityState — структурная реализация сервисом connector, employee не ре-деривирует состояния), команды AssembleDraft (CAS upsert, ревизия 0 = создание), CreateConfigVersion (MAX+1 под FOR UPDATE, снимок refs черновика, ревизия поднимается), SealManifest (content из версии + факты подключений на момент запечатывания, CAS + UNIQUE, Revision 23505 → ErrManifestExists), Restore (новый draft со ссылкой-источником + отчёт), чтение с digest-перепроверкой; ReleaseConflictError несёт expected/current revision и текущие refs для сравнения; полномочия: управление — configuration, просмотр — configuration|review|audit, member-without-scope → честный 403, non-member → 404
+- Transport: release.go + release_view.go (BindRelease: 6 JSON-маршрутов + страница + 4 формы, flash/notice aria-live, конфликт с текущей ревизией в сообщении), web/templates/release.html (компоненты черновика со статусами текстом, история версий с digest, манифест: «проверяемый кандидат, а не допущенный release», недостающие зависимости с владельцами, runtime gap-ы, digest в переносимом блоке .digest-block — без горизонтального скролла на 320px, quarantine-блок с сохранённым payload), OpenAPI: 6 путей + 10 схем, контракт-тест TestReleaseManifestContractIsHonest; ссылка «Релиз» в навигации сотрудника
+- Privacy: класс release-snapshot (3 таблицы) в словаре артефактов данных; perimeter-тест зелёный (16 классов); purge агрегата сотрудника включает release-таблицы
+- Тесты: release_test.go домена (12 тестов: honest absences, candidate на полном наборе, incomplete на любом gap-е, каноничность digest, round-trip чтения, карантин трёх видов, restore-отчёт с обратным дрейфом, словарь runtime, границы описания); tests/integration/release_test.go (6 тестов); tests/journeys/zzzzzzz-release.spec.ts + releaseFixture
+- Урок процесса: gofmt -w на всём internal/ переформатировал ~40 чужих файлов (12k строк шума) — шум откачен, правки пере-применены в родном стиле; дифф story чистый (518 строк в 11 изменённых файлах + 13 новых)
+decisions:
+- Digest вычисляется по канонической Go-сериализации декодированного контента: jsonb переупорядочивает ключи payload, но верификация устойчива — подмена любого значения меняет digest
+- Отсутствие компонента в восстановленной версии при его текущем наличии — тоже честная несовместимость (восстановленный черновик не включает его до пересборки)
+- Миграция purge-функции: CREATE OR REPLACE в новой миграции, а не редактирование 00009 — история миграций неизменна
+next: review R1 свежим контекстом (спека + весь дифф + независимый регресс), затем R2; при чистом результате — статус done, PR, merge, CHECKPOINT 2 владельцу
+commit: f28b865

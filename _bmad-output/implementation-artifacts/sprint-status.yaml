@@ -47,7 +47,7 @@ development_status:
   1-9-проверка-capabilities-конкретного-подключения: done
   1-10-управление-периметром-данных-сроками-хранения-и-правами-субъ: done
   1-11-entitlement-лимиты-и-прозрачность-usage: done
-  1-12-версии-конфигурации-и-release-manifest: ready-for-dev
+  1-12-версии-конфигурации-и-release-manifest: in-progress
   1-13-утверждение-operating-profile-и-правил-измерения: backlog
   1-14-readiness-проверка-и-контролируемая-публикация: backlog
   epic-1-retrospective: optional
