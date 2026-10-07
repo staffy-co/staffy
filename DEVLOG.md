@@ -533,3 +533,16 @@ decisions:
 - Cohort-раздел опционален до пилота: принудительное заполнение без пилота провоцировало бы фиктивные данные; валидация при заполнении, изменения — только новой версией
 next: CHECKPOINT 1 — одобрение владельцем спеки 1-13; после «одобряю» спека и sprint-status.yaml синхронно → ready-for-dev → Dev step-03 на ветке
 commit: b03fd34
+
+---
+date: 2026-10-08
+task: 31-checkpoint
+role: main (Super Z)
+story: 1-13
+summary: CHECKPOINT 1 — владелец одобрил спеку 1-13 («одобряю»); спека и sprint-status.yaml синхронно переведены в ready-for-dev; Dev step-03 начат
+done:
+- spec-1-13-operating-profile.md: status backlog → ready-for-dev; Spec Change Log дополнен записью об одобрении (frozen-часть без изменений)
+- sprint-status.yaml: 1-13-утверждение-operating-profile-и-правил-измерения → ready-for-dev, last_updated 10-08-2026 (синхронность check-continuity соблюдена)
+- Коммит на ветке codex/story-1-13-operating-profile [skip ci]
+next: Dev step-03 — реализация Code Map по спеке: internal/employee/domain/profile.go (модель, словари, деривации, digest, валидация) + юнит-тесты, миграция 00011, port/app/store/api (порты участников и манифеста, UpdateDraft/ApproveProfile/DecideThreshold), transport+OpenAPI+шаблон operating-profile.html, privacy-класс, integration+journeys; полный регресс; затем DEVLOG dev-запись, push, PR, CHECKPOINT 2
+commit: TBD
