@@ -22,6 +22,7 @@ type Service struct {
 	clock      api.Clock
 	ids        api.IDGenerator
 	testTTS    port.TestTTS
+	connectors port.ConnectorFacts
 }
 
 func New(repository port.Repository, identity identityAPI.MembershipService, clock api.Clock, ids api.IDGenerator) *Service {

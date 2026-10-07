@@ -1,0 +1,153 @@
+{{define "release"}}
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Версии конфигурации и Release Manifest · Staffy</title><link rel="stylesheet" href="/assets/app.css"></head>
+<body><a class="skip-link" href="#main">К основному содержанию</a><header class="topbar"><a class="brand" href="/app/tenants/{{.TenantID}}">Staffy</a><strong>Сотрудник → Релиз</strong></header>
+<div class="shell"><nav aria-label="Основная навигация"><a href="/app/tenants/{{.TenantID}}">Сегодня</a><a href="/app/tenants/{{.TenantID}}/employees">Сотрудники</a><a href="/app/tenants/{{.TenantID}}/employees/{{.EmployeeID}}">Brief</a></nav><main id="main"><section class="panel"><h1>Версии конфигурации и Release Manifest</h1>
+<p>Версионированное сочетание конфигурации ИИ-сотрудника: точные версии Brief, Domain Pack, поведения, знаний и голоса; запечатанный манифест с каноническим digest. Отсутствующий компонент фиксируется честной записью, а не пустотой; манифест — всегда проверяемый кандидат, допуск и публикация — будущие story.</p>
+<p class="next-note">Ваши полномочия на этой странице: {{.View.ScopeText}}.</p>
+{{if .Error}}<p class="alert" role="alert">{{.Error}}</p>{{end}}{{if .Notice}}<p class="status" role="status" tabindex="-1" id="page-notice">{{.Notice}}</p><script>addEventListener('DOMContentLoaded', () => document.getElementById('page-notice').focus());</script>{{end}}
+
+{{if .View.Draft}}
+<h2>Черновик конфигурации (ревизия {{.View.Draft.Revision}})</h2>
+<p class="next-note">Собран {{.View.Draft.UpdatedAt}}. Изменение любого компонента требует пересборки черновика: запечатанные версии и манифесты при этом не меняются.</p>
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Компоненты черновика конфигурации">
+<table class="datamap-table">
+<caption>Точные ссылки на версии компонентов; отсутствие — явная запись с пояснением</caption>
+<thead><tr><th scope="col">Компонент</th><th scope="col">Состояние</th><th scope="col">Версия / значение</th><th scope="col">Пояснение</th></tr></thead>
+<tbody>
+{{range .View.Draft.Components}}
+<tr><th scope="row">{{.Name}}</th><td><span class="rel-{{.Status}}">{{.StatusText}}</span></td><td class="digest-block">{{.Value}}</td><td>{{if .Note}}{{.Note}}{{else}}—{{end}}</td></tr>
+{{end}}
+</tbody>
+</table>
+</div>
+{{if .View.Draft.RestoredFrom}}
+<p class="next-note" id="restored-note">Черновик восстановлен из конфигурационной версии v{{.View.Draft.RestoredFrom.Version}} ({{.View.Draft.RestoredFrom.VersionID}}, {{.View.Draft.RestoredFrom.CreatedAt}}): выбранная версия — источник, прошлое не изменялось. Сверьте несовместимости ниже и пересоберите черновик из текущих фактов перед новой версией.</p>
+{{end}}
+{{else}}
+<p class="next-note">Черновик конфигурации ещё не собран: версии создаются из собранного черновика.</p>
+{{end}}
+
+{{if .View.CanManage}}
+<details class="map-form"><summary>Собрать / обновить черновик конфигурации</summary>
+<form method="post" action="/app/tenants/{{.TenantID}}/employees/{{.EmployeeID}}/release/draft" class="datamap-form">
+<label for="assemble-revision">Ожидаемая ревизия черновика (0 = первая сборка)</label>
+<input id="assemble-revision" name="expected_revision" inputmode="numeric" value="{{if .View.Draft}}{{.View.Draft.Revision}}{{else}}0{{end}}">
+<button type="submit">Собрать черновик из текущих фактов</button>
+<p>Черновик перечитает точные версии Brief, Pack, поведения, знаний и голоса. Отсутствующий компонент будет записан честным отсутствием.</p>
+</form>
+</details>
+
+{{if .View.Draft}}
+<details class="map-form"><summary>Новая конфигурационная версия</summary>
+<form method="post" action="/app/tenants/{{.TenantID}}/employees/{{.EmployeeID}}/release/versions" class="datamap-form">
+<label for="version-description">Описание изменения (1–300 символов)</label>
+<input id="version-description" name="description" maxlength="300" required>
+<label for="version-revision">Ожидаемая ревизия черновика</label>
+<input id="version-revision" name="expected_revision" inputmode="numeric" value="{{.View.Draft.Revision}}">
+<button type="submit">Создать неизменяемую версию</button>
+<p>Версия — снимок ссылок черновика: монотонный номер, автор, время. Созданная версия не изменяется и не удаляется.</p>
+</form>
+</details>
+
+{{if .View.Versions}}
+<details class="map-form"><summary>Запечатать Release Manifest</summary>
+<form method="post" action="/app/tenants/{{.TenantID}}/employees/{{.EmployeeID}}/release/manifests" class="datamap-form">
+<label for="seal-version">Номер конфигурационной версии</label>
+<input id="seal-version" name="config_version" inputmode="numeric" value="{{if .View.Versions}}{{(index .View.Versions 0).Version}}{{end}}">
+<label for="seal-revision">Ожидаемая ревизия черновика</label>
+<input id="seal-revision" name="expected_revision" inputmode="numeric" value="{{.View.Draft.Revision}}">
+<button type="submit">Запечатать манифест</button>
+<p>Манифест фиксирует версию, подключения с capability evidence и runtime-компоненты; вычисляется канонический digest. Повторное запечатывание той же версии невозможно; при параллельной попытке выигрывает ровно одна — вторая получит честный конфликт с текущей ревизией.</p>
+</form>
+</details>
+
+<details class="map-form"><summary>Восстановить черновик из прошлой версии</summary>
+<form method="post" action="/app/tenants/{{.TenantID}}/employees/{{.EmployeeID}}/release/restore" class="datamap-form">
+<label for="restore-version">Номер конфигурационной версии-источника</label>
+<input id="restore-version" name="config_version" inputmode="numeric" value="{{if .View.Versions}}{{(index .View.Versions 0).Version}}{{end}}">
+<label for="restore-revision">Ожидаемая ревизия черновика</label>
+<input id="restore-revision" name="expected_revision" inputmode="numeric" value="{{.View.Draft.Revision}}">
+<button type="submit">Восстановить из версии</button>
+<p>Восстановление создаёт новый черновик со ссылкой на выбранную версию и честным отчётом несовместимостей против текущих фактов. Прошлые версии, манифесты, evidence и внешние эффекты не изменяются.</p>
+</form>
+</details>
+{{end}}
+{{end}}
+{{end}}
+
+{{if .View.Versions}}
+<h2>История версий</h2>
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="История конфигурационных версий">
+<table class="datamap-table">
+<caption>Неизменяемые версии конфигурации: номер, описание, автор, время, изменённые компоненты и состояние манифеста</caption>
+<thead><tr><th scope="col">Версия</th><th scope="col">Описание изменения</th><th scope="col">Автор</th><th scope="col">Создана</th><th scope="col">Изменённые компоненты</th><th scope="col">Манифест</th></tr></thead>
+<tbody>
+{{range .View.Versions}}
+<tr><th scope="row">v{{.Version}}</th><td>{{.Description}}</td><td class="digest-block">{{.ActorID}}</td><td>{{.CreatedAt}}</td><td>{{if .Changed}}{{.Changed}}{{else}}—{{end}}</td><td>{{if .Sealed}}<span class="rel-status-{{.Status}}">{{.StatusText}}</span><span class="digest-block">{{.Digest}}</span>{{else}}<span>{{.StatusText}}</span>{{end}}</td></tr>
+{{end}}
+</tbody>
+</table>
+</div>
+{{end}}
+
+{{if .View.Latest}}
+<h2 id="manifest-title">Release Manifest (v{{.View.Latest.ConfigVersion}})</h2>
+<p id="candidate-note" class="next-note"><strong>Проверяемый кандидат, а не допущенный release.</strong> Направить на этот манифест internal, controlled или live трафик нельзя: поверхностей направления трафика в системе нет, допуск и публикация остаются за Story 1-14 и GATE-REGISTRY.</p>
+<p class="next-note">Статус: <span class="rel-status-{{.View.Latest.Status}}">{{.View.Latest.StatusText}}</span>. Запечатан {{.View.Latest.SealedAt}} участником <span class="digest-block">{{.View.Latest.ActorID}}</span>. {{.View.Latest.SchemaText}}.</p>
+<p class="next-note">Канонический digest (sha256):</p>
+<p class="digest-block" id="manifest-digest">{{.View.Latest.Digest}}</p>
+
+{{if .View.Latest.Quarantine}}
+<div class="alert" role="alert" id="quarantine-note">
+<h3>{{.View.Latest.QuarantineKindText}}</h3>
+<p>{{.View.Latest.QuarantineReason}}</p>
+<p>Содержимое не отбрасывается молча — исходный payload манифеста сохранён ниже в блоке quarantine.</p>
+<details><summary>Сохранённый payload (quarantine)</summary><p class="digest-block">{{.View.Latest.Raw}}</p></details>
+</div>
+{{else}}
+{{if .View.Latest.ConfigDescription}}<p class="next-note">Версия конфигурации: «{{.View.Latest.ConfigDescription}}».</p>{{end}}
+
+<h3>Недостающие зависимости допуска</h3>
+<ul class="launch-plan">
+{{range .View.Latest.Dependencies}}<li><strong>{{.Dependency}}</strong> — ответственный: {{.Owner}}</li>{{end}}
+</ul>
+
+{{if .View.Latest.Connections}}
+<h3>Подключения и capabilities</h3>
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Подключения и состояния capabilities в манифесте">
+<table class="datamap-table">
+<caption>Подключения на момент запечатывания: Connection ID, версии контрактов и адаптеров, среды и производные состояния capabilities с evidence</caption>
+<thead><tr><th scope="col">Подключение</th><th scope="col">Контракт / сборка</th><th scope="col">Среда и состояние</th><th scope="col">Capabilities</th></tr></thead>
+<tbody>
+{{range .View.Latest.Connections}}
+<tr><th scope="row"><span class="digest-block">{{.ConnectionID}}</span>{{.ConnectorID}}</th>
+<td>контракт {{.ContractVersion}}<br>адаптер {{.AdapterBuild}}</td>
+<td>{{.Environment}}<br>{{.Status}}</td>
+<td>
+{{if .Capabilities}}{{range .Capabilities}}<div class="digest-block"><strong>{{.Capability}}</strong>: {{.StateText}}{{if .GapText}} — {{.GapText}}{{end}}{{if .EvidenceID}} · evidence {{.EvidenceID}} ({{.Outcome}}, проверено {{.CheckedAt}}, до {{.ExpiresAt}}){{end}}{{if .Owner}} · reconciliation: {{.Owner}}{{end}}</div>
+{{end}}{{else}}— capabilities не декларированы{{end}}
+</td></tr>
+{{end}}
+</tbody>
+</table>
+</div>
+{{else}}
+<p class="next-note">Подключений у пространства нет: манифест фиксирует их отсутствие, а не пустой список «по умолчанию».</p>
+{{end}}
+
+<h3>Runtime-компоненты</h3>
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Runtime-компоненты манифеста">
+<table class="datamap-table">
+<caption>Runtime-компоненты: каждый отсутствующий — явный gap с владельцем, а не успех</caption>
+<thead><tr><th scope="col">Компонент</th><th scope="col">Состояние</th><th scope="col">Владелец</th></tr></thead>
+<tbody>
+{{range .View.Latest.Runtime}}
+<tr><th scope="row">{{.Title}}<span class="class-id">{{.Component}}</span></th><td><span class="rel-{{if .Present}}present{{else}}absent{{end}}">{{.PresentText}}</span></td><td>{{.Owner}} · ответственный: {{.Responsible}}</td></tr>
+{{end}}
+</tbody>
+</table>
+</div>
+{{end}}
+{{end}}
+</section></main></div></body></html>
+{{end}}

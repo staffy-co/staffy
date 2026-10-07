@@ -85,6 +85,138 @@ func TestBehaviorContractIsTenantScopedAndDraftOnly(t *testing.T) {
         }
 }
 
+
+// TestReleaseManifestContractIsHonest: the release surface documents the
+// verified principal boundary on every path, the honest status and
+// quarantine vocabularies, the fixed runtime dictionary, the digest shape
+// and the sealed-conflict semantics.
+func TestReleaseManifestContractIsHonest(t *testing.T) {
+        content, err := os.ReadFile("staffy.yaml")
+        if err != nil {
+                t.Fatal(err)
+        }
+        var document map[string]any
+        if err = yaml.Unmarshal(content, &document); err != nil {
+                t.Fatal(err)
+        }
+        paths := mapping(t, document, "paths")
+        for path, methods := range map[string][]string{
+                "/v1/tenants/{tenant_id}/employees/{employee_id}/release":                            {"get"},
+                "/v1/tenants/{tenant_id}/employees/{employee_id}/release/draft":                      {"post"},
+                "/v1/tenants/{tenant_id}/employees/{employee_id}/release/versions":                   {"post"},
+                "/v1/tenants/{tenant_id}/employees/{employee_id}/release/manifests":                  {"post"},
+                "/v1/tenants/{tenant_id}/employees/{employee_id}/release/manifests/{config_version}": {"get"},
+                "/v1/tenants/{tenant_id}/employees/{employee_id}/release/restore":                    {"post"},
+        } {
+                item := mapping(t, paths, path)
+                for _, method := range methods {
+                        operation := mapping(t, item, method)
+                        if required, _ := operation["x-staffy-principal-required"].(bool); !required {
+                                t.Fatalf("%s %s must document the verified principal boundary", method, path)
+                        }
+                }
+        }
+        // Sealing documents the honest conflict semantics (409: CAS race and
+        // the one-manifest-per-version UNIQUE).
+        seal := mapping(t, mapping(t, paths, "/v1/tenants/{tenant_id}/employees/{employee_id}/release/manifests"), "post")
+        sealResponses := mapping(t, seal, "responses")
+        for _, status := range []string{"201", "400", "401", "403", "404", "409", "415"} {
+                if _, ok := sealResponses[status]; !ok {
+                        t.Errorf("seal response %s is missing", status)
+                }
+        }
+        // The view path documents the honest refusal of members without scopes.
+        view := mapping(t, mapping(t, paths, "/v1/tenants/{tenant_id}/employees/{employee_id}/release"), "get")
+        viewResponses := mapping(t, view, "responses")
+        for _, status := range []string{"200", "401", "403", "404"} {
+                if _, ok := viewResponses[status]; !ok {
+                        t.Errorf("release view response %s is missing", status)
+                }
+        }
+        schemas := mapping(t, mapping(t, document, "components"), "schemas")
+        // The status vocabulary stays honest: candidate only on a complete set.
+        summary := mapping(t, schemas, "ManifestSummary")
+        summaryProps := mapping(t, summary, "properties")
+        status := mapping(t, summaryProps, "status")
+        statusEnum, _ := status["enum"].([]any)
+        if len(statusEnum) != 2 || statusEnum[0] != "candidate" || statusEnum[1] != "incomplete" {
+                t.Fatalf("ManifestSummary.status enum must stay [candidate incomplete], got %v", statusEnum)
+        }
+        // The digest is a pinned sha256 hex.
+        digest := mapping(t, summaryProps, "digest")
+        if pattern, _ := digest["pattern"].(string); pattern != "^[0-9a-f]{64}$" {
+                t.Fatalf("digest pattern must pin sha256 hex, got %v", digest["pattern"])
+        }
+        // The quarantine vocabulary is explicit — never a silent drop.
+        manifestView := mapping(t, schemas, "ManifestView")
+        manifestProps := mapping(t, manifestView, "properties")
+        quarantine := mapping(t, manifestProps, "quarantine")
+        quarantineEnum, _ := quarantine["enum"].([]any)
+        wantQuarantine := map[string]bool{"": false, "schema_version": false, "unknown_field": false, "digest_mismatch": false}
+        for _, v := range quarantineEnum {
+                if s, ok := v.(string); ok {
+                        wantQuarantine[s] = true
+                }
+        }
+        for kind, seen := range wantQuarantine {
+                if !seen {
+                        t.Errorf("ManifestView.quarantine enum must include %q", kind)
+                }
+        }
+        // The runtime dictionary is fixed and complete.
+        manifestContent := mapping(t, schemas, "ManifestContent")
+        contentProps := mapping(t, manifestContent, "properties")
+        runtime := mapping(t, contentProps, "runtime_components")
+        runtimeItems := mapping(t, runtime, "items")
+        runtimeProps := mapping(t, runtimeItems, "properties")
+        runtimeComponent := mapping(t, runtimeProps, "component")
+        componentEnum, _ := runtimeComponent["enum"].([]any)
+        wantComponents := map[string]bool{"model_route": false, "media_route": false, "prompt_assembly": false, "tool_schemas": false, "policy_bundle": false, "eval_set": false, "runtime_build": false, "autonomy_envelope": false}
+        for _, v := range componentEnum {
+                if s, ok := v.(string); ok {
+                        wantComponents[s] = true
+                }
+        }
+        for component, seen := range wantComponents {
+                if !seen {
+                        t.Errorf("runtime component enum must include %q", component)
+                }
+        }
+        // The voice applicability stays honest: not_applicable for text employees.
+        refs := mapping(t, schemas, "ConfigRefs")
+        refsProps := mapping(t, refs, "properties")
+        voice := mapping(t, refsProps, "voice")
+        voiceProps := mapping(t, voice, "properties")
+        voiceStatus := mapping(t, voiceProps, "status")
+        voiceEnum, _ := voiceStatus["enum"].([]any)
+        wantVoice := map[string]bool{"present": false, "absent": false, "not_applicable": false}
+        for _, v := range voiceEnum {
+                if s, ok := v.(string); ok {
+                        wantVoice[s] = true
+                }
+        }
+        for state, seen := range wantVoice {
+                if !seen {
+                        t.Errorf("ConfigRefs.voice.status enum must include %q", state)
+                }
+        }
+        // Release request bodies reject unknown fields.
+        requests := map[string]string{
+                "/v1/tenants/{tenant_id}/employees/{employee_id}/release/draft":    "post",
+                "/v1/tenants/{tenant_id}/employees/{employee_id}/release/versions": "post",
+                "/v1/tenants/{tenant_id}/employees/{employee_id}/release/manifests": "post",
+                "/v1/tenants/{tenant_id}/employees/{employee_id}/release/restore":  "post",
+        }
+        for path, method := range requests {
+                operation := mapping(t, mapping(t, paths, path), method)
+                body := mapping(t, operation, "requestBody")
+                schema := mapping(t, mapping(t, mapping(t, body, "content"), "application/json"), "schema")
+                if additional, ok := schema["additionalProperties"].(bool); !ok || additional {
+                        t.Fatalf("%s %s must set additionalProperties: false, got %v", method, path, schema["additionalProperties"])
+                }
+        }
+}
+
 func mapping(t *testing.T, source map[string]any, key string) map[string]any {
         t.Helper()
         value, ok := source[key].(map[string]any)

@@ -1539,6 +1539,147 @@ paths:
         '401': { $ref: '#/components/responses/Problem' }
         '404': { $ref: '#/components/responses/Problem' }
         '415': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/employees/{employee_id}/release:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/EmployeeID'
+    get:
+      operationId: readReleaseView
+      summary: Черновик, история версий и последний манифест (configuration — управление, review/audit — просмотр)
+      x-staffy-principal-required: true
+      responses:
+        '200':
+          description: Проекция релизной поверхности с честными отсутствиями и quarantine-состоянием манифеста
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReleaseView' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/employees/{employee_id}/release/draft:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/EmployeeID'
+    post:
+      operationId: assembleReleaseDraft
+      summary: Сборка/обновление mutable черновика из текущих фактов (configuration, optimistic concurrency)
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expected_revision]
+              properties:
+                expected_revision: { type: integer, minimum: 0, description: '0 = первая сборка; иное — CAS-обновление' }
+      responses:
+        '200': { description: Собранный черновик, content: { application/json: { schema: { $ref: '#/components/schemas/ReleaseDraft' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+        '415': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/employees/{employee_id}/release/versions:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/EmployeeID'
+    post:
+      operationId: createConfigVersion
+      summary: Новая append-only конфигурационная версия из черновика (configuration; монотонный номер, CAS)
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [description, expected_revision]
+              properties:
+                description: { type: string, minLength: 1, maxLength: 300 }
+                expected_revision: { type: integer, minimum: 1 }
+      responses:
+        '201': { description: Неизменяемая версия, content: { application/json: { schema: { $ref: '#/components/schemas/ConfigVersion' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+        '415': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/employees/{employee_id}/release/manifests:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/EmployeeID'
+    post:
+      operationId: sealReleaseManifest
+      summary: Запечатать манифест конфигурационной версии (configuration; канонический digest, ровно один манифест на версию)
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [config_version, expected_revision]
+              properties:
+                config_version: { type: integer, minimum: 1 }
+                expected_revision: { type: integer, minimum: 1 }
+      responses:
+        '201': { description: Запечатанный манифест, content: { application/json: { schema: { $ref: '#/components/schemas/ReleaseManifest' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+        '415': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/employees/{employee_id}/release/manifests/{config_version}:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/EmployeeID'
+      - name: config_version
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    get:
+      operationId: readReleaseManifest
+      summary: Чтение манифеста по версии (digest перепроверяется; неизвестная схема или поля — явный quarantine)
+      x-staffy-principal-required: true
+      responses:
+        '200': { description: Манифест или его honest quarantine-состояние, content: { application/json: { schema: { $ref: '#/components/schemas/ManifestView' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/employees/{employee_id}/release/restore:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/EmployeeID'
+    post:
+      operationId: restoreReleaseDraft
+      summary: Новый черновик из прошлой версии с отчётом несовместимостей (configuration; прошлое не изменяется)
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [config_version, expected_revision]
+              properties:
+                config_version: { type: integer, minimum: 1 }
+                expected_revision: { type: integer, minimum: 0 }
+      responses:
+        '200': { description: Восстановленный черновик с отчётом, content: { application/json: { schema: { $ref: '#/components/schemas/RestoreResult' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+        '415': { $ref: '#/components/responses/Problem' }
 components:
   parameters:
     EmployeeID:
@@ -2392,6 +2533,214 @@ components:
         actor_id: { type: string, format: uuid }
         note: { type: string }
         created_at: { type: string, format: date-time }
+    ReleaseView:
+      type: object
+      required: [employee_id, can_manage, view_scope, versions, manifests]
+      properties:
+        employee_id: { type: string, format: uuid }
+        draft: { $ref: '#/components/schemas/ReleaseDraft' }
+        versions: { type: array, items: { $ref: '#/components/schemas/ConfigVersion' } }
+        manifests: { type: array, items: { $ref: '#/components/schemas/ManifestSummary' } }
+        latest: { $ref: '#/components/schemas/ManifestView' }
+        can_manage: { type: boolean }
+        view_scope: { type: string, enum: [configuration, review-or-audit], description: 'Управление — только configuration' }
+    ReleaseDraft:
+      type: object
+      required: [tenant_id, employee_id, revision, refs, actor_id, updated_at]
+      properties:
+        tenant_id: { type: string, format: uuid }
+        employee_id: { type: string, format: uuid }
+        revision: { type: integer, description: 'CAS-ревизия mutable черновика' }
+        refs: { $ref: '#/components/schemas/ConfigRefs' }
+        restored_from:
+          type: object
+          required: [version, version_id, created_at]
+          properties:
+            version: { type: integer }
+            version_id: { type: string, format: uuid }
+            created_at: { type: string, format: date-time }
+        actor_id: { type: string, format: uuid }
+        updated_at: { type: string, format: date-time }
+    ConfigVersion:
+      type: object
+      required: [tenant_id, employee_id, version_id, version, description, refs, actor_id, created_at]
+      properties:
+        tenant_id: { type: string, format: uuid }
+        employee_id: { type: string, format: uuid }
+        version_id: { type: string, format: uuid }
+        version: { type: integer, description: 'Монотонный номер на Employee' }
+        description: { type: string, minLength: 1, maxLength: 300 }
+        refs: { $ref: '#/components/schemas/ConfigRefs' }
+        actor_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+    ConfigRefs:
+      type: object
+      required: [brief, domain_pack, behavior, knowledge, voice]
+      description: 'Честные ссылки на версии компонентов: отсутствие — явная запись с пояснением, не пустота'
+      properties:
+        brief:
+          type: object
+          required: [status]
+          properties:
+            status: { type: string, enum: [present, absent] }
+            draft_version: { type: integer }
+            note: { type: string }
+        domain_pack:
+          type: object
+          required: [status]
+          properties:
+            status: { type: string, enum: [present, absent] }
+            id: { type: string }
+            version: { type: string }
+            variants: { type: object, additionalProperties: true }
+            note: { type: string }
+        behavior:
+          type: object
+          required: [status]
+          properties:
+            status: { type: string, enum: [present, absent] }
+            version: { type: integer }
+            note: { type: string }
+        knowledge:
+          type: object
+          required: [status, sources]
+          properties:
+            status: { type: string, enum: [present, absent] }
+            sources:
+              type: array
+              items:
+                type: object
+                required: [source_id, version]
+                properties:
+                  source_id: { type: string, format: uuid }
+                  version: { type: integer }
+            note: { type: string }
+        voice:
+          type: object
+          required: [status]
+          description: 'Голос обязателен iff Brief включает канал phone: для текстового сотрудника — not_applicable'
+          properties:
+            status: { type: string, enum: [present, absent, not_applicable] }
+            version: { type: integer }
+            note: { type: string }
+    ManifestSummary:
+      type: object
+      required: [config_version, manifest_id, status, digest, schema_version, sealed_at]
+      properties:
+        config_version: { type: integer }
+        manifest_id: { type: string, format: uuid }
+        status: { type: string, enum: [candidate, incomplete] }
+        digest: { type: string, pattern: '^[0-9a-f]{64}$', description: 'sha256 канонического JSON' }
+        schema_version: { type: integer }
+        sealed_at: { type: string, format: date-time }
+    ManifestView:
+      type: object
+      required: [config_version, manifest_id, status, digest, schema_version, sealed_at, quarantine]
+      description: 'Чтение манифеста: digest перепроверяется; неизвестная схема/поля или несовпадение digest — явный quarantine с сохранённым payload'
+      properties:
+        config_version: { type: integer }
+        manifest_id: { type: string, format: uuid }
+        status: { type: string, enum: [candidate, incomplete] }
+        digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+        schema_version: { type: integer }
+        sealed_at: { type: string, format: date-time }
+        actor_id: { type: string, format: uuid }
+        content: { $ref: '#/components/schemas/ManifestContent' }
+        quarantine: { type: string, enum: ['', schema_version, unknown_field, digest_mismatch] }
+        quarantine_reason: { type: string }
+        raw: { type: string, description: 'Сохранённый payload — не отбрасывается молчаливочно' }
+    ReleaseManifest:
+      type: object
+      required: [tenant_id, employee_id, manifest_id, config_version, schema_version, status, digest, actor_id, sealed_at, content]
+      properties:
+        tenant_id: { type: string, format: uuid }
+        employee_id: { type: string, format: uuid }
+        manifest_id: { type: string, format: uuid }
+        config_version: { type: integer }
+        schema_version: { type: integer }
+        status: { type: string, enum: [candidate, incomplete] }
+        digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+        actor_id: { type: string, format: uuid }
+        sealed_at: { type: string, format: date-time }
+        content: { $ref: '#/components/schemas/ManifestContent' }
+    ManifestContent:
+      type: object
+      required: [schema_version, configuration, connections, runtime_components]
+      description: 'Канонический payload: фиксированный порядок полей, отсортированные массивы; только идентификаторы, версии, состояния и времена — никогда секреты и PII'
+      properties:
+        schema_version: { type: integer }
+        configuration:
+          type: object
+          required: [employee_id, version_id, version, description, actor_id, created_at, refs]
+          properties:
+            employee_id: { type: string, format: uuid }
+            version_id: { type: string, format: uuid }
+            version: { type: integer }
+            description: { type: string }
+            actor_id: { type: string, format: uuid }
+            created_at: { type: string, format: date-time }
+            refs: { $ref: '#/components/schemas/ConfigRefs' }
+        connections:
+          type: array
+          description: 'Отсортированы по connection_id'
+          items:
+            type: object
+            required: [connection_id, connector_id, contract_version, adapter_build, environment, status, capabilities]
+            properties:
+              connection_id: { type: string, format: uuid }
+              connector_id: { type: string }
+              contract_version: { type: string }
+              adapter_build: { type: string }
+              environment: { type: string, enum: [sandbox, test] }
+              status: { type: string }
+              capabilities:
+                type: array
+                description: 'Отсортированы по capability; непроверенная/просроченная capability — явный gap, не подменяемый другим аккаунтом'
+                items:
+                  type: object
+                  required: [capability, state, state_reason, gap, reconciliation_owner]
+                  properties:
+                    capability: { type: string }
+                    state: { type: string, enum: [unverified, verifying, verified, unsupported, failed, unknown, stale] }
+                    state_reason: { type: string }
+                    evidence:
+                      type: object
+                      required: [evidence_id, outcome, checked_at, expires_at]
+                      properties:
+                        evidence_id: { type: string, format: uuid }
+                        outcome: { type: string, enum: [verified, failed, unknown] }
+                        checked_at: { type: string, format: date-time }
+                        expires_at: { type: string, format: date-time }
+                    gap: { type: boolean }
+                    reconciliation_owner: { type: string }
+        runtime_components:
+          type: array
+          description: 'Фиксированный словарь домена; в этом срезе каждый компонент честно отсутствует'
+          items:
+            type: object
+            required: [component, present, owner, responsible]
+            properties:
+              component: { type: string, enum: [model_route, media_route, prompt_assembly, tool_schemas, policy_bundle, eval_set, runtime_build, autonomy_envelope] }
+              present: { type: boolean }
+              ref: { type: string }
+              owner: { type: string }
+              responsible: { type: string }
+              note: { type: string }
+    RestoreResult:
+      type: object
+      required: [draft, issues]
+      properties:
+        draft: { $ref: '#/components/schemas/ReleaseDraft' }
+        issues:
+          type: array
+          description: 'Честный отчёт несовместимостей против текущих фактов; восстановление не блокируется, но ничего не скрывает'
+          items:
+            type: object
+            required: [area, subject, problem]
+            properties:
+              area: { type: string, enum: [brief, domain_pack, knowledge, behavior, voice, connection, capability] }
+              subject: { type: string }
+              problem: { type: string }
   responses:
     Problem:
       description: Безопасная ошибка

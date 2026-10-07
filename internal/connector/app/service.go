@@ -473,6 +473,40 @@ func verifyGuardReason(status string) string {
         return "Состояние подключения не допускает проверку возможностей; обновите страницу."
 }
 
+// ConnectionsFacts returns the derived capability state of every tenant
+// connection as the safe cross-module projection. This is a caller-authority
+// facts read: the consumer (the release surface) has already verified its own
+// scope for the actor and passes the tenancy context; RLS still isolates the
+// tenant, and only identifiers, versions, states and evidence cross the
+// boundary — never secrets, hints or config values.
+func (s *Service) ConnectionsFacts(ctx context.Context, scope tenancy.Context) ([]api.ConnectionFacts, error) {
+	if !scope.Valid() {
+		return nil, connectorDomain.ErrNotFound
+	}
+	connections, err := s.repository.List(ctx, scope)
+	if err != nil {
+		return nil, err
+	}
+	facts := make([]api.ConnectionFacts, 0, len(connections))
+	for _, connection := range connections {
+		def, ok := catalog.Get(connection.ConnectorID, connection.ConnectorVer)
+		if !ok {
+			return nil, connectorDomain.ErrInvalid
+		}
+		evidence, err := s.repository.ListEvidence(ctx, scope, connection.ConnectionID)
+		if err != nil {
+			return nil, err
+		}
+		reports := connectorDomain.DeriveCapabilityStates(def, connection, evidence, s.verifier.Build(), s.clock.Now().UTC())
+		facts = append(facts, api.ConnectionFacts{
+			ConnectionID: connection.ConnectionID, ConnectorID: connection.ConnectorID,
+			ContractVersion: connection.ConnectorVer, AdapterBuild: s.verifier.Build(),
+			Environment: string(connection.Environment), Status: connection.Status, Capabilities: reports,
+		})
+	}
+	return facts, nil
+}
+
 // commandHash canonicalizes a command for idempotency replay/conflict
 // detection: identical retries hash identically, any data change does not.
 func commandHash(operation string, tenant, connection id.UUID, expectedVersion int64, payload map[string]string) string {

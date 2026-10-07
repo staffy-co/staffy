@@ -22,6 +22,7 @@ import (
         "github.com/artemiosu/staffy/internal/identity/api"
         "github.com/artemiosu/staffy/internal/identity/domain"
         "github.com/artemiosu/staffy/internal/platform/id"
+        "github.com/artemiosu/staffy/internal/platform/tenancy"
         httptransport "github.com/artemiosu/staffy/internal/transport/http"
 )
 
@@ -538,6 +539,28 @@ func (f *connectorFixture) VerifyCapability(_ context.Context, c connectorAPI.Ve
 }
 
 // CapabilityState derives the honest view with the real domain function.
+// ConnectionsFacts is the safe caller-authority projection for the release
+// surface: identifiers, versions, states and derived reports — never
+// secrets or config values.
+func (f *connectorFixture) ConnectionsFacts(_ context.Context, _ tenancy.Context) ([]connectorAPI.ConnectionFacts, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	facts := make([]connectorAPI.ConnectionFacts, 0, len(f.connections))
+	for _, current := range f.connections {
+		def, _ := connectorCatalog.Get(current.ConnectorID, current.ConnectorVer)
+		result, err := f.capabilityStateLocked(current, def)
+		if err != nil {
+			return nil, err
+		}
+		facts = append(facts, connectorAPI.ConnectionFacts{
+			ConnectionID: current.ConnectionID, ConnectorID: current.ConnectorID,
+			ContractVersion: current.ConnectorVer, AdapterBuild: result.AdapterBuild,
+			Environment: string(current.Environment), Status: current.Status, Capabilities: result.Capabilities,
+		})
+	}
+	return facts, nil
+}
+
 func (f *connectorFixture) CapabilityState(_ context.Context, _ domain.Principal, tenant, connectionID id.UUID) (connectorAPI.CapabilityStateResult, error) {
         f.mu.Lock()
         defer f.mu.Unlock()
@@ -798,10 +821,13 @@ func main() {
         if err != nil {
                 panic(err)
         }
-        server.BindEmployee(&employeeFixture{})
-        server.BindConnector(&connectorFixture{})
+        employees := &employeeFixture{}
+        connectors := &connectorFixture{}
+        server.BindEmployee(employees)
+        server.BindConnector(connectors)
         server.BindPrivacy(&privacyFixture{})
         server.BindEntitlement(&entitlementFixture{})
+        server.BindRelease(newReleaseFixture(employees, connectors))
         if err := http.ListenAndServe("127.0.0.1:18081", server.Handler()); err != nil {
                 panic(err)
         }

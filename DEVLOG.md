@@ -401,3 +401,77 @@ decisions:
 - DEVLOG фиксирует инцидент API открыто: если REST-доступ восстановится, проверить состояние PR #12 и прогоны CI на ветке/main ретроспективно
 next: CHECKPOINT 2 для владельца: story 1.11 закрыта; в backlog осталась 1-12 (release manifest); epic-1-retrospective — после закрытия эпика; возможная перевыдача токена, если REST-доступ нужен владельцу
 commit: b00fcc8
+
+---
+date: 2026-10-07
+task: 24-sm
+role: main (Super Z, роль SM)
+story: 1-12
+summary: SM-шаг story 1-12 — спека первого среза версий конфигурации и Release Manifest (FR-5); владелец делегировал выбор (1-12 vs ретроспектива) экспертности — выбрана последняя story эпика, ретроспектива после его закрытия
+done:
+- Состояние верифицировано после восстановления контекста: PR #12 merged (b00fcc8), CI #46 на main success, REST API снова жив (инцидент 401 прошлой сессии исчерпан); story 1-11 полностью закрыта, в backlog Epic 1 осталась только 1-12
+- Входы SM прочитаны: epics.md §1.12 (FR-5, 10 блоков критериев приёмки), PRD FR-5, epic-1-context (спайн: employee владеет релизом; Cross-Story: readiness 1-13–1-14 питается манифестом), deferred-work (12 открытых долгов — прямых к 1-12 нет), GATE-REGISTRY (AG-4; release admission — 1-14), спеки 1-9/1-10/1-11 (формат и паттерны), код: employee (drafts/versioning, pack pin, behavior/voice/knowledge append-only версии), connector (Connection, DeriveCapabilityStates, evidence), identity (scope configuration существует)
+- Спека spec-1-12-release-manifest.md: конфигурационная версия (append-only, монотонный номер, actor, описание, ссылки на точные версии Brief/Pack/вариантов/поведения/знаний/голоса, честные отсутствия), Release Manifest (канонический sha256-digest, immutable снимок, статус candidate|incomplete, UNIQUE на config version), mutable release_draft с ревизией CAS (параллельное запечатывание → ровно один манифест + конфликт для сравнения), подключения с capability-gap-ами без подмены другим аккаунтом/провайдером, runtime-компоненты честно отсутствуют (владельцы указаны), restore = новый draft со ссылкой-источником + отчёт несовместимостей, чтение по schema_version с честным quarantine и digest-перепроверкой, полномочия configuration / configuration|review|audit, доступность (текст, перенос длинных ID, aria-live)
+- Ветка codex/story-1-12-release-manifest от 57e776a; коммит спеки [skip ci]; push
+decisions:
+- Релиз размещён в модуле employee по спайну («employee — настройкой, профилем и релизом») — без отклонения от архитектуры, в отличие от privacy/entitlement
+- Runtime-компоненты (model/media routes, prompt assembly, tool schemas, policy bundle, eval set, runtime build, autonomy envelope) не имеют поверхностей — манифест первого среза честно incomplete; candidate-путь покрыт доменной функцией и юнит-тестом (прецедент admission_state 1-11)
+- Манифест — всегда «проверяемый кандидат»: release pointer, admission, traffic stages, gate-компиляция — 1-13/1-14/Epic 2; словарь runtime-компонентов зафиксирован в домене для будущих заполнений без смены схемы
+- Схема манифеста: поддержка текущей schema_version + честный quarantine неизвестной (digest-перепроверка при чтении); полный upgrade/rollback-конвертер — с первой реальной сменой схемы
+next: CHECKPOINT 1 — одобрение владельцем спеки 1-12; после «одобряю» спека и sprint-status.yaml синхронно → ready-for-dev → Dev step-03 на ветке
+commit: de4395c
+
+---
+date: 2026-10-08
+task: 25-checkpoint
+role: main (Super Z)
+story: 1-12
+summary: CHECKPOINT 1 — владелец одобрил спеку 1-12 («одобряю»); спека и sprint-status.yaml синхронно переведены в ready-for-dev; Dev step-03 начат
+done:
+- spec-1-12-release-manifest.md: status backlog → ready-for-dev; Spec Change Log дополнен записью об одобрении (frozen-часть без изменений)
+- sprint-status.yaml: 1-12-версии-конфигурации-и-release-manifest → ready-for-dev, last_updated 10-08-2026 (синхронность check-continuity соблюдена)
+- Коммит b2de7c4 [skip ci] на ветке codex/story-1-12-release-manifest
+next: Dev step-03 — реализация Code Map по спеке: domain/release.go + юнит-тесты, миграция 00010, port/app/store/api, transport+OpenAPI+шаблон, integration+journeys; полный регресс; затем DEVLOG dev-запись, push, PR, CHECKPOINT 2
+commit: b2de7c4
+
+---
+date: 2026-10-08
+task: 26-dev
+role: main (Super Z, роль Dev)
+story: 1-12
+summary: Dev step-03 — полная реализация среза версий конфигурации и Release Manifest (FR-5): домен с честными отсутствиями и quarantine, миграция 00010, port/app/store/api с CAS, transport + OpenAPI + страница релиза, privacy-класс, полный тестовый набор; весь регресс зелёный
+done:
+- internal/employee/domain/release.go: ConfigRefs (brief/pack/behavior/knowledge/voice со статусами present/absent/not_applicable и пояснениями; голос обязателен iff phone в Brief), ReleaseDraft с CAS-ревизией, ConfigVersion (append-only, монотонный номер), ManifestContent (конфигурация + подключения с capability-фактами и gap-ами + runtime-словарь из 8 фиксированных компонентов), канонический sha256-digest, DeriveManifestStatus (candidate iff ноль gap-ов; в срезе всегда incomplete — runtime-поверхностей нет), ReadManifestPayload (schema_version → строгий decode с DisallowUnknownFields → digest-перепроверка; явный quarantine с сохранением payload), RestoreCompatibility (дрейф в обе стороны: смещение версии и появление компонента после версии)
+- migrations/employee/00010_release_manifest.sql: release_drafts — единственная mutable таблица (INSERT/SELECT/UPDATE, ревизия CAS), config_versions и release_manifests — append-only (INSERT/SELECT), UNIQUE (tenant,employee,config_version) — не более одного манифеста на версию, digest char(64), schema_version, CHECK-словари, RLS на всех трёх; purge_employee_drafts расширен release-таблицами через CREATE OR REPLACE (прошлая миграция не редактируется); исход 00009 восстановлен в Down
+- internal/employee/{port,app,store,api}: узкий порт ConnectorFacts (List + CapabilityState — структурная реализация сервисом connector, employee не ре-деривирует состояния), команды AssembleDraft (CAS upsert, ревизия 0 = создание), CreateConfigVersion (MAX+1 под FOR UPDATE, снимок refs черновика, ревизия поднимается), SealManifest (content из версии + факты подключений на момент запечатывания, CAS + UNIQUE, Revision 23505 → ErrManifestExists), Restore (новый draft со ссылкой-источником + отчёт), чтение с digest-перепроверкой; ReleaseConflictError несёт expected/current revision и текущие refs для сравнения; полномочия: управление — configuration, просмотр — configuration|review|audit, member-without-scope → честный 403, non-member → 404
+- Transport: release.go + release_view.go (BindRelease: 6 JSON-маршрутов + страница + 4 формы, flash/notice aria-live, конфликт с текущей ревизией в сообщении), web/templates/release.html (компоненты черновика со статусами текстом, история версий с digest, манифест: «проверяемый кандидат, а не допущенный release», недостающие зависимости с владельцами, runtime gap-ы, digest в переносимом блоке .digest-block — без горизонтального скролла на 320px, quarantine-блок с сохранённым payload), OpenAPI: 6 путей + 10 схем, контракт-тест TestReleaseManifestContractIsHonest; ссылка «Релиз» в навигации сотрудника
+- Privacy: класс release-snapshot (3 таблицы) в словаре артефактов данных; perimeter-тест зелёный (16 классов); purge агрегата сотрудника включает release-таблицы
+- Тесты: release_test.go домена (12 тестов: honest absences, candidate на полном наборе, incomplete на любом gap-е, каноничность digest, round-trip чтения, карантин трёх видов, restore-отчёт с обратным дрейфом, словарь runtime, границы описания); tests/integration/release_test.go (6 тестов); tests/journeys/zzzzzzz-release.spec.ts + releaseFixture
+- Урок процесса: gofmt -w на всём internal/ переформатировал ~40 чужих файлов (12k строк шума) — шум откачен, правки пере-применены в родном стиле; дифф story чистый (518 строк в 11 изменённых файлах + 13 новых)
+decisions:
+- Digest вычисляется по канонической Go-сериализации декодированного контента: jsonb переупорядочивает ключи payload, но верификация устойчива — подмена любого значения меняет digest
+- Отсутствие компонента в восстановленной версии при его текущем наличии — тоже честная несовместимость (восстановленный черновик не включает его до пересборки)
+- Миграция purge-функции: CREATE OR REPLACE в новой миграции, а не редактирование 00009 — история миграций неизменна
+next: review R1 свежим контекстом (спека + весь дифф + независимый регресс), затем R2; при чистом результате — статус done, PR, merge, CHECKPOINT 2 владельцу
+commit: f28b865
+
+---
+date: 2026-10-08
+task: 27-review
+role: main (Super Z, роль Review)
+story: 1-12
+summary: Review R1/R2 story 1-12 — R1 свежим контекстом нашёл и закрыл 3 главные находки (мёртвая поверхность в продакшн-бинар, неявная зависимость seal от scope integrations с маскировкой ошибки, фиктивный RLS-тест); R2 подтвердил исправления (PASS) и поднял 4 минорные — закрыты; полный регресс повторно зелёный; спека → done (iteration 2)
+done:
+- R1 (субагент свежим контекстом): прочитаны спека и весь дифф; build/vet/unit зелёные; 3 main + 8 minor находок
+- Main-1: transport.BindRelease не вызывался в cmd/staffy-core/main.go — 11 маршрутов релиза регистрировались только в journey-фикстуре, ссылка «Релиз» в реальном сервере вела на 404; исправлено добавлением BindRelease
+- Main-2: seal/restore требовали неявно scope integrations (connector re-authorize в List/CapabilityState) — Configurator с configuration не мог запечатывать, ошибка маскировалась под 500; исправлено архитектурно: connector Service.ConnectionsFacts(ctx, tenancy) — безопасная кросс-модульная проекция (id/версии/состояния/evidence, без Config/SecretID/SecretHint/Label) под авторитетом вызывающего, RLS изолирует тенант; employee-порт сужен до одного метода; тест TestConfiguratorSealsManifestThroughFactsPort проверяет precondition (нет integrations), успех seal, honest gaps всех capabilities и отсутствие секретов в манифесте
+- Main-3: RLS-тест межтенантной записи был фиктивен (3 плейсхолдера, 2 аргумента — err != nil гарантирован без RLS); переписан в транзакции (set_config true — пул не травмируется, урок 1-10 о session-настройках применён), аргументы совпадают, причина дискриминирована (row-level security)
+- Минорные: честные инфра-ошибки (Authorize infra-сбой — не 404); 409 несёт current_refs + release_view; автор + изменённые компоненты (точные версии: brief draft_version, pack id@version/варианты, behavior/voice version, knowledge-список source@version) + sealing-актор; restore-пометка о карантине источника; опечатка «молчаливочно»; мёртвые FormKey/ErrConflict удалены; journey state-tolerant подключения
+- R2 (субагент): все 3 main исправлены корректно (RLS-обхода нет, интерфейсные реализации обновлены: Service/fakeConnector/connectorFixture), регрессий нет — PASS; 4 минорных follow-up (diff только по статусам, порядок версий фикстуры, карантин-пометка фикстуры, дискриминация RLS-причины) — все закрыты в коммите 44a86f7
+- Полный регресс после правок: build, vet, unit -count=1 (20), integration -count=1 (8 release-тестов: флоу/гонка/restore/карантин/полномочия/RLS+гранты/Configurator/карантин-restore), journeys 15/15, контракт, git diff --check чист
+- Спека 1-12: done (iteration 2), Spec Change Log дополнен записью R1/R2; sprint-status.yaml синхронно → done
+decisions:
+- Архитектура факт-порта: авторитет вызывающего + безопасная проекция вместо ре-авторизации integrations — запечатывание остаётся в границах спеки (только configuration), секреты физически не пересекают границу модуля
+- Изменённые компоненты сравнивают точные версии, а не только присутствие — иначе bump brief или новая версия голоса отображались бы как «—»
+next: PR в main через GitHub API, merge, синхронизация main, DEVLOG 28-merge; затем CHECKPOINT 2 владельцу — Epic 1 закрыт (все 14 stories done), далее epic-1-retrospective или Epic 2
+commit: 44a86f7

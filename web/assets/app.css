@@ -165,3 +165,12 @@ details summary { min-height: 44px; padding: .6rem; cursor: pointer; font-weight
 .receipt-facts dt{font-weight:700;white-space:nowrap}
 .receipt-facts dd{margin:0;overflow-wrap:anywhere}
 .receipt-hash{font-family:ui-monospace,monospace;word-break:break-all}
+/* Story 1.12: release surface. Digests and UUIDs wrap inside their block —
+   no horizontal page scroll at 320 px. */
+.digest-block{font-family:ui-monospace,monospace;font-size:.95rem;overflow-wrap:anywhere;word-break:break-all;white-space:pre-wrap;border:1px solid var(--line);border-radius:.4rem;padding:.5rem;margin:.25rem 0;min-width:0}
+.rel-status-candidate{color:#1d5c33;font-weight:700}
+.rel-status-incomplete{color:#7a2e2e;font-weight:700}
+.rel-quarantine{color:#7a2e2e;font-weight:700}
+.rel-absent{color:#7a2e2e}
+.rel-not-applicable{color:#6e5416}
+.rel-present{color:#1d5c33}
