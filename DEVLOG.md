@@ -513,3 +513,23 @@ decisions:
 - Рекомендация владельцу по 1-13/1-14: вариант А — достроить первыми срезами внутри Epic 1 (план epics.md не меняется; порты admission_state/манифест-кандидат/GATE-REGISTRY уже ждут; runtime не требуется для honest-срезов); варианты Б (re-scope в Epic 2) и В (параллельный старт 2-1) изложены в §8 ретроспективы
 next: CHECKPOINT владельцу — судьба stories 1-13/1-14: (А, recommended) SM пишет спеку 1-13 «Утверждение Operating Profile и правил измерения» (первый срез) → цикл → 1-14 → закрытие эпика; (Б) документированный re-scope в Epic 2; (В) старт Epic 2 2-1 параллельно (не рекомендуется)
 commit: 737d4f9
+
+---
+date: 2026-10-08
+task: 30-sm
+role: main (Super Z, роль SM)
+story: 1-13
+summary: SM-шаг story 1-13 — спека первого среза «Утверждение Operating Profile и правил измерения» (FR-84); владелец выбрал вариант А ретроспективы Epic 1 (достроить 1-13/1-14 первыми срезами внутри эпика)
+done:
+- Позиция верифицирована по канону: git main @ 653f22c (12/14 stories done, 1-13/1-14 backlog), epic-1-retrospective done, action item retro-1-3 (решение владельца) закрыт выбором «A»
+- Окружение поднято повторным bootstrap (сброс: Go 1.27.1 + PG 18.6, порт 54329); check-continuity на main: OK (fail=0, warn=0); ложная тревога о синтаксисе python-блока check-continuity.sh снята (od -c: байты валидны, артефакт отображения)
+- Входы SM прочитаны: epics.md §1.13 (11 блоков AC) и §1.14 (граница срезов), PRD FR-84 + словари (Conversation Modes строка 284, Autonomy режимы FR-42), GATE-REGISTRY (gate-модель, pending-семантика, allow_role_coincidence), epic-1-context (спайн: employee владеет профилем), epic-1-retrospective §8, deferred-work (12 открытых долгов — прямых к 1-13 нет), спеки 1-10/1-11/1-12 (форматы и прецеденты), код: identity (StepUpVerified, ErrStepUpRequired, ListMembers), employee/domain/release.go (ConfigVersion/ReleaseManifest/ManifestContent), privacy/domain/classes.go (словарь артефактов), Brief (словари каналов, таймзона, WorkingHours)
+- Спека spec-1-13-operating-profile.md (132 строки): mutable draft с CAS + два append-only артефакта — версии Operating Profile (digest, approver-роли, step-up) и версии Gate Definition (пороги с историей); точная ссылка на манифест (manifest_id + config_version + digest); разделы: область работы (каналы/языки/часы+IANA/лимиты/запреты/условия остановки), human coverage (fallback-виды; voicemail/queue/technical_transfer — не handoff без evidence), privacy-назначения per (маршрут × 5 целей) с OQ-11 route-level fail-closed, ops-уровень (best_effort/commercial; RTO/RPO — цели, не доказательства), когорта (опциональна до пилота; append-only с audit explanation), Measurement Dictionary (5 обязательных срезов + видимость route-blocking failure), coverage matrix (декартово произведение; пустая ячейка = gap; not admitted явно); derivation: route states, applicability (stale при новом манифесте), readiness (перечень полей), pending baseline; admission/трафик — никогда (порт для 1-14, прецедент admission_state)
+- Ветка codex/story-1-13-operating-profile от 653f22c; коммит спеки b03fd34 [skip ci]; DEVLOG-запись — на ветке (правило retro-1-6)
+decisions:
+- Модуль employee по спайну («employee — настройкой, профилем и релизом») — без отклонения, прецедент 1-12; манифест читается внутри модуля, участники — через ListMembers под авторитетом вызывающего (паттерн факт-портов)
+- Step-up = существующий StepUpVerified identity: честный step_up_required; провайдер MFA вне среза — продакшн-блок честен (прецедент membership), запись в deferred-work на Dev-шаге
+- Утверждение порога — только объявленный evidence owner последней утверждённой версии профиля; система не заявляет машинной сверки с controlled baseline (данных нет) — решение человеческое со ссылками
+- Cohort-раздел опционален до пилота: принудительное заполнение без пилота провоцировало бы фиктивные данные; валидация при заполнении, изменения — только новой версией
+next: CHECKPOINT 1 — одобрение владельцем спеки 1-13; после «одобряю» спека и sprint-status.yaml синхронно → ready-for-dev → Dev step-03 на ветке
+commit: b03fd34
