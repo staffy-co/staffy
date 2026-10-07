@@ -454,3 +454,24 @@ decisions:
 - Миграция purge-функции: CREATE OR REPLACE в новой миграции, а не редактирование 00009 — история миграций неизменна
 next: review R1 свежим контекстом (спека + весь дифф + независимый регресс), затем R2; при чистом результате — статус done, PR, merge, CHECKPOINT 2 владельцу
 commit: f28b865
+
+---
+date: 2026-10-08
+task: 27-review
+role: main (Super Z, роль Review)
+story: 1-12
+summary: Review R1/R2 story 1-12 — R1 свежим контекстом нашёл и закрыл 3 главные находки (мёртвая поверхность в продакшн-бинар, неявная зависимость seal от scope integrations с маскировкой ошибки, фиктивный RLS-тест); R2 подтвердил исправления (PASS) и поднял 4 минорные — закрыты; полный регресс повторно зелёный; спека → done (iteration 2)
+done:
+- R1 (субагент свежим контекстом): прочитаны спека и весь дифф; build/vet/unit зелёные; 3 main + 8 minor находок
+- Main-1: transport.BindRelease не вызывался в cmd/staffy-core/main.go — 11 маршрутов релиза регистрировались только в journey-фикстуре, ссылка «Релиз» в реальном сервере вела на 404; исправлено добавлением BindRelease
+- Main-2: seal/restore требовали неявно scope integrations (connector re-authorize в List/CapabilityState) — Configurator с configuration не мог запечатывать, ошибка маскировалась под 500; исправлено архитектурно: connector Service.ConnectionsFacts(ctx, tenancy) — безопасная кросс-модульная проекция (id/версии/состояния/evidence, без Config/SecretID/SecretHint/Label) под авторитетом вызывающего, RLS изолирует тенант; employee-порт сужен до одного метода; тест TestConfiguratorSealsManifestThroughFactsPort проверяет precondition (нет integrations), успех seal, honest gaps всех capabilities и отсутствие секретов в манифесте
+- Main-3: RLS-тест межтенантной записи был фиктивен (3 плейсхолдера, 2 аргумента — err != nil гарантирован без RLS); переписан в транзакции (set_config true — пул не травмируется, урок 1-10 о session-настройках применён), аргументы совпадают, причина дискриминирована (row-level security)
+- Минорные: честные инфра-ошибки (Authorize infra-сбой — не 404); 409 несёт current_refs + release_view; автор + изменённые компоненты (точные версии: brief draft_version, pack id@version/варианты, behavior/voice version, knowledge-список source@version) + sealing-актор; restore-пометка о карантине источника; опечатка «молчаливочно»; мёртвые FormKey/ErrConflict удалены; journey state-tolerant подключения
+- R2 (субагент): все 3 main исправлены корректно (RLS-обхода нет, интерфейсные реализации обновлены: Service/fakeConnector/connectorFixture), регрессий нет — PASS; 4 минорных follow-up (diff только по статусам, порядок версий фикстуры, карантин-пометка фикстуры, дискриминация RLS-причины) — все закрыты в коммите 44a86f7
+- Полный регресс после правок: build, vet, unit -count=1 (20), integration -count=1 (8 release-тестов: флоу/гонка/restore/карантин/полномочия/RLS+гранты/Configurator/карантин-restore), journeys 15/15, контракт, git diff --check чист
+- Спека 1-12: done (iteration 2), Spec Change Log дополнен записью R1/R2; sprint-status.yaml синхронно → done
+decisions:
+- Архитектура факт-порта: авторитет вызывающего + безопасная проекция вместо ре-авторизации integrations — запечатывание остаётся в границах спеки (только configuration), секреты физически не пересекают границу модуля
+- Изменённые компоненты сравнивают точные версии, а не только присутствие — иначе bump brief или новая версия голоса отображались бы как «—»
+next: PR в main через GitHub API, merge, синхронизация main, DEVLOG 28-merge; затем CHECKPOINT 2 владельцу — Epic 1 закрыт (все 14 stories done), далее epic-1-retrospective или Epic 2
+commit: 44a86f7

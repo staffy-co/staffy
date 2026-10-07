@@ -2,9 +2,9 @@
 title: 'Story 1.12 — Версии конфигурации и Release Manifest (первый срез)'
 type: 'feature'
 created: '2026-10-07'
-status: 'in-progress'
+status: 'done'
 route: 'dispatch'
-review_loop_iteration: 0
+review_loop_iteration: 2
 baseline_commit: '57e776a4b772192de96239fe3ac2a77457fc8138'
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-1-context.md'
@@ -100,6 +100,8 @@ context:
 - 2026-10-07, review loop 0: создана спека первого среза Story 1.12 (SM). Статус `backlog` до CHECKPOINT 1 — одобрения владельцем; после одобрения спека и sprint-status.yaml одновременно переходят в `ready-for-dev` (условие синхронности check-continuity).
 - 2026-10-08, review loop 0: CHECKPOINT 1 — владелец одобрил спеку («одобряю»). Статус `ready-for-dev` (в frozen-части без изменений; одобрение зафиксировано здесь и в sprint-status.yaml синхронно).
 - 2026-10-08, Dev step-03: реализован весь срез (Execution 5/5). Полный регресс зелёный: build, vet, unit -count=1 (20 пакетов, включая новые employee domain release-тесты), integration -count=1 (включая 6 новых release-тестов: честный флоу с неизменностью digest, гонка запечатывания — ровно один манифест, повторный seal → отказ, restore с отчётом несовместимостей, карантин трёх видов, RLS/полномочия/гранты), journeys 15/15 (включая zzzzzzz-release: 320px, клавиатура, aria-live, перенос digest, конфликт ревизии, restore), контракт-тест OpenAPI, git diff --check чист. Статус → `in-progress` до review R1.
+
+- 2026-10-08, review R1/R2 (iteration 2): R1 свежим контекстом (спека + весь дифф + независимый прогон) нашёл и закрыл 3 главные находки: (1) BindRelease не вызывался в продакшн-бинар — маршруты релиза жили только в fixture; добавлен transport.BindRelease в main.go; (2) запечатывание/restore неявно требовали scope integrations (connector-сервис реавторизовал List/CapabilityState) — Configurator с configuration не мог запечатывать, ошибка маскировалась под 500; введён ConnectionsFacts — безопасная кросс-модульная проекция фактов подключений под авторитетом вызывающего (без секретов/конфига/лейблов, RLS изолирует тенант), employee-порт переключён, добавлен тест TestConfiguratorSealsManifestThroughFactsPort; (3) RLS-тест межтенантной записи был фиктивен (3 плейсхолдера, 2 аргумента) — переписан в транзакции с set_config(true) и дискриминацией причины (row-level security). Дополнительно закрыты минорные: инфра-сбои Authorize не маскируются под 404/403; 409-конфликт несёт current_refs и указатель на release-view; история версий показывает автора и изменённые компоненты (сравнение точных версий, не только присутствия); sealing-актор в манифесте; restore-отчёт явно помечает карантин источника (сверка подключений не выполнена — отчёт неполный, а не пустой); мёртвый FormKey и недостижимый код удалены; journey-фикстура зеркалит desc-порядок версий. Полный регресс повторно зелёный: build, vet, unit -count=1 (20 пакетов), integration -count=1 (8 release-тестов), journeys 15/15, контракт, git diff --check чист. Статус → done; sprint-status.yaml синхронно → done.
 
 ## Design Notes
 
