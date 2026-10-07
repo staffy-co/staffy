@@ -420,3 +420,16 @@ decisions:
 - Схема манифеста: поддержка текущей schema_version + честный quarantine неизвестной (digest-перепроверка при чтении); полный upgrade/rollback-конвертер — с первой реальной сменой схемы
 next: CHECKPOINT 1 — одобрение владельцем спеки 1-12; после «одобряю» спека и sprint-status.yaml синхронно → ready-for-dev → Dev step-03 на ветке
 commit: de4395c
+
+---
+date: 2026-10-08
+task: 25-checkpoint
+role: main (Super Z)
+story: 1-12
+summary: CHECKPOINT 1 — владелец одобрил спеку 1-12 («одобряю»); спека и sprint-status.yaml синхронно переведены в ready-for-dev; Dev step-03 начат
+done:
+- spec-1-12-release-manifest.md: status backlog → ready-for-dev; Spec Change Log дополнен записью об одобрении (frozen-часть без изменений)
+- sprint-status.yaml: 1-12-версии-конфигурации-и-release-manifest → ready-for-dev, last_updated 10-08-2026 (синхронность check-continuity соблюдена)
+- Коммит b2de7c4 [skip ci] на ветке codex/story-1-12-release-manifest
+next: Dev step-03 — реализация Code Map по спеке: domain/release.go + юнит-тесты, миграция 00010, port/app/store/api, transport+OpenAPI+шаблон, integration+journeys; полный регресс; затем DEVLOG dev-запись, push, PR, CHECKPOINT 2
+commit: b2de7c4
