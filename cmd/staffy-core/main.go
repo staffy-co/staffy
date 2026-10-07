@@ -11,6 +11,7 @@ import (
         "os/signal"
         "syscall"
         "time"
+        _ "time/tzdata" // IANA zones without a system zone database (the profile window validator loads zones)
 
         "github.com/artemiosu/staffy/internal/adapters/authdev"
         connectorApp "github.com/artemiosu/staffy/internal/connector/app"
@@ -97,6 +98,7 @@ func run(logger *slog.Logger) error {
         employeeService = employeeService.WithConnectorFacts(connectorService)
         transport.BindEmployee(employeeService)
         transport.BindRelease(employeeService)
+        transport.BindProfile(employeeService)
         transport.BindConnector(connectorService)
         privacyExecutors := map[string]privacyPort.ClassDeletionExecutor{
                 privacyDomain.ExecutorEmployee: employeeService.PrivacyDeletionExecutor(),

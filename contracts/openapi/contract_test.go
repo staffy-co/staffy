@@ -614,3 +614,94 @@ func TestEntitlementUsageContractIsHonest(t *testing.T) {
                 }
         }
 }
+
+func TestOperatingProfileContractIsHonest(t *testing.T) {
+	content, err := os.ReadFile("staffy.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document map[string]any
+	if err = yaml.Unmarshal(content, &document); err != nil {
+		t.Fatal(err)
+	}
+	paths := mapping(t, document, "paths")
+	for path, methods := range map[string][]string{
+		"/v1/tenants/{tenant_id}/employees/{employee_id}/operating-profile":                            {"get"},
+		"/v1/tenants/{tenant_id}/employees/{employee_id}/operating-profile/draft":                      {"post"},
+		"/v1/tenants/{tenant_id}/employees/{employee_id}/operating-profile/approval":                   {"post"},
+		"/v1/tenants/{tenant_id}/employees/{employee_id}/operating-profile/thresholds":                 {"post"},
+		"/v1/tenants/{tenant_id}/employees/{employee_id}/operating-profile/thresholds/{gate_id}":       {"get"},
+	} {
+		item := mapping(t, paths, path)
+		for _, method := range methods {
+			operation := mapping(t, item, method)
+			if required, _ := operation["x-staffy-principal-required"].(bool); !required {
+				t.Fatalf("%s %s must document the verified principal boundary", method, path)
+			}
+		}
+	}
+	// The approval documents the honest step-up refusal semantics.
+	approval := mapping(t, mapping(t, paths, "/v1/tenants/{tenant_id}/employees/{employee_id}/operating-profile/approval"), "post")
+	approvalResponses := mapping(t, approval, "responses")
+	for _, status := range []string{"201", "400", "401", "403", "404", "409", "415"} {
+		if _, ok := approvalResponses[status]; !ok {
+			t.Errorf("approval response %s is missing", status)
+		}
+	}
+	schemas := mapping(t, mapping(t, document, "components"), "schemas")
+	for _, schema := range []string{"ProfileView", "ProfileDraft", "ProfileVersion", "ProfileContent", "ProfileRoute", "ProfileRuleError", "ThresholdState", "GateThresholdVersion", "ThresholdHistoryView"} {
+		if _, ok := schemas[schema]; !ok {
+			t.Errorf("schema %s is missing", schema)
+		}
+	}
+	// The rule error vocabulary stays honest: three kinds map to three honest
+	// reactions (reject the save, block the approval, block the route).
+	rule := mapping(t, schemas, "ProfileRuleError")
+	ruleProps := mapping(t, rule, "properties")
+	kind := mapping(t, ruleProps, "kind")
+	kindEnum, _ := kind["enum"].([]any)
+	if len(kindEnum) != 3 || kindEnum[0] != "invalid" || kindEnum[1] != "missing" || kindEnum[2] != "advisory" {
+		t.Fatalf("ProfileRuleError.kind enum must stay [invalid missing advisory], got %v", kindEnum)
+	}
+	// The threshold state vocabulary: pending_baseline until the human decides.
+	threshold := mapping(t, schemas, "ThresholdState")
+	thresholdProps := mapping(t, threshold, "properties")
+	state := mapping(t, thresholdProps, "state")
+	stateEnum, _ := state["enum"].([]any)
+	if len(stateEnum) != 2 || stateEnum[0] != "pending_baseline" || stateEnum[1] != "decided" {
+		t.Fatalf("ThresholdState.state enum must stay [pending_baseline decided], got %v", stateEnum)
+	}
+	// The route state vocabulary: the profile never admits traffic.
+	view := mapping(t, schemas, "ProfileView")
+	viewProps := mapping(t, view, "properties")
+	routeStates := mapping(t, viewProps, "route_states")
+	routeItems := mapping(t, routeStates, "items")
+	routeItemProps := mapping(t, routeItems, "properties")
+	routeState := mapping(t, routeItemProps, "state")
+	routeStateEnum, _ := routeState["enum"].([]any)
+	if len(routeStateEnum) != 2 || routeStateEnum[0] != "clear" || routeStateEnum[1] != "blocked" {
+		t.Fatalf("route state enum must stay [clear blocked] — the profile never admits traffic, got %v", routeStateEnum)
+	}
+	// The applicability vocabulary: stale on a new manifest, unapproved changes
+	// after the approval, never an on-the-spot migration.
+	applicability := mapping(t, viewProps, "applicability")
+	applicabilityProps := mapping(t, applicability, "properties")
+	applicabilityState := mapping(t, applicabilityProps, "state")
+	applicabilityEnum, _ := applicabilityState["enum"].([]any)
+	if len(applicabilityEnum) != 4 || applicabilityEnum[0] != "none" || applicabilityEnum[2] != "stale" || applicabilityEnum[3] != "unapproved_changes" {
+		t.Fatalf("applicability enum must stay [none current stale unapproved_changes], got %v", applicabilityEnum)
+	}
+	// The profile drafts/approvals/thresholds reject unknown fields.
+	for path := range map[string]bool{
+		"/v1/tenants/{tenant_id}/employees/{employee_id}/operating-profile/draft":    true,
+		"/v1/tenants/{tenant_id}/employees/{employee_id}/operating-profile/approval": true,
+		"/v1/tenants/{tenant_id}/employees/{employee_id}/operating-profile/thresholds": true,
+	} {
+		operation := mapping(t, mapping(t, paths, path), "post")
+		body := mapping(t, operation, "requestBody")
+		schema := mapping(t, mapping(t, mapping(t, body, "content"), "application/json"), "schema")
+		if additional, ok := schema["additionalProperties"].(bool); !ok || additional {
+			t.Fatalf("%s must set additionalProperties: false, got %v", path, schema["additionalProperties"])
+		}
+	}
+}

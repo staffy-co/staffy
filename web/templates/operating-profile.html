@@ -1,0 +1,141 @@
+{{define "operating-profile"}}
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Operating Profile и правила измерения · Staffy</title><link rel="stylesheet" href="/assets/app.css"></head>
+<body><a class="skip-link" href="#main">К основному содержанию</a><header class="topbar"><a class="brand" href="/app/tenants/{{.TenantID}}">Staffy</a><strong>Сотрудник → Operating Profile</strong></header>
+<div class="shell"><nav aria-label="Основная навигация"><a href="/app/tenants/{{.TenantID}}">Сегодня</a><a href="/app/tenants/{{.TenantID}}/employees">Сотрудники</a><a href="/app/tenants/{{.TenantID}}/employees/{{.EmployeeID}}/release">Релиз</a></nav><main id="main"><section class="panel"><h1>Operating Profile и правила измерения</h1>
+<p>Профиль — правила и границы работы ИИ-сотрудника: область работы, человеческое покрытие маршрутов, privacy-назначения, уровень операционной ответственности и словарь измерения. Профиль — не допуск трафика: admission, стадии и release pointer остаются за Story 1.14 и GATE-REGISTRY.</p>
+<p class="next-note">Ваши полномочия на этой странице: {{.View.ScopeText}}.</p>
+<p class="next-note">Текущий запечатанный манифест: {{if .View.LatestManifest}}<span class="digest-block">{{.View.LatestManifest}}</span>{{else}}манифестов нет — запечатайте Release Manifest (Story 1.12) перед профилем{{end}}.</p>
+{{if .Error}}<p class="alert" role="alert">{{.Error}}</p>{{end}}{{if .Notice}}<p class="status" role="status" tabindex="-1" id="page-notice">{{.Notice}}</p><script>addEventListener('DOMContentLoaded', () => document.getElementById('page-notice').focus());</script>{{end}}
+
+{{if .View.Approved}}
+<h2>Утверждённая версия {{.View.Approved.Version}} (неизменяемая)</h2>
+<p role="status">Состояние применимости: <strong>{{.View.Applicability.StateText}}</strong>. {{.View.Applicability.Reason}}</p>
+<dl>
+<dt>Профиль digest (sha256)</dt><dd class="digest-block">{{.View.Approved.Digest}}</dd>
+<dt>Ссылка на манифест</dt><dd class="digest-block">manifest {{.View.Approved.ManifestID}} @ config v{{.View.Approved.ConfigVersion}}, digest {{.View.Approved.ManifestDigest}}</dd>
+<dt>Утвердил</dt><dd>{{.View.Approved.ApproverID}} (роли: {{.View.Approved.ApproverRoles}})</dd>
+<dt>Описание-объяснение</dt><dd>{{.View.Approved.Description}}</dd>
+<dt>Evidence-ссылки</dt><dd>{{if .View.Approved.EvidenceRefs}}{{.View.Approved.EvidenceRefs}}{{else}}—{{end}}</dd>
+<dt>Время утверждения</dt><dd>{{.View.Approved.ApprovedAt}}</dd>
+</dl>
+{{else}}
+<h2>Утверждённой версии нет</h2>
+<p role="status">Утверждённой версии профиля ещё нет: черновик редактируется, допуск не затрагивается. Утверждение требует step-up и заполненности всех обязательных разделов.</p>
+{{end}}
+
+{{if .View.Draft}}
+<h2>Черновик профиля (ревизия {{.View.Draft.Revision}})</h2>
+<p class="next-note">Ссылка на манифест: <span class="digest-block">manifest {{.View.Draft.ManifestID}} @ config v{{.View.Draft.ConfigVersion}}, digest {{.View.Draft.ManifestDigest}}</span>. Обновлён {{.View.Draft.UpdatedAt}}.{{if .View.Draft.HasUnapproved}} Черновик изменён после утверждения: есть неутверждённые изменения; утверждённая версия неизменна.{{end}}</p>
+
+{{if .View.Readiness}}
+<h3>Готовность к утверждению (перечень ведёт к конкретному полю)</h3>
+<ul class="form-error">
+{{range .View.Readiness}}<li><span class="digest-block">{{.Section}}.{{.Field}}</span> — {{.Reason}} <em>({{.KindText}})</em></li>{{end}}
+</ul>
+{{else}}<p role="status">Все обязательные разделы заполнены и валидны: черновик готов к утверждению.</p>{{end}}
+
+{{if .View.RouteStates}}
+<h3>Состояния маршрутов (для будущего admission, Story 1.14)</h3>
+<p class="next-note">Маршрут в состоянии clear — «не заблокирован этим профилем», а не разрешение на трафик.</p>
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Состояния маршрутов">
+<table class="datamap-table">
+<caption>Выводные состояния маршрутов с причинами и владельцами разблокирования</caption>
+<thead><tr><th scope="col">Маршрут</th><th scope="col">Состояние</th><th scope="col">Причина</th><th scope="col">Владелец разблокирования</th></tr></thead>
+<tbody>
+{{range .View.RouteStates}}<tr><th scope="row">{{.Route}}</th><td>{{.StateText}}</td><td>{{if .Reason}}{{.Reason}}{{else}}—{{end}}</td><td>{{if .UnlockOwner}}{{.UnlockOwner}}{{else}}—{{end}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+{{end}}
+
+{{if .View.HasMatrix}}
+<h3>Coverage matrix (декартово произведение: journeys Pack × маршруты × объявленные режимы × классы)</h3>
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Coverage matrix">
+<table class="datamap-table">
+<caption>Полнота матрицы; пустая ячейка — явный gap, «не допущено» — явный отказ; {{.View.MatrixAxisText}}</caption>
+<thead><tr><th scope="col">Journey</th><th scope="col">Маршрут</th><th scope="col">Conversation Mode</th><th scope="col">Autonomy Class</th><th scope="col">Состояние</th><th scope="col">Eval / fallback / gates</th></tr></thead>
+<tbody>
+{{range .View.Matrix}}<tr><th scope="row">{{.Journey}}</th><td>{{.Route}}</td><td>{{.ConversationMode}}</td><td>{{.AutonomyClass}}</td><td>{{.StateText}}{{if .Reason}}: {{.Reason}}{{end}}</td><td>{{if .EvalRef}}eval <span class="digest-block">{{.EvalRef}}</span>{{end}}{{if .Gates}}; gates: {{.Gates}}{{end}}{{if .HumanFallback}}; fallback: {{.HumanFallback}}{{end}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+{{end}}
+
+{{if .View.Thresholds}}
+<h3>Gate-декларации и пороги</h3>
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Пороги gate">
+<table class="datamap-table">
+<caption>Пороги: pending baseline честен до решения evidence owner; машинная сверка с controlled baseline не заявляется</caption>
+<thead><tr><th scope="col">Gate</th><th scope="col">Состояние</th><th scope="col">Значение</th><th scope="col">Evidence owner</th><th scope="col">Срок / fallback</th><th scope="col">Решение</th></tr></thead>
+<tbody>
+{{range .View.Thresholds}}<tr><th scope="row">{{.GateID}}</th><td>{{.StateText}}</td><td>{{if .Value}}{{.Value}}{{else}}—{{end}}</td><td>{{.EvidenceOwnerID}}</td><td>{{.DecisionDeadline}}; fallback {{.FailClosedFallback}}; совпадение ролей: {{.AllowRoleCoincidence}}</td><td>{{if .LastDecision}}{{.LastDecision}}{{end}} {{.Note}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+{{end}}
+{{end}}
+
+{{if .View.CanManage}}
+{{if .View.Draft}}
+<h2>Обновление черновика</h2>
+<form method="post" action="/app/tenants/{{.TenantID}}/employees/{{.EmployeeID}}/operating-profile/draft" class="knowledge-form">
+<label for="profile-manifest-id">manifest_id запечатанного манифеста</label>
+<input id="profile-manifest-id" name="manifest_id" value="{{.View.ManifestID}}" required>
+<label for="profile-config-version">Номер конфигурационной версии</label>
+<input id="profile-config-version" name="config_version" type="number" min="1" value="{{.View.ConfigVersion}}" required>
+<label for="profile-manifest-digest">digest манифеста (64 hex)</label>
+<input id="profile-manifest-digest" name="manifest_digest" value="{{.View.ManifestDigest}}" required maxlength="64">
+<label for="profile-content">Содержание профиля (JSON: work_scope, human_coverage, privacy_assignments, operational_level, measurement_dictionary, gate_declarations, coverage_matrix, conversation_modes, autonomy_classes)</label>
+<textarea id="profile-content" name="content" rows="{{.View.ContentRows}}" required>{{.View.ContentJSON}}</textarea>
+<p class="next-note">Ссылка сверяется с запечатанной строкой манифеста при каждой записи: незапечатанный или чужой манифест — честный отказ, черновик не сохраняется. Невалидные значения отклоняются с указанием поля; незаполненные обязательные разделы сохраняются честно и видны в перечне готовности.</p>
+<label for="profile-expected-revision">Ожидаемая ревизия (CAS)</label>
+<input id="profile-expected-revision" name="expected_revision" type="number" min="0" value="{{.View.ExpectedRevision}}" required>
+<button type="submit">Сохранить черновик</button>
+</form>
+
+<h2>Утверждение (единственное основное действие)</h2>
+<form method="post" action="/app/tenants/{{.TenantID}}/employees/{{.EmployeeID}}/operating-profile/approval" class="knowledge-form">
+<label for="approval-description">Описание-объяснение утверждения (1–300)</label>
+<input id="approval-description" name="description" required maxlength="300">
+<label for="approval-evidence">Evidence-ссылки (по одной на строку: digest манифеста, использованные версии порогов)</label>
+<textarea id="approval-evidence" name="evidence_refs" required></textarea>
+<label for="approval-expected-revision">Ожидаемая ревизия черновика</label>
+<input id="approval-expected-revision" name="expected_revision" type="number" min="1" value="{{.View.ExpectedRevision}}" required>
+<button class="primary" type="submit">Утвердить профиль (требует step-up)</button>
+<p class="next-note">Утверждение требует step-up подтверждения: провайдер повторной аутентификации в этом срезе не подключён — отказ честный (как у membership), без обхода.</p>
+</form>
+
+<h2>Решение по порогу gate (только evidence owner)</h2>
+<form method="post" action="/app/tenants/{{.TenantID}}/employees/{{.EmployeeID}}/operating-profile/thresholds" class="knowledge-form">
+<label for="threshold-gate">Идентификатор gate (из деклараций утверждённого профиля)</label>
+<input id="threshold-gate" name="gate_id" required maxlength="64">
+<label for="threshold-value">Значение порога (1–300; система значений не подставляет)</label>
+<input id="threshold-value" name="value" required maxlength="300">
+<label for="threshold-decision">Решение/пояснение (1–300)</label>
+<input id="threshold-decision" name="decision" required maxlength="300">
+<label for="threshold-evidence">Evidence-ссылки (по одной на строку)</label>
+<textarea id="threshold-evidence" name="evidence_refs" required></textarea>
+<button type="submit">Записать версию решения порога</button>
+<p class="next-note">Порог решает только участник, объявленный evidence owner'ом gate в последней утверждённой версии профиля. История решений append-only: новая версия ссылается на предыдущую и не переписывает её.</p>
+</form>
+{{else}}
+<h2>Создание черновика</h2>
+<p>Черновика профиля нет. Создайте его формой обновления: укажите точную ссылку на запечатанный манифест (manifest_id, config_version, digest со страницы Релиз) и JSON содержания профиля.</p>
+<form method="post" action="/app/tenants/{{.TenantID}}/employees/{{.EmployeeID}}/operating-profile/draft" class="knowledge-form">
+<label for="profile-manifest-id">manifest_id запечатанного манифеста</label>
+<input id="profile-manifest-id" name="manifest_id" value="{{.View.ManifestID}}" required>
+<label for="profile-config-version">Номер конфигурационной версии</label>
+<input id="profile-config-version" name="config_version" type="number" min="1" value="{{.View.ConfigVersion}}" required>
+<label for="profile-manifest-digest">digest манифеста (64 hex)</label>
+<input id="profile-manifest-digest" name="manifest_digest" value="{{.View.ManifestDigest}}" required maxlength="64">
+<label for="profile-content">Содержание профиля (JSON структуры профиля)</label>
+<textarea id="profile-content" name="content" rows="12" required></textarea>
+<input type="hidden" name="expected_revision" value="{{.View.ExpectedRevision}}">
+<button type="submit">Создать черновик профиля</button>
+</form>
+{{end}}
+{{else}}
+<p role="status">Управление профилем требует полномочия configuration: просмотр доступен, формы скрыты.</p>
+{{end}}
+</section></main></div></body></html>
+{{end}}

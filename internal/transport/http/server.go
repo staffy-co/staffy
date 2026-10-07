@@ -37,6 +37,7 @@ type Server struct {
         knowledge employeeAPI.KnowledgeService
         ingestion employeeAPI.KnowledgeIngestService
         release     employeeAPI.ReleaseService
+        profile     employeeAPI.ProfileService
         connector connectorAPI.Service
         privacy   privacyAPI.Service
         entitlement entitlementAPI.Service
