@@ -296,3 +296,25 @@ decisions:
 - DEVLOG-запись мержа — docs-пуш в main (разрешено протоколом: инфраструктура/docs, зелёное состояние только что подтверждено CI на main)
 next: CHECKPOINT для владельца: story 1-11 (entitlement-лимиты и прозрачность usage) — следующий по порядку; epic-1-retrospective остаётся optional до закрытия 1-11/1-12
 commit: 04d4735
+
+---
+date: 2026-10-07
+task: 19-sm
+role: main (Super Z, роль SM)
+story: 1-11
+summary: SM-спека первого среза Story 1.11 (entitlement/usage) написана и запушена на ветку — версии тарифа с derivation состояний, Budget Meter с честной полнотой данных, идемпотентный приём usage-событий, версионируемый бюджет с порогами и hard limit, операционные исключения с ack, admission_state-порт для 1-14/Epic 2
+done:
+- CHECKPOINT владельца после 1-10: выбран вариант (А) story 1-11 (делегировано рекомендации; ретроспектива — после закрытия эпика)
+- Входы SM прочитаны: epics.md §1.11 (FR-85, 9 блоков приёмки), PRD FR-85 (ручной договор/счёт и ручная активация в MVP; payments/dunning вне), epic-1-context (Requirements, Technical Decisions, Cross-Story: entitlement питает readiness), spec-1-9/1-10 (паттерны append-only, derivation, идемпотентность, честные словари), deferred-work (2 открытых долга 1-10 не относятся к 1-11), GATE-REGISTRY (AG-4: реальных провайдеров нет)
+- Инвентаризация кода: identity scopes (8 скоупов, Owner = все; data_governance как образец добавления), миграции по модулям, http/шаблоны/OpenAPI/journeys паттерны 1-10
+- Спека spec-1-11-entitlement-usage.md (119 строк, формат spec-1-10): модуль entitlement — 7 append-only таблиц (terms_versions, state_events, usage_events, usage_sources, budget_versions, usage_exceptions, exception_acknowledgements), словарь 7 категорий usage, состояния draft/active/paused/ended из событий, идемпотентность по (tenant, event_key)+payload hash (конфликт → 409 + audit), полнота complete/partial/stale/unknown (неизвестное ≠ ноль), оценка отделена от подтверждённого, бюджет версионируется (пороги, hard limit с объявленной политикой), scope commercial (управление) / commercial|audit (полный просмотр) / общий уровень (прочие), admission_state-порт
+- sprint-status.yaml: last_updated → 10-07-2026 (статус 1-11 = backlog, синхронно со спекой)
+- Ветка codex/story-1-11-entitlement-usage от cf7f992; спека — коммит 9fbdb0b [skip ci]; push; DEVLOG-запись 19-sm на ветке (урок PR #10: все записи story — в ветке)
+decisions:
+- Новый модуль entitlement вместо расширения identity: коммерческий контекст целостен (тариф+бюджет+usage+исключения), identity остаётся владельцем участников/полномочий; отклонение от буквы спайна задокументировано в Design Notes (прецедент privacy 1-10)
+- Идемпотентность usage живёт в самих данных (UNIQUE tenant+key, hash при приёме), а не в idempotency_records команд: ключ принадлежит событию, конфликт — для проверки, не для перезаписи
+- Метр агрегируется на чтении: materialized-агрегатов и mutable-текущих-состояний нет; версия правил агрегации штампуется при ingest
+- Hard limit и paused/ended дают выведенное admission_state + порт (enforcement — 1-14/Epic 2, поверхностей admission ещё нет); продолжают работать safety/handoff/reconciliation/принятые обязательства — список объявлен явно
+- Без конвертации валют: отношение к бюджету только при совпадающей валюте, иначе открытый вопрос
+next: CHECKPOINT 1 — одобрение спеки владельцем; после «одобряю» спека+sprint-status синхронно → ready-for-dev → Dev step-03 на ветке
+commit: 9fbdb0b
