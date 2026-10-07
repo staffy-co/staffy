@@ -538,6 +538,10 @@ func TestReleaseWriteAuditAndGrants(t *testing.T) {
         }
         if _, err = rlsTx.Exec(ctx, "insert into employee.config_versions(tenant_id,employee_id,version_id,version,refs,description,actor_id,created_at) values($1,$2,$3,1,'{}'::jsonb,'foreign',$4,now())", foreign, employeeID, foreignVersionID, w.owner.ID); err == nil {
                 t.Fatal("RLS must block cross-tenant inserts")
+        } else if !strings.Contains(err.Error(), "row-level security") {
+                // Discriminate the honest cause: the policy rejected the row,
+                // not a constraint or an argument mismatch.
+                t.Fatalf("cross-tenant insert must fail on the RLS policy, got: %v", err)
         }
 }
 

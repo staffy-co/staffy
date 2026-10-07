@@ -61,7 +61,13 @@ func (f *releaseFixture) ReleaseView(_ context.Context, _ domain.Principal, _, e
 		draft := *f.draft
 		view.Draft = &draft
 	}
-	view.Versions = append([]employeeDomain.ConfigVersion(nil), f.versions...)
+	// Production orders versions newest first; the fixture mirrors it so
+	// the page diff logic (predecessor = next list entry) stays honest.
+	versions := append([]employeeDomain.ConfigVersion(nil), f.versions...)
+	for i, j := 0, len(versions)-1; i < j; i, j = i+1, j-1 {
+		versions[i], versions[j] = versions[j], versions[i]
+	}
+	view.Versions = versions
 	for _, manifest := range f.manifests {
 		view.Manifests = append(view.Manifests, employeeAPI.ManifestSummary{
 			ConfigVersion: manifest.ConfigVersion, ManifestID: manifest.ManifestID, Status: manifest.Status,
@@ -277,11 +283,14 @@ func (f *releaseFixture) Restore(_ context.Context, c employeeAPI.RestoreCommand
 		return employeeAPI.RestoreResult{}, employeeDomain.ErrNotFound
 	}
 	var sealed *employeeDomain.ManifestContent
+	quarantinedManifest := ""
 	if raw, ok := f.raw[c.ConfigVersion]; ok {
 		read := employeeDomain.ReadManifestPayload(raw, f.digestOf(c.ConfigVersion))
 		if read.Status == employeeDomain.QuarantineNone {
 			content := read.Content
 			sealed = &content
+		} else {
+			quarantinedManifest = read.Reason
 		}
 	}
 	connections, err := f.connectorFacts()
@@ -320,6 +329,12 @@ func (f *releaseFixture) Restore(_ context.Context, c employeeAPI.RestoreCommand
 		BehaviorVersion: behaviorVersion, VoiceVersion: voiceVersion,
 		Knowledge: knowledge, Connections: current, Sealed: sealed,
 	})
+	// A quarantined manifest means the connection part of the report could
+	// not be checked: the report says so instead of looking complete.
+	if quarantinedManifest != "" {
+		issues = append(issues, employeeDomain.CompatibilityIssue{Area: "manifest", Subject: "Release Manifest версии",
+			Problem: "Запечатанный манифест версии в карантине (" + quarantinedManifest + "): сверка подключений и capabilities по манифесту не выполнена — отчёт неполный, а не пустой."})
+	}
 	link := employeeDomain.ConfigVersionLink{Version: version.Version, VersionID: version.VersionID, CreatedAt: version.CreatedAt}
 	draft, err := f.saveDraft(version.Refs, &link, c.ExpectedRevision, c.Actor.ID)
 	if err != nil {

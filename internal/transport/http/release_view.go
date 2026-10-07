@@ -2,6 +2,7 @@ package httptransport
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -102,25 +103,51 @@ func releaseScopeText(scope string) string {
 }
 
 // releaseChangedComponents lists the components whose references differ
-// between a version and its predecessor; the first version lists every
-// component it pins (there is nothing to compare with).
+// between a version and its predecessor — comparing the exact versions,
+// not only presence: a bumped brief, a moved behavior version, an added
+// knowledge source or a changed voice version all count. The first version
+// lists every component it pins (there is nothing to compare with).
 func releaseChangedComponents(refs employeeDomain.ConfigRefs, previous *employeeDomain.ConfigRefs) string {
 	changed := []string{}
-	brief, pack, behavior, knowledge, voice := "", "", "", "", ""
-	if previous != nil {
-		brief, pack, behavior, knowledge, voice = previous.Brief.Status, previous.Pack.Status, previous.Behavior.Status, previous.Knowledge.Status, previous.Voice.Status
-	}
 	record := func(name, current, prev string) {
 		if previous == nil || current != prev {
 			changed = append(changed, name)
 		}
 	}
-	record("Brief", refs.Brief.Status, brief)
-	record("Domain Pack", refs.Pack.Status, pack)
-	record("Поведение", refs.Behavior.Status, behavior)
-	record("Знания", refs.Knowledge.Status, knowledge)
-	record("Голос", refs.Voice.Status, voice)
+	prevBrief, prevBehavior, prevVoice, prevKnowledge, prevPack := "", "", "", "", ""
+	if previous != nil {
+		prevBrief = fmt.Sprintf("%s/%d", previous.Brief.Status, previous.Brief.DraftVersion)
+		prevBehavior = fmt.Sprintf("%s/%d", previous.Behavior.Status, previous.Behavior.Version)
+		prevVoice = fmt.Sprintf("%s/%d", previous.Voice.Status, previous.Voice.Version)
+		prevKnowledge = knowledgeFingerprint(previous.Knowledge)
+		prevPack = packFingerprint(previous.Pack)
+	}
+	record("Brief", fmt.Sprintf("%s/%d", refs.Brief.Status, refs.Brief.DraftVersion), prevBrief)
+	record("Domain Pack", packFingerprint(refs.Pack), prevPack)
+	record("Поведение", fmt.Sprintf("%s/%d", refs.Behavior.Status, refs.Behavior.Version), prevBehavior)
+	record("Знания", knowledgeFingerprint(refs.Knowledge), prevKnowledge)
+	record("Голос", fmt.Sprintf("%s/%d", refs.Voice.Status, refs.Voice.Version), prevVoice)
 	return strings.Join(changed, ", ")
+}
+
+// packFingerprint pins the exact pack reference including variants count.
+func packFingerprint(pack employeeDomain.PackRef) string {
+	if pack.Status != employeeDomain.RefPresent {
+		return pack.Status
+	}
+	return pack.ID + "@" + pack.Version + "/" + strconv.Itoa(len(pack.Variants))
+}
+
+// knowledgeFingerprint pins the exact source list with versions.
+func knowledgeFingerprint(knowledge employeeDomain.KnowledgeRef) string {
+	if knowledge.Status != employeeDomain.RefPresent {
+		return knowledge.Status
+	}
+	parts := make([]string, 0, len(knowledge.Sources))
+	for _, source := range knowledge.Sources {
+		parts = append(parts, source.SourceID.String()+"@"+strconv.FormatInt(source.Version, 10))
+	}
+	return strings.Join(parts, ";")
 }
 
 func prepareDraftView(draft employeeDomain.ReleaseDraft) *draftPageView {
