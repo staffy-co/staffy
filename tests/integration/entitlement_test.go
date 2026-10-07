@@ -581,6 +581,22 @@ func TestEntitlementIsolationAndLevels(t *testing.T) {
         if view.Categories != nil || view.ConfirmedTotal != nil || view.Budget != nil {
                 t.Fatalf("summary level must carry no sums or terms: %+v", view)
         }
+        // R1: the summary EntitlementView carries no tariff either — no terms,
+        // no history, no lifecycle events with commercial grounds, no sources,
+        // no open questions of the tariff (the tenant HAS a terms version).
+        summary, err := world.entitlement.EntitlementView(context.Background(), member, world.tenant)
+        if err != nil {
+                t.Fatal(err)
+        }
+        if summary.Level != entitlementAPI.LevelSummary {
+                t.Fatalf("operator entitlement level = %q, want summary", summary.Level)
+        }
+        if summary.Terms != nil || summary.History != nil || summary.StateEvents != nil || summary.Sources != nil || summary.OpenQuestions != nil {
+                t.Fatalf("summary entitlement view must carry no tariff, history, state events or sources: %+v", summary)
+        }
+        if summary.State != entitlementDomain.StateDraft || summary.BudgetQuality == "" {
+                t.Fatalf("summary view must still carry the state and the budget quality: %+v", summary)
+        }
         if _, _, err := world.entitlement.IngestUsage(context.Background(), usageMemberCommand(world, member, "carrier-op-1")); err != nil {
                 t.Fatalf("operations member must ingest usage: %v", err)
         }
@@ -647,4 +663,66 @@ func memberBudgetCommand(world *entitlementWorld, member identityDomain.Principa
         command := budgetCommand(world, 50000, 0)
         command.Actor = member
         return command
+}
+
+// TestBudgetPublishedAfterUsageRaisesExceptions covers the R1 regression:
+// publishing a budget over already ingested spend evaluates the exceptions
+// immediately — the threshold crossing does not wait for the next ingest,
+// and the re-published budget version re-raises under its own dedupe key.
+func TestBudgetPublishedAfterUsageRaisesExceptions(t *testing.T) {
+        world := newEntitlementWorld(t, 89)
+        registerSource(t, world, "all-report", entitlementDomain.AllCategories()...)
+        // Full-period coverage of every category keeps the data complete, so
+        // the threshold message may carry the exact sum.
+        for i, category := range entitlementDomain.AllCategories() {
+                amount := 50.0
+                if category == entitlementDomain.CategoryCarrier {
+                        continue
+                }
+                if _, _, err := world.entitlement.IngestUsage(context.Background(), usageCommand(world, fmt.Sprintf("pre-budget-%d", i), string(category), 1, amount, false)); err != nil {
+                        t.Fatal(err)
+                }
+        }
+        if _, _, err := world.entitlement.IngestUsage(context.Background(), usageCommand(world, "pre-budget-carrier", "carrier", 120, 500, false)); err != nil {
+                t.Fatal(err)
+        }
+        // No budget exists yet: no threshold exception can be raised.
+        exceptions, err := world.entitlement.ExceptionsView(context.Background(), world.principal, world.tenant)
+        if err != nil {
+                t.Fatal(err)
+        }
+        if countCause(exceptions, entitlementDomain.CauseBudgetThreshold) != 0 {
+                t.Fatalf("no budget published: threshold exceptions = %d, want 0", countCause(exceptions, entitlementDomain.CauseBudgetThreshold))
+        }
+        // Publishing the budget with 800 confirmed against a threshold of
+        // 80% of 1000 must raise the exception right at SetBudget time.
+        if _, err := world.entitlement.SetBudget(context.Background(), budgetCommand(world, 1000, 0)); err != nil {
+                t.Fatal(err)
+        }
+        exceptions, err = world.entitlement.ExceptionsView(context.Background(), world.principal, world.tenant)
+        if err != nil {
+                t.Fatal(err)
+        }
+        if countCause(exceptions, entitlementDomain.CauseBudgetThreshold) != 1 {
+                t.Fatalf("threshold exceptions after SetBudget = %d, want exactly 1", countCause(exceptions, entitlementDomain.CauseBudgetThreshold))
+        }
+        for _, exception := range exceptions.Exceptions {
+                if exception.Cause == entitlementDomain.CauseBudgetThreshold {
+                        if exception.DataStatus != entitlementDomain.DataComplete || !contains(exception.Message, "800.00") {
+                                t.Fatalf("complete data must carry the exact sum: %+v", exception)
+                        }
+                }
+        }
+        // A second budget version of the same period re-raises the threshold
+        // under its own version-stamped dedupe key (no silent suppression).
+        if _, err := world.entitlement.SetBudget(context.Background(), budgetCommand(world, 1000, 0)); err != nil {
+                t.Fatal(err)
+        }
+        exceptions, err = world.entitlement.ExceptionsView(context.Background(), world.principal, world.tenant)
+        if err != nil {
+                t.Fatal(err)
+        }
+        if countCause(exceptions, entitlementDomain.CauseBudgetThreshold) != 2 {
+                t.Fatalf("threshold exceptions after the second budget version = %d, want 2 (one per version)", countCause(exceptions, entitlementDomain.CauseBudgetThreshold))
+        }
 }

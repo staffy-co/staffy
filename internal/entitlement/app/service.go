@@ -196,6 +196,17 @@ func (s *Service) EntitlementView(ctx context.Context, actor identityDomain.Prin
                 if current := latestBudget(budgets); current != nil {
                         view.Budget = current
                 }
+        } else {
+                // The summary level carries only the entitlement state and the
+                // qualitative budget status: no terms, no tariff history, no
+                // lifecycle events with commercial grounds, no source
+                // registrations (R1: they used to leak through both the JSON
+                // API and the page while the page claimed the opposite).
+                view.Terms = nil
+                view.OpenQuestions = nil
+                view.History = nil
+                view.StateEvents = nil
+                view.Sources = nil
         }
         return view, nil
 }
@@ -452,7 +463,18 @@ func (s *Service) SetBudget(ctx context.Context, c api.BudgetCommand) (entitleme
         if len([]rune(budget.Note)) > 600 {
                 return entitlementDomain.BudgetVersion{}, entitlementDomain.RuleError{Rule: "note", Reason: "Примечание: до 600 символов."}
         }
-        return s.repository.SaveBudget(ctx, port.BudgetParams{Scope: scope, Budget: budget, Now: s.clock.Now().UTC()})
+        saved, err := s.repository.SaveBudget(ctx, port.BudgetParams{Scope: scope, Budget: budget, Now: s.clock.Now().UTC()})
+        if err != nil {
+                return entitlementDomain.BudgetVersion{}, err
+        }
+        // The budget declares the thresholds: publishing it over already
+        // ingested spend must immediately evaluate the exceptions (R1: they
+        // used to appear only at the next ingest). The dedupe key carries the
+        // budget version, so a re-published budget re-raises honestly.
+        if err := s.evaluateExceptions(ctx, scope, s.clock.Now().UTC()); err != nil {
+                return saved, err
+        }
+        return saved, nil
 }
 
 // RegisterSource validates and appends one source registration; the latest
@@ -602,13 +624,20 @@ func (s *Service) evaluateExceptions(ctx context.Context, scope tenancy.Context,
         }
         budget := latestBudget(budgets)
         meter := entitlementDomain.ComputeMeter(events, entitlementDomain.CurrentSources(sources), budget, now)
+        // The dedupe key names the period and the budget version (the note of
+        // the spec): a re-published budget re-discovers the same facts under a
+        // new version instead of silently suppressing them.
+        periodKey := "no-budget"
+        if budget != nil {
+                periodKey = fmt.Sprintf("v%d:%s:%s", budget.Version, budget.PeriodStart.Format("2006-01-02"), budget.PeriodEnd.Format("2006-01-02"))
+        }
         if meter.DataStatus != entitlementDomain.DataComplete {
                 if err := s.raiseException(ctx, scope, entitlementDomain.UsageException{
                         Cause:             entitlementDomain.CauseDataGap,
                         Message:           dataGapMessage(meter),
                         DataStatus:        meter.DataStatus,
                         RecommendedAction: "Проверьте доставку событий от источников; неизвестный расход не считается нулём.",
-                        DedupeKey:          "gap:" + meterPeriodKey(meter),
+                        DedupeKey:          "gap:" + periodKey,
                         AggRuleVersion:    entitlementDomain.AggregationRuleVersion,
                         ActorID:           scope.PrincipalID().String(),
                         CreatedAt:         now,
@@ -619,7 +648,6 @@ func (s *Service) evaluateExceptions(ctx context.Context, scope tenancy.Context,
         if budget == nil {
                 return nil
         }
-        periodKey := fmt.Sprintf("v%d:%s:%s", budget.Version, budget.PeriodStart.Format("2006-01-02"), budget.PeriodEnd.Format("2006-01-02"))
         if meter.Budget != nil && meter.Budget.Warned {
             if err := s.raiseException(ctx, scope, entitlementDomain.UsageException{
                 Cause:             entitlementDomain.CauseBudgetThreshold,
@@ -672,13 +700,6 @@ func (s *Service) evaluateExceptions(ctx context.Context, scope tenancy.Context,
             }
         }
         return nil
-}
-
-func meterPeriodKey(meter entitlementDomain.Meter) string {
-        if meter.PeriodStart == nil || meter.PeriodEnd == nil {
-                return "no-budget"
-        }
-        return meter.PeriodStart.Format("2006-01-02") + ":" + meter.PeriodEnd.Format("2006-01-02")
 }
 
 // amountOrHonesty renders the confirmed amount only when the data is

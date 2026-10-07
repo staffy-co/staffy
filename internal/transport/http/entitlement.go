@@ -434,7 +434,9 @@ func (s *Server) ackExceptionAPI(w http.ResponseWriter, r *http.Request) {
 }
 
 // decodeEntitlementJSON enforces one JSON object per request with unknown
-// fields rejected (the same boundary as the other modules).
+// fields rejected (the same boundary as the other modules). Decode failures
+// get their own honest reason (R1: they used to masquerade as an invalid
+// event key, which is a misleading cause for a malformed body).
 func decodeEntitlementJSON(w http.ResponseWriter, r *http.Request, target any, problem func(http.ResponseWriter, *http.Request, error)) bool {
         media, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
         if err != nil || media != "application/json" {
@@ -444,11 +446,11 @@ func decodeEntitlementJSON(w http.ResponseWriter, r *http.Request, target any, p
         decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 32<<10))
         decoder.DisallowUnknownFields()
         if err = decoder.Decode(target); err != nil {
-                problem(w, r, entitlementDomain.ErrInvalidEventKey)
+                problem(w, r, entitlementDomain.RuleError{Rule: "body", Reason: "Проверьте JSON-запрос: один объект с известными полями."})
                 return false
         }
         if err = decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
-                problem(w, r, entitlementDomain.ErrInvalidEventKey)
+                problem(w, r, entitlementDomain.RuleError{Rule: "body", Reason: "Ожидается ровно один JSON-объект без данных после него."})
                 return false
         }
         return true
@@ -539,14 +541,23 @@ func (s *Server) termsForm(w http.ResponseWriter, r *http.Request) {
                 command.PeriodEnd = end
         }
         if price := r.FormValue("launch_price"); price != "" {
-                if value, err := strconv.ParseFloat(price, 64); err == nil {
-                        command.LaunchPrice = &value
+                value, err := strconv.ParseFloat(price, 64)
+                if err != nil {
+                        // R1: a malformed price is an honest error, never a
+                        // silent drop that publishes the version as an open
+                        // question while the owner believes it was saved.
+                        redirectEntitlementError(w, r, tenant, entitlementDomain.RuleError{Rule: "launch_price", Reason: "Цена запуска задаётся числом (например 49000)."})
+                        return
                 }
+                command.LaunchPrice = &value
         }
         if price := r.FormValue("subscription_price"); price != "" {
-                if value, err := strconv.ParseFloat(price, 64); err == nil {
-                        command.SubscriptionPrice = &value
+                value, err := strconv.ParseFloat(price, 64)
+                if err != nil {
+                        redirectEntitlementError(w, r, tenant, entitlementDomain.RuleError{Rule: "subscription_price", Reason: "Цена подписки задаётся числом (например 15000)."})
+                        return
                 }
+                command.SubscriptionPrice = &value
         }
         if _, err := service.ComposeTerms(r.Context(), command); err != nil {
                 redirectEntitlementError(w, r, tenant, err)
@@ -765,6 +776,9 @@ func (s *Server) budgetPage(w http.ResponseWriter, r *http.Request) {
         if v := r.URL.Query().Get("ack_saved"); v == "1" {
                 data["Notice"] = "Подтверждение исключения зафиксировано."
         }
+        if v := r.URL.Query().Get("exception_saved"); v == "1" {
+                data["Notice"] = "Операционное исключение зафиксировано."
+        }
         if message := flashError(r, tenant); message != "" {
                 data["Error"] = message
                 http.SetCookie(w, clearFlashCookie(tenant))
@@ -867,7 +881,9 @@ func (s *Server) exceptionForm(w http.ResponseWriter, r *http.Request) {
                 redirectBudgetError(w, r, tenant, err)
                 return
         }
-        http.Redirect(w, r, "/app/tenants/"+tenant.String()+"/budget?ingested=1", http.StatusSeeOther)
+        // R1: the flag names what actually happened (an exception was
+        // recorded), not a usage ingest.
+        http.Redirect(w, r, "/app/tenants/"+tenant.String()+"/budget?exception_saved=1", http.StatusSeeOther)
 }
 
 func (s *Server) ackForm(w http.ResponseWriter, r *http.Request) {

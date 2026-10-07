@@ -4,7 +4,6 @@ import (
         "context"
         "encoding/json"
         "errors"
-        
 
         entitlementDomain "github.com/artemiosu/staffy/internal/entitlement/domain"
         "github.com/artemiosu/staffy/internal/entitlement/port"
@@ -316,14 +315,16 @@ func (s *Postgres) IngestUsage(ctx context.Context, p port.IngestParams) (entitl
         return event, false, tx.Commit(ctx)
 }
 
-// ListUsageEvents returns every stored usage event of the tenant.
+// ListUsageEvents returns every stored usage event of the tenant. No LIMIT:
+// the meter aggregates ALL facts on read — a truncated list would silently
+// undercount the sums while the data status claims completeness (R1).
 func (s *Postgres) ListUsageEvents(ctx context.Context, scope tenancy.Context) ([]entitlementDomain.UsageEvent, error) {
         tx, err := s.begin(ctx, scope, true)
         if err != nil {
                 return nil, err
         }
         defer func() { _ = tx.Rollback(ctx) }()
-        rows, err := tx.Query(ctx, "select "+usageColumns+" from entitlement.usage_events where tenant_id=$1 order by ingested_at desc, event_id desc limit 10000", scope.TenantID())
+        rows, err := tx.Query(ctx, "select "+usageColumns+" from entitlement.usage_events where tenant_id=$1 order by ingested_at desc, event_id desc", scope.TenantID())
         if err != nil {
                 return nil, err
         }
