@@ -18,6 +18,7 @@ import (
         "github.com/artemiosu/staffy/internal/identity/domain"
         "github.com/artemiosu/staffy/internal/identity/port"
         connectorAPI "github.com/artemiosu/staffy/internal/connector/api"
+        entitlementAPI "github.com/artemiosu/staffy/internal/entitlement/api"
         privacyAPI "github.com/artemiosu/staffy/internal/privacy/api"
         "github.com/artemiosu/staffy/internal/platform/correlation"
         "github.com/artemiosu/staffy/internal/platform/httpx"
@@ -37,6 +38,7 @@ type Server struct {
         ingestion employeeAPI.KnowledgeIngestService
         connector connectorAPI.Service
         privacy   privacyAPI.Service
+        entitlement entitlementAPI.Service
         resolver  port.PrincipalResolver
         ids       IDGenerator
         clock     Clock

@@ -43,9 +43,10 @@ const (
         Claims             Scope = "claims"
         Audit              Scope = "audit"
         DataGovernance     Scope = "data_governance"
+        Commercial         Scope = "commercial"
 )
 
-var allScopes = []Scope{Configuration, Integrations, Operations, Review, TechnicalExpertise, Claims, Audit, DataGovernance}
+var allScopes = []Scope{Configuration, Integrations, Operations, Review, TechnicalExpertise, Claims, Audit, DataGovernance, Commercial}
 
 func AllowedScopes(roles []Role) (map[Scope]bool, bool) {
         allowed := map[Scope]bool{}

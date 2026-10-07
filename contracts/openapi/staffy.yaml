@@ -1231,6 +1231,314 @@ paths:
               schema: { $ref: '#/components/schemas/LifecycleReceipt' }
         '401': { $ref: '#/components/responses/Problem' }
         '404': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/entitlement:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+    get:
+      operationId: readEntitlement
+      summary: Тариф и состояние Entitlement (полный уровень — commercial/audit, общий — участник)
+      x-staffy-principal-required: true
+      responses:
+        '200':
+          description: Выведенное коммерческое состояние с составом тарифа и открытыми вопросами
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EntitlementView' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/entitlement/terms:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+    post:
+      operationId: composeTerms
+      summary: Новая append-only версия условий тарифа (commercial)
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                currency: { type: string, maxLength: 3, description: 'Пусто = открытый вопрос, не ноль' }
+                tax_regime: { type: string, maxLength: 300 }
+                period_start: { type: string, format: date }
+                period_end: { type: string, format: date }
+                included_employees: { type: array, items: { type: string } }
+                included_channels: { type: array, items: { type: string } }
+                included_connectors: { type: array, items: { type: string } }
+                limits:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [category, cap]
+                    properties:
+                      category: { type: string, enum: [carrier, audio, model_tokens, tools, connector_charges, infrastructure, manual_minutes] }
+                      cap: { type: number, exclusiveMinimum: 0 }
+                      unit: { type: string }
+                launch_price: { type: number, minimum: 0, description: 'Пусто = открытый вопрос, не ноль' }
+                subscription_price: { type: number, minimum: 0 }
+                change_note: { type: string, maxLength: 600 }
+      responses:
+        '201':
+          description: Опубликованная версия условий
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TermsVersion' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '415': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/entitlement/state:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+    post:
+      operationId: runEntitlementStateTransition
+      summary: Активация (с подтверждением), приостановка, возобновление или завершение (commercial)
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [action, basis]
+              properties:
+                action: { type: string, enum: [activate, pause, resume, end] }
+                basis: { type: string, minLength: 1, maxLength: 600 }
+                confirm: { type: boolean, description: 'Обязательно true для activate' }
+      responses:
+        '201':
+          description: Зафиксированное событие состояния
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EntitlementStateEvent' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '415': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/entitlement/budgets:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+    post:
+      operationId: setBudget
+      summary: Новая append-only версия бюджета с порогами и hard limit (commercial)
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [amount, currency, period_start, period_end, warning_threshold_percent, limit_policy]
+              properties:
+                amount: { type: number, exclusiveMinimum: 0 }
+                currency: { type: string, pattern: '^[A-Z]{3}$' }
+                period_start: { type: string, format: date }
+                period_end: { type: string, format: date }
+                warning_threshold_percent: { type: integer, minimum: 1, maximum: 100 }
+                hard_limit: { type: number, exclusiveMinimum: 0 }
+                limit_policy: { type: string, enum: [block_new_admissions, degraded, notify_only] }
+                anomaly_thresholds:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [category, max_quantity]
+                    properties:
+                      category: { type: string, enum: [carrier, audio, model_tokens, tools, connector_charges, infrastructure, manual_minutes] }
+                      max_quantity: { type: number, exclusiveMinimum: 0 }
+                      unit: { type: string }
+                note: { type: string, maxLength: 600 }
+      responses:
+        '201':
+          description: Опубликованная версия бюджета
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BudgetVersion' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '415': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/entitlement/sources:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+    post:
+      operationId: registerUsageSource
+      summary: Регистрация (или снятие) источника usage (commercial)
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 100 }
+                categories: { type: array, items: { type: string } }
+                freshness_minutes: { type: integer, minimum: 1, maximum: 100000 }
+                retire: { type: boolean }
+                note: { type: string, maxLength: 600 }
+      responses:
+        '201':
+          description: Регистрация источника
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UsageSource' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '415': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/usage-events:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+    post:
+      operationId: ingestUsageEvent
+      summary: Идемпотентный приём usage-события (commercial или operations); конфликт ключа — 409
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [event_key, source, category, quantity, period_start, period_end]
+              properties:
+                event_key: { type: string, minLength: 8, maxLength: 200 }
+                source: { type: string, minLength: 1, maxLength: 100 }
+                category: { type: string, enum: [carrier, audio, model_tokens, tools, connector_charges, infrastructure, manual_minutes] }
+                quantity: { type: number, exclusiveMinimum: 0 }
+                amount: { type: number, minimum: 0 }
+                currency: { type: string, pattern: '^[A-Z]{3}$' }
+                is_estimate: { type: boolean, description: 'Оценка отделяется от подтверждённого начисления' }
+                period_start: { type: string, format: date }
+                period_end: { type: string, format: date }
+                occurred_at: { type: string, format: date-time }
+                employee_id: { type: string, maxLength: 100 }
+                channel: { type: string, maxLength: 100 }
+                release_version: { type: string, maxLength: 100 }
+                provenance: { type: string, maxLength: 600 }
+      responses:
+        '201':
+          description: Учтённое событие; replay возвращает сохранённый результат
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UsageEvent' }
+          headers:
+            Idempotency-Replayed:
+              description: 'true — повторная доставка того же события'
+              schema: { type: string, enum: ['true'] }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+        '415': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/budget-meter:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+    get:
+      operationId: readBudgetMeter
+      summary: Budget Meter с честными статусами полноты (полный уровень — commercial/audit)
+      x-staffy-principal-required: true
+      responses:
+        '200':
+          description: Агрегат на чтении с полнотой данных и раздельными суммами
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BudgetMeter' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/admission-state:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+    get:
+      operationId: readAdmissionState
+      summary: Выведенное состояние допуска для потребителей (readiness/Epic 2); enforcement не подключён
+      x-staffy-principal-required: true
+      responses:
+        '200':
+          description: ok / blocked_new_admissions / degraded со списком продолжающегося
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdmissionState' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/usage-exceptions:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+    get:
+      operationId: listUsageExceptions
+      summary: Операционные исключения с выводимыми подтверждениями
+      x-staffy-principal-required: true
+      responses:
+        '200':
+          description: Список исключений
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UsageExceptionsView' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+    post:
+      operationId: raiseUsageException
+      summary: Ручное операционное исключение из словаря причин (commercial)
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [cause, message, recommended_action]
+              properties:
+                cause: { type: string, enum: [budget_threshold, hard_limit_reached, data_gap, anomaly_tool_calls, anomaly_retry_storm, anomaly_manual_minutes, manual_entry] }
+                affected_employee: { type: string, maxLength: 100 }
+                affected_route: { type: string, maxLength: 100 }
+                recommended_action: { type: string, minLength: 1, maxLength: 600 }
+                message: { type: string, minLength: 1, maxLength: 1000 }
+      responses:
+        '201':
+          description: Зафиксированное исключение
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UsageException' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '415': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/usage-exceptions/{exception_id}/acknowledge:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - name: exception_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: acknowledgeUsageException
+      summary: Подтверждение исключения (commercial или operations)
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                note: { type: string, maxLength: 600 }
+      responses:
+        '204': { description: Подтверждение зафиксировано }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '415': { $ref: '#/components/responses/Problem' }
 components:
   parameters:
     EmployeeID:
@@ -1879,6 +2187,211 @@ components:
           properties:
             actor_id: { type: string, format: uuid }
             change_summary: { type: string }
+    EntitlementView:
+      type: object
+      required: [level, state, composition, open_questions, admission]
+      properties:
+        level: { type: string, enum: [full, summary] }
+        state: { type: string, enum: [draft, active, paused, ended] }
+        composition: { type: array, items: { $ref: '#/components/schemas/UsageCategorySpec' } }
+        terms: { $ref: '#/components/schemas/TermsVersion' }
+        open_questions: { type: array, items: { type: string }, description: 'Отсутствующая цена/решение — открытый вопрос, не ноль' }
+        history: { type: array, items: { $ref: '#/components/schemas/TermsVersion' } }
+        state_events: { type: array, items: { $ref: '#/components/schemas/EntitlementStateEvent' } }
+        budget: { $ref: '#/components/schemas/BudgetVersion' }
+        budget_quality: { type: string, enum: [budget_not_set, within_budget, near_threshold, over_budget] }
+        admission: { $ref: '#/components/schemas/AdmissionState' }
+        sources: { type: array, items: { $ref: '#/components/schemas/UsageSource' } }
+    UsageCategorySpec:
+      type: object
+      required: [id, title, unit]
+      properties:
+        id: { type: string, enum: [carrier, audio, model_tokens, tools, connector_charges, infrastructure, manual_minutes] }
+        title: { type: string }
+        unit: { type: string }
+        money: { type: boolean }
+    TermsVersion:
+      type: object
+      required: [version, included_employees, included_channels, included_connectors, limits, change_note, created_at]
+      properties:
+        version: { type: integer, minimum: 1 }
+        currency: { type: string, description: 'Пусто = открытый вопрос' }
+        tax_regime: { type: string, description: 'Пусто = явная неопределённость' }
+        period_start: { type: string, format: date }
+        period_end: { type: string, format: date }
+        included_employees: { type: array, items: { type: string } }
+        included_channels: { type: array, items: { type: string } }
+        included_connectors: { type: array, items: { type: string } }
+        limits: { type: array, items: { $ref: '#/components/schemas/CategoryLimit' } }
+        launch_price: { type: number, description: 'Пусто = открытый вопрос, не ноль' }
+        subscription_price: { type: number }
+        change_note: { type: string }
+        actor_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+    CategoryLimit:
+      type: object
+      required: [category, cap]
+      properties:
+        category: { type: string }
+        cap: { type: number }
+        unit: { type: string }
+    EntitlementStateEvent:
+      type: object
+      required: [event_id, event, terms_version, basis, created_at]
+      properties:
+        event_id: { type: string, format: uuid }
+        event: { type: string, enum: [activate, pause, resume, end] }
+        terms_version: { type: integer, minimum: 1 }
+        basis: { type: string, description: 'Дата, основание и подтвердивший участник (FR-85)' }
+        limits_check: { type: string, enum: [ok, exceeded, no_budget], description: 'Результат перепроверки лимитов при resume' }
+        actor_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+    BudgetVersion:
+      type: object
+      required: [version, amount, currency, period_start, period_end, warning_threshold_percent, limit_policy, created_at]
+      properties:
+        version: { type: integer, minimum: 1 }
+        amount: { type: number, exclusiveMinimum: 0 }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
+        period_start: { type: string, format: date }
+        period_end: { type: string, format: date }
+        warning_threshold_percent: { type: integer, minimum: 1, maximum: 100 }
+        hard_limit: { type: number, description: 'Оценивается только подтверждённым расходом' }
+        limit_policy: { type: string, enum: [block_new_admissions, degraded, notify_only] }
+        anomaly_thresholds: { type: array, items: { $ref: '#/components/schemas/AnomalyThreshold' } }
+        note: { type: string }
+        actor_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+    AnomalyThreshold:
+      type: object
+      required: [category, max_quantity]
+      properties:
+        category: { type: string }
+        max_quantity: { type: number }
+        unit: { type: string }
+    UsageSource:
+      type: object
+      required: [registration_id, name, categories, freshness_minutes, retired, created_at]
+      properties:
+        registration_id: { type: string, format: uuid }
+        name: { type: string }
+        categories: { type: array, items: { type: string } }
+        freshness_minutes: { type: integer }
+        retired: { type: boolean }
+        note: { type: string }
+        actor_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+    UsageEvent:
+      type: object
+      required: [event_id, event_key, source, category, quantity, unit, is_estimate, period_start, period_end, occurred_at, ingested_at, provenance, agg_rule_version]
+      properties:
+        event_id: { type: string, format: uuid }
+        event_key: { type: string, description: 'Tenant-scoped идемпотентный ключ события' }
+        payload_hash: { type: string, description: 'Материальный payload: тот же ключ с иным hash — конфликт' }
+        source: { type: string }
+        category: { type: string }
+        quantity: { type: number }
+        unit: { type: string }
+        amount: { type: number }
+        currency: { type: string }
+        is_estimate: { type: boolean, description: 'Оценка отделяется от подтверждённого начисления' }
+        period_start: { type: string, format: date }
+        period_end: { type: string, format: date }
+        occurred_at: { type: string, format: date-time }
+        ingested_at: { type: string, format: date-time }
+        employee_id: { type: string, description: 'Идентификатор, не содержимое' }
+        channel: { type: string }
+        release_version: { type: string }
+        provenance: { type: string }
+        agg_rule_version: { type: string, description: 'Версия правил агрегации штампуется при приёме' }
+        actor_id: { type: string, format: uuid }
+    BudgetMeter:
+      type: object
+      required: [level, data_status, agg_rule_version, budget_quality]
+      properties:
+        level: { type: string, enum: [full, summary] }
+        data_status: { type: string, enum: [complete, partial, stale, unknown], description: 'Неизвестный расход не заменяется нулём' }
+        period_start: { type: string, format: date }
+        period_end: { type: string, format: date }
+        last_ingested_at: { type: string, format: date-time }
+        agg_rule_version: { type: string }
+        categories: { type: array, items: { $ref: '#/components/schemas/CategoryMeter' } }
+        missing_categories: { type: array, items: { type: string }, description: 'Категории без зарегистрированного источника' }
+        confirmed_total: { type: object, additionalProperties: { type: number }, description: 'Подтверждённые суммы по валютам' }
+        estimate_total: { type: object, additionalProperties: { type: number }, description: 'Оценки по валютам — отдельно от подтверждённого' }
+        budget: { $ref: '#/components/schemas/BudgetRelation' }
+        budget_quality: { type: string, enum: [budget_not_set, within_budget, near_threshold, over_budget] }
+        breakdowns: { type: array, items: { $ref: '#/components/schemas/BreakdownRow' } }
+    CategoryMeter:
+      type: object
+      required: [category, title, unit, status, status_note]
+      properties:
+        category: { type: string }
+        title: { type: string }
+        unit: { type: string }
+        event_count: { type: integer }
+        quantity: { type: number }
+        money_confirmed: { type: object, additionalProperties: { type: number } }
+        money_estimate: { type: object, additionalProperties: { type: number } }
+        status: { type: string, enum: [complete, partial, stale, unknown] }
+        status_note: { type: string }
+        sources: { type: array, items: { type: string } }
+        last_ingested_at: { type: string, format: date-time }
+    BudgetRelation:
+      type: object
+      required: [version, amount, currency]
+      properties:
+        version: { type: integer }
+        amount: { type: number }
+        currency: { type: string }
+        ratio: { type: number, description: 'Отношение подтверждённого расхода к бюджету; конвертации валют нет' }
+        ratio_note: { type: string }
+        warned: { type: boolean }
+        over: { type: boolean }
+    BreakdownRow:
+      type: object
+      required: [dimension, value, quantity]
+      properties:
+        dimension: { type: string, enum: [employee, channel, release] }
+        value: { type: string, description: 'Идентификатор, не содержимое разговоров' }
+        quantity: { type: number }
+        money: { type: number }
+    AdmissionState:
+      type: object
+      required: [status, reason]
+      properties:
+        status: { type: string, enum: [ok, blocked_new_admissions, degraded] }
+        reason: { type: string }
+        policy: { type: string }
+        continues: { type: array, items: { type: string }, description: 'Что продолжает работать: safety, handoff, reconciliation, принятые обязательства' }
+        owner: { type: string, description: 'Ответственный за следующий шаг' }
+    UsageExceptionsView:
+      type: object
+      required: [level, exceptions]
+      properties:
+        level: { type: string, enum: [full, summary] }
+        exceptions: { type: array, items: { $ref: '#/components/schemas/UsageException' } }
+    UsageException:
+      type: object
+      required: [exception_id, cause, message, data_status, recommended_action, created_at]
+      properties:
+        exception_id: { type: string, format: uuid }
+        cause: { type: string, enum: [budget_threshold, hard_limit_reached, data_gap, anomaly_tool_calls, anomaly_retry_storm, anomaly_manual_minutes, manual_entry] }
+        message: { type: string, description: 'При неполных данных точная сумма не утверждается' }
+        data_status: { type: string, enum: [complete, partial, stale, unknown] }
+        affected_employee: { type: string }
+        affected_route: { type: string }
+        recommended_action: { type: string }
+        acknowledged: { $ref: '#/components/schemas/ExceptionAck' }
+    ExceptionAck:
+      type: object
+      required: [ack_id, exception_id, created_at]
+      properties:
+        ack_id: { type: string, format: uuid }
+        exception_id: { type: string, format: uuid }
+        actor_id: { type: string, format: uuid }
+        note: { type: string }
+        created_at: { type: string, format: date-time }
   responses:
     Problem:
       description: Безопасная ошибка

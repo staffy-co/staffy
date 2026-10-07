@@ -59,7 +59,7 @@ func TestMain(m *testing.M) {
                 panic(err)
         }
         if os.Getenv("STAFFY_TEST_DATABASE_URL") != "" {
-                if _, err = adminPool.Exec(ctx, "drop schema if exists employee cascade; drop schema if exists identity cascade; drop schema if exists connector cascade; drop schema if exists privacy cascade; drop role if exists staffy_app"); err != nil {
+                if _, err = adminPool.Exec(ctx, "drop schema if exists employee cascade; drop schema if exists identity cascade; drop schema if exists connector cascade; drop schema if exists privacy cascade; drop schema if exists entitlement cascade; drop role if exists staffy_app"); err != nil {
                         panic(err)
                 }
         }
@@ -161,11 +161,25 @@ func TestMain(m *testing.M) {
         if _, err = adminPool.Exec(ctx, strings.Split(string(identityPurgeMigration), "-- +goose Down")[0]); err != nil {
                 panic(err)
         }
+        identityCommercialMigration, err := os.ReadFile("../../migrations/identity/00004_entitlement_commercial.sql")
+        if err != nil {
+                panic(err)
+        }
+        if _, err = adminPool.Exec(ctx, strings.Split(string(identityCommercialMigration), "-- +goose Down")[0]); err != nil {
+                panic(err)
+        }
         privacyMigration, err := os.ReadFile("../../migrations/privacy/00001_data_perimeter.sql")
         if err != nil {
                 panic(err)
         }
         if _, err = adminPool.Exec(ctx, strings.Split(string(privacyMigration), "-- +goose Down")[0]); err != nil {
+                panic(err)
+        }
+        entitlementMigration, err := os.ReadFile("../../migrations/entitlement/00001_entitlement_usage.sql")
+        if err != nil {
+                panic(err)
+        }
+        if _, err = adminPool.Exec(ctx, strings.Split(string(entitlementMigration), "-- +goose Down")[0]); err != nil {
                 panic(err)
         }
         if _, err = adminPool.Exec(ctx, "alter role staffy_app login password 'staffy-runtime-test'"); err != nil {

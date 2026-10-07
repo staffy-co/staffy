@@ -333,3 +333,28 @@ decisions:
 - Без правок: срез, границы и словарь исходов приняты как предложено SM
 next: Dev step-03 — полная реализация среза entitlement на ветке codex/story-1-11-entitlement-usage (baseline cf7f992): домен, миграция, app/port/store, scope commercial в identity, HTTP/UI/OpenAPI, интеграционные и journey-тесты; полный регресс; DEVLOG 21-dev
 commit: TBD
+
+---
+date: 2026-10-07
+task: 21-dev
+role: main (Super Z, роль Dev)
+story: 1-11
+summary: Dev step-03 — полная реализация среза entitlement/usage: модуль entitlement (домен, миграции, app/port/store), scope commercial, HTTP/UI/OpenAPI, полный тестовый набор; весь регресс зелёный
+done:
+- Окружение после сброса поднято bootstrap.sh (Go 1.27.1, PG 54329, миграции через TestMain); baseline зелёный (build, vet, 18 unit-пакетов, integration)
+- Изучены паттерны 1-9/1-10 (privacy — новейший образец): app/port/store, append-only миграции с RLS, http Bind*-паттерн, шаблоны с aria-live/focus, journeys-фикстуры, контракт-тесты
+- Реализация: internal/entitlement (domain: словарь 7 категорий с единицами, состояния draft/active/paused/ended из событий с терминальным end, derivation admission_state со списком продолжающегося, ComputeMeter с полнотой complete/partial/stale/unknown и раздельными суммами confirmed/estimate, breakdown по employee/channel/release без содержимого; port+store: 7 append-only таблиц, идемпотентный IngestUsage по UNIQUE(tenant,event_key)+payload_hash с честным конфликтом 409, дедупликация исключений по ключу; app: авторизация commercial/audit/summary/operations, активация с подтверждением и fail-closed гейтами, resume с перепроверкой лимитов, бюджет с порогами/hard limit/политикой, evaluateExceptions при ingest с честным сообщением при неполных данных)
+- Миграции: entitlement/00001 (7 таблиц, RLS, CHECK-словари, гранты INSERT/SELECT) + identity/00004 (scope commercial в default scopes владельца — паттерн data_governance из 1-10)
+- identity: scope Commercial в словарь + people.html (форма приглашения и редактирования)
+- HTTP: entitlement.go (10 API + 8 форм) + entitlement_view.go; шаблоны entitlement.html (тариф, состояния, бюджет, источники) и budget.html (Budget Meter с единицами/валютами, исключения с ack); OpenAPI: 11 путей + 16 схем + контракт-тест TestEntitlementUsageContractIsHonest
+- Тесты: domain (13 юнит-тестов: fold состояний, admission, метр, источники, открытые вопросы), app (8 юнит-тестов с memory-repo: money-категории, конфликт, replay без дублей исключений, активация, словари, скрытие сумм при неполных данных), integration (6 тестов: draft-честность, жизненный цикл, идемпотентность, полнота, пороги/лимит, RLS+уровни), journeys zzzzzz-entitlement (320px, клавиатура, aria-live, серверный fail-closed подтверждения)
+- Отладочные находки: TestMain drop-schema не знал entitlement (роль не дропалась); scope владельца приходит из SQL DEFAULT — миграция identity/00004 обязательна; пустой limits_check → NULL; evaluateExceptions генерировал ExceptionID внутри raiseException; http.ParseTime НЕ парсит RFC3339 — заменён на time.Parse с честной ошибкой (тихая потеря даты = нечестность); "?"+action+"ed" давал "activateeed" — явный маппинг флагов; {{.TenantID}} внутри range ломал рендер ack-формы → {{$.TenantID}}
+- Полный регресс: build, vet, unit 20 пакетов (-count=1), integration (-count=1), journeys 14/14, контракт OpenAPI, git diff --check чист
+decisions:
+- Идемпотентность usage живёт в самих данных (UNIQUE tenant+event_key, payload hash при приёме), конфликт — 409 + без перезаписи
+- Метр выводится на чтении; общая полнота = худшая из категорий (категория без источника держит весь метр честно unknown)
+- Оценки не участвуют в порогах и hard limit; отношение к бюджету только в валюте бюджета, чужие валюты — открытый вопрос
+- Enforcement admission оставлен портом (1-14/Epic 2); списки продолжающегося и ответственный — часть ответа
+- Дата в формах: time.Parse(time.RFC3339) с честной ошибкой вместо тихого http.ParseTime
+next: review R1 свежим контекстом (спека + git diff 47e9c8c..HEAD), затем R1/R2 → правки → PR → merge → done
+commit: TBD

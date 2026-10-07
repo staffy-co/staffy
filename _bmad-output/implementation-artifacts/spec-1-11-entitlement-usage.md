@@ -2,7 +2,7 @@
 title: 'Story 1.11 — Entitlement, лимиты и прозрачность usage (первый срез)'
 type: 'feature'
 created: '2026-10-07'
-status: 'ready-for-dev'
+status: 'in-progress'
 route: 'dispatch'
 review_loop_iteration: 0
 baseline_commit: 'cf7f992ef9c96ad4cf2c45b5555564fa457592b'
@@ -69,11 +69,11 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `internal/entitlement/domain/` — словари, версионирование, derivation состояний/полноты/admission_state, правила агрегации, оценка порогов и лимита; юнит-тесты.
-- [ ] `migrations/entitlement/00001_entitlement_usage.sql` — append-only таблицы, RLS, гранты, CHECK-словари.
-- [ ] `internal/entitlement/{app,port,store}/` + scope `commercial` в identity — команды и запросы, идемпотентный IngestUsage, Meter, Exceptions, AdmissionState.
-- [ ] `internal/transport/http/`, `contracts/openapi/staffy.yaml`, `web/templates/{entitlement,budget}.html` — UI и API-контракт.
-- [ ] `tests/integration/entitlement_test.go`, unit-набор, `tests/journeys/` — все строки матрицы и доступность.
+- [x] `internal/entitlement/domain/` — словари, версионирование, derivation состояний/полноты/admission_state, правила агрегации, оценка порогов и лимита; юнит-тесты.
+- [x] `migrations/entitlement/00001_entitlement_usage.sql` — append-only таблицы, RLS, гранты, CHECK-словари (+ `migrations/identity/00004_entitlement_commercial.sql` — scope `commercial` в словарь владельца).
+- [x] `internal/entitlement/{app,port,store}/` + scope `commercial` в identity — команды и запросы, идемпотентный IngestUsage, Meter, Exceptions, AdmissionState.
+- [x] `internal/transport/http/`, `contracts/openapi/staffy.yaml`, `web/templates/{entitlement,budget}.html` — UI и API-контракт.
+- [x] `tests/integration/entitlement_test.go`, unit-набор, `tests/journeys/` — все строки матрицы и доступность.
 
 **Acceptance Criteria:**
 - Given Tenant без активированного коммерческого доступа, when Owner открывает Entitlement, then показано состояние `draft`, отдельно перечислены запуск, подписка ИИ-сотрудника и переменные категории usage; отсутствующая цена или коммерческое решение — открытый вопрос, а не нулевая стоимость; недоступные каналы, Connectors и лимиты не показаны как включённые.
@@ -104,6 +104,7 @@ context:
 
 - 2026-10-07, review loop 0: создана спека первого среза Story 1.11 (SM). Статус `backlog` до CHECKPOINT 1 — одобрения владельцем; после одобрения спека и sprint-status.yaml одновременно переходят в `ready-for-dev` (условие синхронности check-continuity).
 - 2026-10-07, CHECKPOINT 1: спека одобрена владельцем без правок («одобряю», чат 2026-10-07). Замороженные секции (Intent / Boundaries & Constraints / I/O & Edge-Case Matrix) не изменялись. Спека и sprint-status.yaml одновременно переведены в `ready-for-dev`; далее — Dev (step-03).
+- 2026-10-07, Dev step-03: реализован весь срез (Execution 5/5). Полный регресс зелёный: build, vet, unit (20 пакетов, включая новые entitlement domain/app), integration (включая 6 новых entitlement-тестов: draft-честность, жизненный цикл с терминальным end, идемпотентный приём с конфликтом ключа, честные статусы полноты, пороги/hard limit с дедупликацией, RLS и уровни детализации), journeys 14/14 (включая zzzzzz-entitlement: 320px, клавиатура, aria-live, подтверждение активации), контракт-тест OpenAPI, git diff --check чист. Статус → `in-progress` до review R1.
 
 ## Design Notes
 
