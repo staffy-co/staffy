@@ -296,3 +296,89 @@ decisions:
 - DEVLOG-запись мержа — docs-пуш в main (разрешено протоколом: инфраструктура/docs, зелёное состояние только что подтверждено CI на main)
 next: CHECKPOINT для владельца: story 1-11 (entitlement-лимиты и прозрачность usage) — следующий по порядку; epic-1-retrospective остаётся optional до закрытия 1-11/1-12
 commit: 04d4735
+
+---
+date: 2026-10-07
+task: 19-sm
+role: main (Super Z, роль SM)
+story: 1-11
+summary: SM-спека первого среза Story 1.11 (entitlement/usage) написана и запушена на ветку — версии тарифа с derivation состояний, Budget Meter с честной полнотой данных, идемпотентный приём usage-событий, версионируемый бюджет с порогами и hard limit, операционные исключения с ack, admission_state-порт для 1-14/Epic 2
+done:
+- CHECKPOINT владельца после 1-10: выбран вариант (А) story 1-11 (делегировано рекомендации; ретроспектива — после закрытия эпика)
+- Входы SM прочитаны: epics.md §1.11 (FR-85, 9 блоков приёмки), PRD FR-85 (ручной договор/счёт и ручная активация в MVP; payments/dunning вне), epic-1-context (Requirements, Technical Decisions, Cross-Story: entitlement питает readiness), spec-1-9/1-10 (паттерны append-only, derivation, идемпотентность, честные словари), deferred-work (2 открытых долга 1-10 не относятся к 1-11), GATE-REGISTRY (AG-4: реальных провайдеров нет)
+- Инвентаризация кода: identity scopes (8 скоупов, Owner = все; data_governance как образец добавления), миграции по модулям, http/шаблоны/OpenAPI/journeys паттерны 1-10
+- Спека spec-1-11-entitlement-usage.md (119 строк, формат spec-1-10): модуль entitlement — 7 append-only таблиц (terms_versions, state_events, usage_events, usage_sources, budget_versions, usage_exceptions, exception_acknowledgements), словарь 7 категорий usage, состояния draft/active/paused/ended из событий, идемпотентность по (tenant, event_key)+payload hash (конфликт → 409 + audit), полнота complete/partial/stale/unknown (неизвестное ≠ ноль), оценка отделена от подтверждённого, бюджет версионируется (пороги, hard limit с объявленной политикой), scope commercial (управление) / commercial|audit (полный просмотр) / общий уровень (прочие), admission_state-порт
+- sprint-status.yaml: last_updated → 10-07-2026 (статус 1-11 = backlog, синхронно со спекой)
+- Ветка codex/story-1-11-entitlement-usage от cf7f992; спека — коммит 9fbdb0b [skip ci]; push; DEVLOG-запись 19-sm на ветке (урок PR #10: все записи story — в ветке)
+decisions:
+- Новый модуль entitlement вместо расширения identity: коммерческий контекст целостен (тариф+бюджет+usage+исключения), identity остаётся владельцем участников/полномочий; отклонение от буквы спайна задокументировано в Design Notes (прецедент privacy 1-10)
+- Идемпотентность usage живёт в самих данных (UNIQUE tenant+key, hash при приёме), а не в idempotency_records команд: ключ принадлежит событию, конфликт — для проверки, не для перезаписи
+- Метр агрегируется на чтении: materialized-агрегатов и mutable-текущих-состояний нет; версия правил агрегации штампуется при ingest
+- Hard limit и paused/ended дают выведенное admission_state + порт (enforcement — 1-14/Epic 2, поверхностей admission ещё нет); продолжают работать safety/handoff/reconciliation/принятые обязательства — список объявлен явно
+- Без конвертации валют: отношение к бюджету только при совпадающей валюте, иначе открытый вопрос
+next: CHECKPOINT 1 — одобрение спеки владельцем; после «одобряю» спека+sprint-status синхронно → ready-for-dev → Dev step-03 на ветке
+commit: 9fbdb0b
+
+---
+date: 2026-10-07
+task: 20-sm
+role: main (Super Z, роль SM)
+story: 1-11
+summary: CHECKPOINT 1 пройден — владелец одобрил спеку 1-11 без правок («одобряю»); спека и sprint-status.yaml синхронно переведены в ready-for-dev; Dev step-03 начинается
+done:
+- Одобрение владельца получено в чате (2026-10-07); замороженные секции не изменялись
+- spec-1-11-entitlement-usage.md: status → ready-for-dev; Spec Change Log дополнен записью CHECKPOINT 1
+- sprint-status.yaml: 1-11-entitlement-лимиты-и-прозрачность-usage → ready-for-dev (синхронно со спекой)
+decisions:
+- Без правок: срез, границы и словарь исходов приняты как предложено SM
+next: Dev step-03 — полная реализация среза entitlement на ветке codex/story-1-11-entitlement-usage (baseline cf7f992): домен, миграция, app/port/store, scope commercial в identity, HTTP/UI/OpenAPI, интеграционные и journey-тесты; полный регресс; DEVLOG 21-dev
+commit: 47e9c8c
+
+---
+date: 2026-10-07
+task: 21-dev
+role: main (Super Z, роль Dev)
+story: 1-11
+summary: Dev step-03 — полная реализация среза entitlement/usage: модуль entitlement (домен, миграции, app/port/store), scope commercial, HTTP/UI/OpenAPI, полный тестовый набор; весь регресс зелёный
+done:
+- Окружение после сброса поднято bootstrap.sh (Go 1.27.1, PG 54329, миграции через TestMain); baseline зелёный (build, vet, 18 unit-пакетов, integration)
+- Изучены паттерны 1-9/1-10 (privacy — новейший образец): app/port/store, append-only миграции с RLS, http Bind*-паттерн, шаблоны с aria-live/focus, journeys-фикстуры, контракт-тесты
+- Реализация: internal/entitlement (domain: словарь 7 категорий с единицами, состояния draft/active/paused/ended из событий с терминальным end, derivation admission_state со списком продолжающегося, ComputeMeter с полнотой complete/partial/stale/unknown и раздельными суммами confirmed/estimate, breakdown по employee/channel/release без содержимого; port+store: 7 append-only таблиц, идемпотентный IngestUsage по UNIQUE(tenant,event_key)+payload_hash с честным конфликтом 409, дедупликация исключений по ключу; app: авторизация commercial/audit/summary/operations, активация с подтверждением и fail-closed гейтами, resume с перепроверкой лимитов, бюджет с порогами/hard limit/политикой, evaluateExceptions при ingest с честным сообщением при неполных данных)
+- Миграции: entitlement/00001 (7 таблиц, RLS, CHECK-словари, гранты INSERT/SELECT) + identity/00004 (scope commercial в default scopes владельца — паттерн data_governance из 1-10)
+- identity: scope Commercial в словарь + people.html (форма приглашения и редактирования)
+- HTTP: entitlement.go (10 API + 8 форм) + entitlement_view.go; шаблоны entitlement.html (тариф, состояния, бюджет, источники) и budget.html (Budget Meter с единицами/валютами, исключения с ack); OpenAPI: 11 путей + 16 схем + контракт-тест TestEntitlementUsageContractIsHonest
+- Тесты: domain (13 юнит-тестов: fold состояний, admission, метр, источники, открытые вопросы), app (8 юнит-тестов с memory-repo: money-категории, конфликт, replay без дублей исключений, активация, словари, скрытие сумм при неполных данных), integration (6 тестов: draft-честность, жизненный цикл, идемпотентность, полнота, пороги/лимит, RLS+уровни), journeys zzzzzz-entitlement (320px, клавиатура, aria-live, серверный fail-closed подтверждения)
+- Отладочные находки: TestMain drop-schema не знал entitlement (роль не дропалась); scope владельца приходит из SQL DEFAULT — миграция identity/00004 обязательна; пустой limits_check → NULL; evaluateExceptions генерировал ExceptionID внутри raiseException; http.ParseTime НЕ парсит RFC3339 — заменён на time.Parse с честной ошибкой (тихая потеря даты = нечестность); "?"+action+"ed" давал "activateeed" — явный маппинг флагов; {{.TenantID}} внутри range ломал рендер ack-формы → {{$.TenantID}}
+- Полный регресс: build, vet, unit 20 пакетов (-count=1), integration (-count=1), journeys 14/14, контракт OpenAPI, git diff --check чист
+decisions:
+- Идемпотентность usage живёт в самих данных (UNIQUE tenant+event_key, payload hash при приёме), конфликт — 409 + без перезаписи
+- Метр выводится на чтении; общая полнота = худшая из категорий (категория без источника держит весь метр честно unknown)
+- Оценки не участвуют в порогах и hard limit; отношение к бюджету только в валюте бюджета, чужие валюты — открытый вопрос
+- Enforcement admission оставлен портом (1-14/Epic 2); списки продолжающегося и ответственный — часть ответа
+- Дата в формах: time.Parse(time.RFC3339) с честной ошибкой вместо тихого http.ParseTime
+next: review R1 свежим контекстом (спека + git diff 47e9c8c..HEAD), затем R1/R2 → правки → PR → merge → done
+commit: c113ff9
+
+---
+date: 2026-10-07
+task: 22-review
+role: main (Super Z, роль Review)
+story: 1-11
+summary: Review R1/R2 story 1-11 — R1 свежим контекстом нашёл и закрыл 7 находок (summary-утечка тарифа, молчаливые исключения при публикации бюджета, нечестные flash/JSON-ошибки, тихая потеря цены, лимит чтения метра, whitespace); полный регресс повторно зелёный; спека → done (iteration 2)
+done:
+- R1: прочитаны спека и весь дифф 47e9c8c..HEAD; независимый регресс зелёный (build, vet, unit -count=1 21 пакет, integration, journeys 14/14, контракт); git diff --check нашёл trailing whitespace в postgres.go
+- Finding 1 (главный): EntitlementView на summary-уровне отдавал Terms/History/StateEvents/Sources/OpenQuestions в JSON API и на HTML-странице, текст которой при этом заявлял «доступен только общий уровень» — прямое нарушение границы спеки; тесты проверяли только MeterView. Фильтрация перенесена в сервис (одинакова для API и HTML), integration-тест расширен
+- Finding 2 (главный): публикация бюджета не оценивала исключения — порог/hard limit над уже принятым расходом молчал до следующего ingest. SetBudget теперь вызывает evaluateExceptions; ключ дедупликации gap/warn/limi выровнен со спекой — несёт версию бюджета: повторная версия честно пере-поднимает исключение. Новый integration-тест TestBudgetPublishedAfterUsageRaisesExceptions (порог поднят при публикации + пере-поднятие по версии)
+- Finding 3: ручное исключение редиректило с флагом ingested=1 → flash «Usage-событие учтено» после записи исключения. Введён exception_saved=1 + честный notice; transport-тест
+- Finding 4: не-числовая цена запуска/подписки в termsForm молча терялась (ParseFloat err игнорировался) — версия публиковалась как «открытый вопрос», владелец считал цену сохранённой. Теперь честная RuleError; transport-тест (compose не вызывается)
+- Finding 5: все сбои декода JSON маппились на ErrInvalidEventKey → 400 «Ключ события задан неверно (8–200 символов)» — ложная причина для битого тела. Введены честные content_type/body rule-ошибки; transport-тест на 4 кейса; аналогичный унаследованный кривой маппинг privacy — в deferred-work
+- Finding 6: ListUsageEvents LIMIT 10000 молча усёк бы факты при агрегации на чтении — суммы занижены при заявленной полноте. Лимит снят, комментарий фиксирует принцип
+- Finding 7: trailing whitespace postgres.go:7 — git diff --check чист после правки
+- R2: повторное чтение диффа правок — PASS; повторный полный регресс зелёный: build, vet, unit -count=1 (включая новый internal/transport/http/entitlement_test.go — 3 теста), integration -count=1 (7 entitlement-тестов), journeys 14/14, контракт, git diff --check чист
+- Спека 1-11: done (review_loop_iteration 2), Spec Change Log дополнен записью R1/R2; Implementation Notes уточнены (дедуп-ключ, оценка при публикации бюджета, фильтрация уровня в сервисе, чтение без LIMIT, ack-полномочия); sprint-status.yaml синхронно → done; 2 записи deferred-work
+decisions:
+- Фильтрация уровня детализации выполняется в сервисе, а не в шаблонах: JSON и HTML не могут разойтись в том, что видит участник без commercial
+- Оценка исключений — событийно при обоих коммерческих триггерах: приём usage и публикация бюджета; ручная регистрация/снятие источника не триггерит (дедуп по версии бюджета исключает шум, разрыв остаётся видимым в метре)
+- Возврат ошибки после успешного SaveBudget (оценка исключений) следует прецеденту IngestUsage: сущность возвращается вместе с ошибкой — факт публикации не скрывается
+next: PR в main через GitHub API, зелёный CI, merge, синхронизация main, DEVLOG 23-merge; затем CHECKPOINT владельцу — story 1-12 (release manifest) или epic-1-retrospective (после закрытия эпика)
+commit: 549a0bf

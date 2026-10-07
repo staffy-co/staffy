@@ -801,6 +801,7 @@ func main() {
         server.BindEmployee(&employeeFixture{})
         server.BindConnector(&connectorFixture{})
         server.BindPrivacy(&privacyFixture{})
+        server.BindEntitlement(&entitlementFixture{})
         if err := http.ListenAndServe("127.0.0.1:18081", server.Handler()); err != nil {
                 panic(err)
         }

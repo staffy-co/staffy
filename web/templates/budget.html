@@ -1,0 +1,140 @@
+{{define "budget"}}
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Budget Meter · Staffy</title><link rel="stylesheet" href="/assets/app.css"></head>
+<body><a class="skip-link" href="#main">К основному содержанию</a><header class="topbar"><a class="brand" href="/app/tenants/{{.TenantID}}">Staffy</a><strong>Пространство → Budget Meter</strong></header>
+<div class="shell"><nav aria-label="Основная навигация"><a href="/app/tenants/{{.TenantID}}">Сегодня</a><a href="/app/tenants/{{.TenantID}}/people">Участники</a><a href="/app/tenants/{{.TenantID}}/integrations">Интеграции</a><a href="/app/tenants/{{.TenantID}}/datamap">Карта данных</a><a href="/app/tenants/{{.TenantID}}/entitlement">Тариф</a></nav><main id="main"><section class="panel"><h1>Budget Meter</h1>
+<p>Фактический расход по категориям с честной полнотой данных: неизвестный расход не заменяется нулём, оценка отделена от подтверждённого начисления. Состояние, суммы, период и полнота доступны текстом, а не только цветом.</p>
+{{if .Error}}<p class="alert" role="alert">{{.Error}}</p>{{end}}{{if .Notice}}<p class="status" role="status" aria-live="polite" tabindex="-1" id="page-notice">{{.Notice}}</p><script>addEventListener('DOMContentLoaded', () => document.getElementById('page-notice').focus());</script>{{end}}
+
+<p class="next-note">Период измерения: {{.Meter.PeriodText}}. Полнота данных: <strong>{{.Meter.DataStatusText}}</strong>. Последнее обновление: {{.Meter.LastIngestedText}}. Версия правил агрегации: {{.Meter.AggRuleVersion}}.</p>
+
+{{if .Meter.Budget}}
+<p class="next-note" id="budget-relation">Бюджет: {{.Meter.Budget.Amount}}; подтверждённый расход: {{.Meter.Budget.Ratio}}{{if .Meter.Budget.Warned}} — приближение к порогу предупреждения{{end}}{{if .Meter.Budget.Over}} — бюджет превышен или достигнут hard limit{{end}}.{{if .Meter.Budget.RatioNote}} {{.Meter.Budget.RatioNote}}{{end}}</p>
+{{else}}
+<p class="next-note">Качественный статус: {{.Meter.BudgetQualityText}}.</p>
+{{end}}
+
+{{if .Meter.IsFull}}
+<h2>Расход по категориям</h2>
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Расход по категориям Budget Meter">
+<table class="datamap-table meter-table">
+<caption>Категории расхода: количество с единицей, подтверждённые суммы и оценки по валютам, полнота данных</caption>
+<thead><tr><th scope="col">Категория</th><th scope="col">Количество</th><th scope="col">Подтверждено</th><th scope="col">Оценка</th><th scope="col">Полнота</th><th scope="col">Источники</th><th scope="col">Обновлено</th></tr></thead>
+<tbody>
+{{range .Meter.Categories}}
+<tr class="{{.StatusClass}}">
+<th scope="row">{{.Title}}<span class="class-id">{{.Category}}</span></th>
+<td>{{.Quantity}}</td>
+<td>{{range .ConfirmedEntries}}{{.}}; {{else}}нет подтверждённых сумм{{end}}</td>
+<td>{{range .EstimateEntries}}{{.}}; {{else}}—{{end}}</td>
+<td><span class="map-state">{{.StatusText}}</span><span class="map-missing">{{.StatusNote}}</span></td>
+<td>{{if .Sources}}{{.Sources}}{{else}}нет источника{{end}}</td>
+<td>{{.LastIngestedText}}</td>
+</tr>
+{{end}}
+</tbody>
+</table>
+</div>
+{{if .Meter.MissingCategories}}<p class="next-note">Категории без зарегистрированного источника: {{.Meter.MissingCategories}} — их расход неизвестен, а не ноль.</p>{{end}}
+<p class="next-note">Итог: подтверждённое начисление — {{.Meter.ConfirmedText}}; оценка (отдельно, не смешивается) — {{.Meter.EstimateText}}.</p>
+
+{{if .Meter.Breakdowns}}
+<h2>Привязка расхода</h2>
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Привязка расхода к сотрудникам, каналам и релизам">
+<table class="datamap-table">
+<caption>Разбивка по ИИ-сотрудникам, каналам и релизам: идентификаторы и счётчики, без содержимого разговоров</caption>
+<thead><tr><th scope="col">Измерение</th><th scope="col">Значение</th><th scope="col">Количество</th><th scope="col">Подтверждённые суммы</th></tr></thead>
+<tbody>
+{{range .Meter.Breakdowns}}<tr><th scope="row">{{.Dimension}}</th><td>{{.Value}}</td><td>{{.Quantity}}</td><td>{{.Money}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+{{end}}
+
+<h2>Операционные исключения</h2>
+{{if .Exceptions}}
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Операционные исключения">
+<table class="datamap-table">
+<caption>Исключения: причина, честное сообщение, рекомендация и подтверждение</caption>
+<thead><tr><th scope="col">Причина</th><th scope="col">Сообщение</th><th scope="col">Рекомендация</th><th scope="col">Полнота при создании</th><th scope="col">Подтверждение</th><th scope="col">Зафиксировано</th></tr></thead>
+<tbody>
+{{range .Exceptions}}
+<tr><th scope="row">{{.CauseText}}<span class="class-id">{{.Cause}}</span></th>
+<td>{{.Message}}{{if .AffectedEmployee}} (ИИ-сотрудник: {{.AffectedEmployee}}){{end}}{{if .AffectedRoute}} (маршрут: {{.AffectedRoute}}){{end}}</td>
+<td>{{.RecommendedAction}}</td>
+<td>{{.DataStatusText}}</td>
+<td><span class="map-state">{{.AcknowledgedText}}</span></td>
+<td>{{.CreatedAt}}</td>
+</tr>
+{{end}}
+</tbody>
+</table>
+</div>
+{{else}}
+<p class="next-note">Операционных исключений пока нет.</p>
+{{end}}
+
+<h2>Учесть usage-событие</h2>
+<details class="map-form"><summary>Ручной ввод usage-события</summary>
+<form method="post" action="/app/tenants/{{.TenantID}}/budget/ingest" class="datamap-form ingest-form">
+<input type="hidden" name="event_key" value="{{.IngestKey}}">
+<label for="ingest-category">Категория расхода</label>
+<select id="ingest-category" name="category" required>
+{{range .CategoryOptions}}<option value="{{.ID}}">{{.Title}}</option>{{end}}
+</select>
+<label for="ingest-quantity">Количество</label>
+<input id="ingest-quantity" name="quantity" type="number" min="0.01" step="0.01" required>
+<label for="ingest-amount">Сумма (обязательна для платных категорий)</label>
+<input id="ingest-amount" name="amount" type="number" min="0" step="0.01">
+<label for="ingest-currency">Валюта (3 заглавные буквы)</label>
+<input id="ingest-currency" name="currency" type="text" maxlength="3" pattern="[A-Z]{3}">
+<label for="ingest-source">Источник события</label>
+<input id="ingest-source" name="source" type="text" maxlength="100" value="manual-entry" required>
+<label for="ingest-start">Начало периода события</label>
+<input id="ingest-start" name="period_start" type="date" required>
+<label for="ingest-end">Конец периода события</label>
+<input id="ingest-end" name="period_end" type="date" required>
+<label for="ingest-employee">ИИ-сотрудник (идентификатор, необязательно)</label>
+<input id="ingest-employee" name="employee_id" type="text" maxlength="100">
+<label for="ingest-channel">Канал (необязательно)</label>
+<input id="ingest-channel" name="channel" type="text" maxlength="100">
+<label for="ingest-provenance">Происхождение (отчёт, выгрузка, наблюдение)</label>
+<input id="ingest-provenance" name="provenance" type="text" maxlength="600" value="Ручной ввод">
+<label class="overwrite-confirm"><input type="checkbox" name="is_estimate" value="yes"> Это оценка, а не подтверждённое начисление</label>
+<button class="primary" type="submit">Учесть событие</button>
+</form></details>
+<p class="next-note">Повторная доставка того же события не считается дважды: ключ события идемпотентен, а тот же ключ с иной суммой — конфликт для проверки, а не перезапись.</p>
+
+<h2>Зафиксировать наблюдение</h2>
+<details class="map-form"><summary>Ручное операционное исключение</summary>
+<form method="post" action="/app/tenants/{{.TenantID}}/budget/exception" class="datamap-form">
+<label for="exception-cause">Причина из словаря</label>
+<select id="exception-cause" name="cause" required>
+<option value="anomaly_tool_calls">anomaly_tool_calls — аномальные вызовы инструментов</option>
+<option value="anomaly_retry_storm">anomaly_retry_storm — шторм повторов</option>
+<option value="anomaly_manual_minutes">anomaly_manual_minutes — непропорциональные ручные минуты</option>
+<option value="manual_entry">manual_entry — ручное наблюдение</option>
+</select>
+<label for="exception-message">Наблюдение</label>
+<textarea id="exception-message" name="message" rows="3" required></textarea>
+<label for="exception-employee">Затронутый ИИ-сотрудник (необязательно)</label>
+<input id="exception-employee" name="affected_employee" type="text" maxlength="100">
+<label for="exception-route">Затронутый маршрут (необязательно)</label>
+<input id="exception-route" name="affected_route" type="text" maxlength="100">
+<label for="exception-action">Рекомендуемое действие</label>
+<input id="exception-action" name="recommended_action" type="text" maxlength="600" required>
+<button class="primary" type="submit">Зафиксировать</button>
+</form></details>
+
+{{range .Exceptions}}{{if not .Acked}}
+<form method="post" action="/app/tenants/{{$.TenantID}}/budget/ack" class="datamap-form ack-form">
+<input type="hidden" name="exception_id" value="{{.ExceptionID}}">
+<label for="ack-note-{{.ExceptionID}}">Подтверждение исключения ({{.CauseText}})</label>
+<input id="ack-note-{{.ExceptionID}}" name="note" type="text" maxlength="600" placeholder="Принято к сведению; ответственный: ...">
+<button class="primary" type="submit">Подтвердить исключение</button>
+</form>
+{{end}}{{end}}
+{{else}}
+<p class="next-note">У вас нет полномочия коммерческого управления или аудита: суммы, разбивки и исключения недоступны. Качественный статус бюджета — «{{.Meter.BudgetQualityText}}», полнота данных — {{.Meter.DataStatusText}}.</p>
+{{end}}
+</section></main></div></body></html>
+{{end}}

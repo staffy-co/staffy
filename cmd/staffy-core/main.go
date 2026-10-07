@@ -16,6 +16,8 @@ import (
         connectorApp "github.com/artemiosu/staffy/internal/connector/app"
         connectorStore "github.com/artemiosu/staffy/internal/connector/store"
         connectorVerifier "github.com/artemiosu/staffy/internal/connector/verifier"
+        entitlementApp "github.com/artemiosu/staffy/internal/entitlement/app"
+        entitlementStore "github.com/artemiosu/staffy/internal/entitlement/store"
         employeeApp "github.com/artemiosu/staffy/internal/employee/app"
         employeePort "github.com/artemiosu/staffy/internal/employee/port"
         employeeStore "github.com/artemiosu/staffy/internal/employee/store"
@@ -96,6 +98,7 @@ func run(logger *slog.Logger) error {
                 privacyDomain.ExecutorIdentity: identityService.PrivacyDeletionExecutor(),
         }
         transport.BindPrivacy(privacyApp.New(privacyStore.NewPostgres(pool), identityService, privacyExecutors, clock, ids))
+        transport.BindEntitlement(entitlementApp.New(entitlementStore.NewPostgres(pool), identityService, clock, ids))
         server := &http.Server{
                 Addr:              listenAddress,
                 Handler:           transport.Handler(),

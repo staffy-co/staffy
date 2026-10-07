@@ -1,0 +1,175 @@
+{{define "entitlement"}}
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Тариф и бюджет · Staffy</title><link rel="stylesheet" href="/assets/app.css"></head>
+<body><a class="skip-link" href="#main">К основному содержанию</a><header class="topbar"><a class="brand" href="/app/tenants/{{.TenantID}}">Staffy</a><strong>Пространство → Тариф (Entitlement)</strong></header>
+<div class="shell"><nav aria-label="Основная навигация"><a href="/app/tenants/{{.TenantID}}">Сегодня</a><a href="/app/tenants/{{.TenantID}}/people">Участники</a><a href="/app/tenants/{{.TenantID}}/integrations">Интеграции</a><a href="/app/tenants/{{.TenantID}}/datamap">Карта данных</a><a href="/app/tenants/{{.TenantID}}/budget">Budget Meter</a></nav><main id="main"><section class="panel"><h1>Тариф и Entitlement</h1>
+<p>Коммерческий периметр: состав тарифа, включённые возможности, лимиты и состояние коммерческого доступа. Отсутствующая цена или решение показывается открытым вопросом, а не нулевой стоимостью.</p>
+{{if .Error}}<p class="alert" role="alert">{{.Error}}</p>{{end}}{{if .Notice}}<p class="status" role="status" tabindex="-1" id="page-notice">{{.Notice}}</p><script>addEventListener('DOMContentLoaded', () => document.getElementById('page-notice').focus());</script>{{end}}
+
+<h2>Состояние: <span class="ent-state ent-{{.View.State}}">{{.View.StateText}}</span></h2>
+<p id="admission-note" class="next-note">Допуск: {{.View.Admission.StatusText}}. {{.View.Admission.Reason}}{{if .View.Admission.HasContinues}} Продолжают работать: {{range .View.Admission.Continues}}{{.}}; {{end}}ответственный за следующий шаг: {{.View.Admission.Owner}}.{{end}}</p>
+
+<h2>Состав тарифа</h2>
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Состав тарифа">
+<table class="datamap-table">
+<caption>Компоненты тарифа: запуск, подписка ИИ-сотрудника и переменные категории usage</caption>
+<thead><tr><th scope="col">Компонент</th><th scope="col">Единица</th><th scope="col">Цена</th></tr></thead>
+<tbody>
+<tr><th scope="row">Запуск (разовая часть)</th><td>услуга</td><td>{{if .View.Terms}}{{.View.Terms.LaunchPrice}}{{else}}— открытый вопрос (не ноль) —{{end}}</td></tr>
+<tr><th scope="row">Подписка ИИ-сотрудника</th><td>период</td><td>{{if .View.Terms}}{{.View.Terms.SubscriptionPrice}}{{else}}— открытый вопрос (не ноль) —{{end}}</td></tr>
+{{range .View.Composition}}{{if eq .Kind "usage"}}<tr><th scope="row">{{.Title}}</th><td>{{.Unit}}</td><td>переменный расход (Budget Meter)</td></tr>{{end}}{{end}}
+</tbody>
+</table>
+</div>
+{{if .View.OpenQuestions}}
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Открытые вопросы">
+<table class="datamap-table">
+<caption>Открытые вопросы коммерческого решения</caption>
+<thead><tr><th scope="col">Вопрос</th></tr></thead>
+<tbody>{{range .View.OpenQuestions}}<tr><td>{{.}}</td></tr>{{end}}</tbody>
+</table>
+</div>
+{{end}}
+
+{{if .View.Terms}}
+<h2>Действующая версия условий (v{{.View.Terms.Version}})</h2>
+<dl class="map-attributes">
+<dt>Валюта</dt><dd>{{.View.Terms.Currency}}</dd>
+<dt>Налоговый режим</dt><dd>{{.View.Terms.TaxRegime}}</dd>
+<dt>Период действия</dt><dd>{{.View.Terms.PeriodText}}</dd>
+<dt>Включённые ИИ-сотрудники</dt><dd>{{.View.Terms.IncludedEmployees}}</dd>
+<dt>Включённые каналы</dt><dd>{{.View.Terms.IncludedChannels}}</dd>
+<dt>Включённые Connectors</dt><dd>{{.View.Terms.IncludedConnectors}}</dd>
+{{if .View.Terms.Limits}}<dt>Лимиты</dt><dd>{{range .View.Terms.Limits}}{{.Title}}: {{.Cap}} {{.Unit}}; {{end}}</dd>{{end}}
+<dt>Опубликовано</dt><dd>{{.View.Terms.PublishedAt}}</dd>
+</dl>
+{{end}}
+
+{{if .View.StateEvents}}
+<h2>История состояний</h2>
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="История коммерческих состояний">
+<table class="datamap-table">
+<caption>События жизненного цикла Entitlement: кто, когда и на каком основании подтвердил решение</caption>
+<thead><tr><th scope="col">Событие</th><th scope="col">Версия условий</th><th scope="col">Основание</th><th scope="col">Проверка лимитов</th><th scope="col">Зафиксировано</th></tr></thead>
+<tbody>
+{{range .View.StateEvents}}<tr><th scope="row">{{.EventText}}</th><td>v{{.TermsVersion}}</td><td>{{.Basis}}</td><td>{{if .LimitsCheck}}{{.LimitsCheck}}{{else}}—{{end}}</td><td>{{.CreatedAt}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+{{end}}
+
+{{if .View.Budget}}
+<h2>Действующий бюджет (v{{.View.Budget.Version}})</h2>
+<dl class="map-attributes">
+<dt>Сумма</dt><dd>{{.View.Budget.Amount}}</dd>
+<dt>Период измерения</dt><dd>{{.View.Budget.PeriodText}}</dd>
+<dt>Порог предупреждения</dt><dd>{{.View.Budget.WarningPercent}}% бюджета</dd>
+<dt>Hard limit</dt><dd>{{.View.Budget.HardLimit}}</dd>
+<dt>Политика при достижении</dt><dd>{{.View.Budget.LimitPolicy}}</dd>
+{{if .View.Budget.AnomalyText}}<dt>Количественные нормы</dt><dd>{{range .View.Budget.AnomalyText}}{{.}}; {{end}}</dd>{{end}}
+</dl>
+{{else}}
+<p class="next-note">Бюджет пилота не задан: количественный статус бюджета — «{{.View.BudgetQualityText}}». Опубликуйте бюджет, чтобы задать пороги предупреждения и hard limit.</p>
+{{end}}
+
+{{if .View.Sources}}
+<h2>Источники usage</h2>
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Зарегистрированные источники usage">
+<table class="datamap-table">
+<caption>Зарегистрированные источники usage-событий и их срок свежести</caption>
+<thead><tr><th scope="col">Источник</th><th scope="col">Категории</th><th scope="col">Свежесть</th><th scope="col">Состояние</th><th scope="col">Зарегистрирован</th></tr></thead>
+<tbody>
+{{range .View.Sources}}<tr><th scope="row">{{.Name}}</th><td>{{.CategoriesText}}</td><td>{{.FreshnessText}}</td><td>{{if .Retired}}снят{{else}}активен{{end}}</td><td>{{.CreatedAt}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+{{end}}
+
+{{if .View.IsFull}}
+<h2>Составить версию условий</h2>
+<details class="map-form"><summary>Новая версия условий тарифа</summary>
+<form method="post" action="/app/tenants/{{.TenantID}}/entitlement/terms" class="datamap-form">
+<label for="terms-currency">Валюта (3 заглавные буквы; пусто = открытый вопрос)</label>
+<input id="terms-currency" name="currency" type="text" maxlength="3" pattern="[A-Z]{3}">
+<label for="terms-tax">Налоговый режим (пусто = явная неопределённость)</label>
+<input id="terms-tax" name="tax_regime" type="text" maxlength="300">
+<label for="terms-start">Начало периода действия</label>
+<input id="terms-start" name="period_start" type="date">
+<label for="terms-end">Конец периода действия</label>
+<input id="terms-end" name="period_end" type="date">
+<label for="terms-launch">Цена запуска (пусто = открытый вопрос, не ноль)</label>
+<input id="terms-launch" name="launch_price" type="number" min="0" step="0.01">
+<label for="terms-sub">Цена подписки ИИ-сотрудника за период</label>
+<input id="terms-sub" name="subscription_price" type="number" min="0" step="0.01">
+<label for="terms-employees">Включённые ИИ-сотрудники (по одному в строке)</label>
+<textarea id="terms-employees" name="included_employees" rows="3"></textarea>
+<label for="terms-channels">Включённые каналы (по одному в строке)</label>
+<textarea id="terms-channels" name="included_channels" rows="3"></textarea>
+<label for="terms-connectors">Включённые Connectors (по одному в строке)</label>
+<textarea id="terms-connectors" name="included_connectors" rows="3"></textarea>
+<label for="terms-note">Описание изменения</label>
+<input id="terms-note" name="change_note" type="text" maxlength="600">
+<button class="primary" type="submit">Опубликовать версию условий</button>
+</form></details>
+
+<h2>Изменить коммерческое состояние</h2>
+<form method="post" action="/app/tenants/{{.TenantID}}/entitlement/state" class="datamap-form state-form">
+<label for="state-action">Действие</label>
+<select id="state-action" name="action">
+<option value="activate">activate — активировать условия</option>
+<option value="pause">pause — приостановить</option>
+<option value="resume">resume — возобновить (с перепроверкой лимитов)</option>
+<option value="end">end — завершить</option>
+</select>
+<label for="state-basis">Основание решения (договор, счёт, решение владельца)</label>
+<input id="state-basis" name="basis" type="text" maxlength="600" required>
+<label class="overwrite-confirm"><input type="checkbox" name="confirm_state" value="yes" required> Подтверждаю изменение коммерческого состояния</label>
+<button class="primary" type="submit">Выполнить</button>
+</form>
+
+<h2>Опубликовать бюджет</h2>
+<details class="map-form"><summary>Новая версия бюджета пилота</summary>
+<form method="post" action="/app/tenants/{{.TenantID}}/entitlement/budget" class="datamap-form">
+<label for="budget-amount">Сумма бюджета</label>
+<input id="budget-amount" name="amount" type="number" min="0.01" step="0.01" required>
+<label for="budget-currency">Валюта (3 заглавные буквы)</label>
+<input id="budget-currency" name="currency" type="text" maxlength="3" pattern="[A-Z]{3}" required>
+<label for="budget-start">Начало периода измерения</label>
+<input id="budget-start" name="period_start" type="date" required>
+<label for="budget-end">Конец периода измерения</label>
+<input id="budget-end" name="period_end" type="date" required>
+<label for="budget-warning">Порог предупреждения, % бюджета</label>
+<input id="budget-warning" name="warning_threshold_percent" type="number" min="1" max="100" value="80" required>
+<label for="budget-limit">Hard limit (пусто = не задан)</label>
+<input id="budget-limit" name="hard_limit" type="number" min="0.01" step="0.01">
+<label for="budget-policy">Политика при достижении hard limit</label>
+<select id="budget-policy" name="limit_policy">
+<option value="block_new_admissions">block_new_admissions — новые необязательные операции останавливаются</option>
+<option value="degraded">degraded — деградированный режим по объявленной политике</option>
+<option value="notify_only">notify_only — только уведомление</option>
+</select>
+<label for="budget-note">Примечание</label>
+<input id="budget-note" name="note" type="text" maxlength="600">
+<button class="primary" type="submit">Опубликовать бюджет</button>
+</form></details>
+<p class="next-note">При достижении hard limit продолжают работать: безопасность, передача человеку, сверка и принятые обязательства — они не обрываются молча.</p>
+
+<h2>Зарегистрировать источник usage</h2>
+<details class="map-form"><summary>Регистрация источника событий</summary>
+<form method="post" action="/app/tenants/{{.TenantID}}/entitlement/sources" class="datamap-form">
+<label for="source-name">Имя источника</label>
+<input id="source-name" name="name" type="text" maxlength="100" required>
+<fieldset><legend>Категории покрытия</legend>
+{{range .CategoryOptions}}<label><input type="checkbox" name="categories" value="{{.ID}}"> {{.Title}}</label>{{end}}
+</fieldset>
+<label for="source-freshness">Срок свежести, минут (доставка старше срока = stale)</label>
+<input id="source-freshness" name="freshness_minutes" type="number" min="1" max="100000" value="1440" required>
+<label class="overwrite-confirm"><input type="checkbox" name="retire" value="yes"> Снять источник (последняя регистрация по имени решает)</label>
+<label for="source-note">Примечание</label>
+<input id="source-note" name="note" type="text" maxlength="600">
+<button class="primary" type="submit">Зарегистрировать</button>
+</form></details>
+{{else}}
+<p class="next-note">У вас нет полномочия коммерческого управления: доступен только общий уровень детализации (состояние и качественный статус бюджета — «{{.View.BudgetQualityText}}»). Управление тарифом, бюджетом и лимитами выполняется обладателями полномочия commercial.</p>
+{{end}}
+</section></main></div></body></html>
+{{end}}
