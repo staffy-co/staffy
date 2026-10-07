@@ -49,3 +49,11 @@
 - source_spec: `spec-1-10-data-perimeter.md`
   summary: Скрыть управляющие формы карты данных от участников только с audit-скоупом (сейчас сервер честно отклоняет POST, но формы видны).
   evidence: viewScope вычисляет canManage, но DataView его отбрасывает (_ = canManage); отказ fail-closed на сервере соответствует спеке («просмотр без управления»), UX-уточнение — вместе с общим accessibility-проходом UI.
+
+- source_spec: `spec-1-11-entitlement-usage.md`
+  summary: Выровнять маппинг JSON-ошибок privacy-модуля с entitlement-паттерном: сбои декода сейчас отдаются как invalid_idempotency_key («Обновите форму и повторите попытку») — причина неточная для битого тела запроса.
+  evidence: entitlement после R1 возвращает честные content_type/body rule-ошибки; privacy.go использует privacyDomain.ErrInvalidIdempotency для всех сбоев декода (три вызова на путь); правка механическая, требует аналогичных transport-тестов (finding R1 по 1-11).
+
+- source_spec: `spec-1-11-entitlement-usage.md`
+  summary: Заменить тихие fallback-ы числовых полей форм (formInt: warning_threshold_percent→80, freshness_minutes→1440) на честные ошибки парсинга — сейчас мусорный ввод молча публикует значение по умолчанию.
+  evidence: Опубликованное значение видно на странице после сохранения, поэтому подмена не скрыта, но не называет саму ошибку ввода; price-поля после R1 честно отклоняются — тот же паттерн нужен для formInt (finding R1 по 1-11, мульти-модульная правка).

@@ -358,3 +358,27 @@ decisions:
 - Дата в формах: time.Parse(time.RFC3339) с честной ошибкой вместо тихого http.ParseTime
 next: review R1 свежим контекстом (спека + git diff 47e9c8c..HEAD), затем R1/R2 → правки → PR → merge → done
 commit: c113ff9
+
+---
+date: 2026-10-07
+task: 22-review
+role: main (Super Z, роль Review)
+story: 1-11
+summary: Review R1/R2 story 1-11 — R1 свежим контекстом нашёл и закрыл 7 находок (summary-утечка тарифа, молчаливые исключения при публикации бюджета, нечестные flash/JSON-ошибки, тихая потеря цены, лимит чтения метра, whitespace); полный регресс повторно зелёный; спека → done (iteration 2)
+done:
+- R1: прочитаны спека и весь дифф 47e9c8c..HEAD; независимый регресс зелёный (build, vet, unit -count=1 21 пакет, integration, journeys 14/14, контракт); git diff --check нашёл trailing whitespace в postgres.go
+- Finding 1 (главный): EntitlementView на summary-уровне отдавал Terms/History/StateEvents/Sources/OpenQuestions в JSON API и на HTML-странице, текст которой при этом заявлял «доступен только общий уровень» — прямое нарушение границы спеки; тесты проверяли только MeterView. Фильтрация перенесена в сервис (одинакова для API и HTML), integration-тест расширен
+- Finding 2 (главный): публикация бюджета не оценивала исключения — порог/hard limit над уже принятым расходом молчал до следующего ingest. SetBudget теперь вызывает evaluateExceptions; ключ дедупликации gap/warn/limi выровнен со спекой — несёт версию бюджета: повторная версия честно пере-поднимает исключение. Новый integration-тест TestBudgetPublishedAfterUsageRaisesExceptions (порог поднят при публикации + пере-поднятие по версии)
+- Finding 3: ручное исключение редиректило с флагом ingested=1 → flash «Usage-событие учтено» после записи исключения. Введён exception_saved=1 + честный notice; transport-тест
+- Finding 4: не-числовая цена запуска/подписки в termsForm молча терялась (ParseFloat err игнорировался) — версия публиковалась как «открытый вопрос», владелец считал цену сохранённой. Теперь честная RuleError; transport-тест (compose не вызывается)
+- Finding 5: все сбои декода JSON маппились на ErrInvalidEventKey → 400 «Ключ события задан неверно (8–200 символов)» — ложная причина для битого тела. Введены честные content_type/body rule-ошибки; transport-тест на 4 кейса; аналогичный унаследованный кривой маппинг privacy — в deferred-work
+- Finding 6: ListUsageEvents LIMIT 10000 молча усёк бы факты при агрегации на чтении — суммы занижены при заявленной полноте. Лимит снят, комментарий фиксирует принцип
+- Finding 7: trailing whitespace postgres.go:7 — git diff --check чист после правки
+- R2: повторное чтение диффа правок — PASS; повторный полный регресс зелёный: build, vet, unit -count=1 (включая новый internal/transport/http/entitlement_test.go — 3 теста), integration -count=1 (7 entitlement-тестов), journeys 14/14, контракт, git diff --check чист
+- Спека 1-11: done (review_loop_iteration 2), Spec Change Log дополнен записью R1/R2; Implementation Notes уточнены (дедуп-ключ, оценка при публикации бюджета, фильтрация уровня в сервисе, чтение без LIMIT, ack-полномочия); sprint-status.yaml синхронно → done; 2 записи deferred-work
+decisions:
+- Фильтрация уровня детализации выполняется в сервисе, а не в шаблонах: JSON и HTML не могут разойтись в том, что видит участник без commercial
+- Оценка исключений — событийно при обоих коммерческих триггерах: приём usage и публикация бюджета; ручная регистрация/снятие источника не триггерит (дедуп по версии бюджета исключает шум, разрыв остаётся видимым в метре)
+- Возврат ошибки после успешного SaveBudget (оценка исключений) следует прецеденту IngestUsage: сущность возвращается вместе с ошибкой — факт публикации не скрывается
+next: PR в main через GitHub API, зелёный CI, merge, синхронизация main, DEVLOG 23-merge; затем CHECKPOINT владельцу — story 1-12 (release manifest) или epic-1-retrospective (после закрытия эпика)
+commit: 549a0bf
