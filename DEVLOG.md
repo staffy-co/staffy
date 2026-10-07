@@ -475,3 +475,19 @@ decisions:
 - Изменённые компоненты сравнивают точные версии, а не только присутствие — иначе bump brief или новая версия голоса отображались бы как «—»
 next: PR в main через GitHub API, merge, синхронизация main, DEVLOG 28-merge; затем CHECKPOINT 2 владельцу — Epic 1 закрыт (все 14 stories done), далее epic-1-retrospective или Epic 2
 commit: 44a86f7
+
+---
+date: 2026-10-08
+task: 28-merge
+role: main (Super Z)
+story: 1-12
+summary: Story 1.12 влита в main (merge 9b13b70, PR #13) — Epic 1 полностью закрыт: все 14 stories done; CI зелёный на ветке и на main; API-канал (PR + merge) работал без инцидентов
+done:
+- PR #13 создан через GitHub API с описанием среза и закрытых находок R1/R2; ветка запушена (abeca5f — head без [skip ci], CI на ветке запущен и зелёный: оба workflow runs success)
+- Merge выполнен через API (merge_method=merge, sha 9b13b70); main синхронизирован локально (ff); CI на main — success (run 37670643629)
+- В отличие от 1-10/1-11 инцидентов не было: REST API жив на всём цикле (PR, runs, merge)
+- Спека 1-12 done (iteration 2), sprint-status синхронно done, DEVLOG 25-checkpoint → 26-dev → 27-review → 28-merge — полный цикл story
+decisions:
+- Full API-merge (в отличие от git-side merge 1-11): канал был жив, CI подтверждён на ветке до merge и на main после
+next: CHECKPOINT 2 владельцу — Epic 1 закрыт (1-1…1-14 все done; 1-13/1-14 закрыты ранее). Дальше на выбор владельца: epic-1-retrospective (recommended SM: короткая ретроспектива эпика, action items) или старт Epic 2 (первый срез story 2-1 «Приём channel-event и создание единого case»)
+commit: 9b13b70
