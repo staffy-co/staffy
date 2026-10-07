@@ -2,7 +2,7 @@
 title: 'Story 1.12 — Версии конфигурации и Release Manifest (первый срез)'
 type: 'feature'
 created: '2026-10-07'
-status: 'backlog'
+status: 'ready-for-dev'
 route: 'dispatch'
 review_loop_iteration: 0
 baseline_commit: '57e776a4b772192de96239fe3ac2a77457fc8138'
@@ -98,6 +98,7 @@ context:
 ## Spec Change Log
 
 - 2026-10-07, review loop 0: создана спека первого среза Story 1.12 (SM). Статус `backlog` до CHECKPOINT 1 — одобрения владельцем; после одобрения спека и sprint-status.yaml одновременно переходят в `ready-for-dev` (условие синхронности check-continuity).
+- 2026-10-08, review loop 0: CHECKPOINT 1 — владелец одобрил спеку («одобряю»). Статус `ready-for-dev` (в frozen-части без изменений; одобрение зафиксировано здесь и в sprint-status.yaml синхронно).
 
 ## Design Notes
 
