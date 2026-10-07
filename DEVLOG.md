@@ -401,3 +401,22 @@ decisions:
 - DEVLOG фиксирует инцидент API открыто: если REST-доступ восстановится, проверить состояние PR #12 и прогоны CI на ветке/main ретроспективно
 next: CHECKPOINT 2 для владельца: story 1.11 закрыта; в backlog осталась 1-12 (release manifest); epic-1-retrospective — после закрытия эпика; возможная перевыдача токена, если REST-доступ нужен владельцу
 commit: b00fcc8
+
+---
+date: 2026-10-07
+task: 24-sm
+role: main (Super Z, роль SM)
+story: 1-12
+summary: SM-шаг story 1-12 — спека первого среза версий конфигурации и Release Manifest (FR-5); владелец делегировал выбор (1-12 vs ретроспектива) экспертности — выбрана последняя story эпика, ретроспектива после его закрытия
+done:
+- Состояние верифицировано после восстановления контекста: PR #12 merged (b00fcc8), CI #46 на main success, REST API снова жив (инцидент 401 прошлой сессии исчерпан); story 1-11 полностью закрыта, в backlog Epic 1 осталась только 1-12
+- Входы SM прочитаны: epics.md §1.12 (FR-5, 10 блоков критериев приёмки), PRD FR-5, epic-1-context (спайн: employee владеет релизом; Cross-Story: readiness 1-13–1-14 питается манифестом), deferred-work (12 открытых долгов — прямых к 1-12 нет), GATE-REGISTRY (AG-4; release admission — 1-14), спеки 1-9/1-10/1-11 (формат и паттерны), код: employee (drafts/versioning, pack pin, behavior/voice/knowledge append-only версии), connector (Connection, DeriveCapabilityStates, evidence), identity (scope configuration существует)
+- Спека spec-1-12-release-manifest.md: конфигурационная версия (append-only, монотонный номер, actor, описание, ссылки на точные версии Brief/Pack/вариантов/поведения/знаний/голоса, честные отсутствия), Release Manifest (канонический sha256-digest, immutable снимок, статус candidate|incomplete, UNIQUE на config version), mutable release_draft с ревизией CAS (параллельное запечатывание → ровно один манифест + конфликт для сравнения), подключения с capability-gap-ами без подмены другим аккаунтом/провайдером, runtime-компоненты честно отсутствуют (владельцы указаны), restore = новый draft со ссылкой-источником + отчёт несовместимостей, чтение по schema_version с честным quarantine и digest-перепроверкой, полномочия configuration / configuration|review|audit, доступность (текст, перенос длинных ID, aria-live)
+- Ветка codex/story-1-12-release-manifest от 57e776a; коммит спеки [skip ci]; push
+decisions:
+- Релиз размещён в модуле employee по спайну («employee — настройкой, профилем и релизом») — без отклонения от архитектуры, в отличие от privacy/entitlement
+- Runtime-компоненты (model/media routes, prompt assembly, tool schemas, policy bundle, eval set, runtime build, autonomy envelope) не имеют поверхностей — манифест первого среза честно incomplete; candidate-путь покрыт доменной функцией и юнит-тестом (прецедент admission_state 1-11)
+- Манифест — всегда «проверяемый кандидат»: release pointer, admission, traffic stages, gate-компиляция — 1-13/1-14/Epic 2; словарь runtime-компонентов зафиксирован в домене для будущих заполнений без смены схемы
+- Схема манифеста: поддержка текущей schema_version + честный quarantine неизвестной (digest-перепроверка при чтении); полный upgrade/rollback-конвертер — с первой реальной сменой схемы
+next: CHECKPOINT 1 — одобрение владельцем спеки 1-12; после «одобряю» спека и sprint-status.yaml синхронно → ready-for-dev → Dev step-03 на ветке
+commit: de4395c
