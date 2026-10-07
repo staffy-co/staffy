@@ -2,7 +2,7 @@
 title: 'Story 1.13 — Утверждение Operating Profile и правил измерения (первый срез)'
 type: 'feature'
 created: '2026-10-08'
-status: 'ready-for-dev'
+status: 'in-progress'
 route: 'dispatch'
 review_loop_iteration: 0
 baseline_commit: '653f22c1b7f9417d662603cfcf1c5eac76360970'
@@ -117,6 +117,7 @@ context:
 
 - 2026-10-08, review loop 0: создана спека первого среза Story 1.13 (SM) по решению владельца — вариант А ретроспективы Epic 1 (достроить 1-13/1-14 первыми срезами внутри Epic 1). Статус `backlog` до CHECKPOINT 1 — одобрения владельцем; после одобрения спека и sprint-status.yaml одновременно переходят в `ready-for-dev` (условие синхронности check-continuity).
 - 2026-10-08, CHECKPOINT 1: спека одобрена владельцем без правок («одобряю», чат 2026-10-08). Замороженные секции (Intent / Boundaries & Constraints / I/O & Edge-Case Matrix) не изменялись. Спека и sprint-status.yaml одновременно переведены в `ready-for-dev`; далее — Dev (step-03).
+- 2026-10-08, Dev (step-03): срез реализован полностью (коммит feat story-1-13); статус → `in-progress` до review. Готовность к review: полный регресс зелёный (build, vet, unit, integration, journeys 16/16, контракт, git diff --check).
 
 ## Design Notes
 
