@@ -318,3 +318,18 @@ decisions:
 - Без конвертации валют: отношение к бюджету только при совпадающей валюте, иначе открытый вопрос
 next: CHECKPOINT 1 — одобрение спеки владельцем; после «одобряю» спека+sprint-status синхронно → ready-for-dev → Dev step-03 на ветке
 commit: 9fbdb0b
+
+---
+date: 2026-10-07
+task: 20-sm
+role: main (Super Z, роль SM)
+story: 1-11
+summary: CHECKPOINT 1 пройден — владелец одобрил спеку 1-11 без правок («одобряю»); спека и sprint-status.yaml синхронно переведены в ready-for-dev; Dev step-03 начинается
+done:
+- Одобрение владельца получено в чате (2026-10-07); замороженные секции не изменялись
+- spec-1-11-entitlement-usage.md: status → ready-for-dev; Spec Change Log дополнен записью CHECKPOINT 1
+- sprint-status.yaml: 1-11-entitlement-лимиты-и-прозрачность-usage → ready-for-dev (синхронно со спекой)
+decisions:
+- Без правок: срез, границы и словарь исходов приняты как предложено SM
+next: Dev step-03 — полная реализация среза entitlement на ветке codex/story-1-11-entitlement-usage (baseline cf7f992): домен, миграция, app/port/store, scope commercial в identity, HTTP/UI/OpenAPI, интеграционные и journey-тесты; полный регресс; DEVLOG 21-dev
+commit: TBD
