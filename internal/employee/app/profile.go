@@ -277,18 +277,7 @@ func (s *Service) ProfileView(ctx context.Context, actor identityDomain.Principa
                 if memberErr != nil {
                         return api.ProfileView{}, memberErr
                 }
-                view.Readiness = domain.ValidateProfileContent(*content, domain.ProfileFacts{MemberIDs: memberIDs, PackJourneys: journeys})
-                // A manifest without a Pack reference leaves the cartesian
-                // completeness vacuous (zero journeys → zero cells → zero
-                // gaps): the honest refusal says so instead of silently
-                // passing an empty matrix.
-                if !packReferenced {
-                        view.Readiness = append(view.Readiness, domain.ProfileRuleError{
-                                Section: "coverage_matrix", Field: "pack_reference",
-                                Reason: "Манифест профиля не содержит Pack-ссылку: полнота матрицы не может быть выведена (декартово произведение пусто) — утверждение честно блокируется до ссылки на манифест с закреплённым Pack.",
-                                Kind:    domain.ProfileProblemMissing,
-                        })
-                }
+                view.Readiness = domain.ValidateProfileContent(*content, domain.ProfileFacts{MemberIDs: memberIDs, PackJourneys: journeys, PackReferenced: packReferenced})
         } else if view.Approved == nil && len(thresholds) > 0 {
                 view.Thresholds = domain.DeriveThresholdStates(domain.ProfileContent{}, thresholds)
         }
@@ -321,7 +310,7 @@ func (s *Service) UpdateDraft(ctx context.Context, c api.ProfileDraftCommand) (d
         if err != nil {
                 return domain.ProfileDraft{}, err
         }
-        problems := domain.ValidateProfileContent(c.Content, domain.ProfileFacts{MemberIDs: memberIDs, PackJourneys: packJourneysOfManifest(record)})
+        problems := domain.ValidateProfileContent(c.Content, domain.ProfileFacts{MemberIDs: memberIDs, PackJourneys: packJourneysOfManifest(record), PackReferenced: record.Manifest.Content.Config.Refs.Pack.Status == domain.RefPresent})
         if domain.HasInvalidProfileProblems(problems) {
                 return domain.ProfileDraft{}, profileRejection(problems)
         }
@@ -363,6 +352,16 @@ func (s *Service) ApproveProfile(ctx context.Context, c api.ProfileApproveComman
         if err := domain.ValidateProfileDescription(c.Description); err != nil {
                 return domain.ProfileVersion{}, err
         }
+        // Command-field validation comes before the deep readiness gate: an
+        // evidence-free confirmation is refused without touching the draft.
+        if len(c.EvidenceRefs) == 0 {
+                return domain.ProfileVersion{}, domain.ProfileRuleError{Section: "approval", Field: "evidence_refs", Reason: "Утверждение требует хотя бы одной evidence-ссылки (digest манифеста, использованные версии порогов) — как у порога, минимальный набор не опускается."}
+        }
+        for _, reference := range c.EvidenceRefs {
+                if !profileRefLength(reference) {
+                        return domain.ProfileVersion{}, domain.ProfileRuleError{Section: "approval", Field: "evidence_refs", Reason: "Каждая evidence-ссылка: 1–300 символов (digest манифеста, использованные версии порогов)."}
+                }
+        }
         draft, err := repository.ReadProfileDraft(ctx, scope, c.EmployeeID)
         if errors.Is(err, domain.ErrNotFound) {
                 return domain.ProfileVersion{}, domain.ProfileRuleError{Section: "draft", Field: "draft", Reason: "Черновик профиля не существует: создайте и заполните его перед утверждением."}
@@ -378,17 +377,9 @@ func (s *Service) ApproveProfile(ctx context.Context, c api.ProfileApproveComman
         if err != nil {
                 return domain.ProfileVersion{}, err
         }
-        problems := domain.ValidateProfileContent(draft.Content, domain.ProfileFacts{MemberIDs: memberIDs, PackJourneys: packJourneysOfManifest(record)})
+        problems := domain.ValidateProfileContent(draft.Content, domain.ProfileFacts{MemberIDs: memberIDs, PackJourneys: packJourneysOfManifest(record), PackReferenced: record.Manifest.Content.Config.Refs.Pack.Status == domain.RefPresent})
         if domain.HasBlockingProfileProblems(problems) {
                 return domain.ProfileVersion{}, profileRejection(problems)
-        }
-        if len(c.EvidenceRefs) == 0 {
-                return domain.ProfileVersion{}, domain.ProfileRuleError{Section: "approval", Field: "evidence_refs", Reason: "Утверждение требует хотя бы одной evidence-ссылки (digest манифеста, использованные версии порогов) — как у порога, минимальный набор не опускается."}
-        }
-        for _, reference := range c.EvidenceRefs {
-                if !profileRefLength(reference) {
-                        return domain.ProfileVersion{}, domain.ProfileRuleError{Section: "approval", Field: "evidence_refs", Reason: "Каждая evidence-ссылка: 1–300 символов (digest манифеста, использованные версии порогов)."}
-                }
         }
         digest, err := domain.ProfileDigest(draft.Content)
         if err != nil {

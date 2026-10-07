@@ -12,8 +12,9 @@ var profileBackup = id.MustParse("01994f64-6c00-7000-8000-0000000000ab")
 
 func profileFacts() ProfileFacts {
 	return ProfileFacts{
-		MemberIDs:    map[id.UUID]bool{profileOwner: true, profileBackup: true},
-		PackJourneys: []string{"поиск детали", "уточнение аналога"},
+		MemberIDs:      map[id.UUID]bool{profileOwner: true, profileBackup: true},
+		PackJourneys:   []string{"поиск детали", "уточнение аналога"},
+		PackReferenced: true,
 	}
 }
 
@@ -482,4 +483,36 @@ func TestValidateThresholdDecisionAndDescription(t *testing.T) {
 	if err := ValidateProfileDescription("Утверждение профиля v1 по договору №77"); err != nil {
 		t.Fatalf("a valid description must pass: %v", err)
 	}
+}
+
+func TestValidateProfileContentRequiresPackReference(t *testing.T) {
+        facts := profileFacts()
+        facts.PackReferenced = false
+        // An empty product cannot show gaps: without the pack reference the
+        // completeness is vacuous and the approval must block honestly.
+        problems := ValidateProfileContent(validProfileContent(), facts)
+        found := false
+        for _, problem := range problems {
+                if problem.Section == "coverage_matrix" && problem.Field == "pack_reference" && problem.Kind == ProfileProblemMissing {
+                        found = true
+                }
+        }
+        if !found {
+                t.Fatalf("a packless manifest must block the approval honestly, got: %v", problems)
+        }
+}
+
+func TestValidateProfileContentRejectsModalityMismatch(t *testing.T) {
+        content := validProfileContent()
+        content.Matrix[0].Modality = ModalityText // phone route must carry voice
+        problems := ValidateProfileContent(content, profileFacts())
+        found := false
+        for _, problem := range problems {
+                if problem.Kind == ProfileProblemInvalid && contains(problem.Reason, "Modality") {
+                        found = true
+                }
+        }
+        if !found {
+                t.Fatalf("a modality that disagrees with the route channel must reject the save, got: %v", problems)
+        }
 }

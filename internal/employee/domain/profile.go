@@ -561,11 +561,15 @@ func ProfileDigest(content ProfileContent) (string, error) {
 // ---------------------------------------------------------------------------
 
 // ProfileFacts are the caller-authority facts the references are validated
-// against: the member identifiers of the tenant and the journeys of the pack
-// pinned by the sealed manifest.
+// against: the member identifiers of the tenant, the journeys of the pack
+// pinned by the sealed manifest and whether the referenced manifest actually
+// carries a Pack reference at all. Without the pack reference the cartesian
+// completeness of the coverage matrix is vacuous (an empty product cannot
+// show gaps) — the validation says so honestly instead of passing silently.
 type ProfileFacts struct {
-        MemberIDs    map[id.UUID]bool
-        PackJourneys []string
+        MemberIDs      map[id.UUID]bool
+        PackJourneys   []string
+        PackReferenced bool
 }
 
 // HasInvalidProfileProblems reports whether the list contains a present but
@@ -967,6 +971,9 @@ func ValidateProfileContent(content ProfileContent, facts ProfileFacts) []Profil
         // Declared modes and autonomy classes: non-empty subsets of the dictionaries.
         add = invalid("coverage_matrix")
         absent = missing("coverage_matrix")
+        if !facts.PackReferenced {
+                absent("pack_reference", "Манифест профиля не содержит Pack-ссылку: полнота матрицы не может быть выведена (декартово произведение пусто) — утверждение честно блокируется до ссылки на манифест с закреплённым Pack.")
+        }
         if len(content.Modes) == 0 {
                 absent("conversation_modes", "Объявленные Conversation Modes не заданы: непустое подмножество словаря.")
         }

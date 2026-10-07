@@ -2,9 +2,9 @@
 title: 'Story 1.13 — Утверждение Operating Profile и правил измерения (первый срез)'
 type: 'feature'
 created: '2026-10-08'
-status: 'in-progress'
+status: 'done'
 route: 'dispatch'
-review_loop_iteration: 0
+review_loop_iteration: 2
 baseline_commit: '653f22c1b7f9417d662603cfcf1c5eac76360970'
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-1-context.md'
@@ -118,6 +118,7 @@ context:
 - 2026-10-08, review loop 0: создана спека первого среза Story 1.13 (SM) по решению владельца — вариант А ретроспективы Epic 1 (достроить 1-13/1-14 первыми срезами внутри Epic 1). Статус `backlog` до CHECKPOINT 1 — одобрения владельцем; после одобрения спека и sprint-status.yaml одновременно переходят в `ready-for-dev` (условие синхронности check-continuity).
 - 2026-10-08, CHECKPOINT 1: спека одобрена владельцем без правок («одобряю», чат 2026-10-08). Замороженные секции (Intent / Boundaries & Constraints / I/O & Edge-Case Matrix) не изменялись. Спека и sprint-status.yaml одновременно переведены в `ready-for-dev`; далее — Dev (step-03).
 - 2026-10-08, Dev (step-03): срез реализован полностью (коммит feat story-1-13); статус → `in-progress` до review. Готовность к review: полный регресс зелёный (build, vet, unit, integration, journeys 16/16, контракт, git diff --check).
+- 2026-10-08, Review (R1/R2): R1 (свежий контекст) — 3 main + 7 minor: wire-JSON ProfileRuleError не соответствовал контракту (json-теги добавлены), недетерминированный latest-манифест (детерминизм по максимальному config_version; изолированные прогоны 10/10), пустые evidence_refs проходили (server-side minItems). Минорные: навигация, конфликт с current_content, Modality в CoverageCell, тихие деградации ProfileView + vacuous completeness (pack_reference-блокировка перенесена в доменную валидацию), мёртвый код, try/finally journey-флага, OQ-11 enum для всех назначений. Отклонение задокументировано: ListMembers owner-gated — введён факт-порт MembersFacts (ConnectionsFacts-прецедент). R2 — PASS: все находки закрыты корректно, регрессий нет; follow-up'ы закрыты в том же цикле (pack_reference в ValidateProfileContent, негативные тесты modality/evidence/wire-shape в transport-тестах). Статус → `done` (iteration 2); полный регресс зелёный (build, vet, unit, integration, journeys 16/16, контракт, git diff --check).
 
 ## Design Notes
 

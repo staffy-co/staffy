@@ -242,6 +242,20 @@ func TestProfileReadinessAndStepUpRefusals(t *testing.T) {
         if _, err := w.approve(t, employee, draft.Revision, noStepUp); !errors.Is(err, employeeDomain.ErrProfileStepUpRequired) {
                 t.Fatalf("approval without step-up must refuse honestly, got %v", err)
         }
+        // Approval without a single evidence reference: honest refusal (the
+        // contract's minItems is enforced server-side, symmetric to thresholds).
+        if _, err := w.employee.ApproveProfile(context.Background(), employeeAPI.ProfileApproveCommand{
+                Actor: identityDomain.Principal{ID: w.owner.ID, StepUpVerified: true}, TenantID: w.tenant, EmployeeID: employee,
+                CorrelationID: id.MustParse("01994f64-6c00-7000-8000-000000000a07"),
+                Description: "Без ссылок", EvidenceRefs: nil, ExpectedRevision: draft.Revision,
+        }); err == nil {
+                t.Fatal("an approval without evidence references must be refused")
+        } else {
+                var rule employeeDomain.ProfileRuleError
+                if !errors.As(err, &rule) || rule.Field != "evidence_refs" {
+                        t.Fatalf("the refusal must lead to the evidence_refs field, got %v", err)
+                }
+        }
         // Approval with step-up but incomplete content: refused with the list
         // leading to concrete fields (the work_scope problems come first in the
         // validation flow, operational_level afterwards).

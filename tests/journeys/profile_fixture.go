@@ -92,13 +92,15 @@ func (f *profileFixture) ProfileView(_ context.Context, _ domain.Principal, _, e
         }
         if content != nil {
                 journeys := []string{}
+                packReferenced := false
                 if _, manifestContent, ok := f.manifestLink(link); ok {
                         journeys = f.packJourneys(manifestContent)
+                        packReferenced = manifestContent.Config.Refs.Pack.Status == employeeDomain.RefPresent
                 }
                 view.RouteStates = employeeDomain.DeriveRouteStates(*content)
                 view.Matrix = employeeDomain.DeriveMatrixCoverage(*content, journeys)
                 view.Thresholds = employeeDomain.DeriveThresholdStates(*content, f.thresholds)
-                view.Readiness = employeeDomain.ValidateProfileContent(*content, employeeDomain.ProfileFacts{MemberIDs: profileMemberIDs(), PackJourneys: journeys})
+                view.Readiness = employeeDomain.ValidateProfileContent(*content, employeeDomain.ProfileFacts{MemberIDs: profileMemberIDs(), PackJourneys: journeys, PackReferenced: packReferenced})
         }
         view.Applicability = employeeDomain.DeriveProfileApplicability(view.Approved, view.Draft, view.LatestManifest)
         return view, nil
@@ -120,7 +122,7 @@ func (f *profileFixture) UpdateDraft(_ context.Context, c employeeAPI.ProfileDra
                 return employeeDomain.ProfileDraft{}, employeeDomain.ProfileRuleError{Section: "manifest", Field: "digest", Reason: "Digest ссылки не совпадает с digest запечатанного манифеста: ссылка фиксирует точную версию, «текущее состояние» не подставляется.", Kind: employeeDomain.ProfileProblemInvalid}
         }
         _ = manifestContent
-        problems := employeeDomain.ValidateProfileContent(c.Content, employeeDomain.ProfileFacts{MemberIDs: profileMemberIDs(), PackJourneys: f.packJourneysOfLink(c.Manifest)})
+        problems := employeeDomain.ValidateProfileContent(c.Content, employeeDomain.ProfileFacts{MemberIDs: profileMemberIDs(), PackJourneys: f.packJourneysOfLink(c.Manifest), PackReferenced: f.linkPackReferenced(c.Manifest)})
         if employeeDomain.HasInvalidProfileProblems(problems) {
                 return employeeDomain.ProfileDraft{}, profileFixtureRejection(problems)
         }
@@ -138,6 +140,15 @@ func (f *profileFixture) UpdateDraft(_ context.Context, c employeeAPI.ProfileDra
                 f.draft = &employeeDomain.ProfileDraft{TenantID: tenantID, EmployeeID: fixtureEmployeeID, Revision: f.draft.Revision + 1, ApprovedRevision: approved, Manifest: c.Manifest, Content: c.Content, ActorID: c.Actor.ID, UpdatedAt: now}
         }
         return *f.draft, nil
+}
+
+// linkPackReferenced reports whether the manifest of the link carries a
+// pack reference (the vacuous-completeness guard needs the exact fact).
+func (f *profileFixture) linkPackReferenced(link employeeDomain.ManifestLink) bool {
+	if _, content, ok := f.manifestLink(link); ok {
+		return content.Config.Refs.Pack.Status == employeeDomain.RefPresent
+	}
+	return false
 }
 
 // packJourneysOfLink resolves the journeys for one manifest link.
@@ -170,7 +181,7 @@ func (f *profileFixture) ApproveProfile(_ context.Context, c employeeAPI.Profile
         if !ok {
                 return employeeDomain.ProfileVersion{}, employeeDomain.ProfileRuleError{Section: "manifest", Field: "link", Reason: "Манифест черновика больше не читается: утверждение невозможно.", Kind: employeeDomain.ProfileProblemInvalid}
         }
-        problems := employeeDomain.ValidateProfileContent(f.draft.Content, employeeDomain.ProfileFacts{MemberIDs: profileMemberIDs(), PackJourneys: f.packJourneys(manifestContent)})
+        problems := employeeDomain.ValidateProfileContent(f.draft.Content, employeeDomain.ProfileFacts{MemberIDs: profileMemberIDs(), PackJourneys: f.packJourneys(manifestContent), PackReferenced: manifestContent.Config.Refs.Pack.Status == employeeDomain.RefPresent})
         if employeeDomain.HasBlockingProfileProblems(problems) {
                 return employeeDomain.ProfileVersion{}, profileFixtureRejection(problems)
         }
