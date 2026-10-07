@@ -5,22 +5,22 @@ import (
 	"time"
 
 	connectorAPI "github.com/artemiosu/staffy/internal/connector/api"
-	connectorDomain "github.com/artemiosu/staffy/internal/connector/domain"
 	"github.com/artemiosu/staffy/internal/employee/domain"
-	identity "github.com/artemiosu/staffy/internal/identity/domain"
 	"github.com/artemiosu/staffy/internal/platform/id"
 	"github.com/artemiosu/staffy/internal/platform/tenancy"
 )
 
 // ConnectorFacts is the narrow read port to the connector module: the
-// release surface consumes connections and their DERIVED capability states
-// (one truth: connector/domain.DeriveCapabilityStates). The employee
-// module never re-derives states itself. The method names match
-// connector/api.Service so the real service satisfies the port
-// structurally, without an adapter.
+// release surface consumes the safe cross-module projection (identifiers,
+// versions, states and evidence — never secrets or config values) together
+// with the DERIVED capability states (one truth:
+// connector/domain.DeriveCapabilityStates). The read is caller-authority:
+// the release surface has already verified the configuration scope of the
+// actor, so no second scope check happens and RLS isolates the tenant.
+// The method matches connector/api.Service so the real service satisfies
+// the port structurally, without an adapter.
 type ConnectorFacts interface {
-	List(context.Context, identity.Principal, id.UUID) ([]connectorDomain.Connection, error)
-	CapabilityState(context.Context, identity.Principal, id.UUID, id.UUID) (connectorAPI.CapabilityStateResult, error)
+	ConnectionsFacts(context.Context, tenancy.Context) ([]connectorAPI.ConnectionFacts, error)
 }
 
 // DraftParams creates or CAS-updates the mutable release draft.

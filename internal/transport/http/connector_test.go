@@ -15,6 +15,7 @@ import (
         "github.com/artemiosu/staffy/internal/identity/api"
         "github.com/artemiosu/staffy/internal/identity/domain"
         "github.com/artemiosu/staffy/internal/platform/id"
+"github.com/artemiosu/staffy/internal/platform/tenancy"
 )
 
 type fakeConnector struct {
@@ -119,6 +120,21 @@ func (f *fakeConnector) CapabilityState(_ context.Context, _ domain.Principal, _
                         {CapabilityDeclaration: connectorDomain.CapabilityDeclaration{ID: "event.inbound-call", Title: "Входящий звонок", Direction: connectorDomain.DirectionInbound, Operation: connectorDomain.OperationEvent, TimeoutMS: 5000, Ordering: "fifo", RateLimit: "120 событий/мин", SizeLimit: "16 КБ", Receipt: "event_ack", ReceiptLevel: connectorDomain.DeliveryAccepted, CancelCompensation: "не применимо", Reconciliation: "дедупликация по event_id", ReconciliationOwner: "Technical Lead", ProbeAllowed: false}, State: connectorDomain.CapStateUnverified, StateReason: "Путь проверки входящих событий не реализован в текущем срезе."},
                 },
         }, nil
+}
+
+// ConnectionsFacts is the caller-authority facts read of the fake: the same
+// projection as the real service, scoped by the passed tenancy.
+func (f *fakeConnector) ConnectionsFacts(ctx context.Context, _ tenancy.Context) ([]connectorAPI.ConnectionFacts, error) {
+	state, err := f.CapabilityState(ctx, domain.Principal{}, "", "")
+	if err != nil {
+		return nil, err
+	}
+	return []connectorAPI.ConnectionFacts{{
+		ConnectionID: state.Connection.ConnectionID, ConnectorID: state.Connection.ConnectorID,
+		ContractVersion: state.ContractVersion, AdapterBuild: state.AdapterBuild,
+		Environment: string(state.Connection.Environment), Status: state.Connection.Status,
+		Capabilities: state.Capabilities,
+	}}, nil
 }
 
 func newConnectorTestServer(t *testing.T, fake *fakeConnector) *Server {

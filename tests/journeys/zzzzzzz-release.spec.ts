@@ -70,6 +70,18 @@ test('release versions and manifest stay honest, immutable and accessible at 320
   await expect(dependencies).toContainText('Operating Profile');
   await expect(dependencies).toContainText('GATE-REGISTRY');
 
+  // Connections in the manifest: either the honest empty statement or the
+  // frozen facts with capability states (the earlier journeys connect an
+  // account, so the sealed manifest lists it in the full-suite order).
+  const connectionsTable = page.locator('table', { hasText: 'Подключения на момент запечатывания' });
+  if (await connectionsTable.count()) {
+    const firstConnection = connectionsTable.getByRole('row').nth(1);
+    await expect(firstConnection.locator('.digest-block').first()).toContainText(/^[0-9a-f-]{36}$/);
+    await expect(firstConnection).toContainText(/не проверена|подтверждена|устарело|неопределён|не декларирует/);
+  } else {
+    await expect(page.getByText('Подключений у пространства нет')).toBeVisible();
+  }
+
   // The long digest wraps inside its block: no horizontal page scroll at 320 px.
   const scrolled = await page.evaluate(() => document.documentElement.scrollWidth);
   expect(scrolled).toBeLessThanOrEqual(320);

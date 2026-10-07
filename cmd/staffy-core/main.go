@@ -96,6 +96,7 @@ func run(logger *slog.Logger) error {
         // narrow port; without it sealing and restoring honestly refuse.
         employeeService = employeeService.WithConnectorFacts(connectorService)
         transport.BindEmployee(employeeService)
+        transport.BindRelease(employeeService)
         transport.BindConnector(connectorService)
         privacyExecutors := map[string]privacyPort.ClassDeletionExecutor{
                 privacyDomain.ExecutorEmployee: employeeService.PrivacyDeletionExecutor(),

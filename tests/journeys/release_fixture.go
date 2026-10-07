@@ -11,6 +11,7 @@ import (
 	"github.com/artemiosu/staffy/internal/employee/packs"
 	"github.com/artemiosu/staffy/internal/identity/domain"
 	"github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/artemiosu/staffy/internal/platform/tenancy"
 )
 
 // releaseFixture is the in-memory release surface of the journey server:
@@ -32,6 +33,12 @@ func newReleaseFixture(employee *employeeFixture, connectors *connectorFixture) 
 }
 
 func (f *releaseFixture) lock()   { <-f.mu }
+
+// releaseScope is the fixture tenancy for the caller-authority facts read.
+func releaseScope() tenancy.Context {
+	scope, _ := tenancy.New(principalID, tenantID)
+	return scope
+}
 func (f *releaseFixture) unlock() { f.mu <- struct{}{} }
 
 // knowledgeSources returns the fixture knowledge list (nil-safe).
@@ -184,7 +191,7 @@ func (f *releaseFixture) SealManifest(_ context.Context, c employeeAPI.SealComma
 			return employeeDomain.ReleaseManifest{}, employeeDomain.ErrManifestExists
 		}
 	}
-	connections, err := f.connectorFacts(c.Actor)
+	connections, err := f.connectorFacts()
 	if err != nil {
 		return employeeDomain.ReleaseManifest{}, err
 	}
@@ -215,21 +222,18 @@ func (f *releaseFixture) SealManifest(_ context.Context, c employeeAPI.SealComma
 	return manifest, nil
 }
 
-// connectorFacts gathers the fixture connection facts through the connector
-// fixture (the derived states come from the connector domain — one truth).
-func (f *releaseFixture) connectorFacts(actor domain.Principal) ([]employeeDomain.ConnectionFact, error) {
-	connections, err := f.connectors.List(context.Background(), actor, tenantID)
+// connectorFacts gathers the fixture connection facts through the same
+// caller-authority port as production: the derived states come from the
+// connector domain (one truth), and only the safe projection crosses.
+func (f *releaseFixture) connectorFacts() ([]employeeDomain.ConnectionFact, error) {
+	rows, err := f.connectors.ConnectionsFacts(context.Background(), releaseScope())
 	if err != nil {
 		return nil, err
 	}
-	facts := make([]employeeDomain.ConnectionFact, 0, len(connections))
-	for _, conn := range connections {
-		state, err := f.connectors.CapabilityState(context.Background(), actor, tenantID, conn.ConnectionID)
-		if err != nil {
-			return nil, err
-		}
-		capabilities := make([]employeeDomain.CapabilityFact, 0, len(state.Capabilities))
-		for _, report := range state.Capabilities {
+	facts := make([]employeeDomain.ConnectionFact, 0, len(rows))
+	for _, row := range rows {
+		capabilities := make([]employeeDomain.CapabilityFact, 0, len(row.Capabilities))
+		for _, report := range row.Capabilities {
 			fact := employeeDomain.CapabilityFact{
 				Capability: report.ID, State: report.State, Reason: report.StateReason, Owner: report.ReconciliationOwner,
 			}
@@ -246,8 +250,8 @@ func (f *releaseFixture) connectorFacts(actor domain.Principal) ([]employeeDomai
 			capabilities = append(capabilities, fact)
 		}
 		facts = append(facts, employeeDomain.ConnectionFact{
-			ConnectionID: conn.ConnectionID, ConnectorID: conn.ConnectorID, ContractVersion: conn.ConnectorVer,
-			AdapterBuild: state.AdapterBuild, Environment: string(conn.Environment), Status: conn.Status,
+			ConnectionID: row.ConnectionID, ConnectorID: row.ConnectorID, ContractVersion: row.ContractVersion,
+			AdapterBuild: row.AdapterBuild, Environment: row.Environment, Status: row.Status,
 			Capabilities: capabilities,
 		})
 	}
@@ -280,7 +284,7 @@ func (f *releaseFixture) Restore(_ context.Context, c employeeAPI.RestoreCommand
 			sealed = &content
 		}
 	}
-	connections, err := f.connectorFacts(c.Actor)
+	connections, err := f.connectorFacts()
 	if err != nil {
 		return employeeAPI.RestoreResult{}, err
 	}

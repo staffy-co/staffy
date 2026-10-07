@@ -2,6 +2,7 @@ package httptransport
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	employeeAPI "github.com/artemiosu/staffy/internal/employee/api"
@@ -61,12 +62,21 @@ func prepareReleaseView(view employeeAPI.ReleaseView) releasePageView {
 	for _, summary := range view.Manifests {
 		sealedBy[summary.ConfigVersion] = summary
 	}
-	for _, version := range view.Versions {
+	for index, version := range view.Versions {
 		row := versionRow{
 			Version:     version.Version,
 			Description: version.Description,
+			ActorID:     version.ActorID.String(),
 			CreatedAt:   releaseFormatTimestamp(version.CreatedAt),
 		}
+		// The changed components compare this version's refs with the
+		// previous one (text, never color alone).
+		var previous *employeeDomain.ConfigRefs
+		if index+1 < len(view.Versions) {
+			refs := view.Versions[index+1].Refs
+			previous = &refs
+		}
+		row.Changed = releaseChangedComponents(version.Refs, previous)
 		if summary, ok := sealedBy[version.Version]; ok {
 			row.Sealed = true
 			row.Status = summary.Status
@@ -89,6 +99,28 @@ func releaseScopeText(scope string) string {
 		return "configuration — просмотр и управление"
 	}
 	return "review/audit — только просмотр, управление недоступно"
+}
+
+// releaseChangedComponents lists the components whose references differ
+// between a version and its predecessor; the first version lists every
+// component it pins (there is nothing to compare with).
+func releaseChangedComponents(refs employeeDomain.ConfigRefs, previous *employeeDomain.ConfigRefs) string {
+	changed := []string{}
+	brief, pack, behavior, knowledge, voice := "", "", "", "", ""
+	if previous != nil {
+		brief, pack, behavior, knowledge, voice = previous.Brief.Status, previous.Pack.Status, previous.Behavior.Status, previous.Knowledge.Status, previous.Voice.Status
+	}
+	record := func(name, current, prev string) {
+		if previous == nil || current != prev {
+			changed = append(changed, name)
+		}
+	}
+	record("Brief", refs.Brief.Status, brief)
+	record("Domain Pack", refs.Pack.Status, pack)
+	record("Поведение", refs.Behavior.Status, behavior)
+	record("Знания", refs.Knowledge.Status, knowledge)
+	record("Голос", refs.Voice.Status, voice)
+	return strings.Join(changed, ", ")
 }
 
 func prepareDraftView(draft employeeDomain.ReleaseDraft) *draftPageView {
@@ -165,6 +197,7 @@ func prepareManifestView(view employeeAPI.ManifestView) manifestPageView {
 		Digest:           view.Digest,
 		SchemaVersion:    view.SchemaVersion,
 		SchemaText:       fmt.Sprintf("schema_version %d", view.SchemaVersion),
+		ActorID:          view.ActorID.String(),
 		SealedAt:         releaseFormatTimestamp(view.SealedAt),
 		QuarantineKind:   view.Quarantine,
 		QuarantineReason: view.QuarantineReason,
@@ -305,11 +338,13 @@ type restoredRow struct {
 type versionRow struct {
 	Version     int64
 	Description string
+	ActorID     string
 	CreatedAt   string
 	Sealed      bool
 	Status      string
 	StatusText  string
 	Digest      string
+	Changed     string
 }
 
 type manifestPageView struct {
@@ -320,6 +355,7 @@ type manifestPageView struct {
 	Digest             string
 	SchemaVersion      int
 	SchemaText         string
+	ActorID            string
 	SealedAt           string
 	Quarantine         bool
 	QuarantineKind     string

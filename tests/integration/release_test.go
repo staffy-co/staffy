@@ -7,6 +7,7 @@ import (
         "encoding/json"
         "errors"
         "fmt"
+        "strings"
         "sync"
         "testing"
         "time"
@@ -22,6 +23,8 @@ import (
         identityApp "github.com/artemiosu/staffy/internal/identity/app"
         identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
         identityStore "github.com/artemiosu/staffy/internal/identity/store"
+        connectorAPI "github.com/artemiosu/staffy/internal/connector/api"
+        connectorDomain "github.com/artemiosu/staffy/internal/connector/domain"
         "github.com/artemiosu/staffy/internal/platform/id"
 )
 
@@ -517,9 +520,136 @@ func TestReleaseWriteAuditAndGrants(t *testing.T) {
         if _, err := runtimePool.Exec(ctx, "delete from employee.release_manifests where tenant_id=$1", w.tenant); err == nil {
                 t.Fatal("release_manifests must reject DELETE for staffy_app")
         }
-        // Cross-tenant write is blocked by RLS.
+        // Cross-tenant write is blocked by RLS: the transaction carries the real
+        // tenant setting (transaction-scoped, the pooled connection never leaks
+        // it), and the policy rejects the foreign tenant_id row.
+        rlsTx, err := runtimePool.Begin(ctx)
+        if err != nil {
+                t.Fatal(err)
+        }
+        defer rlsTx.Rollback(ctx)
+        if _, err = rlsTx.Exec(ctx, "select set_config('staffy.tenant_id',$1,true)", w.tenant.String()); err != nil {
+                t.Fatal(err)
+        }
         foreign := id.MustParse("01994f64-6c00-7000-8000-0000000000ff")
-        if _, err := runtimePool.Exec(ctx, "insert into employee.config_versions(tenant_id,employee_id,version_id,version,refs,description,actor_id,created_at) values($1,$2,$3,1,'{}'::jsonb,'foreign',gen_random_uuid(),now())", foreign, employeeID); err == nil {
+        foreignVersionID, err := id.NewV7(time.Now().UTC())
+        if err != nil {
+                t.Fatal(err)
+        }
+        if _, err = rlsTx.Exec(ctx, "insert into employee.config_versions(tenant_id,employee_id,version_id,version,refs,description,actor_id,created_at) values($1,$2,$3,1,'{}'::jsonb,'foreign',$4,now())", foreign, employeeID, foreignVersionID, w.owner.ID); err == nil {
                 t.Fatal("RLS must block cross-tenant inserts")
+        }
+}
+
+// TestConfiguratorSealsManifestThroughFactsPort: a member holding only the
+// configuration scope (a Configurator, no integrations) can seal — the
+// connection facts cross through the caller-authority port without a
+// second scope check, and only the safe projection lands in the manifest.
+func TestConfiguratorSealsManifestThroughFactsPort(t *testing.T) {
+        w := newReleaseWorld(t, 101)
+        ctx := context.Background()
+        employeeID := w.createEmployee(t, false)
+
+        // A sandbox connection exists but is never verified: its capabilities
+        // stay honest gaps in the manifest.
+        created, err := w.connector.Create(ctx, connectorAPI.CreateCommand{
+                Actor: w.owner, TenantID: w.tenant, IdempotencyKey: "release-connection-101",
+                CorrelationID: id.MustParse("01994f64-6c00-7000-8000-000000000911"),
+                ConnectorID: "staffy-synthetic-telephony", ConnectorVer: "1.1.0",
+                Label: "Телефония Олега", Environment: connectorDomain.EnvSandbox,
+                Config: map[string]string{"endpoint": "https://synthetic.example.test"},
+        })
+        if err != nil {
+                t.Fatal(err)
+        }
+
+        draft := w.assemble(t, employeeID, 0)
+        version := w.createVersion(t, employeeID, draft.Revision, "Конфигуратор запечатывает")
+
+        // The Configurator holds configuration without integrations: sealing
+        // must work for them by the spec (the facts port is caller-authority).
+        configurator := inviteMember(t, w.identity, w.owner, w.tenant, "release-configurator@example.test",
+                identityDomain.Configurator, []identityDomain.Scope{identityDomain.Configuration}, "0000000090c1", "0000000090c2")
+        if err := w.identity.Authorize(ctx, configurator, w.tenant, identityDomain.Integrations); err == nil {
+                t.Fatal("precondition: configurator must NOT hold the integrations scope")
+        }
+        draft, err = w.employee.AssembleDraft(ctx, employeeAPI.AssembleCommand{
+                Actor: configurator, TenantID: w.tenant, EmployeeID: employeeID,
+                CorrelationID: id.MustParse("01994f64-6c00-7000-8000-000000000912"), ExpectedRevision: draft.Revision + 1,
+        })
+        if err != nil {
+                t.Fatal(err)
+        }
+        // The sealed manifest carries the connection with honest gap states and
+        // no secret material.
+        manifest, err := w.employee.SealManifest(ctx, employeeAPI.SealCommand{
+                Actor: configurator, TenantID: w.tenant, EmployeeID: employeeID,
+                CorrelationID: id.MustParse("01994f64-6c00-7000-8000-000000000913"),
+                ConfigVersion: version.Version, ExpectedRevision: draft.Revision,
+        })
+        if err != nil {
+                t.Fatalf("configurator seal = %v, want success through the facts port", err)
+        }
+        if manifest.Status != employeeDomain.ManifestStatusIncomplete {
+                t.Fatalf("status = %q, want incomplete (capability gaps)", manifest.Status)
+        }
+        found := false
+        for _, conn := range manifest.Content.Connections {
+                if conn.ConnectionID != created.Connection.ConnectionID {
+                        continue
+                }
+                found = true
+                if conn.Status != connectorDomain.StatusDraft {
+                        t.Fatalf("connection status = %q, want draft", conn.Status)
+                }
+                if len(conn.Capabilities) == 0 {
+                        t.Fatal("manifest must list the declared capabilities as honest gaps")
+                }
+                for _, capability := range conn.Capabilities {
+                        if !capability.Gap {
+                                t.Fatalf("capability %q must be an honest gap for an unverified connection", capability.Capability)
+                        }
+                }
+                joined, _ := json.Marshal(conn)
+                if strings.Contains(string(joined), "synthetic.example.test") || strings.Contains(string(joined), "secret") {
+                        t.Fatalf("manifest leaked connection material: %s", joined)
+                }
+        }
+        if !found {
+                t.Fatalf("sealed manifest must include the tenant connection: %+v", manifest.Content.Connections)
+        }
+}
+
+// TestRestoreReportsQuarantinedManifest: a quarantined source manifest
+// leaves an explicit note in the restore report instead of silently
+// skipping the connection comparison.
+func TestRestoreReportsQuarantinedManifest(t *testing.T) {
+        w := newReleaseWorld(t, 102)
+        ctx := context.Background()
+        employeeID := w.createEmployee(t, false)
+        draft := w.assemble(t, employeeID, 0)
+        version := w.createVersion(t, employeeID, draft.Revision, "Источник карантина")
+        if _, err := w.seal(t, employeeID, version.Version, draft.Revision+1); err != nil {
+                t.Fatal(err)
+        }
+        // Tamper the sealed payload into an unknown schema version.
+        writeManifestContent(t, ctx, w.tenant, employeeID, version.Version, map[string]any{"schema_version": 77, "configuration": map[string]any{}})
+
+        result, err := w.employee.Restore(ctx, employeeAPI.RestoreCommand{
+                Actor: w.owner, TenantID: w.tenant, EmployeeID: employeeID,
+                CorrelationID: id.MustParse("01994f64-6c00-7000-8000-000000000914"),
+                ConfigVersion: version.Version, ExpectedRevision: draft.Revision + 2,
+        })
+        if err != nil {
+                t.Fatal(err)
+        }
+        found := false
+        for _, issue := range result.Issues {
+                if issue.Area == "manifest" && contains(issue.Problem, "карантине") {
+                        found = true
+                }
+        }
+        if !found {
+                t.Fatalf("restore report must mention the quarantined manifest: %+v", result.Issues)
         }
 }

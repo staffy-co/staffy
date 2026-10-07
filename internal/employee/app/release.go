@@ -51,7 +51,11 @@ func (s *Service) releaseManageScope(ctx context.Context, actor identityDomain.P
 		if errors.Is(err, identityDomain.ErrForbidden) {
 			return tenancy.Context{}, domain.ErrReleaseForbidden
 		}
-		return tenancy.Context{}, domain.ErrNotFound
+		if errors.Is(err, identityDomain.ErrNotFound) {
+			return tenancy.Context{}, domain.ErrNotFound
+		}
+		// An infrastructure failure is never masked as a 404.
+		return tenancy.Context{}, err
 	}
 	return scope, nil
 }
@@ -64,6 +68,7 @@ func (s *Service) releaseViewScope(ctx context.Context, actor identityDomain.Pri
 		return tenancy.Context{}, false, err
 	}
 	memberWithoutScope := false
+	infraFailure := error(nil)
 	for _, candidate := range []identityDomain.Scope{identityDomain.Configuration, identityDomain.Review, identityDomain.Audit} {
 		err := s.identity.Authorize(ctx, actor, tenantID, candidate)
 		if err == nil {
@@ -71,7 +76,16 @@ func (s *Service) releaseViewScope(ctx context.Context, actor identityDomain.Pri
 		}
 		if errors.Is(err, identityDomain.ErrForbidden) {
 			memberWithoutScope = true
+			continue
 		}
+		if errors.Is(err, identityDomain.ErrNotFound) {
+			continue
+		}
+		// An infrastructure failure is never masked as a 404 or a 403.
+		infraFailure = err
+	}
+	if infraFailure != nil {
+		return tenancy.Context{}, false, infraFailure
 	}
 	if memberWithoutScope {
 		return tenancy.Context{}, false, domain.ErrReleaseForbidden
@@ -121,32 +135,30 @@ func (s *Service) readVoiceFacts(ctx context.Context, scope tenancy.Context, emp
 	return nil, nil
 }
 
-// connectorFacts gathers the connection facts of the tenant through the
-// narrow port. A nil port is an honest refusal: sealing or restoring
-// without the ability to see connections would silently produce a manifest
+// connectorFacts gathers the safe connection facts of the tenant through
+// the narrow caller-authority port (the release scope is already verified,
+// so the read does not re-require the integrations scope; RLS isolates the
+// tenant). A nil port is an honest refusal: sealing or restoring without
+// the ability to see connection facts would silently produce a manifest
 // that claims facts it never checked.
-func (s *Service) connectorFacts(ctx context.Context, actor identityDomain.Principal, tenantID id.UUID) ([]domain.ConnectionFact, error) {
+func (s *Service) connectorFacts(ctx context.Context, scope tenancy.Context) ([]domain.ConnectionFact, error) {
 	if s.connectors == nil {
 		return nil, domain.ReleaseRuleError{Rule: "connector_facts", Reason: "Порт фактов подключений не сконфигурирован: запечатывание и восстановление честно отклоняются, манифест не собирается вслепую."}
 	}
-	connections, err := s.connectors.List(ctx, actor, tenantID)
+	rows, err := s.connectors.ConnectionsFacts(ctx, scope)
 	if err != nil {
 		return nil, err
 	}
-	facts := make([]domain.ConnectionFact, 0, len(connections))
-	for _, conn := range connections {
-		state, err := s.connectors.CapabilityState(ctx, actor, tenantID, conn.ConnectionID)
-		if err != nil {
-			return nil, err
-		}
+	facts := make([]domain.ConnectionFact, 0, len(rows))
+	for _, row := range rows {
 		facts = append(facts, domain.ConnectionFact{
-			ConnectionID:    conn.ConnectionID,
-			ConnectorID:     conn.ConnectorID,
-			ContractVersion: conn.ConnectorVer,
-			AdapterBuild:    state.AdapterBuild,
-			Environment:     string(conn.Environment),
-			Status:          conn.Status,
-			Capabilities:    capabilityFacts(state.Capabilities),
+			ConnectionID:    row.ConnectionID,
+			ConnectorID:     row.ConnectorID,
+			ContractVersion: row.ContractVersion,
+			AdapterBuild:    row.AdapterBuild,
+			Environment:     row.Environment,
+			Status:          row.Status,
+			Capabilities:    capabilityFacts(row.Capabilities),
 		})
 	}
 	return facts, nil
@@ -375,7 +387,7 @@ func (s *Service) SealManifest(ctx context.Context, c api.SealCommand) (domain.R
 	if err != nil {
 		return domain.ReleaseManifest{}, err
 	}
-	connections, err := s.connectorFacts(ctx, c.Actor, c.TenantID)
+	connections, err := s.connectorFacts(ctx, scope)
 	if err != nil {
 		return domain.ReleaseManifest{}, err
 	}
@@ -434,7 +446,7 @@ func (s *Service) Restore(ctx context.Context, c api.RestoreCommand) (api.Restor
 	for _, source := range knowledge {
 		knowledgeVersions[source.SourceID] = source.CurrentVersion
 	}
-	connections, err := s.connectorFacts(ctx, c.Actor, c.TenantID)
+	connections, err := s.connectorFacts(ctx, scope)
 	if err != nil {
 		return api.RestoreResult{}, err
 	}
@@ -445,6 +457,7 @@ func (s *Service) Restore(ctx context.Context, c api.RestoreCommand) (api.Restor
 		})
 	}
 	var sealed *domain.ManifestContent
+	quarantinedManifest := ""
 	if records, err := repository.ListManifests(ctx, scope, c.EmployeeID); err == nil {
 		for _, record := range records {
 			if record.Manifest.ConfigVersion == c.ConfigVersion {
@@ -452,6 +465,8 @@ func (s *Service) Restore(ctx context.Context, c api.RestoreCommand) (api.Restor
 				if read.Status == domain.QuarantineNone {
 					content := read.Content
 					sealed = &content
+				} else {
+					quarantinedManifest = read.Reason
 				}
 				break
 			}
@@ -473,6 +488,12 @@ func (s *Service) Restore(ctx context.Context, c api.RestoreCommand) (api.Restor
 		BehaviorVersion: latestBehavior, VoiceVersion: latestVoice,
 		Knowledge: knowledgeVersions, Connections: currentConnections, Sealed: sealed,
 	})
+	// A quarantined manifest means the connection part of the report could
+	// not be checked: the report says so instead of looking complete.
+	if quarantinedManifest != "" {
+		issues = append(issues, domain.CompatibilityIssue{Area: "manifest", Subject: "Release Manifest версии",
+			Problem: "Запечатанный манифест версии в карантине (" + quarantinedManifest + "): сверка подключений и capabilities по манифесту не выполнена — отчёт неполный, а не пустой."})
+	}
 	now := s.clock.Now().UTC()
 	eventID, err := s.ids.New(now)
 	if err != nil {

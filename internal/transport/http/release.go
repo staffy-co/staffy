@@ -3,6 +3,7 @@ package httptransport
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"mime"
 	"net/http"
@@ -54,6 +55,8 @@ func (s *Server) releaseProblem(w http.ResponseWriter, r *http.Request, err erro
 		status, code, message = 409, "release_revision_conflict", "Черновик релиза изменился другим действием: ожидаемая ревизия не совпала с текущей. Сверьте текущее состояние и повторите с актуальной ревизией."
 		fields["expected_revision"] = strconv.FormatInt(conflict.Expected, 10)
 		fields["current_revision"] = strconv.FormatInt(conflict.Current, 10)
+		fields["current_refs"] = releaseRefsSummary(conflict.Refs)
+		fields["release_view"] = "GET /v1/tenants/{tenant_id}/employees/{employee_id}/release"
 	case errors.Is(err, domain.ErrManifestExists):
 		status, code, message = 409, "manifest_exists", "Манифест этой конфигурационной версии уже запечатан: под одной версией существует не более одного манифеста."
 	case errors.As(err, &rule):
@@ -270,6 +273,32 @@ func (s *Server) restoreAPI(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(result)
 }
 
+// releaseRefsSummary renders the current draft refs as a compact textual
+// comparison basis for the conflict answer (the spec requires the current
+// refs to travel with the honest 409).
+func releaseRefsSummary(refs domain.ConfigRefs) string {
+	return fmt.Sprintf("brief=%s(%d) domain_pack=%s behavior=%s knowledge=%s voice=%s",
+		refs.Brief.Status, refs.Brief.DraftVersion,
+		releaseRefValue(refs.Pack.Status, refs.Pack.ID, refs.Pack.Version),
+		releaseRefValue(refs.Behavior.Status, "", strconv.FormatInt(refs.Behavior.Version, 10)),
+		releaseRefValue(refs.Knowledge.Status, strconv.Itoa(len(refs.Knowledge.Sources)), ""),
+		releaseRefValue(refs.Voice.Status, "", strconv.FormatInt(refs.Voice.Version, 10)))
+}
+
+func releaseRefValue(status string, left, right string) string {
+	if status != domain.RefPresent {
+		return status
+	}
+	switch {
+	case left != "" && right != "":
+		return left + "@" + right
+	case left != "":
+		return left
+	default:
+		return right
+	}
+}
+
 // releaseFormTarget is the shared redirect base of the release forms.
 func releaseFormTarget(tenant, employee id.UUID) string {
 	return "/app/tenants/" + tenant.String() + "/employees/" + employee.String() + "/release"
@@ -316,7 +345,6 @@ func (s *Server) releasePage(w http.ResponseWriter, r *http.Request) {
 		"TenantID":   tenant,
 		"EmployeeID": employee,
 		"View":       prepareReleaseView(view),
-		"FormKey":    s.freshKey("release"),
 	}
 	for _, flag := range []struct {
 		query  string

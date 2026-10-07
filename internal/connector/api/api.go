@@ -7,6 +7,7 @@ import (
 	connectorDomain "github.com/artemiosu/staffy/internal/connector/domain"
 	"github.com/artemiosu/staffy/internal/identity/domain"
 	"github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/artemiosu/staffy/internal/platform/tenancy"
 )
 
 type CreateCommand struct {
@@ -115,6 +116,22 @@ type Service interface {
 	Revoke(ctx context.Context, c RevokeCommand) (RevokeResult, error)
 	VerifyCapability(ctx context.Context, c VerifyCommand) (VerifyResult, error)
 	CapabilityState(ctx context.Context, actor domain.Principal, tenantID, connectionID id.UUID) (CapabilityStateResult, error)
+	ConnectionsFacts(ctx context.Context, scope tenancy.Context) ([]ConnectionFacts, error)
+}
+
+// ConnectionFacts is the safe cross-module projection of one connection for
+// consumers that already hold their own scope (the release surface, Story
+// 1-12): identifiers, contract and adapter versions, environment, state and
+// the DERIVED capability reports — never secrets, secret hints, config
+// values or labels.
+type ConnectionFacts struct {
+	ConnectionID    id.UUID                            `json:"connection_id"`
+	ConnectorID     string                             `json:"connector_id"`
+	ContractVersion string                             `json:"contract_version"`
+	AdapterBuild    string                             `json:"adapter_build"`
+	Environment     string                             `json:"environment"`
+	Status          string                             `json:"status"`
+	Capabilities    []connectorDomain.CapabilityReport `json:"capabilities"`
 }
 
 type Clock interface{ Now() time.Time }

@@ -152,10 +152,9 @@ func (s *Postgres) saveReleaseDraftRow(ctx context.Context, scope tenancy.Contex
 		err = tx.QueryRow(ctx, "insert into employee.release_drafts(tenant_id,employee_id,revision,refs,restored_from,actor_id,updated_at) values($1,$2,1,$3,$4,$5,$6) on conflict (tenant_id,employee_id) do nothing returning revision",
 			scope.TenantID(), employeeID, refsJSON, restoredJSON, scope.PrincipalID(), now).Scan(&revision)
 		if errors.Is(err, pgx.ErrNoRows) {
-			if conflict := releaseConflict(ctx, tx, scope, employeeID, expected); conflict != nil {
-				return domain.ReleaseDraft{}, conflict
-			}
-			return domain.ReleaseDraft{}, domain.ErrConflict
+			// releaseConflict always carries the current state; a plain
+			// unreachable fallback would hide a real lookup failure.
+			return domain.ReleaseDraft{}, releaseConflict(ctx, tx, scope, employeeID, expected)
 		}
 	} else {
 		err = tx.QueryRow(ctx, "update employee.release_drafts set revision=revision+1, refs=$3, restored_from=$4, actor_id=$5, updated_at=$6 where tenant_id=$1 and employee_id=$2 and revision=$7 returning revision",
