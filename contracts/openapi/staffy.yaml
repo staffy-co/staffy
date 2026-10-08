@@ -1812,6 +1812,127 @@ paths:
         '401': { $ref: '#/components/responses/Problem' }
         '403': { $ref: '#/components/responses/Problem' }
         '404': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/employees/{employee_id}/test-release:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/EmployeeID'
+    get:
+      operationId: readReadinessView
+      summary: Test & Release — readiness-деривация запрошенной стадии (dry-run, записи не создаёт; configuration — управление, review/audit — просмотр)
+      x-staffy-principal-required: true
+      parameters:
+        - name: stage
+          in: query
+          required: false
+          schema: { type: string, enum: [synthetic, closed_account_test, controlled_real_customer, live] }
+          description: 'Пусто — честный default: следующий доступный шаг лестницы после действующего решения'
+      responses:
+        '200':
+          description: 'Деривация на чтении из живых фактов: элементы, маршруты, gates, действующее решение и история'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReadinessView' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/employees/{employee_id}/test-release/gate-instances:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/EmployeeID'
+    get:
+      operationId: readGateInstances
+      summary: Фиксированный словарь платформы и все записи жизненного цикла с историей supersedes (configuration/review/audit)
+      x-staffy-principal-required: true
+      responses:
+        '200': { description: Словарь и инстансы, content: { application/json: { schema: { $ref: '#/components/schemas/GateInstancesView' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+    post:
+      operationId: recordGateTransition
+      summary: Append-only переход gate-инстанса (configuration + step-up; PASS — дисциплина ролей/принципалов/evidence/hash; гонка — честный конфликт)
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [definition_id, state]
+              properties:
+                definition_id: { type: string, enum: [OQ-7B, OQ-11, OQ-12, OQ-13B, OQ-14, AG-1, AG-2, AG-4] }
+                route:
+                  type: object
+                  additionalProperties: false
+                  required: [channel, direction]
+                  properties:
+                    channel: { type: string, enum: [phone, web_chat, telegram, whatsapp, email, max, jivo, avito, mobile_app_chat] }
+                    direction: { type: string, enum: [inbound, outbound] }
+                  description: 'Только OQ-11 (route-scoped); отсутствие измерения = определение tenant-уровня, не wildcard'
+                modality: { type: string, enum: [voice, text], description: 'Scope modality — точный или отсутствует' }
+                state: { type: string, enum: [open, in_test, pass, fail, expired, not_applicable] }
+                supersedes_instance_id: { type: string, format: uuid, description: 'Переход/reopening существующей записи; пусто — новая цепочка' }
+                approved_by:
+                  type: array
+                  description: 'Только с PASS: каждая требуемая роль определения покрыта участником; принципалы различны (кроме allow_role_coincidence)'
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [participant_id, role]
+                    properties:
+                      participant_id: { type: string, format: uuid }
+                      role: { type: string, description: 'Метка реестра (SecurityPrivacy, TechnicalLead, VoiceTechnicalLead, Operations, ProductOwner, MontagioOperations, OperationsQA, UXQA, Security)' }
+                evidence_refs:
+                  type: array
+                  description: 'Только с PASS: непустые ссылки 1–300'
+                  items: { type: string, minLength: 1, maxLength: 300 }
+                evidence_hash: { type: string, pattern: '^[0-9a-f]{64}$', description: 'Только с PASS: sha256 доказательства' }
+                not_applicable_reason: { type: string, minLength: 1, maxLength: 300 }
+                expiry_trigger: { type: string, minLength: 1, maxLength: 300, description: 'Хранится и отображается; планировщиков в срезе нет' }
+      responses:
+        '201': { description: Записанная append-only запись перехода, content: { application/json: { schema: { $ref: '#/components/schemas/GateInstance' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+        '415': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/employees/{employee_id}/test-release/admissions:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/EmployeeID'
+    get:
+      operationId: readAdmissionHistory
+      summary: Append-only история публикаций с действующим решением (configuration/review/audit)
+      x-staffy-principal-required: true
+      responses:
+        '200': { description: История решений и активный указатель, content: { application/json: { schema: { $ref: '#/components/schemas/AdmissionHistoryView' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+    post:
+      operationId: publishAdmission
+      summary: Контролируемая публикация стадии (configuration + step-up; атомарная запись с повторной деривацией, лестница стадий, ровно одна запись в гонке)
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [stage]
+              properties:
+                stage: { type: string, enum: [synthetic, closed_account_test, controlled_real_customer, live] }
+      responses:
+        '201': { description: Записанное append-only решение с точными digest'ами и per-route результатами, content: { application/json: { schema: { $ref: '#/components/schemas/ReleaseAdmission' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+        '415': { $ref: '#/components/responses/Problem' }
 components:
   parameters:
     EmployeeID:
@@ -3190,6 +3311,138 @@ components:
         decisions:
           type: array
           items: { $ref: '#/components/schemas/GateThresholdVersion' }
+    ReadinessView:
+      type: object
+      required: [employee_id, stage, readiness, applicability, admission_history, can_manage, view_scope]
+      description: 'Dry-run деривация стадии: панель никогда не направляет трафик, enforcement — Epic 2'
+      properties:
+        employee_id: { type: string, format: uuid }
+        stage: { type: string, enum: [synthetic, closed_account_test, controlled_real_customer, live] }
+        readiness: { $ref: '#/components/schemas/ReadinessReport' }
+        applicability: { type: object, description: 'Применимость утверждённого профиля к последнему манифесту (деривация 1-13)' }
+        active_release: { $ref: '#/components/schemas/ReleaseAdmission' }
+        admission_history: { type: array, items: { $ref: '#/components/schemas/ReleaseAdmission' } }
+        can_manage: { type: boolean, description: 'configuration — true; review/audit — false (просмотр)' }
+        view_scope: { type: string, enum: [configuration, review-or-audit] }
+    ReadinessReport:
+      type: object
+      required: [stage, status, status_text, elements, routes]
+      description: 'Чистая деривация живых фактов: ничего не кэшируется, stale-факты видны при следующем чтении'
+      properties:
+        stage: { type: string }
+        status: { type: string, enum: [incomplete, blocked, ready], description: 'incomplete — обязательный элемент отсутствует; blocked — элементы заполнены, но есть блокировки (заблокированный элемент или ноль допущенных маршрутов; исключение — entitlement на synthetic); ready — все элементы pass/not_applicable и минимум один маршрут допущен' }
+        status_text: { type: string }
+        elements: { type: array, items: { $ref: '#/components/schemas/ReadinessElement' } }
+        routes: { type: array, items: { $ref: '#/components/schemas/RouteAdmission' } }
+    ReadinessElement:
+      type: object
+      required: [key, title, state, reason, source]
+      description: 'Один обязательный элемент: 12-элементный словарь спеки; технический успех компонента не становится готовностью целого'
+      properties:
+        key: { type: string, enum: [operating_profile, release_manifest, brief, domain_pack, knowledge, behavior, voice, connections, capabilities, entitlement, human_coverage, consent, eval, gates] }
+        title: { type: string }
+        state: { type: string, enum: [missing, not_applicable, pass, blocked, linked_not_executed] }
+        reason: { type: string }
+        source: { type: string }
+    RouteAdmission:
+      type: object
+      required: [route, modality, autonomy_classes, state]
+      description: 'Допуск per-route: разрешение одного маршрута не расширяет остальные'
+      properties:
+        route: { $ref: '#/components/schemas/ProfileRoute' }
+        modality: { type: string, enum: [voice, text] }
+        autonomy_classes: { type: array, items: { type: string } }
+        state: { type: string, enum: [admitted, blocked] }
+        reasons: { type: array, items: { $ref: '#/components/schemas/RouteBlock' } }
+    RouteBlock:
+      type: object
+      required: [cause, reason, unlock_owner, required_evidence, next_step]
+      description: 'Честная блокировка маршрута: причина, владелец разблокирования, требуемое доказательство, следующий шаг'
+      properties:
+        cause: { type: string, description: 'route_state | capability | entitlement | eval | gate:<ID>' }
+        reason: { type: string }
+        unlock_owner: { type: string }
+        required_evidence: { type: string }
+        next_step: { type: string }
+    GateInstancesView:
+      type: object
+      required: [employee_id, definitions, instances, can_manage, view_scope]
+      properties:
+        employee_id: { type: string, format: uuid }
+        definitions: { type: array, items: { $ref: '#/components/schemas/GateDefinition' } }
+        instances: { type: array, items: { $ref: '#/components/schemas/GateInstance' } }
+        can_manage: { type: boolean }
+        view_scope: { type: string }
+    GateDefinition:
+      type: object
+      required: [definition_id, criticality, required_approver_roles, evidence_requirement, safe_state, allow_role_coincidence, route_scoped]
+      description: 'Фиксированный словарь восьми платформенных определений принятого GATE-REGISTRY; расширение — новая версия спеки, не настройка Tenant'
+      properties:
+        definition_id: { type: string, enum: [OQ-7B, OQ-11, OQ-12, OQ-13B, OQ-14, AG-1, AG-2, AG-4] }
+        criticality: { type: string, enum: [critical, high] }
+        required_approver_roles: { type: array, items: { type: string } }
+        evidence_requirement: { type: string }
+        safe_state: { type: string, description: 'Fail-closed fallback до PASS' }
+        allow_role_coincidence: { type: boolean }
+        route_scoped: { type: boolean }
+    GateInstance:
+      type: object
+      required: [tenant_id, employee_id, instance_id, definition_id, state, approved_by, evidence_refs, actor_id, recorded_at]
+      description: 'Append-only запись жизненного цикла: INSERT/SELECT, UPDATE/DELETE грантов нет; supersedes-цепочка с одним преемником'
+      properties:
+        tenant_id: { type: string, format: uuid }
+        employee_id: { type: string, format: uuid }
+        instance_id: { type: string, format: uuid }
+        definition_id: { type: string }
+        route: { $ref: '#/components/schemas/ProfileRoute' }
+        modality: { type: string }
+        state: { type: string, enum: [open, in_test, pass, fail, expired, not_applicable] }
+        approved_by: { type: array, items: { $ref: '#/components/schemas/GateApproval' } }
+        evidence_refs: { type: array, items: { type: string } }
+        evidence_hash: { type: string }
+        not_applicable_reason: { type: string }
+        tested_at: { type: string, format: date-time }
+        expiry_trigger: { type: string }
+        supersedes_instance_id: { type: string, format: uuid }
+        actor_id: { type: string, format: uuid }
+        recorded_at: { type: string, format: date-time }
+    GateApproval:
+      type: object
+      required: [participant_id, role]
+      properties:
+        participant_id: { type: string, format: uuid }
+        role: { type: string }
+    ReleaseAdmission:
+      type: object
+      required: [tenant_id, employee_id, decision_no, stage, manifest, profile_version, profile_digest, routes, actor_id, approver_roles, step_up_verified, decided_at, digest]
+      description: 'Append-only решение о допуске: монотонный номер, точные digest''ы кандидата, per-route результаты, канонический sha256-digest; секреты, raw PII и transcripts не входят'
+      properties:
+        tenant_id: { type: string, format: uuid }
+        employee_id: { type: string, format: uuid }
+        decision_no: { type: integer, minimum: 1 }
+        stage: { type: string, enum: [synthetic, closed_account_test, controlled_real_customer, live] }
+        manifest:
+          type: object
+          required: [manifest_id, config_version, digest]
+          properties:
+            manifest_id: { type: string, format: uuid }
+            config_version: { type: integer }
+            digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+        profile_version: { type: integer, minimum: 1 }
+        profile_digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+        routes: { type: array, items: { $ref: '#/components/schemas/RouteAdmission' } }
+        actor_id: { type: string, format: uuid }
+        approver_roles: { type: array, items: { type: string }, description: 'Роли approver-а на момент решения' }
+        step_up_verified: { type: boolean, description: 'CHECK-ограничение true: публикаций без step-up не существует' }
+        decided_at: { type: string, format: date-time }
+        digest: { type: string, pattern: '^[0-9a-f]{64}$', description: 'Канонический sha256-digest решения (поле digest из канонических байтов исключено)' }
+    AdmissionHistoryView:
+      type: object
+      required: [employee_id, admissions]
+      properties:
+        employee_id: { type: string, format: uuid }
+        active_release: { $ref: '#/components/schemas/ReleaseAdmission' }
+        admissions: { type: array, items: { $ref: '#/components/schemas/ReleaseAdmission' } }
   responses:
     Problem:
       description: Безопасная ошибка

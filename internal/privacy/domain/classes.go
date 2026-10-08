@@ -21,6 +21,7 @@ const (
 	ClassVoiceAssessment        ArtifactClass = "voice-assessment"
 	ClassReleaseSnapshot        ArtifactClass = "release-snapshot"
 	ClassOperatingProfile       ArtifactClass = "operating-profile"
+	ClassReleaseAdmission       ArtifactClass = "release-admission"
 	ClassConnectionConfig       ArtifactClass = "connection-configuration"
 	ClassConnectionSecretSeal   ArtifactClass = "connection-secret-seal"
 	ClassCapabilityEvidence     ArtifactClass = "capability-evidence"
@@ -107,6 +108,7 @@ var classRegistry = []ClassSpec{
 	{ID: ClassVoiceAssessment, Title: "Оценки предпрослушиваний", Tables: []string{"employee.voice_assessments"}, Executor: ExecutorEmployee},
 	{ID: ClassReleaseSnapshot, Title: "Версии конфигурации и Release Manifest", Tables: []string{"employee.release_drafts", "employee.config_versions", "employee.release_manifests"}},
 	{ID: ClassOperatingProfile, Title: "Operating Profile и версии порогов", Tables: []string{"employee.operating_profile_drafts", "employee.operating_profiles", "employee.gate_thresholds"}},
+	{ID: ClassReleaseAdmission, Title: "Gate-инстансы и решения о публикации", Tables: []string{"employee.gate_instances", "employee.release_admissions"}},
 	{ID: ClassConnectionConfig, Title: "Конфигурации подключений", Tables: []string{"connector.connections", "connector.connection_versions"}},
 	{ID: ClassConnectionSecretSeal, Title: "Запечатанные секреты подключений", Tables: []string{"connector.secret_seals"}, Block: &AG4SecretStoreBlock},
 	{ID: ClassCapabilityEvidence, Title: "Доказательства capabilities", Tables: []string{"connector.capability_evidence"}, Block: &ImmutableEvidenceBlock},

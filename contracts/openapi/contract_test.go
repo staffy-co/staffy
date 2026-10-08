@@ -705,3 +705,109 @@ func TestOperatingProfileContractIsHonest(t *testing.T) {
 		}
 	}
 }
+
+// TestReadinessContractIsHonest pins the Story 1-14 boundary: the readiness
+// view is a dry-run derivation (the GET never records anything), the gate
+// transition and the publication are step-up commands with strict bodies, the
+// stage ladder and the gate state machine stay the fixed registry vocabulary,
+// and the publication records are append-only digests — never secrets.
+func TestReadinessContractIsHonest(t *testing.T) {
+	content, err := os.ReadFile("staffy.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document map[string]any
+	if err := yaml.Unmarshal(content, &document); err != nil {
+		t.Fatal(err)
+	}
+	paths := mapping(t, document, "paths")
+	schemas := mapping(t, mapping(t, document, "components"), "schemas")
+	base := "/v1/tenants/{tenant_id}/employees/{employee_id}/test-release"
+	// Every operation of the surface documents the verified principal boundary.
+	operations := map[string][]string{
+		base:                  {"get"},
+		base + "/gate-instances": {"get", "post"},
+		base + "/admissions":     {"get", "post"},
+	}
+	for path, methods := range operations {
+		item := mapping(t, paths, path)
+		for _, method := range methods {
+			operation := mapping(t, item, method)
+			if required, _ := operation["x-staffy-principal-required"].(bool); !required {
+				t.Fatalf("%s %s must document the verified principal boundary", method, path)
+			}
+		}
+	}
+	// The readiness view is a dry-run: the stage query parameter names the
+	// fixed ladder, the GET has no recordable semantics.
+	view := mapping(t, mapping(t, paths, base), "get")
+	viewParams, _ := view["parameters"].([]any)
+	if len(viewParams) != 1 {
+		t.Fatalf("the view must document exactly one stage query parameter, got %v", viewParams)
+	}
+	stageQuery := mapping(t, viewParams[0].(map[string]any), "schema")
+	stageEnum, _ := stageQuery["enum"].([]any)
+	if len(stageEnum) != 4 || stageEnum[0] != "synthetic" || stageEnum[1] != "closed_account_test" || stageEnum[2] != "controlled_real_customer" || stageEnum[3] != "live" {
+		t.Fatalf("the stage ladder must stay [synthetic closed_account_test controlled_real_customer live], got %v", stageEnum)
+	}
+	// The commands reject unknown fields (strict decode, the M1 lesson).
+	for _, path := range []string{base + "/gate-instances", base + "/admissions"} {
+		post := mapping(t, mapping(t, paths, path), "post")
+		body := mapping(t, post, "requestBody")
+		schema := mapping(t, mapping(t, mapping(t, body, "content"), "application/json"), "schema")
+		if additional, ok := schema["additionalProperties"].(bool); !ok || additional {
+			t.Fatalf("%s must set additionalProperties: false, got %v", path, schema["additionalProperties"])
+		}
+		responses := mapping(t, post, "responses")
+		for _, status := range []string{"201", "400", "401", "403", "404", "409", "415"} {
+			if _, ok := responses[status]; !ok {
+				t.Errorf("%s response %s is missing", path, status)
+			}
+		}
+	}
+	// The dictionary is fixed: eight platform definitions of the accepted
+	// registry, never tenant-configurable.
+	definition := mapping(t, schemas, "GateDefinition")
+	definitionProps := mapping(t, definition, "properties")
+	definitionID := mapping(t, definitionProps, "definition_id")
+	definitionEnum, _ := definitionID["enum"].([]any)
+	if len(definitionEnum) != 8 {
+		t.Fatalf("the gate dictionary must stay eight platform definitions, got %v", definitionEnum)
+	}
+	// The instance state machine: open -> in_test -> pass|fail; expired and
+	// not_applicable complete the vocabulary of the registry.
+	instance := mapping(t, schemas, "GateInstance")
+	instanceProps := mapping(t, instance, "properties")
+	instanceState := mapping(t, instanceProps, "state")
+	instanceEnum, _ := instanceState["enum"].([]any)
+	if len(instanceEnum) != 6 || instanceEnum[0] != "open" || instanceEnum[2] != "pass" || instanceEnum[4] != "expired" {
+		t.Fatalf("the gate instance state vocabulary must stay [open in_test pass fail expired not_applicable], got %v", instanceEnum)
+	}
+	// The overall status is the conjunction of the elements: incomplete,
+	// blocked or ready — a component success never becomes the whole readiness.
+	report := mapping(t, schemas, "ReadinessReport")
+	reportProps := mapping(t, report, "properties")
+	reportStatus := mapping(t, reportProps, "status")
+	reportEnum, _ := reportStatus["enum"].([]any)
+	if len(reportEnum) != 3 || reportEnum[0] != "incomplete" || reportEnum[1] != "blocked" || reportEnum[2] != "ready" {
+		t.Fatalf("the readiness status vocabulary must stay [incomplete blocked ready], got %v", reportEnum)
+	}
+	// The publication record is an append-only decision: the step-up fact is
+	// CHECK-enforced true and the digest is a canonical sha256.
+	admission := mapping(t, schemas, "ReleaseAdmission")
+	admissionProps := mapping(t, admission, "properties")
+	stepUp := mapping(t, admissionProps, "step_up_verified")
+	if description, _ := stepUp["description"].(string); !strings.Contains(description, "CHECK") {
+		t.Fatalf("step_up_verified must document the CHECK-enforced true, got %v", stepUp)
+	}
+	admissionDigest := mapping(t, admissionProps, "digest")
+	digestPattern, _ := admissionDigest["pattern"].(string)
+	if digestPattern != "^[0-9a-f]{64}$" {
+		t.Fatalf("the admission digest must be a sha256 hex pattern, got %v", digestPattern)
+	}
+	for _, schema := range []string{"ReadinessView", "ReadinessReport", "ReadinessElement", "RouteAdmission", "RouteBlock", "GateInstancesView", "GateDefinition", "GateInstance", "GateApproval", "ReleaseAdmission", "AdmissionHistoryView"} {
+		if _, ok := schemas[schema]; !ok {
+			t.Errorf("schema %s is missing", schema)
+		}
+	}
+}

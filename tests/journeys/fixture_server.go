@@ -843,12 +843,15 @@ func main() {
         employees := &employeeFixture{}
         connectors := &connectorFixture{}
         release := newReleaseFixture(employees, connectors)
+        entitlement := &entitlementFixture{}
+        profile := newProfileFixture(release)
         server.BindEmployee(employees)
         server.BindConnector(connectors)
         server.BindPrivacy(&privacyFixture{})
-        server.BindEntitlement(&entitlementFixture{})
+        server.BindEntitlement(entitlement)
         server.BindRelease(release)
-        server.BindProfile(newProfileFixture(release))
+        server.BindProfile(profile)
+        server.BindReadiness(newReadinessFixture(profile, release, entitlement))
         // The fixture-only step-up toggle wraps the transport: production never
         // exposes it; the journey uses it to walk both step-up outcomes.
         root := http.NewServeMux()

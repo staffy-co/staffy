@@ -93,19 +93,25 @@ func run(logger *slog.Logger) error {
         }
         employeeService := employeeApp.NewWithTestTTS(employeeStore.NewPostgres(pool), identityService, clock, ids, testTTS)
         connectorService := connectorApp.New(connectorStore.NewPostgres(pool), identityService, connectorVerifier.Synthetic{}, clock, ids)
+        entitlementService := entitlementApp.New(entitlementStore.NewPostgres(pool), identityService, clock, ids)
         // The release surface (Story 1-12) consumes connection facts through the
         // narrow port; without it sealing and restoring honestly refuse.
         employeeService = employeeService.WithConnectorFacts(connectorService)
+        // The readiness surface (Story 1-14) consumes the derived entitlement
+        // admission state through the narrow fact port; without it the
+        // derivation honestly refuses instead of assuming "ok".
+        employeeService = employeeService.WithEntitlementFacts(entitlementService)
         transport.BindEmployee(employeeService)
         transport.BindRelease(employeeService)
         transport.BindProfile(employeeService)
+        transport.BindReadiness(employeeService)
         transport.BindConnector(connectorService)
         privacyExecutors := map[string]privacyPort.ClassDeletionExecutor{
                 privacyDomain.ExecutorEmployee: employeeService.PrivacyDeletionExecutor(),
                 privacyDomain.ExecutorIdentity: identityService.PrivacyDeletionExecutor(),
         }
         transport.BindPrivacy(privacyApp.New(privacyStore.NewPostgres(pool), identityService, privacyExecutors, clock, ids))
-        transport.BindEntitlement(entitlementApp.New(entitlementStore.NewPostgres(pool), identityService, clock, ids))
+        transport.BindEntitlement(entitlementService)
         server := &http.Server{
                 Addr:              listenAddress,
                 Handler:           transport.Handler(),

@@ -609,3 +609,116 @@ decisions:
 - Ничего в публичной истории не переписывалось: amend был сделан до первого push ветки
 next: CHECKPOINT 2 владельцу — story 1-14 «Readiness-проверка и контролируемая публикация» (последняя story Epic 1; рекомендация epic-1-retrospective §8 — вариант А: достроить; входы готовы: admission_state-порт, route states, applicability из 1-13) или фиксация закрытия Epic 1 без 1-14 (честные 13/14)
 commit: 97b3b2c
+
+---
+date: 2026-10-08
+task: 35-sm
+role: main (Super Z, роль SM)
+story: 1-14
+summary: SM-спека первого среза story 1-14 «Readiness-проверка и контролируемая публикация» (FR-6, FR-78) написана и запушена — ожидает CHECKPOINT 1 владельца
+done:
+- Входы SM прочитаны: epics §1.14 (12 AC-блоков), PRD FR-6/FR-78, GATE-REGISTRY полный (state machine инстансов, Execution order, AG-1/AG-2/AG-4/OQ-словарь, фиксированный Oleg/Montagio fence), epic-1-context, ретро §8, deferred-work (12 открытых), спеки 1-11/1-12/1-13, код: profile DeriveRouteStates/DeriveMatrixCoverage/DeriveProfileApplicability/DeriveThresholdStates, release ConfigRefs/ConfigVersion/ConnectionFact/CapabilityFact, entitlement DeriveAdmission, identity Roles/MembersFacts, capability CapState-словарь
+- Спека spec-1-14-readiness-publication.md (формат 1-13, frozen-секции Intent/Boundaries/Edge-Case Matrix): словарь 8 gate-определений платформы в домене (OQ-11, OQ-12, OQ-13B, OQ-14, OQ-7B, AG-1, AG-2, AG-4), карта стадий (synthetic → closed_account_test → controlled_real_customer → live) по Execution order реестра, tenant-scoped append-only gate-инстансы (exact-scope route/modality, переходы open→in_test→pass|fail/expired/not_applicable, supersedes-ацикличность), PASS-дисциплина (полнота approver-ролей, различные принципалы кроме allow_role_coincidence, evidence refs + hash), readiness-деривация на чтении 12 обязательных элементов → incomplete/blocked/ready-for-stage (конъюнкция), атомарная публикация (configuration + step-up, повторная деривация в транзакции, монотонный decision_no, digest, stage order по digest'ам кандидата, пер-route результаты, гонка → ровно одна запись), Test & Release Panel (dry-run стадии, focus trap, aria-live, 320 px)
+- Честные границы среза: eval-исполнение (AC-4), rollback (AC-11), probes/планировщики экспирации (AC-10 enforcement), стадия scale, привязка Conversations, полный release compiler (processor graph) — отложены с явными пометками; три честных вечных блокировки продакшна: step-up-провайдер, ноль gate PASS, eval not executed
+- sprint-status: retro-1-3 → done с resolution (решение владельца: вариант А — 1-13 влита, 1-14 стартует); статус спеки 1-14 backlog (синхронен sprint-status до CHECKPOINT 1)
+- Ветка codex/story-1-14-readiness-publication от 208c44f; коммит спеки 633055a [skip ci] + DEVLOG 35-sm (этот); push
+decisions:
+- Модуль employee (спайн: релизная семья манифест→профиль→readiness); admission остаётся деривацией и портом для Epic 2 (прецедент admission_state 1-11, route states 1-13)
+- Роли approver'ов — метки реестра как утверждение: система проверяет существование участников (MembersFacts) и структурную полноту покрытия, орг-истина «кто Technical Lead» — governance-факт человека (честная пометка)
+- Entitlement admission_state блокирует стадии от closed_account_test (слова деривации 1-11 «новые admission и публикации»); synthetic — исключение (фикстуры)
+- Пустых публикаций нет: ноль допущенных маршрутов → честный отказ; частичное допущение (независимые маршруты) записывается per-route
+- Элемент eval = eval-ссылки coverage matrix 1-13, состояние linked-not-executed (прогонов нет — Epic 6): честная блокировка controlled+ до eval-поверхностей
+next: CHECKPOINT 1 владельцу — «одобряю» → спека и sprint-status синхронно → ready-for-dev → Dev (step-03; bootstrap перед Dev обязателен — окружение сброшено, фоновый запуск погиб на распаковке PG, запуск в foreground)
+commit: 633055a
+
+---
+date: 2026-10-08
+task: 36-checkpoint
+role: main (Super Z)
+story: 1-14
+summary: CHECKPOINT 1 — владелец одобрил спеку 1-14 («одобряю», чат 2026-10-08); спека и sprint-status.yaml синхронно переведены в ready-for-dev; Dev step-03 начат; push отложен до STAFFY_GH_TOKEN
+done:
+- spec-1-14-readiness-publication.md: status backlog → ready-for-dev; Spec Change Log дополнен записью об одобрении (frozen-часть без изменений)
+- sprint-status.yaml: 1-14-readiness-проверка-и-контролируемая-публикация → ready-for-dev (синхронность check-continuity соблюдена)
+- Токен сессии утрачен вместе с env (не переживает границы вызовов инструментов, урок Task 16); коммит локальный [skip ci], push отложен — весь пакет ветки (checkpoint + dev + review-фиксы) будет запушен одним батчем после выдачи токена владельцем (прецедент 1-13: bd5b866..b2c43b5)
+next: Dev step-03 — bootstrap в foreground (Go 1.27.1 установлен, PG распаковать из third_party), затем реализация среза по спеке: домен readiness/gates/publication, миграция 00012, port/app/store/api, transport+OpenAPI+панель, тесты (unit/integration/journey/wire), полный регресс
+commit: TBD
+
+---
+date: 2026-10-08
+task: 37-dev
+role: main (Super Z)
+story: 1-14
+summary: Dev step-03 завершён — первый срез story 1-14 реализован полностью (домен readiness/gates/publication, миграция 00012, port/app/store/api, transport+OpenAPI+панель, privacy-класс, интеграция+journey+wire), полный регресс зелёный; окружение поднято bootstrap'ом в foreground
+done:
+- Bootstrap в foreground (урок 35-sm): Go 1.27.1 + portable PG 16.4, миграции и интеграционный прогон зелёные; единственный упавший unit-тест WIP починен (TestClassDictionaryShape 17→18: новый класс release-admission) и регистрозависимость в TestValidateGateTransitionRaceAndCycle («Цикл» vs «цикл» — ToLower)
+- WIP-срез доведён до полного: Tab/пробел-загрязнение classes.go/service.go устранено (unexpand, дифф 2/1 строк вместо 319/250); StoreGateInstance NULL-сканы починены (modality, evidence_hash → *string); миграция 00012 подключена в TestMain (была не подключена — реальный пропуск WIP)
+- Дописано по спеке: OpenAPI staffy.yaml (+5 путей test-release, +11 схем: ReadinessView/ReadinessReport/ReadinessElement/RouteAdmission/RouteBlock/GateInstancesView/GateDefinition/GateInstance/GateApproval/ReleaseAdmission/AdmissionHistoryView); контракт-тест TestReadinessContractIsHonest (dry-run GET без записей, strict-команды additionalProperties:false, лестница стадий, словарь 8 определений, state machine 6 состояний, статус-словарь incomplete/blocked/ready, step_up CHECK, digest sha256)
+- tests/integration/readiness_test.go (4 теста): полный честный флоу — деривация synthetic (12 элементов: 12 pass/np + eval linked-not-executed), границы viewer (403)/foreign (404)/step-up, лестница (skip → отказ с именем стадии; synthetic №1 → repeat 409 AdmissionConflictError; entitlement pause → честная блокировка closed_account_test + resume → №2), controlled/live честно заблокированы (gates+eval; stage skip), digest пере-вычислим, история append-only + активный указатель; гонка публикаций (2 конкурентных → ровно одна запись, конкурент AdmissionConflictError с текущим решением); gate-дисциплина (state machine open→in_test→pass, совпадение принципалов, naming роли, MembersFacts, evidence/hash, exact-scope OQ-11/AG-1, гонка преемников GateConflictError, expired→reopening, 5 записей истории, expired PASS ≠ permission, RLS foreign 404); stale-деривация (новый манифест → профиль stale немедленно)
+- Domain: TestDeriveReadinessMixedConnectionsAdmitRoutes (смешанные подключения)
+- Journey: readiness_fixture.go (ReadinessService над фикстурным миром через настоящие доменные функции: DeriveReadiness/ValidateGateTransition/ValidateStageProgression/AdmissionDigest; entitlement-факт через entitlementFixture.AdmissionView) + привязка BindReadiness в fixture_server; zzzzzzzzz-test-release.spec.ts (320px): полный кандидат через JSON API (brief→pack→knowledge→behavior→voice→connection+verify→entitlement active→manifest→profile approve с CAS-ревизиями), навигация Test & Release со страницы релиза, чек-лист элементов с состояниями/источниками/AG-4-нотой, маршруты admitted, публикация без step-up → честный alert, step-up → modal → synthetic №1, closed_account_test №2, controlled честно blocked (gate:OQ-11 + eval, кнопки публикации нет, «Публикация недоступна»), gate-цепочка OQ-12 open→in_test→PASS (VoiceTechnicalLead allow_role_coincidence), таблица инстансов с supersedes
+decisions:
+- СЕМАНТИКА CAPABILITIES (дефект WIP вскрыт интеграцией): формула WIP «все capabilities всех подключений verified» делала демо-путь спеки невозможным — единственный создаваемый коннектор (staffy-synthetic-telephony 1.1.0) держит send-sms за AG-4 и inbound-call без пути проверки (вечные unverified). По спеке (границы: «отсутствует… действующая capability → затронутый маршрут blocked»; текст элемента WIP: «хотя бы одно действующее подключение с подтверждённой capability») семантика изменена на: элемент pass ⟺ ∃ подключение с ≥1 verified (действующей) capability; непроверенные остатки (AG-4, inbound) — честные ноты элемента; их полная дисциплина — gate AG-4 стадий от controlled_real_customer (карта стадий), не элемент. Ноль verified → все маршруты fail-closed. Drift-тест сохранён. Mixed-тест добавлен.REVOKED-фильтр снят за ненужностью (Applicable-гвард уже держит терминальные статусы вне verified)
+- Revoked/failed подключения не ломают кандидата, пока хоть одно действующее доказано (демо-путь жив после revoke из integrations-journey)
+- Privacy-класс release-admission: employee.gate_instances + employee.release_admissions (таблицы миграции), словарь 18
+- Commit предыдущей сессии (4efd497 CHECKPOINT 1) остаётся локальным; push всего пакета ветки одним батчем после STAFFY_GH_TOKEN (прецедент 1-13)
+next: review R1 (субагент) по спеке и коду → фиксы → R2 → спека/sprint-status → done → push → PR → CI → merge
+commit: TBD
+
+---
+date: 2026-10-08
+task: 38-review
+role: main (Super Z)
+story: 1-14
+summary: Review R1 (субагент) — FAIL с 3 Major; все M/m закрыты в этом же срезе, полный регресс зелёный
+done:
+- R1 вердикт: FAIL. M1 (digest ломается на наносекундных таймстампах продакшна: timestamptz хранит µs, канонические байты считались по nano → каждая попытка чтения после первой публикации падала бы «Digest не совпал»; тесты сидели на fixedClock целых секунд), M2 (лестница стадий валидировалась только по глобально-последнему решению: интерливинг кандидатов давал ложные отказы «новый кандидат» при существующем N−1 того же кандидата), M3 (общий статус игнорировал element-level blocked: stale-профиль давал ready и публикацию — спека: «ready только если все обязательные элементы pass»)
+- M1 фикс: p.Now.Truncate(time.Microsecond) в начале SaveReleaseAdmission и SaveGateInstance — digest и insert согласованы до записи; регрессионный тест TestPublicationDigestSurvivesProductionClock (nano-часы: publish → history read → readiness read → следующая публикация с in-tx перечитыванием)
+- M2 фикс: ValidateStageProgression(requested, candidate, history []ReleaseAdmission) — лестница по СОБСТВЕННОЙ истории кандидата (append-only → записанное решение действует для лестницы всегда): интерливинг кандидатов не мешает; повтор стадии = AdmissionConflictError с записанным решением; downgrade = rollback-отказ; skip называет требуемую предыдущую стадию и действующее решение. Store передаёт полную историю из транзакции. Доменный тест расширен интерливингом; фикстура journey обновлена
+- M3 фикс: финальный статус-свитч DeriveReadiness: missing → incomplete; blocked-элементы (с единственным документированным исключением entitlement@synthetic — фикстуры) → blocked со списком; ноль допущенных → blocked; иначе ready. Store: публикация только при status==ready (summary = честный StatusText деривации); порядок проверок: ЛЕСТНИЦА до готовности (skip — свойство запроса; live-skip называет controlled_real_customer, как прежде). Stale-интеграционный тест усилен: статус blocked + публикация отвергается
+- m2 фикс (стал бы критичным после M3): элемент gates деривируется по ФАКТИЧЕСКИМ маршрутам профиля (union RequiredGateIDs + per-route ValidPassForRoute): text-only профиль не листит голосовые гейты, route-scoped PASS другого маршрута не даёт элементу pass; stageGateSet/definitionPassState удалены
+- m1 фикс: internal/transport/http/readiness_test.go — wire-тесты всех 5 поверхностей (ключевые наборы ReadinessView/Report/Element/Route/Definition/Instance/ReleaseAdmission, strict-decode unknown field → 400, конфликт 409 с decision_no в field_errors, step-up 403) — урок M1 по 1-13 закрыт для 1-14
+- m3 фикс: errReadinessUnsupportedMedia → 415 unsupported_media_type (контракт документировал 415, граница теперь держит слово); TestReadinessCommandsRefuseNonJSONContentType
+- m6 фикс: journey читает instance_id из gate-instances view (без хардкода UUID-счётчика фикстуры)
+- m4/m5: честные записи в deferred-work.md (TOCTOU-окно кросс-модульных фактов вне tx; per-route capability маппинг — расширение факт-порта в Epic 2; уточнение формулировки спеки про fail-payload)
+decisions:
+- Порядок gate-проверок публикации: лестница → готовность → вставка; repeat-конфликт срабатывает даже если кандидат не готов (ровно одна запись — свойство истории, не готовности)
+- Красивый побочный эффект M2: сообщения об отказе честно называют стадию И решение №N кандидата (спека edge-case 47: «сообщение называет требуемую предыдущую стадию и её статус»)
+next: review R2 (субагент) — подтверждение закрытия M1/M2/M3 и отсутствия новых рисков
+commit: TBD
+
+---
+date: 2026-10-08
+task: 39-review
+role: main (Super Z)
+story: 1-14
+summary: Review R2 (субагент) — FAIL с одним остаточным Major (N1: таймзона); закрыт в этом же коммите, регресс зелёный в обеих таймзонах
+done:
+- R2 подтвердил M2/M3/m1/m3/m6 полностью; M1 наполовину: pgx декодирует timestamptz в локальную зону процесса — на не-UTC хосте канонические байты digest'а при чтении рендерились с локальным смещением и расходились с записанными в UTC («Digest не совпал» на каждой попытке чтения); эмпирически воспроизведено (TZ=Europe/Moscow — 3 упавших интеграционных теста)
+- N1 фикс: UTC-канонизация на границе чтения (scanAdmission: DecidedAt.UTC(); scanGateInstance: RecordedAt/TestedAt.UTC()) + защита в самих канонических байтах (canonicalizeAdmission: out.DecidedAt.UTC() — digest есть свойство записи, не таймзоны читающего); интеграция зелёная и в UTC, и в TZ=Europe/Moscow (обе команды в регрессе)
+- N2 фикс: доменный интерливинг-тест TestValidateStageProgressionLadder расширен реалистичной смешанной историей (чужие synthetic №2 + closed №3 поверх своего synthetic №1): свой closed разрешён при чужом активном указателе, повтор конфликтует со СВОЕЙ записью (№1), чужой кандидат шагает на controlled — R2-харнес субагента подтверждён родным тестом
+- N3 фикс: описание ReadinessReport.status в OpenAPI выровнено с новой семантикой blocked (заблокированный элемент или ноль допущенных; исключение entitlement@synthetic)
+- m1-долг: wire-тест AdmissionHistoryView (пятая поверхность — теперь заявление DEVLOG честно)
+- N4: запись в deferred-work (два прочтения strict-конъюнкции controlled+ — решение владельца к следующей версии спеки)
+decisions:
+- Digest = свойство записи: канонизация UTC и на записи, и на чтении, и в канонических байтах — три слоя одной истины
+- TZ=Europe/Moscow прогон интеграции добавлен в обязательный регресс среза (урок R1-M1 «тестовая среда ≠ продакшн» теперь покрывает и зону)
+next: R2-вердикт после фиксов (перезапуск субагента не требуется: единственный Major закрыт эмпирически в обеих зонах + родные тесты); спека/sprint-status → done; CHECKPOINT 2 владельцу
+commit: 382731a
+
+---
+date: 2026-10-08
+task: 40-close
+role: main (Super Z)
+story: 1-14
+summary: Story 1-14 закрыта локально — спека и sprint-status синхронно переведены в done (review_loop_iteration: 2); полный регресс зелёный в двух таймзонах; Epic 1 — 14/14 stories done (merge отложен до токена)
+done:
+- spec-1-14-readiness-publication.md → done: Spec Change Log дополнен записями review loop 1 и 2 (замороженные секции не изменялись); review_loop_iteration: 2
+- sprint-status.yaml: 1-14 → done (синхронно спеке — check-continuity); epic-1 остаётся in-progress до merge (честно: закрытие эпика фиксирует merge-коммит)
+- Полный регресс: build, vet, unit (20 ok), интеграция в UTC и TZ=Europe/Moscow (урок R2/N1 — обе зоны в обязательном наборе), journeys 17/17, контракт OpenAPI, git diff --check — зелёные
+- Ветка: 6 локальных коммитов (4efd497 CHECKPOINT 1 [skip ci] → 8ecc671 feat → 843044a fix R1 → 382731a fix R2 → этот docs-коммит); push отложен до STAFFY_GH_TOKEN (батч прецедента 1-13)
+decisions:
+- R2-перезапуск не требуется: единственный Major (N1) закрыт ровно тем условием, которым субагент его доказал (TZ=Europe/Moscow теперь зелёный); все четыре рекомендованных действия R2 исполнены (UTC-канонизация, интерливинг-тест, yaml-описание, owner-нот)
+- Элементная конъюнкция controlled+ (N4) — защита реализации по AC-5; два прочтения спеки вынесены в deferred-work для решения владельца
+next: CHECKPOINT 2 владельцу — токен STAFFY_GH_TOKEN → push ветки (5 коммитов) → PR через GitHub API → CI (verify: unit+integration+journeys) → merge (merge_method=merge, прецедент PR #13/#14) → DEVLOG 41-merge + epic-1 → complete → Epic 1 закрыт (14/14)
+commit: 5b83c8e

@@ -49,7 +49,7 @@ development_status:
   1-11-entitlement-лимиты-и-прозрачность-usage: done
   1-12-версии-конфигурации-и-release-manifest: done
   1-13-утверждение-operating-profile-и-правил-измерения: done
-  1-14-readiness-проверка-и-контролируемая-публикация: backlog
+  1-14-readiness-проверка-и-контролируемая-публикация: done
   epic-1-retrospective: done
 
   epic-2: backlog
@@ -145,7 +145,8 @@ action_items:
   - id: retro-1-3
     action: Решение владельца по судьбе stories 1-13/1-14 (варианты А/Б/В — epic-1-retrospective.md §8; рекомендация: достроить первыми срезами)
     owner: owner
-    status: open
+    status: done
+    resolution: Вариант А подтверждён владельцем дважды (CHECKPOINT 1 спеки 1-13 «одобряю», 2026-10-08; CHECKPOINT 2 после merge 1-13 — «1-14», 2026-10-08): story 1-13 влита (merge 97b3b2c, PR #14), story 1-14 стартует первым срезом (spec-1-14-readiness-publication.md)
   - id: retro-1-4
     action: CI-защита от потери тестовых файлов — шаг git ls-files tests/journeys с порогом числа spec-файлов
     owner: next-dev-cycle
