@@ -863,3 +863,23 @@ decisions:
 - Прогон субагентом R3 был заблокирован сбоем его песочницы — регресс прогнан main дважды независимо от R3; вердикт R3 по коду принимён с этой оговоркой, зафиксированной в 43-review-2
 next: CHECKPOINT 2 владельцу — STAFFY_GH_TOKEN → push ветки одним батчем (прецедент 1-13/1-14) → PR через GitHub API → CI (job verify: unit+integration+journeys) → merge (merge_method=merge) → DEVLOG 43-merge → docs-push [skip ci] → check-continuity → Epic 2: story 2-1 влита, далее 2-2 (Work Items, факты и provenance внутри Case)
 commit: 52dfd0b
+
+---
+date: 2026-10-09
+task: 43-merge
+role: main (Super Z)
+story: 2-1
+summary: Story 2-1 влита в main — PR #16, merge-коммит 84b5120; CI зелёный тремя полными verify-прогонами (push/PR/main); Epic 2: 1/16 stories done — вход enforcement 1-14 работает на живом ingress
+done:
+- Токен выдан владельцем в чате (CHECKPOINT 2); валидация через GitHub API (login artemiosu, push/merge права); применён только inline export STAFFY_GH_TOKEN внутри команд — на диск не попадал
+- Окружение сессии сброшено (Go/PG отсутствовали) → bootstrap в foreground восстановлен (Go 1.27.1, PG 54329 жив); smoke-регресс перед push: build, vet, unit (22 ok), интеграция UTC + TZ=Europe/Moscow — зелёные
+- Push ветки одним батчем (прецедент 1-13/1-14): 360287b..d03e87e — 5 коммитов (90709bf CHECKPOINT 1 [skip ci], 80305eb feat, da8d0a3 fix R1, 3e6d5ac fix R2/R3 + done, d03e87e docs → done); origin синхронен, 0 незапушенных
+- PR #16 создан через GitHub API (внешний скрипт create_pr_2_1.sh, токен только из env): https://github.com/artemiosu/staffy/pull/16 (44 файла, 7 коммитов)
+- CI: три полных verify-прогона (job verify: Go checks / PostgreSQL integration / Browser dependencies / Browser journeys), все success — push-run 37848625208, pull_request-run 37848711388, main-run 37849008179 (head 84b5120)
+- Merge через API (merge_method=merge — прецедент PR #13/#14/#15): merge-коммит 84b5120; локальный main синхронизирован ff-only; дерево чистое и синхронно с origin
+decisions:
+- Канон-нота (прецедент 1-13/1-14): DEVLOG 43-close ссылается на пре-amend хеш 52dfd0b; фактический хеш docs-коммита закрытия — d03e87e (amend до push, публичная история не переписывалась)
+- Урок сброса окружения: клон потерял config credential.https://github.com.helper (его ставит bootstrap; в этот раз клон жил с прошлого сеанса) — helper восстановлен ручной git config до первого push; протокол не изменён, токен по-прежнему только env
+- Итог review-цикла 2-1 подтверждён CI независимо: 4 Major R1 + Critical N1 R2 закрыты, полный регресс зелёный в обеих таймзонах (локально и в CI)
+next: Epic 2 продолжается — story 2-2 «Work Items, факты и provenance внутри Case» (backlog; первый шаг — SM-спека первого среза → CHECKPOINT 1 владельцу). Осталось 15/16 stories
+commit: 84b5120
