@@ -830,3 +830,80 @@ func TestIngestSessionContinuationFailClosed(t *testing.T) {
 		t.Fatalf("expected the replay of the accepted event despite the revoked admission, got %+v", replay)
 	}
 }
+
+// TestIngestKeyConflictAcrossProviderNamespacesTerminates covers the R2
+// critical: the same idempotency key held by an accepted event of the same
+// event id under ANOTHER provider namespace is a material key conflict —
+// the resolution must terminate in the honest quarantine, never loop.
+func TestIngestKeyConflictAcrossProviderNamespacesTerminates(t *testing.T) {
+	w := newCasesWorld(t, 450)
+	ctx := context.Background()
+	acceptedOutcome(t, mustIngest(t, w, w.ingestCommand("evt-ns-1", "sess-ns-1", `{"call":"x"}`)))
+	// The same event id and the same idempotency key under another
+	// provider namespace: the material identity differs, the key does not.
+	conflicting := w.ingestCommand("evt-ns-1", "sess-ns-2", `{"call":"y"}`)
+	conflicting.Envelope.Provider = "staffy-synthetic-telephony-alt"
+	conflicting.IdempotencyKey = w.ingestCommand("evt-ns-1", "sess-ns-1", `{"call":"x"}`).IdempotencyKey
+	outcome, err := w.cases.IngestEvent(ctx, conflicting)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if outcome.Quarantined == nil || outcome.Quarantined.Kind != casesDomain.ExceptionIdempotencyConflict {
+		t.Fatalf("expected the cross-namespace key conflict quarantine, got %+v", outcome)
+	}
+	view, err := w.cases.CasesView(ctx, w.owner, w.tenant)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(view.Cases) != 1 {
+		t.Fatalf("exactly the original case may exist, got %d", len(view.Cases))
+	}
+}
+
+// TestIngestRaceDifferentEventsSameNewSession covers the R2 finding N3:
+// two concurrent DIFFERENT events of one brand-new session serialize on
+// the session lock — both are accepted, exactly one case, one
+// conversation and two events; no internal errors.
+func TestIngestRaceDifferentEventsSameNewSession(t *testing.T) {
+	w := newCasesWorld(t, 460)
+	w.cases = w.buildCasesService(&employeeIDs{})
+	ctx := context.Background()
+	firstCommand := w.ingestCommand("evt-session-race-1", "sess-race-new-1", `{"call":"x","seq":1}`)
+	secondCommand := w.ingestCommand("evt-session-race-2", "sess-race-new-1", `{"call":"x","seq":2}`)
+
+	outcomes := make([]casesAPI.IngestOutcome, 2)
+	errs := make([]error, 2)
+	commands := []casesAPI.IngestCommand{firstCommand, secondCommand}
+	var wait sync.WaitGroup
+	for index := range commands {
+		wait.Add(1)
+		go func(slot int) {
+			defer wait.Done()
+			outcomes[slot], errs[slot] = w.cases.IngestEvent(ctx, commands[slot])
+		}(index)
+	}
+	wait.Wait()
+	for index, err := range errs {
+		if err != nil {
+			t.Fatalf("delivery %d: %v", index, err)
+		}
+	}
+	caseID := id.UUID("")
+	for _, outcome := range outcomes {
+		if outcome.Accepted == nil {
+			t.Fatalf("both events of the new session must be accepted, got %+v", outcome)
+		}
+		if caseID.Valid() && outcome.Accepted.CaseID != caseID {
+			t.Fatalf("both events belong to one case, got %s vs %s", outcome.Accepted.CaseID, caseID)
+		}
+		caseID = outcome.Accepted.CaseID
+	}
+	detail, err := w.cases.CaseView(ctx, w.owner, w.tenant, caseID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(detail.Timeline) != 2 || len(detail.Conversations) != 1 || len(detail.WorkItems) != 1 {
+		t.Fatalf("expected two events, one conversation and one work item, got %d/%d/%d",
+			len(detail.Timeline), len(detail.Conversations), len(detail.WorkItems))
+	}
+}

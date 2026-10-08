@@ -11,6 +11,7 @@ import (
 	"github.com/artemiosu/staffy/internal/platform/id"
 	"github.com/artemiosu/staffy/internal/platform/tenancy"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -79,6 +80,11 @@ func tenantNumberLockKey(kind string, tenantID id.UUID) string {
 	return "cases." + kind + ".v1:" + tenantID.String()
 }
 
+// sessionLockKey builds the advisory-lock key of one channel session.
+func sessionLockKey(tenantID, connectionID id.UUID, provider, providerSessionID string) string {
+	return "cases.session.v1:" + tenantID.String() + ":" + connectionID.String() + ":" + provider + ":" + providerSessionID
+}
+
 // LookupEvent resolves the material idempotency BEFORE the admission
 // ladder: an accepted event with the same payload digest replays the
 // original result; another digest marks the delivery a digest conflict
@@ -98,7 +104,13 @@ func (s *Postgres) LookupEvent(ctx context.Context, scope tenancy.Context, provi
 		if err != nil && !errors.Is(err, casesDomain.ErrNotFound) {
 			return casesPort.ReplayLookup{}, err
 		}
-		if err == nil && owner.ProviderEventID != providerEventID {
+		if err == nil && (owner.Provider != provider || owner.ProviderEventID != providerEventID) {
+			// The key is held by an accepted event of another MATERIAL
+			// identity: the provider namespace is part of it — the same
+			// event id under another provider is a different event (the
+			// idempotency index is provider-independent, so the conflict
+			// must be flagged by the full pair, never by the event id
+			// alone — a partial comparison would loop the resolution).
 			lookup.KeyConflict = true
 			lookup.KeyOwnerEvent = owner
 		}
@@ -169,6 +181,14 @@ func (s *Postgres) AcceptEvent(ctx context.Context, p casesPort.AcceptParams) (c
 			return lookup.Result, nil
 		}
 		return casesDomain.IngestResult{}, casesDomain.ErrDigestConflict
+	}
+	// The session lock serializes the deliveries of one channel session:
+	// two different events of a brand-new session cannot race the pre-case
+	// session or conversation insert — the loser waits and finds the
+	// material (lock order: material → session → numbers, consistent).
+	if _, err = tx.Exec(ctx, "select pg_advisory_xact_lock(hashtextextended($1,0))",
+		sessionLockKey(tenantID, p.Event.ConnectionID, p.Event.Provider, p.Event.ProviderSessionID)); err != nil {
+		return casesDomain.IngestResult{}, err
 	}
 	// The find-or-create of the conversation by the channel session: the
 	// session continuation is the only proven link between events.
@@ -289,12 +309,18 @@ func (s *Postgres) AcceptEvent(ctx context.Context, p casesPort.AcceptParams) (c
 	}, nil
 }
 
-// mapInsertError names the honest conflict of a raced insert (the
-// defensive backstop of the advisory lock).
+// mapInsertError names the honest conflict of a raced insert by the
+// violated constraint: the idempotency-key uniqueness is a key conflict
+// (the resolution quarantines), the material and session uniquenesses are
+// the defensive backstops of the advisory locks (the resolution replays
+// or extends). Raw 23505s never surface as internal errors.
 func mapInsertError(err error) error {
-	var pgErr interface{ SQLState() string }
-	if errors.As(err, &pgErr) {
-		if pgErr.SQLState() == "23505" {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.SQLState() == "23505" {
+		switch pgErr.ConstraintName {
+		case "channel_events_idempotency":
+			return casesDomain.ErrIdempotencyKeyConflict
+		default:
 			return casesDomain.ErrEventRaced
 		}
 	}
@@ -386,9 +412,11 @@ func (s *Postgres) CountInflight(ctx context.Context, scope tenancy.Context, con
 	return count, tx.Commit(ctx)
 }
 
-// CountRejections counts the recorded refusals of one connection and kind
-// inside the window — the bound of the pre-verification rejection rows.
-func (s *Postgres) CountRejections(ctx context.Context, scope tenancy.Context, connectionID id.UUID, kind string, window time.Duration, now time.Time) (int, error) {
+// CountRejections counts the recorded refusals of one KIND inside the
+// window — the bound of the pre-verification rejection rows, keyed by
+// (tenant, kind): the connection id of an unverifiable delivery is
+// attacker-chosen and must never multiply the budget.
+func (s *Postgres) CountRejections(ctx context.Context, scope tenancy.Context, kind string, window time.Duration, now time.Time) (int, error) {
 	tx, err := s.begin(ctx, scope, true)
 	if err != nil {
 		return 0, err
@@ -397,8 +425,8 @@ func (s *Postgres) CountRejections(ctx context.Context, scope tenancy.Context, c
 	var count int
 	if err = tx.QueryRow(ctx, `
 		select count(*) from cases.ingress_rejections
-		where tenant_id=$1 and connection_id=$2 and kind=$3 and created_at > $4`,
-		scope.TenantID(), connectionID, kind, now.UTC().Add(-window)).Scan(&count); err != nil {
+		where tenant_id=$1 and kind=$2 and created_at > $3`,
+		scope.TenantID(), kind, now.UTC().Add(-window)).Scan(&count); err != nil {
 		return 0, err
 	}
 	return count, tx.Commit(ctx)

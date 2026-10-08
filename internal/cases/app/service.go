@@ -312,17 +312,57 @@ func (s *Service) accept(ctx context.Context, scope tenancy.Context, command cas
 		AcceptedPayload: acceptedPayload, AckPayload: ackPayload, Now: now,
 	})
 	if err != nil {
-		// The raced conflicts resolve honestly: the material advisory lock
-		// makes them rare, but a 23505 backstop or an in-lock digest
-		// conflict must become a replay or a quarantine, never an internal
-		// error — the pipeline is re-run once and the pre-ladder lookup
-		// now decides (the second pass cannot race the same way).
+		// The raced conflicts resolve honestly INLINE — never by a
+		// recursive re-run: one fresh lookup decides deterministically
+		// (the advisory locks guarantee the conflicting state is already
+		// committed), and an unresolvable conflict stays a genuine
+		// internal error instead of a stack overflow.
 		if errors.Is(err, casesDomain.ErrDigestConflict) || errors.Is(err, casesDomain.ErrIdempotencyKeyConflict) || errors.Is(err, casesDomain.ErrEventRaced) {
-			return s.IngestEvent(ctx, command)
+			return s.resolveRacedConflict(ctx, scope, command, envelope, now)
 		}
 		return casesAPI.IngestOutcome{}, err
 	}
 	return casesAPI.IngestOutcome{Accepted: acceptedView(result, result.Replay)}, nil
+}
+
+// resolveRacedConflict turns a raced write conflict into the honest
+// outcome with ONE fresh lookup: a material match replays, a digest
+// mismatch quarantines, a key conflict quarantines; anything else is a
+// genuine internal error (never a loop — no recursion exists).
+func (s *Service) resolveRacedConflict(ctx context.Context, scope tenancy.Context, command casesAPI.IngestCommand, envelope casesDomain.Envelope, now time.Time) (casesAPI.IngestOutcome, error) {
+	lookup, err := s.repository.LookupEvent(ctx, scope, envelope.Provider, envelope.ProviderEventID, envelope.PayloadDigest, command.IdempotencyKey)
+	if err != nil {
+		return casesAPI.IngestOutcome{}, err
+	}
+	if lookup.Found {
+		if lookup.DigestMatch {
+			return casesAPI.IngestOutcome{Accepted: acceptedView(lookup.Result, true)}, nil
+		}
+		event, exception, err := s.quarantine(ctx, scope, command, envelope, now,
+			casesDomain.ExceptionDigestConflict,
+			fmt.Sprintf("Digest-конфликт события %s/%s: доставленный payload отличается от принятого; принятая запись не переписывается.", envelope.Provider, envelope.ProviderEventID),
+			lookup.OriginalEvent.EventID, lookup.Result.CaseID, lookup.Result.ConversationID)
+		if err != nil {
+			return casesAPI.IngestOutcome{}, err
+		}
+		// The quarantined row's id — the same semantics as the pre-ladder
+		// branches of IngestEvent (the machine contract stays consistent
+		// whether the conflict was detected before or after the write).
+		return casesAPI.IngestOutcome{Quarantined: &casesAPI.IngestQuarantine{
+			Kind: casesDomain.ExceptionDigestConflict, ExceptionID: exception.ExceptionID, EventID: event.EventID}}, nil
+	}
+	if lookup.KeyConflict {
+		event, exception, err := s.quarantine(ctx, scope, command, envelope, now,
+			casesDomain.ExceptionIdempotencyConflict,
+			fmt.Sprintf("Идемпотентный ключ %s уже использован принятым событием %s/%s; доставка карантинится для человека.", command.IdempotencyKey, lookup.KeyOwnerEvent.Provider, lookup.KeyOwnerEvent.ProviderEventID),
+			lookup.KeyOwnerEvent.EventID, lookup.KeyOwnerEvent.CaseID, lookup.KeyOwnerEvent.ConversationID)
+		if err != nil {
+			return casesAPI.IngestOutcome{}, err
+		}
+		return casesAPI.IngestOutcome{Quarantined: &casesAPI.IngestQuarantine{
+			Kind: casesDomain.ExceptionIdempotencyConflict, ExceptionID: exception.ExceptionID, EventID: event.EventID}}, nil
+	}
+	return casesAPI.IngestOutcome{}, casesDomain.ErrEventRaced
 }
 
 // quarantine records the quarantined delivery with its operational
@@ -367,9 +407,9 @@ func (s *Service) quarantine(ctx context.Context, scope tenancy.Context, command
 // a principal) are written only when the CLAIMED tenant is real (the
 // membership facts of the claim are visible under the RLS-scoped read)
 // and the fixed dictionary bound of recorded refusals per (claimed
-// tenant, connection, kind) inside the window is not reached: the
-// unauthenticated surface may never write unboundedly into someone's
-// tenant — a frozen-clause tension documented in deferred-work.
+// tenant, kind) inside the window is not reached: the unauthenticated
+// surface may never write unboundedly into someone's tenant — a
+// frozen-clause tension documented in deferred-work.
 func (s *Service) recordRejection(ctx context.Context, scope tenancy.Context, command casesAPI.IngestCommand, kind, text string, counter int, connectionID id.UUID, trusted bool) {
 	if s.repository == nil {
 		return
@@ -399,7 +439,7 @@ func (s *Service) recordRejection(ctx context.Context, scope tenancy.Context, co
 		if !s.claimedTenantIsReal(ctx, scope, connectionID) {
 			return
 		}
-		count, err := s.repository.CountRejections(ctx, scope, connectionID, kind, casesDomain.RejectionBoundWindow, s.clock.Now().UTC())
+		count, err := s.repository.CountRejections(ctx, scope, kind, casesDomain.RejectionBoundWindow, s.clock.Now().UTC())
 		if err != nil || count >= casesDomain.MaxClaimedRejectionsPerKey {
 			return
 		}

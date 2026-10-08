@@ -144,10 +144,12 @@ type Repository interface {
 	// CountInflight counts the accepted events of the connection inside the
 	// load-envelope window.
 	CountInflight(ctx context.Context, scope tenancy.Context, connectionID id.UUID, window time.Duration, now time.Time) (int, error)
-	// CountRejections counts the recorded refusals of one connection and
-	// kind inside the window — the bound of the pre-verification rejection
-	// rows.
-	CountRejections(ctx context.Context, scope tenancy.Context, connectionID id.UUID, kind string, window time.Duration, now time.Time) (int, error)
+	// CountRejections counts the recorded refusals of one KIND inside the
+	// window — the bound of the pre-verification rejection rows. The count
+	// is per tenant and kind (never per connection: the connection id of
+	// an unverifiable delivery is attacker-chosen, varying it must not
+	// multiply the budget).
+	CountRejections(ctx context.Context, scope tenancy.Context, kind string, window time.Duration, now time.Time) (int, error)
 	// ListCases, ReadCase, ReadPayload and ListExceptions are the operator
 	// surface reads.
 	ListCases(ctx context.Context, scope tenancy.Context) ([]casesDomain.CaseSummary, error)

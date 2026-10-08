@@ -86,9 +86,11 @@ var FixedLoadEnvelope = LoadEnvelope{
 
 // The bound of pre-verification rejection rows: an unauthenticated machine
 // endpoint may honestly record refusals of unverifiable deliveries, but
-// never unboundedly — a fixed dictionary cap per (claimed tenant,
-// connection, kind) inside the window keeps the durable noise bounded
-// until a tenant-neutral area exists (deferred-work).
+// never unboundedly — a fixed dictionary cap per (claimed tenant, kind)
+// inside the window keeps the durable noise bounded until a tenant-neutral
+// area exists (deferred-work). The connection id is deliberately NOT part
+// of the key: an unverifiable sender chooses it freely, so varying it must
+// not multiply the budget.
 const (
 	MaxClaimedRejectionsPerKey = 100
 	RejectionBoundWindow       = time.Hour

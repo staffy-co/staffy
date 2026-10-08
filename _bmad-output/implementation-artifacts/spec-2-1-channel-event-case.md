@@ -2,9 +2,9 @@
 title: 'Story 2.1 — Приём Channel Event и создание единого Case (первый срез)'
 type: 'feature'
 created: '2026-10-08'
-status: 'review'
+status: 'done'
 route: 'dispatch'
-review_loop_iteration: 1
+review_loop_iteration: 2
 baseline_commit: '28b5d6f4cde9f677928c9da1e0d5248d44b04985'
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-1-context.md'
@@ -101,6 +101,7 @@ context:
 ## Spec Change Log
 
 - 2026-10-08, review loop 0: создана спека первого среза Story 2.1 (SM) по делегированному решению владельца (CHECKPOINT 2 закрытия Epic 1: «выбор доверяю вашей экспертости»; решение SM — запуск Epic 2, story 2-1). Статус `backlog` до CHECKPOINT 1 — одобрения владельцем; после одобрения спека и sprint-status.yaml одновременно переходят в `ready-for-dev`, epic-2 → `in-progress` (первая story эпика стартует).
+- 2026-10-09, review loop 2: review R2 — фиксы R1 верифицированы (M1/M2 подлинно закрыты), но M3-фикс породил Critical N1 (конфликт ключа без Provider → бесконечная рекурсия), M4-фикс обходим (N2: смена connection_id множит бюджет), session-lock был заявлен ложно (N3). Все N закрыты: полная материальная идентичность в проверке ключа + инлайн-разрешение raced-конфликтов (рекурсия устранена как класс) + маппинг 23505 по имени констрейнта; лимит (tenant, kind); session-lock применён. R3 — PASS по коду, 2 минорных исправлены. Полный регресс зелёный (unit 22, интеграция ×2 TZ с 15 cases-тестами, journeys 18/18, контракт). Спека → done.
 - 2026-10-09, review loop 1: review R1 (субагент) — FAIL, 4 Major закрыты: (M1) outbox-запись принятого события кодируется ВНУТРИ транзакции с разрешённым материалом (фабрикация case/conversation id и new_case=true на продолжении сессии устранена; ассерты outbox в интеграции); (M2) канонизация payload с UseNumber — точность чисел сохраняется (2^53+), 1 ≠ 1.0 материально; (M3) конфликт идемпотентного ключа — честный карантин с исключением idempotency_key_conflict (пре-лукап по ключу + маппинг 23505), внутренние ошибки невозможны; (M4) записи отказов верификации под заявленным скоупом ограничены (тенант существует + словарный лимит 100/connection×kind×окно; напряжение клозул — deferred-work для решения владельца). Минорные: комментарий капа, логирование внутренних ошибок, session-lock перед find-or-create, FK conversation_id, контейнмент case в ReadPayload, OpenAPI payload как любое JSON-значение, тесты точности/двусмысленности/конфликта ключа/fail-closed продолжения. Полный регресс зелёный.
 - 2026-10-09, review loop 0 (dev): первый срез реализован полностью — домен cases (лестница/словари/идемпотентность), миграция 00001, port/app/store/api, фасады RouteFacts (employee) и ConnectionFactsByID (connector), ретрансляция AdmissionFacts (entitlement, скоуп-основанная), ingresssyn-верификатор, транспорт+OpenAPI+Cases/Case UI, privacy-классы 18→20, architecture-заборы cases/store + DAG; полный регресс зелёный (build/vet/unit 22/интеграция ×2 TZ/journeys 18/18/контракт/diff); спека → review.
 - 2026-10-09, CHECKPOINT 1: спека одобрена владельцем без правок («одобряю», чат 2026-10-09). Замороженные секции (Intent / Boundaries & Constraints / I/O & Edge-Case Matrix) не изменялись. Спека и sprint-status.yaml одновременно переведены в `ready-for-dev`; epic-2 → `in-progress` (первая story эпика стартует); далее — Dev (step-03). Push коммита отложен до появления STAFFY_GH_TOKEN сессии (батч-пуш прецедента 1-13/1-14).
