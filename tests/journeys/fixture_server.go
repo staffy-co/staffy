@@ -42,6 +42,9 @@ func (identityFixture) Workspace(context.Context, domain.Principal, id.UUID) (do
 func (identityFixture) ListMembers(context.Context, domain.Principal, id.UUID) ([]domain.Membership, error) {
         return []domain.Membership{{TenantID: tenantID, PrincipalID: &principalID, Roles: []domain.Role{domain.Owner}, Scopes: domain.AllScopes(), Status: "active", Version: 1}}, nil
 }
+func (identityFixture) MembersFacts(context.Context, domain.Principal, id.UUID) ([]domain.Membership, error) {
+        return []domain.Membership{{TenantID: tenantID, PrincipalID: &principalID, Roles: []domain.Role{domain.Owner}, Status: "active", Version: 1}}, nil
+}
 func (identityFixture) InviteMember(context.Context, api.MembershipCommand) (domain.Membership, string, error) {
         return domain.Membership{}, "", domain.ErrStepUpRequired
 }
@@ -58,10 +61,25 @@ func (identityFixture) Authorize(context.Context, domain.Principal, id.UUID, dom
         return nil
 }
 
-type resolverFixture struct{}
+// resolverFixture resolves the fixture principal. The step-up flag is
+// toggleable through the /fixture/step-up endpoint so the journey can walk
+// both the honest step-up refusal and the confirmed approval (the resolver
+// cannot read query parameters — the flag is server state).
+type resolverFixture struct {
+        mu     sync.Mutex
+        stepUp bool
+}
 
-func (resolverFixture) Resolve(context.Context) (domain.Principal, error) {
-        return domain.Principal{ID: principalID, CanCreateTenant: true}, nil
+func (r *resolverFixture) Resolve(context.Context) (domain.Principal, error) {
+        r.mu.Lock()
+        defer r.mu.Unlock()
+        return domain.Principal{ID: principalID, CanCreateTenant: true, StepUpVerified: r.stepUp}, nil
+}
+
+func (r *resolverFixture) setStepUp(enabled bool) {
+        r.mu.Lock()
+        defer r.mu.Unlock()
+        r.stepUp = enabled
 }
 
 type clockFixture struct{}
@@ -817,18 +835,30 @@ func (f *employeeFixture) RetireKnowledge(_ context.Context, c employeeAPI.Knowl
 }
 
 func main() {
-        server, err := httptransport.New(identityFixture{}, resolverFixture{}, idsFixture{}, clockFixture{}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+        resolver := &resolverFixture{}
+        server, err := httptransport.New(identityFixture{}, resolver, idsFixture{}, clockFixture{}, slog.New(slog.NewTextHandler(io.Discard, nil)))
         if err != nil {
                 panic(err)
         }
         employees := &employeeFixture{}
         connectors := &connectorFixture{}
+        release := newReleaseFixture(employees, connectors)
         server.BindEmployee(employees)
         server.BindConnector(connectors)
         server.BindPrivacy(&privacyFixture{})
         server.BindEntitlement(&entitlementFixture{})
-        server.BindRelease(newReleaseFixture(employees, connectors))
-        if err := http.ListenAndServe("127.0.0.1:18081", server.Handler()); err != nil {
+        server.BindRelease(release)
+        server.BindProfile(newProfileFixture(release))
+        // The fixture-only step-up toggle wraps the transport: production never
+        // exposes it; the journey uses it to walk both step-up outcomes.
+        root := http.NewServeMux()
+        root.HandleFunc("POST /fixture/step-up", func(w http.ResponseWriter, r *http.Request) {
+                r.ParseForm()
+                resolver.setStepUp(r.FormValue("enabled") == "1")
+                w.WriteHeader(http.StatusNoContent)
+        })
+        root.Handle("/", server.Handler())
+        if err := http.ListenAndServe("127.0.0.1:18081", root); err != nil {
                 panic(err)
         }
 }

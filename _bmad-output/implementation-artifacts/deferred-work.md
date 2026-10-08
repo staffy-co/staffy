@@ -60,3 +60,11 @@
 - source_spec: `spec-1-11-entitlement-usage.md`
   summary: Заменить тихие fallback-ы числовых полей форм (formInt: warning_threshold_percent→80, freshness_minutes→1440) на честные ошибки парсинга — сейчас мусорный ввод молча публикует значение по умолчанию.
   evidence: Опубликованное значение видно на странице после сохранения, поэтому подмена не скрыта, но не называет саму ошибку ввода; price-поля после R1 честно отклоняются — тот же паттерн нужен для formInt (finding R1 по 1-11, мульти-модульная правка).
+
+- source_spec: `spec-1-13-operating-profile.md`
+  summary: Подключить провайдер step-up (реальную повторную аутентификацию) для утверждения Operating Profile: сейчас шаг требует Principal.StepUpVerified, но провайдера в системе нет — в продакшн-бинар никто не проходит step-up и утверждение честно заблокировано.
+  evidence: Тот же класс блокировки, что у membership invite/change/revoke (identity ErrStepUpRequired); фикстура journeys использует резолвер с переключаемым флагом (POST /fixture/step-up — только тестовый контур), интеграционные тесты — principals с флагом; поверхность готова к подключению провайдера без изменения домена.
+
+- source_spec: `spec-1-12-release-manifest.md`
+  summary: Выровнять выбор «последнего манифеста» в ReleaseView (surface 1-12) с детерминированным паттерном 1-13 (максимальный config_version): сейчас records[0] по сортировке sealed_at desc, manifest_id desc — под фиксированным clock это coin flip (тот же корень, что M2 review R1 по 1-13).
+  evidence: В продакшене sealed_at практически уникален, риск латентный; профильная поверхность уже исправлена (app/profile.go — выбор по config_version), паттерн стоит вынести в общий хелпер и применить к release при случае (замечание R2 по 1-13, P4).

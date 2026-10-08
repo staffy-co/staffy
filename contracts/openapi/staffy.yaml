@@ -1680,6 +1680,138 @@ paths:
         '404': { $ref: '#/components/responses/Problem' }
         '409': { $ref: '#/components/responses/Problem' }
         '415': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/employees/{employee_id}/operating-profile:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/EmployeeID'
+    get:
+      operationId: readOperatingProfileView
+      summary: Operating Profile — черновик, readiness-перечень, утверждённая версия, деривации (configuration — управление, review/audit — просмотр)
+      x-staffy-principal-required: true
+      responses:
+        '200':
+          description: Профиль — правила и границы работы, а не допуск трафика; адmission — Story 1.14
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProfileView' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/employees/{employee_id}/operating-profile/draft:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/EmployeeID'
+    post:
+      operationId: updateOperatingProfileDraft
+      summary: Создание/обновление mutable черновика с точной ссылкой на запечатанный манифест (configuration, CAS)
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [manifest, content, expected_revision]
+              properties:
+                manifest:
+                  type: object
+                  additionalProperties: false
+                  required: [manifest_id, config_version, digest]
+                  properties:
+                    manifest_id: { type: string, format: uuid }
+                    config_version: { type: integer, minimum: 1 }
+                    digest: { type: string, pattern: '^[0-9a-f]{64}$', description: 'Сверяется с запечатанной строкой манифеста при каждой записи' }
+                content: { $ref: '#/components/schemas/ProfileContent' }
+                expected_revision: { type: integer, minimum: 0, description: '0 = первая запись; иное — CAS-обновление' }
+      responses:
+        '200': { description: Сохранённый черновик, content: { application/json: { schema: { $ref: '#/components/schemas/ProfileDraft' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+        '415': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/employees/{employee_id}/operating-profile/approval:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/EmployeeID'
+    post:
+      operationId: approveOperatingProfile
+      summary: Утверждение черновика — append-only версия с digest, approver-ролями и step-up (configuration + step-up; ровно одна версия в гонке)
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [description, evidence_refs, expected_revision]
+              properties:
+                description: { type: string, minLength: 1, maxLength: 300 }
+                evidence_refs:
+                  type: array
+                  minItems: 1
+                  items: { type: string, minLength: 1, maxLength: 300 }
+                expected_revision: { type: integer, minimum: 1 }
+      responses:
+        '201': { description: Неизменяемая утверждённая версия, content: { application/json: { schema: { $ref: '#/components/schemas/ProfileVersion' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+        '415': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/employees/{employee_id}/operating-profile/thresholds:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/EmployeeID'
+    post:
+      operationId: decideGateThreshold
+      summary: Человеческое решение порога gate — append-only версия с историей (только объявленный evidence owner последней утверждённой версии)
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [gate_id, value, decision, evidence_refs]
+              properties:
+                gate_id: { type: string, minLength: 1, maxLength: 64 }
+                value: { type: string, minLength: 1, maxLength: 300, description: 'Человек утверждает со ссылками; система значений не подставляет (pending baseline до решения)' }
+                decision: { type: string, minLength: 1, maxLength: 300 }
+                evidence_refs:
+                  type: array
+                  minItems: 1
+                  items: { type: string, minLength: 1, maxLength: 300 }
+      responses:
+        '201': { description: Записанная версия решения, content: { application/json: { schema: { $ref: '#/components/schemas/GateThresholdVersion' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+        '415': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/employees/{employee_id}/operating-profile/thresholds/{gate_id}:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/EmployeeID'
+      - name: gate_id
+        in: path
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 64 }
+    get:
+      operationId: readThresholdHistory
+      summary: Append-only история решений одного gate (configuration/review/audit — просмотр)
+      x-staffy-principal-required: true
+      responses:
+        '200': { description: История решений порога, content: { application/json: { schema: { $ref: '#/components/schemas/ThresholdHistoryView' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
 components:
   parameters:
     EmployeeID:
@@ -2741,6 +2873,323 @@ components:
               area: { type: string, enum: [brief, domain_pack, knowledge, behavior, voice, connection, capability] }
               subject: { type: string }
               problem: { type: string }
+    ProfileView:
+      type: object
+      required: [employee_id, readiness, applicability, route_states, matrix_coverage, threshold_states, can_manage, view_scope]
+      description: 'Operating Profile — правила и границы работы; профиль никогда не «допускает» маршрут: состояния выводятся для будущего admission (Story 1.14)'
+      properties:
+        employee_id: { type: string, format: uuid }
+        draft: { $ref: '#/components/schemas/ProfileDraft' }
+        readiness:
+          type: array
+          description: 'Перечень незаполненного/невалидного, ведущий к конкретному разделу и полю; пустой список — черновик готов к утверждению'
+          items: { $ref: '#/components/schemas/ProfileRuleError' }
+        approved: { $ref: '#/components/schemas/ProfileVersion' }
+        applicability:
+          type: object
+          required: [state, reason]
+          properties:
+            state: { type: string, enum: [none, current, stale, unapproved_changes], description: 'stale — запечатан новый манифест; unapproved_changes — черновик изменён после утверждения' }
+            reason: { type: string }
+        route_states:
+          type: array
+          items:
+            type: object
+            required: [route, state]
+            properties:
+              route: { $ref: '#/components/schemas/ProfileRoute' }
+              state: { type: string, enum: [clear, blocked], description: 'clear — «не заблокирован этим профилем», не разрешение на трафик' }
+              reason: { type: string }
+              unlock_owner: { type: string }
+              unlock_owner_id: { type: string, format: uuid }
+        matrix_coverage:
+          type: array
+          description: 'Декартово произведение journeys Pack × маршруты × режимы × классы; пустая ячейка — явный gap, «не допущено» отображается, а не исключается; wildcards отсутствуют'
+          items:
+            type: object
+            required: [journey, route, conversation_mode, autonomy_class, state]
+            properties:
+              journey: { type: string }
+              route: { $ref: '#/components/schemas/ProfileRoute' }
+              conversation_mode: { type: string }
+              autonomy_class: { type: string }
+              state: { type: string, enum: [covered, gap, not_admitted] }
+              cell:
+                type: object
+                properties:
+                  not_admitted: { type: boolean }
+                  not_admitted_reason: { type: string }
+                  eval_ref: { type: string }
+                  gate_refs: { type: array, items: { type: string } }
+                  human_fallback: { type: string }
+        threshold_states:
+          type: array
+          items: { $ref: '#/components/schemas/ThresholdState' }
+        latest_manifest:
+          type: object
+          required: [manifest_id, config_version, digest]
+          properties:
+            manifest_id: { type: string, format: uuid }
+            config_version: { type: integer }
+            digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+        can_manage: { type: boolean }
+        view_scope: { type: string, enum: [configuration, review-or-audit] }
+    ProfileDraft:
+      type: object
+      required: [tenant_id, employee_id, revision, manifest, content, actor_id, updated_at]
+      properties:
+        tenant_id: { type: string, format: uuid }
+        employee_id: { type: string, format: uuid }
+        revision: { type: integer, description: 'CAS-ревизия единственного mutable черновика' }
+        approved_revision: { type: integer, description: 'Ревизия, чьё содержание утверждено; больше — есть неутверждённые изменения' }
+        manifest:
+          type: object
+          required: [manifest_id, config_version, digest]
+          description: 'Точная ссылка на запечатанный манифест; сверяется с записанной строкой при каждой записи'
+          properties:
+            manifest_id: { type: string, format: uuid }
+            config_version: { type: integer, minimum: 1 }
+            digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+        content: { $ref: '#/components/schemas/ProfileContent' }
+        actor_id: { type: string, format: uuid }
+        updated_at: { type: string, format: date-time }
+    ProfileVersion:
+      type: object
+      required: [tenant_id, employee_id, version, manifest, content, digest, approver_id, approver_roles, step_up_verified, description, evidence_refs, approved_at]
+      description: 'Неизменяемая утверждённая версия: монотонный номер, канонический sha256-digest, approver-роли на момент утверждения'
+      properties:
+        tenant_id: { type: string, format: uuid }
+        employee_id: { type: string, format: uuid }
+        version: { type: integer, description: 'Монотонный номер под блокировкой черновика' }
+        manifest:
+          type: object
+          required: [manifest_id, config_version, digest]
+          properties:
+            manifest_id: { type: string, format: uuid }
+            config_version: { type: integer }
+            digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+        content: { $ref: '#/components/schemas/ProfileContent' }
+        digest: { type: string, pattern: '^[0-9a-f]{64}$', description: 'Канонический sha256-digest содержания; никогда не пересчитывается для «миграции»' }
+        approver_id: { type: string, format: uuid }
+        approver_roles: { type: array, items: { type: string }, description: "Роли approver-а на момент утверждения" }
+        step_up_verified: { type: boolean, description: 'CHECK-ограничение true: утверждения без step-up не существует' }
+        description: { type: string, minLength: 1, maxLength: 300 }
+        evidence_refs: { type: array, items: { type: string } }
+        approved_at: { type: string, format: date-time }
+    ProfileContent:
+      type: object
+      description: 'Содержание профиля по разделам; идентификаторы, ссылки и решения — секреты, raw PII, transcripts и защищённые медиа структурно не входят'
+      required: [work_scope, human_coverage, privacy_assignments, operational_level, measurement_dictionary, gate_declarations, coverage_matrix, conversation_modes, autonomy_classes]
+      properties:
+        work_scope:
+          type: object
+          required: [routes, forbidden_routes, languages, window, limits, admission_stop_conditions]
+          properties:
+            routes: { type: array, items: { $ref: '#/components/schemas/ProfileRoute' } }
+            forbidden_routes:
+              type: array
+              items:
+                type: object
+                required: [route, reason]
+                properties:
+                  route: { $ref: '#/components/schemas/ProfileRoute' }
+                  reason: { type: string, minLength: 1, maxLength: 300 }
+            languages: { type: array, minItems: 1, maxItems: 12, items: { type: string } }
+            window:
+              type: object
+              required: [days, start, end, time_zone]
+              properties:
+                days: { type: array, items: { type: string, enum: [mon, tue, wed, thu, fri, sat, sun] } }
+                start: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$' }
+                end: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$' }
+                time_zone: { type: string, description: 'IANA-таймзона (проверяется загрузкой зоны)' }
+            limits:
+              type: object
+              required: [max_concurrent_conversations_tenant, max_concurrent_calls_tenant, per_route]
+              properties:
+                max_concurrent_conversations_tenant: { type: integer, minimum: 1 }
+                max_concurrent_calls_tenant: { type: integer, minimum: 1 }
+                per_route:
+                  type: array
+                  items:
+                    type: object
+                    required: [route, max_concurrent_conversations]
+                    properties:
+                      route: { $ref: '#/components/schemas/ProfileRoute' }
+                      max_concurrent_conversations: { type: integer, minimum: 1 }
+                      max_concurrent_calls: { type: integer, description: 'Только для голосовых маршрутов' }
+            admission_stop_conditions: { type: array, minItems: 1, maxItems: 32, items: { type: string, minLength: 1, maxLength: 300 } }
+        human_coverage:
+          type: array
+          description: 'Обязательное покрытие каждого разрешённого маршрута; voicemail/queue/technical_transfer — не подтверждённый handoff без capability evidence'
+          items:
+            type: object
+            required: [route, response_owner_id, backup_owner_id, days, start, end, ack_deadline_minutes, fallback]
+            properties:
+              route: { $ref: '#/components/schemas/ProfileRoute' }
+              response_owner_id: { type: string, format: uuid }
+              backup_owner_id: { type: string, format: uuid }
+              days: { type: array, items: { type: string, enum: [mon, tue, wed, thu, fri, sat, sun] } }
+              start: { type: string }
+              end: { type: string }
+              ack_deadline_minutes: { type: integer, minimum: 1 }
+              fallback: { type: string, enum: [human_callback, voicemail, queue, technical_transfer] }
+              fallback_evidence: { type: string, maxLength: 300 }
+        privacy_assignments:
+          type: array
+          description: 'Назначения per (маршрут × цель из 5) с раздельными параметрами: общий consent-флаг структурно невозможен; OQ-11 open блокирует только затронутый маршрут'
+          items:
+            type: object
+            required: [route, purpose, in_use, oq11_state]
+            properties:
+              route: { $ref: '#/components/schemas/ProfileRoute' }
+              purpose: { type: string, enum: [recording, stt_model_processing, media_processing, transfer, marketing_contact] }
+              in_use: { type: boolean, description: 'false — явное «не используется»' }
+              legal_basis: { type: string, maxLength: 300 }
+              consent_ref: { type: string, maxLength: 300 }
+              disclosure: { type: string, maxLength: 300 }
+              retention: { type: string, maxLength: 300 }
+              deletion: { type: string, maxLength: 300 }
+              withdrawal_behavior: { type: string, maxLength: 300 }
+              oq11_state: { type: string, enum: [open, pass] }
+              oq11_evidence: { type: string, maxLength: 300 }
+        operational_level:
+          type: object
+          required: [level]
+          description: 'RTO/RPO — цели, не доказательства: «не доказаны до drill» — постоянная честная пометка'
+          properties:
+            level: { type: string, enum: [best_effort, commercial] }
+            rto_goal: { type: string, maxLength: 300 }
+            rpo_goal: { type: string, maxLength: 300 }
+            responsible_ids: { type: array, items: { type: string, format: uuid } }
+            service_impact: { type: string, maxLength: 300 }
+        pilot_cohort:
+          type: object
+          description: 'Опционален до пилота; изменение состава — только новая версия профиля с объяснением'
+          required: [eligibility, intent_to_treat_denominator, assignment, attrition_policy]
+          properties:
+            eligibility: { type: array, items: { type: string } }
+            exclusions: { type: array, items: { type: string } }
+            intent_to_treat_denominator: { type: string, maxLength: 300 }
+            assignment: { type: string, maxLength: 300 }
+            attrition_policy: { type: string, maxLength: 300 }
+        measurement_dictionary:
+          type: array
+          minItems: 1
+          description: 'Срезы обязаны включать journey, modality, conversation_mode, release_version, autonomy_class; видимость route-blocking failure обязательна'
+          items:
+            type: object
+            required: [id, name, business_meaning, numerator, denominator, source_of_truth, terminal_timing, slices, owner_id, dispute_resolution, route_failure_visibility]
+            properties:
+              id: { type: string, minLength: 1, maxLength: 64 }
+              name: { type: string, maxLength: 300 }
+              business_meaning: { type: string, maxLength: 300 }
+              numerator: { type: string, maxLength: 300 }
+              denominator: { type: string, maxLength: 300 }
+              source_of_truth: { type: string, maxLength: 300 }
+              terminal_timing: { type: string, maxLength: 300 }
+              slices: { type: array, items: { type: string } }
+              owner_id: { type: string, format: uuid }
+              dispute_resolution: { type: string, maxLength: 300 }
+              route_failure_visibility: { type: string, maxLength: 300, description: 'Маршрут-блокирующий сбой нельзя скрыть средним показателем' }
+        gate_declarations:
+          type: array
+          minItems: 1
+          description: 'Числовой порог системой не задаётся: до решения evidence owner — честный pending baseline'
+          items:
+            type: object
+            required: [gate_id, evidence_owner_id, decision_deadline, fail_closed_fallback, allow_role_coincidence]
+            properties:
+              gate_id: { type: string, minLength: 1, maxLength: 64 }
+              title: { type: string, maxLength: 300 }
+              evidence_owner_id: { type: string, format: uuid }
+              decision_deadline: { type: string, maxLength: 300 }
+              fail_closed_fallback: { type: string, enum: [block_route, block_stage, degraded] }
+              allow_role_coincidence: { type: boolean, default: false }
+        coverage_matrix:
+          type: array
+          description: 'Ячейки (journey × маршрут × режим × класс); пустая ячейка декартова произведения — явный gap; wildcards отсутствуют'
+          items:
+            type: object
+            required: [journey, route, modality, conversation_mode, autonomy_class]
+            properties:
+              journey: { type: string }
+              route: { $ref: '#/components/schemas/ProfileRoute' }
+              modality: { type: string, enum: [voice, text], description: 'Хранится явно и согласуется с каналом маршрута: phone → voice, остальные → text; голос и текст измеряются раздельно' }
+              conversation_mode: { type: string, enum: [sales, service_status, safety, claim, cancellation, privacy_no_contact, human_requested] }
+              autonomy_class: { type: string, maxLength: 64 }
+              not_admitted: { type: boolean }
+              not_admitted_reason: { type: string, maxLength: 300 }
+              eval_ref: { type: string, maxLength: 300, description: 'Ссылка без исполнения: eval-прогонов в системе нет' }
+              gate_refs: { type: array, items: { type: string } }
+              human_fallback: { type: string, maxLength: 300 }
+        conversation_modes:
+          type: array
+          minItems: 1
+          items: { type: string, enum: [sales, service_status, safety, claim, cancellation, privacy_no_contact, human_requested] }
+        autonomy_classes:
+          type: array
+          minItems: 1
+          items: { type: string, minLength: 1, maxLength: 64 }
+    ProfileRoute:
+      type: object
+      required: [channel, direction]
+      properties:
+        channel: { type: string, enum: [phone, web_chat, telegram, whatsapp, email, max, jivo, avito, mobile_app_chat] }
+        direction: { type: string, enum: [inbound, outbound] }
+    ProfileRuleError:
+      type: object
+      required: [section, field, reason, kind]
+      description: 'Находитка, ведущая к конкретному разделу и полю; kind задаёт честную реакцию'
+      properties:
+        section: { type: string }
+        field: { type: string }
+        reason: { type: string }
+        kind: { type: string, enum: [invalid, missing, advisory], description: 'invalid — сохранение отклонено; missing — блокирует утверждение; advisory — блокирует маршрут, не утверждение' }
+        problems: { type: array, items: { $ref: '#/components/schemas/ProfileRuleError' } }
+    ThresholdState:
+      type: object
+      required: [gate_id, state, evidence_owner_id, decision_deadline, fail_closed_fallback, allow_role_coincidence, note]
+      description: 'pending_baseline до решения evidence owner; система не заявляет машинной сверки с controlled baseline'
+      properties:
+        gate_id: { type: string }
+        state: { type: string, enum: [pending_baseline, decided] }
+        value: { type: string }
+        evidence_owner_id: { type: string, format: uuid }
+        decision_deadline: { type: string }
+        fail_closed_fallback: { type: string, enum: [block_route, block_stage, degraded] }
+        allow_role_coincidence: { type: boolean }
+        last_decision: { $ref: '#/components/schemas/GateThresholdVersion' }
+        note: { type: string }
+    GateThresholdVersion:
+      type: object
+      required: [tenant_id, employee_id, gate_id, threshold_version, value, actor_id, decision, evidence_refs, decided_at]
+      description: 'Append-only решение порога: история не переписывается; supersedes ссылается на предыдущую версию'
+      properties:
+        tenant_id: { type: string, format: uuid }
+        employee_id: { type: string, format: uuid }
+        gate_id: { type: string }
+        threshold_version: { type: integer, minimum: 1 }
+        value: { type: string }
+        actor_id: { type: string, format: uuid }
+        decision: { type: string }
+        evidence_refs: { type: array, items: { type: string } }
+        supersedes:
+          type: object
+          required: [threshold_version, decided_at]
+          properties:
+            threshold_version: { type: integer }
+            decided_at: { type: string, format: date-time }
+        decided_at: { type: string, format: date-time }
+    ThresholdHistoryView:
+      type: object
+      required: [employee_id, gate_id, decisions]
+      properties:
+        employee_id: { type: string, format: uuid }
+        gate_id: { type: string }
+        decisions:
+          type: array
+          items: { $ref: '#/components/schemas/GateThresholdVersion' }
   responses:
     Problem:
       description: Безопасная ошибка

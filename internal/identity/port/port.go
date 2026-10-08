@@ -47,6 +47,9 @@ type MembershipMutation struct {
 
 type MembershipRepository interface {
 	ListMembers(context.Context, tenancy.Context) ([]domain.Membership, error)
+	// MembersFacts is the caller-authority projection: active memberships
+	// only, no owner gate (the caller surface verified the scope already).
+	MembersFacts(context.Context, tenancy.Context) ([]domain.Membership, error)
 	InviteMember(context.Context, MembershipMutation) (domain.Membership, error)
 	AcceptInvitation(context.Context, domain.Principal, string, id.UUID, time.Time) (domain.Membership, error)
 	ChangeMember(context.Context, MembershipMutation) (domain.Membership, error)

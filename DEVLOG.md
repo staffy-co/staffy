@@ -513,3 +513,81 @@ decisions:
 - Рекомендация владельцу по 1-13/1-14: вариант А — достроить первыми срезами внутри Epic 1 (план epics.md не меняется; порты admission_state/манифест-кандидат/GATE-REGISTRY уже ждут; runtime не требуется для honest-срезов); варианты Б (re-scope в Epic 2) и В (параллельный старт 2-1) изложены в §8 ретроспективы
 next: CHECKPOINT владельцу — судьба stories 1-13/1-14: (А, recommended) SM пишет спеку 1-13 «Утверждение Operating Profile и правил измерения» (первый срез) → цикл → 1-14 → закрытие эпика; (Б) документированный re-scope в Epic 2; (В) старт Epic 2 2-1 параллельно (не рекомендуется)
 commit: 737d4f9
+
+---
+date: 2026-10-08
+task: 30-sm
+role: main (Super Z, роль SM)
+story: 1-13
+summary: SM-шаг story 1-13 — спека первого среза «Утверждение Operating Profile и правил измерения» (FR-84); владелец выбрал вариант А ретроспективы Epic 1 (достроить 1-13/1-14 первыми срезами внутри эпика)
+done:
+- Позиция верифицирована по канону: git main @ 653f22c (12/14 stories done, 1-13/1-14 backlog), epic-1-retrospective done, action item retro-1-3 (решение владельца) закрыт выбором «A»
+- Окружение поднято повторным bootstrap (сброс: Go 1.27.1 + PG 18.6, порт 54329); check-continuity на main: OK (fail=0, warn=0); ложная тревога о синтаксисе python-блока check-continuity.sh снята (od -c: байты валидны, артефакт отображения)
+- Входы SM прочитаны: epics.md §1.13 (11 блоков AC) и §1.14 (граница срезов), PRD FR-84 + словари (Conversation Modes строка 284, Autonomy режимы FR-42), GATE-REGISTRY (gate-модель, pending-семантика, allow_role_coincidence), epic-1-context (спайн: employee владеет профилем), epic-1-retrospective §8, deferred-work (12 открытых долгов — прямых к 1-13 нет), спеки 1-10/1-11/1-12 (форматы и прецеденты), код: identity (StepUpVerified, ErrStepUpRequired, ListMembers), employee/domain/release.go (ConfigVersion/ReleaseManifest/ManifestContent), privacy/domain/classes.go (словарь артефактов), Brief (словари каналов, таймзона, WorkingHours)
+- Спека spec-1-13-operating-profile.md (132 строки): mutable draft с CAS + два append-only артефакта — версии Operating Profile (digest, approver-роли, step-up) и версии Gate Definition (пороги с историей); точная ссылка на манифест (manifest_id + config_version + digest); разделы: область работы (каналы/языки/часы+IANA/лимиты/запреты/условия остановки), human coverage (fallback-виды; voicemail/queue/technical_transfer — не handoff без evidence), privacy-назначения per (маршрут × 5 целей) с OQ-11 route-level fail-closed, ops-уровень (best_effort/commercial; RTO/RPO — цели, не доказательства), когорта (опциональна до пилота; append-only с audit explanation), Measurement Dictionary (5 обязательных срезов + видимость route-blocking failure), coverage matrix (декартово произведение; пустая ячейка = gap; not admitted явно); derivation: route states, applicability (stale при новом манифесте), readiness (перечень полей), pending baseline; admission/трафик — никогда (порт для 1-14, прецедент admission_state)
+- Ветка codex/story-1-13-operating-profile от 653f22c; коммит спеки b03fd34 [skip ci]; DEVLOG-запись — на ветке (правило retro-1-6)
+decisions:
+- Модуль employee по спайну («employee — настройкой, профилем и релизом») — без отклонения, прецедент 1-12; манифест читается внутри модуля, участники — через ListMembers под авторитетом вызывающего (паттерн факт-портов)
+- Step-up = существующий StepUpVerified identity: честный step_up_required; провайдер MFA вне среза — продакшн-блок честен (прецедент membership), запись в deferred-work на Dev-шаге
+- Утверждение порога — только объявленный evidence owner последней утверждённой версии профиля; система не заявляет машинной сверки с controlled baseline (данных нет) — решение человеческое со ссылками
+- Cohort-раздел опционален до пилота: принудительное заполнение без пилота провоцировало бы фиктивные данные; валидация при заполнении, изменения — только новой версией
+next: CHECKPOINT 1 — одобрение владельцем спеки 1-13; после «одобряю» спека и sprint-status.yaml синхронно → ready-for-dev → Dev step-03 на ветке
+commit: b03fd34
+
+---
+date: 2026-10-08
+task: 31-checkpoint
+role: main (Super Z)
+story: 1-13
+summary: CHECKPOINT 1 — владелец одобрил спеку 1-13 («одобряю»); спека и sprint-status.yaml синхронно переведены в ready-for-dev; Dev step-03 начат
+done:
+- spec-1-13-operating-profile.md: status backlog → ready-for-dev; Spec Change Log дополнен записью об одобрении (frozen-часть без изменений)
+- sprint-status.yaml: 1-13-утверждение-operating-profile-и-правил-измерения → ready-for-dev, last_updated 10-08-2026 (синхронность check-continuity соблюдена)
+- Коммит на ветке codex/story-1-13-operating-profile [skip ci]
+next: Dev step-03 — реализация Code Map по спеке: internal/employee/domain/profile.go (модель, словари, деривации, digest, валидация) + юнит-тесты, миграция 00011, port/app/store/api (порты участников и манифеста, UpdateDraft/ApproveProfile/DecideThreshold), transport+OpenAPI+шаблон operating-profile.html, privacy-класс, integration+journeys; полный регресс; затем DEVLOG dev-запись, push, PR, CHECKPOINT 2
+commit: TBD
+
+---
+date: 2026-10-08
+task: 32-dev
+role: main (Super Z, Dev step-03)
+story: 1-13
+summary: Dev step-03 story 1-13 — полная реализация среза Operating Profile по Code Map спеки (утверждение профилей и правил измерения, FR-84)
+done:
+- Domain (internal/employee/domain/profile.go, ~1240 строк): ProfileDraft (CAS + approved_revision-штамп), ProfileVersion (append-only, монотонный номер, канонический sha256-digest), ManifestLink (точная ссылка manifest_id + config_version + digest), разделы WorkScope/HumanCoverage/PrivacyAssignment (маршрут × 5 целей)/OperationalLevel/PilotCohort/MetricDefinition/GateDeclaration/CoverageCell/GateThresholdVersion; словари из PRD (7 Conversation Modes, 4 fallback-вида, 5 целей обработки, 2 ops-уровня, 3 fail-closed fallback'а); ValidateProfileContent с Kind-классификацией (invalid — отвергает сохранение, missing — блокирует утверждение, advisory — блокирует маршрут, не утверждение); DeriveRouteStates (blocked с причиной и владельцем разблокирования), DeriveMatrixCoverage (декартово произведение, gaps видимы), DeriveThresholdStates (pending baseline честен), DeriveProfileApplicability (stale по новому манифесту, unapproved changes)
+- Migration 00011: operating_profile_drafts (единственная mutable, FK на release_manifests по (tenant, employee, config_version)), operating_profiles (append-only, digest char(64), CHECK step_up_verified, approver_roles), gate_thresholds (append-only, UNIQUE (tenant, employee, gate, threshold_version), supersedes_version); RLS во всех трёх, гранты INSERT/SELECT only для append-only, purge_employee_drafts расширен (CREATE OR REPLACE), audit_outcome_check + profile_draft_saved/profile_approved/threshold_decided
+- Port/App/Store: ProfileRepository; факт-порты — участники через identity.ListMembers под авторитетом вызывающего (прецедент ConnectionsFacts 1-12), манифест через releaseRepository того же модуля со сверкой digest при каждой записи (fail-closed: незапечатанный/чужой манифест — черновик не сохраняется); UpdateDraft (CAS, invalid-отказ с полным списком полей в Problems), ApproveProfile (step-up первым шагом, readiness-блокировка invalid+missing, атомарная версия под FOR UPDATE, revision-бамп вместе с approved_revision-штампом — ревизия и штамп в одной транзакции), DecideThreshold (только объявленный evidence owner последней утверждённой версии, supersedes-ссылка, история append-only)
+- Transport: profile.go + profile_view.go, JSON API (5 путей) + HTML-формы (обновление черновика JSON-документом с префиллом точной ссылки на последний запечатанный манифест, утверждение — единственное основное действие, решение порога); problem-маппинг честен (step_up_required 403 с пояснением отсутствия провайдера, конфликт 409 с expected/current, rule 400 с полным списком section.field (kind)); шаблон operating-profile.html: разделы с ошибками к полям, матрица таблицей с корректными заголовками, digest в переносимом блоке, «профиль ≠ допуск трафика», aria-live
+- OpenAPI: 5 путей + 11 схем (ProfileView/ProfileDraft/ProfileVersion/ProfileContent/ProfileRoute/ProfileRuleError/ThresholdState/GateThresholdVersion/ThresholdHistoryView); контракт-тест TestOperatingProfileContractIsHonest (enum'ы: kind [invalid missing advisory], threshold [pending_baseline decided], route [clear blocked] — профиль никогда не «допускает» трафик, applicability [none current stale unapproved_changes])
+- Privacy: класс operating-profile (3 таблицы) в словаре артефактов; perimeter-тест зелёный
+- main.go: BindProfile + time/tzdata (IANA-зоны без системной БД)
+- Тесты: 21 юнит-тест домена; 10 интеграционных (полный флоу draft→approval с digest-перепроверкой и неизменяемостью, readiness-отказ со списком, step-up-отказ, гонка 4 утверждений → ровно одна версия, смена манифеста → stale, route-blocking деривации (unproven fallback, OQ-11 open — только затронутый маршрут), invalid-отказы сохранения (словарь/необъявленный gate/чужой journey), ссылка на манифест fail-closed, история порогов + отказ не-evidence-owner'у со scope, полномочия/RLS с дискриминацией причины); journey zzzzzzzz-operating-profile.spec.ts (320px, клавиатура, aria-live, префилл из запечатанной строки, честный отказ по сломанной ссылке, step-up через тестовый /fixture/step-up резолвер-флаг, post-approval edit → unapproved changes + gap матрицы, порог pending→decided)
+- Полный регресс: build, vet, unit 21 пакет, integration, journeys 16/16, контракт, git diff --check — всё зелёное; gofmt-шум не создаётся (родные стили файлов сохранены, урок 1-12)
+decisions:
+- Трёхуровневая Kind-классификация проблем вместо единого списка: невалидное значение (present-but-wrong) отвергает сохранение без подстановки значений по умолчанию; незаполненный обязательный раздел сохраняется честно и блокирует только утверждение (readiness-деривация ведёт к полю); advisory (fallback без evidence, OQ-11 open) — состояние маршрута fail-closed, не препятствие утверждению — «заблокированные маршруты не препятствуют утверждению» из спеки реализовано структурно
+- Утверждение поднимает ревизию черновика вместе со штампом approved_revision в одной транзакции: revision == approved_revision сразу после утверждения (применимость current), любая правка → revision > approved_revision → unapproved changes; конкурентное утверждение той же ревизии — честный конфликт (ровно одна версия, интеграционно доказано)
+- Штампы манифеста при каждой записи черновика: сверка manifest_id + config_version + digest против записанной строки (не «текущего состояния»); FK в БД дублирует существование версии — двойная защита
+- Step-up через существующий StepUpVerified (прецедент membership): провайдера нет — продакшн-блок честен; тестовый контур — переключаемый флаг резолвера фикстуры, продакшн никогда его не expose'ит; запись в deferred-work
+- Матрица полноты выводится из Pack-ссылки ЗАПЕЧАТАННОГО манифеста (не текущего состояния пакета) — полнота судится против точки привязки профиля
+- Форма обновления — JSON-документ (строгий decode с DisallowUnknownFields): содержание профиля — структурированный документ из ~15 вложенных сущностей; field-by-field формы были бы поверхностью в сотни полей; ошибки ведут к конкретным section.field из валидации; префилл — честные значения из запечатанной строки манифеста
+next: Review R1 свежим контекстом (спека + git diff 0a179a4^..0a179a4), затем R1/R2 → правки → PR → merge → CHECKPOINT 2 владельцу (story 1-14 — последняя story Epic 1)
+commit: 0a179a4
+
+---
+date: 2026-10-08
+task: 33-review
+role: main (Super Z, роль Review)
+story: 1-13
+summary: Review R1/R2 story 1-13 — 3 main + 7 minor находок R1 закрыты, R2 PASS, follow-up'ы закрыты в том же цикле; спека и sprint-status → done (iteration 2)
+done:
+- R1 (субагент свежим контекстом, дифф bd5b866..HEAD): M1 — wire-JSON ProfileRuleError не соответствовал OpenAPI-контракту (экспортированные имена вместо snake_case; контракт-тест проверял только YAML); M2 — недетерминированный «latest manifest» (сортировка sealed_at desc + manifest_id desc при равных sealed_at от fixedClock — тай-брейк по случайным UUIDv7-байтам; TestProfileStaleOnNewManifest падал в ~40% изолированных прогонов); M3 — ApproveProfile принимал evidence_refs: [] при заявленном контрактом minItems: 1; минорные: отсутствие навигационной ссылки, конфликт без текущего содержания, CoverageCell без Modality (по Implementation Notes), тихие деградации ProfileView + vacuous completeness при манифесте без Pack-ссылки, мёртвый код (ErrProfileCorrupt, дубли itoa), глобальный step-up флаг journey без гарантированного сброса, OQ-11 enum только для in_use
+- Исправления R1 (коммит 66c05d5): json-теги ProfileRuleError (section/field/reason/kind/problems omitempty); latest-манифест по максимальному config_version (монотонная семантика; 10/10 изолированных прогонов stale-теста); серверный minItems для evidence_refs; навигация Operating Profile (employee/release/profile); конфликт несёт канонический JSON текущих разделов черновика; CoverageCell.Modality + ModalityOfRoute + валидация согласованности с каналом (все фикстуры и контракт); инфра-ошибки ProfileView распространяются, packless-манифест честно блокирует утверждение; strconv вместо самописных itoa; try/finally сброса step-up в journey; OQ-11 enum для всех назначений; диффы общих файлов восстановлены в минимальном виде в родных стилях (classes.go +2 строки, fixture_server — только семантика)
+- Отклонение (задокументировано в DEVLOG 32/33): ListMembers в identity owner-gated и не может обслуживать review/audit участников — введён факт-порт MembersFacts (app+port+store identity: активные участия, без owner-гейта, tenancy-изоляция через scopedTx; структурная типизация в employee app; MembersFacts в identityFixture); HTTP-поверхности не expose'ит
+- R2 (субагент): PASS — все находки R1 закрыты корректно, новых main-рисков нет (MembersFacts не расширяет полномочия: in-process, вызовы строго после scope-проверок); 4 минорных follow-up: pack_reference только во view (угловой обход через API), негативные ветки без автотестов, дубль-комментарий, тот же latest-паттерн в ReleaseView 1-12
+- Follow-up'ы закрыты (коммит fix R2): pack_reference перенесён в доменную валидацию (ProfileFacts.PackReferenced — единая истина для view и ApproveProfile, угловой обход закрыт); негативные тесты: TestValidateProfileContentRequiresPackReference, TestValidateProfileContentRejectsModalityMismatch (домен), TestProfileApprovalWithoutEvidenceIsRefused (app+transport), TestProfileViewReadinessWireShapeMatchesContract / TestProfileApprovalConflictCarriesCurrentContent / TestProfileApprovalStepUpRefusalIsHonest (transport, wire-граница); дубль-комментарий CoverageCell убран; ReleaseView-паттерн — запись в deferred-work; порядок проверок ApproveProfile: command-валидация (description, evidence) до readiness-гейта
+decisions:
+- Vacuous completeness закрывается доменной валидацией, а не view-слоем: ProfileFacts.PackReferenced — факт от запечатанного манифеста; пустое декартово произведение честно блокирует утверждение из ValidateProfileContent (одна истина, отсутствие рассинхрона view/approval)
+- Контракт-тесты дополняются wire-тестами: YAML-контракт проверяет форму обещаний, transport-тесты — форму фактических ответов (урок M1: контракт без wire-проверки проходит не по той причине)
+- Детерминизм дериваций — обязательное свойство: «latest» семантика по монотонному признаку (config_version), не по тай-брейкам сортировки
+next: push ветки (требуется STAFFY_GH_TOKEN владельца) → PR → CI → merge → CHECKPOINT 2 владельцу: story 1-14 «Readiness-проверка и контролируемая публикация» (последняя story Epic 1) — профильные порты admission/route states/applicability готовы к потреблению
+commit: bde18c3
