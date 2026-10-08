@@ -846,3 +846,20 @@ decisions:
 - Прогон тестов субагентом не состоялся из-за сбоя его инструментов — не блокирует: регресс прогнан main дважды (до R3 и после фиксов), R3 верифицировал код построчно
 next: спека/sprint-status → done; DEVLOG 43-close; CHECKPOINT 2 владельцу — STAFFY_GH_TOKEN → push ветки (5 коммитов: checkpoint+feat+fix R1+fix R2/R3+docs) → PR → CI (verify) → merge (merge_method=merge) → Epic 2 story 2-1 влита
 commit: TBD
+
+---
+date: 2026-10-09
+task: 43-close
+role: main (Super Z)
+story: 2-1
+summary: Story 2-1 закрыта локально — спека и sprint-status синхронно переведены в done (review_loop_iteration: 2); полный регресс зелёный в двух таймзонах; ветка несёт 5 коммитов (CHECKPOINT 1, feat, fix R1, fix R2/R3, docs-done); merge отложен до токена владельца (CHECKPOINT 2)
+done:
+- spec-2-1-channel-event-case.md → done: Spec Change Log дополнен записями review loop 1 и 2 (замороженные секции не изменялись)
+- sprint-status.yaml: 2-1 → done (синхронно спеке — check-continuity); epic-2 остаётся in-progress (15 stories осталось)
+- Полный регресс финальный: build, vet, unit (22 ok), интеграция UTC и TZ=Europe/Moscow (15 cases-тестов), journeys 18/18, контракт OpenAPI, git diff --check — зелёные
+- Ветка codex/story-2-1-channel-event-case: 618889d..3e6d5ac локально (5 коммитов: 90709bf CHECKPOINT 1 [skip ci], 80305eb feat, da8d0a3 fix R1, 3e6d5ac fix R2/R3 + done, этот docs-коммит); push отложен до STAFFY_GH_TOKEN (батч-прецедент 1-13/1-14)
+decisions:
+- Канон-нота к review loop 1: DEVLOG 43-review заявлял session-lock среди исполненных — патч был потерян в неудачном атомарном батче правок и реально применён только в loop 2; R2 вскрыл расхождение заявки и кода — запись 43-review-2 фиксирует честную историю (урок: заявки DEVLOG сверять с диффом до коммита)
+- Прогон субагентом R3 был заблокирован сбоем его песочницы — регресс прогнан main дважды независимо от R3; вердикт R3 по коду принимён с этой оговоркой, зафиксированной в 43-review-2
+next: CHECKPOINT 2 владельцу — STAFFY_GH_TOKEN → push ветки одним батчем (прецедент 1-13/1-14) → PR через GitHub API → CI (job verify: unit+integration+journeys) → merge (merge_method=merge) → DEVLOG 43-merge → docs-push [skip ci] → check-continuity → Epic 2: story 2-1 влита, далее 2-2 (Work Items, факты и provenance внутри Case)
+commit: 52dfd0b
