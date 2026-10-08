@@ -609,3 +609,24 @@ decisions:
 - Ничего в публичной истории не переписывалось: amend был сделан до первого push ветки
 next: CHECKPOINT 2 владельцу — story 1-14 «Readiness-проверка и контролируемая публикация» (последняя story Epic 1; рекомендация epic-1-retrospective §8 — вариант А: достроить; входы готовы: admission_state-порт, route states, applicability из 1-13) или фиксация закрытия Epic 1 без 1-14 (честные 13/14)
 commit: 97b3b2c
+
+---
+date: 2026-10-08
+task: 35-sm
+role: main (Super Z, роль SM)
+story: 1-14
+summary: SM-спека первого среза story 1-14 «Readiness-проверка и контролируемая публикация» (FR-6, FR-78) написана и запушена — ожидает CHECKPOINT 1 владельца
+done:
+- Входы SM прочитаны: epics §1.14 (12 AC-блоков), PRD FR-6/FR-78, GATE-REGISTRY полный (state machine инстансов, Execution order, AG-1/AG-2/AG-4/OQ-словарь, фиксированный Oleg/Montagio fence), epic-1-context, ретро §8, deferred-work (12 открытых), спеки 1-11/1-12/1-13, код: profile DeriveRouteStates/DeriveMatrixCoverage/DeriveProfileApplicability/DeriveThresholdStates, release ConfigRefs/ConfigVersion/ConnectionFact/CapabilityFact, entitlement DeriveAdmission, identity Roles/MembersFacts, capability CapState-словарь
+- Спека spec-1-14-readiness-publication.md (формат 1-13, frozen-секции Intent/Boundaries/Edge-Case Matrix): словарь 8 gate-определений платформы в домене (OQ-11, OQ-12, OQ-13B, OQ-14, OQ-7B, AG-1, AG-2, AG-4), карта стадий (synthetic → closed_account_test → controlled_real_customer → live) по Execution order реестра, tenant-scoped append-only gate-инстансы (exact-scope route/modality, переходы open→in_test→pass|fail/expired/not_applicable, supersedes-ацикличность), PASS-дисциплина (полнота approver-ролей, различные принципалы кроме allow_role_coincidence, evidence refs + hash), readiness-деривация на чтении 12 обязательных элементов → incomplete/blocked/ready-for-stage (конъюнкция), атомарная публикация (configuration + step-up, повторная деривация в транзакции, монотонный decision_no, digest, stage order по digest'ам кандидата, пер-route результаты, гонка → ровно одна запись), Test & Release Panel (dry-run стадии, focus trap, aria-live, 320 px)
+- Честные границы среза: eval-исполнение (AC-4), rollback (AC-11), probes/планировщики экспирации (AC-10 enforcement), стадия scale, привязка Conversations, полный release compiler (processor graph) — отложены с явными пометками; три честных вечных блокировки продакшна: step-up-провайдер, ноль gate PASS, eval not executed
+- sprint-status: retro-1-3 → done с resolution (решение владельца: вариант А — 1-13 влита, 1-14 стартует); статус спеки 1-14 backlog (синхронен sprint-status до CHECKPOINT 1)
+- Ветка codex/story-1-14-readiness-publication от 208c44f; коммит спеки 633055a [skip ci] + DEVLOG 35-sm (этот); push
+decisions:
+- Модуль employee (спайн: релизная семья манифест→профиль→readiness); admission остаётся деривацией и портом для Epic 2 (прецедент admission_state 1-11, route states 1-13)
+- Роли approver'ов — метки реестра как утверждение: система проверяет существование участников (MembersFacts) и структурную полноту покрытия, орг-истина «кто Technical Lead» — governance-факт человека (честная пометка)
+- Entitlement admission_state блокирует стадии от closed_account_test (слова деривации 1-11 «новые admission и публикации»); synthetic — исключение (фикстуры)
+- Пустых публикаций нет: ноль допущенных маршрутов → честный отказ; частичное допущение (независимые маршруты) записывается per-route
+- Элемент eval = eval-ссылки coverage matrix 1-13, состояние linked-not-executed (прогонов нет — Epic 6): честная блокировка controlled+ до eval-поверхностей
+next: CHECKPOINT 1 владельцу — «одобряю» → спека и sprint-status синхронно → ready-for-dev → Dev (step-03; bootstrap перед Dev обязателен — окружение сброшено, фоновый запуск погиб на распаковке PG, запуск в foreground)
+commit: 633055a
