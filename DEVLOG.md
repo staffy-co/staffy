@@ -591,3 +591,21 @@ decisions:
 - Детерминизм дериваций — обязательное свойство: «latest» семантика по монотонному признаку (config_version), не по тай-брейкам сортировки
 next: push ветки (требуется STAFFY_GH_TOKEN владельца) → PR → CI → merge → CHECKPOINT 2 владельцу: story 1-14 «Readiness-проверка и контролируемая публикация» (последняя story Epic 1) — профильные порты admission/route states/applicability готовы к потреблению
 commit: bde18c3
+
+---
+date: 2026-10-08
+task: 34-merge
+role: main (Super Z)
+story: 1-13
+summary: Story 1-13 влита в main (merge 97b3b2c, PR #14) — Epic 1: 13/14 stories done, осталась story 1-14 (backlog); CI зелёный на ветке (оба runs) и на main (run 37766813960); API-канал без инцидентов
+done:
+- Токен владельца принят в чате после сброса сессии; используется только через env STAFFY_GH_TOKEN сессии (на диск не пишется; урок повторён: env не переживает границы вызовов — экспорт в той же команде, что и git/curl)
+- Push ветки bd5b866..b2c43b5 (4 коммита: feat 0a179a4 ~5.7k строк, docs 4f56900, fix R1 66c05d5, fix R2 b2c43b5); check-continuity на ветке после push: OK (fail=0, warn=0)
+- PR #14 через GitHub API (201) с описанием среза, находок R1/R2 и регресса; CI ветки: push-run 37765872515 и pull_request-run 37765952434 — оба success на b2c43b5 (job verify)
+- Merge через API (merge_method=merge — прецедент PR #13): merge-коммит 97b3b2c; локальный main синхронизирован ff-only; дерево чистое и синхронно с origin
+- CI на main: run 37766813960 success
+decisions:
+- Канон-факт: DEVLOG 33-review ссылается на пре-amend хеш bde18c3 (commit→amend выполнен ДО push, reflog локального клона подтверждает); фактический хеш R2-followups — b2c43b5; в origin dangling-объекта нет, в локальном клоне он существует
+- Ничего в публичной истории не переписывалось: amend был сделан до первого push ветки
+next: CHECKPOINT 2 владельцу — story 1-14 «Readiness-проверка и контролируемая публикация» (последняя story Epic 1; рекомендация epic-1-retrospective §8 — вариант А: достроить; входы готовы: admission_state-порт, route states, applicability из 1-13) или фиксация закрытия Epic 1 без 1-14 (честные 13/14)
+commit: 97b3b2c
