@@ -741,3 +741,125 @@ decisions:
 - Урок токена подтверждён второй раз: git pull без inline export STAFFY_GH_TOKEN в той же команде падает «Invalid username or token» (env не переживает границы вызовов инструментов); протокол не изменён — export и git-операция к remote только в одной команде
 next: Epic 1 закрыт полностью (14/14). Владельцу — выбор следующего шага: запуск Epic 2 «Case-контур» (16 stories, backlog; входы из 1-14 готовы: admission_state, route states, applicability, gate-инстансы) или фиксация паузы после закрытия эпика
 commit: 2d8e3e7
+
+---
+date: 2026-10-08
+task: 42-sm
+role: main (Super Z, роль SM)
+story: 2-1
+summary: SM-спека первого среза story 2-1 «Приём Channel Event и создание единого Case» (FR-9, FR-10, FR-82) написана и запушена — ожидает CHECKPOINT 1 владельца; решение о запуске Epic 2 делегировано владельцем («выбор доверяю вашей экспертости», чат 2026-10-08), решение SM — Epic 2, story 2-1
+done:
+- Входы SM прочитаны: epics §2.1 (13 AC-блоков), PRD FR-9/FR-10/FR-82, epic-1-context, deferred-work (включая 1-14 per-route capability mapping — решён route-точным ingress без расширения факт-порта), спеки 1-13/1-14, код: profile HumanCoverage.ResponseOwnerID/Route/RouteState, release ConnectionFact/ConfigRefs, entitlement DeriveAdmission, connector ConnectionsFacts/ConnectionFact, identity MembersFacts, platform/correlation, privacy-классы (outbox-таблицы существуют с 00001-миграций identity/employee/connector), architecture_test (заборы store), migrations
+- Спека spec-2-1-channel-event-case.md (формат 1-13/1-14, frozen-секции Intent/Boundaries/Edge-Case Matrix): канонический Channel Event (tenant, connection, provider event/session ID, direction, modality, route, оба таймстампа, correlation ID, payload digest + запечатанный blob по прецеденту knowledge sources); ingress-лестница ДО создания Case (strict decode → SourceVerifier (синтетический, test-контур; продакшн fail-closed, AG-4) → скоуп из connection → replay идентичного события ДО admission → состояние Connection → словарь канал→тип коннектора → RouteFacts-фасад employee (действующие решения 1-14 с manifest ConnectionFact: 0/1/many → отказ/приём/карантин+исключение) → первоначальный Response Owner из human coverage запечатленной версии профиля + MembersFacts → entitlement relay (hard limit → bounded outcome) → load envelope словаря); одна транзакция find-or-create по provider session ID (Case case_no + Conversation conversation_no + Work Item untriaged + событие + payload + pre-case session + outbox событие/ack); отказы — ingress_rejections без payload; операторская поверхность Cases/Timeline; privacy-классы case-operations/case-content
+- Честные границы среза: адаптеры реальных провайдеров и подписи (AG-4), media edge/SIP/RTP (AC-7 — телефония как метаданные сессии), legal-basis enforcement (AC-8 — record + объявленная capture policy, privacy не в DAG case), фоновые outbox-воркеры (идемпотентный DrainOutbox), метрики (Epic 6), bounded-очередь, классификация Work Item (2.2), связывание Conversations (2.3), текстовые коннекторы (словарь/контракт готовы, end-to-end — с chat-адаптером)
+- Ветка codex/story-2-1-channel-event-case от 28b5d6f; коммит спеки 618889d [skip ci] + DEVLOG 42-sm (этот); push; sprint-status 2-1 остаётся backlog (синхронен спеке до CHECKPOINT 1), epic-2 → in-progress одновременно с ready-for-dev после одобрения
+decisions:
+- Делегированное решение зафиксировано: владелец доверил выбор (чат 2026-10-08); решение SM — запуск Epic 2 с story 2-1 (входы 1-14 готовы, доставка отработана 14/14, ретро рекомендует достраивать срезами)
+- Модуль: архитектурный `case`, пакет Go `cases` (слово `case` зарезервировано), миграции migrations/cases/; DAG case → identity/api, employee/api, connector/api (только чтение); privacy/entitlement — ретрансляция фактов через employee/api (расширение RouteFacts-фасадом, прецедент ConnectionsFacts/MembersFacts)
+- Replay идентичного события идёт ДО проверок admission: retry отправителя не зависит от изменившихся состояний (решение SM по AC-4, покрыть тестом — entitlement pause после приёма не ломает retry)
+- Enforcement 1-14 начинается здесь: ingress принимает событие только на маршруте, допущенном действующим решением о публикации (продакшн-трафик честно невозможен: провайдеров нет, controlled+ решений нет, AG-4)
+- Доказанная связь обращений в срезе — только продолжение channel session (provider session ID → существующая Conversation); merge-логики нет как класса (имя/номер/модель — никогда, 2.3 свяжет каналы человеком)
+next: CHECKPOINT 1 владельцу — «одобряю» → спека и sprint-status синхронно → ready-for-dev, epic-2 → in-progress → Dev (step-03: bootstrap в foreground перед Dev обязателен; реализация среза по спеке: домен cases, миграция 00001, port/app/store/api, расширения employee/connector факт-портов, ingresssyn-адаптер, transport+OpenAPI+Cases UI, privacy-классы, тесты unit/integration/journey/wire)
+commit: 618889d
+
+---
+date: 2026-10-09
+task: 43-checkpoint
+role: main (Super Z)
+story: 2-1
+summary: CHECKPOINT 1 — владелец одобрил спеку 2-1 («одобряю», чат 2026-10-09); спека и sprint-status.yaml синхронно переведены в ready-for-dev; epic-2 → in-progress (первая story эпика стартует); push отложен до STAFFY_GH_TOKEN
+done:
+- spec-2-1-channel-event-case.md: status backlog → ready-for-dev; Spec Change Log дополнен записью об одобрении (frozen-часть Intent/Boundaries/Edge-Case Matrix без изменений)
+- sprint-status.yaml: 2-1 → ready-for-dev (синхронность check-continuity); epic-2 → in-progress; last_updated 10-09-2026
+- Токен сессии не переживает границы вызовов инструментов (урок 41-merge подтверждён повторно); коммит локальный [skip ci], push отложен — весь пакет ветки (checkpoint + dev + review-фиксы) будет запушен одним батчем после выдачи токена владельцем (прецедент 1-13/1-14)
+next: Dev step-03 — bootstrap в foreground, затем реализация среза по спеке: домен cases (модель события, словари, лестница адмиссии, идемпотентная семантика), миграция 00001, port/app/store/api, расширения employee/api (RouteFacts) и connector/api (ConnectionFactsByID), ingresssyn-адаптер, transport+OpenAPI+Cases UI, privacy-классы, тесты (unit/integration/journey/wire), полный регресс
+commit: TBD
+
+---
+date: 2026-10-09
+task: 43-dev
+role: main (Super Z)
+story: 2-1
+summary: Dev step-03 завершён — первый срез story 2-1 реализован полностью (домен cases, миграция 00001, port/app/store/api, фасады RouteFacts/ConnectionFactsByID/AdmissionFacts, ingresssyn-верификатор, транспорт+OpenAPI+Cases/Case UI, privacy 18→20, architecture-заборы, интеграция+journey+wire), полный регресс зелёный; спека → review
+done:
+- internal/cases/domain: канонический Channel Event, версионированный envelope v1 (строгий decode, словари каналов/модальности/direction, честная проверка времени провайдера), лестница DeriveIngressOutcome (connection → канал→тип коннектора → 0/1/many решений → per-route → владелец из human coverage + active members → entitlement word → load envelope с счётчиками), материальная идемпотентность (digest → replay до admission; конфликт → карантин + исключение), печать payload (sha256 + HMAC-SHA256, ключ 32 байта, наружу — только digest), outbox-модели с каноническим JSON и dedup-ключами; юнит-тесты всех строк матрицы
+- migrations/cases/00001_channel_event_case.sql: cases/conversations/work_items/channel_events (partial UNIQUE материальный + идемпотентный ключ, state accepted|quarantined)/channel_event_payloads (запечатанный blob)/pre_case_sessions (capture policy CHECK)/ingress_rejections (10 видов, без payload)/operational_exceptions/outbox_events (dedup UNIQUE)/outbox_deliveries (append-only исходы, UNIQUE event+attempt); RLS+FORCE, гранты INSERT/SELECT, монотонные case_no/conversation_no под advisory-блокировками тенанта
+- internal/cases/{port,app,store,api}: IngestEvent (строгий decode → верификация источника → доверенный скоуп из connection (principal-слот = connection, не пользователь) → replay-lookup ДО лестницы → факты → чистая лестница → одна транзакция приёма (advisory-lock материального ключа + re-check + find-or-create по (connection, provider, session) + событие + payload + 2 outbox записи) | запись отказа отдельной транзакцией | карантин с исключением); DrainOutbox (append-only исходы deferred — нет воркеров, AG-4); чтения Cases/Timeline/Payload (UTC-канонизация на границе чтения — урок R2/N1); view-скоупы review|configuration|audit, payload — только review|audit
+- Расширения producer-модулей: employee/api.RouteFacts + app-фасад (действующие решения тенанта → DeriveActiveRelease per employee → манифест по точной ссылке (ReadManifestContent со сверкой digest) → ConnectionFact → профильная версия (human coverage) → ретрансляция entitlement-слова со нормализацией в словарь ingress ok|blocked); connector/api.ConnectionFactsByID + ConnectorType в фактах; entitlement/app.AdmissionFacts (caller-authority по скоупу, прецедент ConnectionsFacts/MembersFacts); identity MembersFacts переиспользован как MembersSource (структурно)
+- internal/adapters/ingresssyn: синтетический SourceVerifier (connection существует в заявленном тенанте — RLS скрывает чужой как unknown_connection; окружение test/sandbox; коннектор — только staffy-synthetic-telephony; продакшн и коннекторы без верификатора fail-closed AG-4); юнит-тесты всех веток
+- Транспорт: POST /v1/ingress/channel-events (машинный контракт без принципала: строгий decode, Idempotency-Key заголовок, канонизация payload, 2×DoS-кап; 201/200+Idempotency-Replayed/400/403/404/409/415/429 по словарю видов), GET /v1/tenants/{t}/cases + /cases/{id} + /cases/{id}/events/{id}/payload (JSON), /app/.../cases + /case (HTML: 320px, aria-live, таблицы, честные утверждения «Запрос ещё не классифицирован»/«Автоответ клиенту не отправляется»); OpenAPI: 4 пути + 14 схем; контракт-тест TestCasesContourContractIsHonest (машинная граница x-staffy-machine-ingress, словари отказов, фиксированные состояния среза)
+- Privacy: классы case-operations (8 таблиц) и case-content (payload) — словарь 18→20, outbox-events расширен cases.outbox_events; TestPerimeterIntegrity зелёный с migrations/cases
+- Architecture: забор internal/cases/store (владелец + композиционный корень) + DAG-правило (cases не импортирует privacy/entitlement — только ретрансляция через employee/api)
+- tests/integration/cases_test.go (9 тестов): приём одной транзакцией (кейс/диалог/work item/событие/payload+печать/2 outbox + DrainOutbox идемпотентен: 2 deferred → повтор 0), replay до admission (entitlement pause после приёма НЕ ломает retry, счётчики не растут), digest-конфликт (карантин + исключение, принятый материал не переписан, таймлайн показывает обе записи), продолжение сессии (событие 2 → тот же кейс, work item один), все ступени лестницы (unknown_connection, channel_mismatch, no_active_release (мир без публикации), revoked_connection, entitlement_blocked через настоящий hard limit (RegisterSource+SetBudget block_new+IngestUsage 2000 RUB confirmed), no_response_owner (вторая профильная версия с владельцем-участником → отзыв участника → отказ с идентификатором разблокирования)), гонка идентичных событий (ровно один кейс, проигравший — replay), скоупы чтений (reviewer видит+payload, operations-only 403, foreign 404), кросс-тенантный claim → unknown_connection, bounded envelope_exceeded со счётчиком; TestMain: миграция cases (20-я) + drop schema cases
+- Journeys: cases_fixture.go (настоящие доменные функции над фикстурным миром) + zzzzzzzzzz-cases.spec.ts (320px): ingress → список → кейс → таймлайн/диалоги/work item/честные утверждения → replay 200+header без роста → digest-конфликт 409 + исключение в панели → продолжение сессии → unknown_connection 404 → доступность; fixture_server: BindCases + ConnectionFactsByID фикстуры
+- Wire-тесты: ingress (201 форма+Location, replay 200+header, все виды отказов со статусами и counter, карантин 409+exception_id, 415/400/unknown-fields/missing-key), поверхности (403/404, payload 403); чистка диффа: формат-коллатерал вне story-файлов откачен и пере применён в исходной стилистике (правило retro-1-5: gofmt только внутри файлов story; дифф = 490 вставок/6 удалений + 15 новых файлов)
+decisions:
+- Скоуп ingress строится ТОЛЬКО из верифицированного connection: тенант-клейм из envelope — routing-подсказка, RLS скрывает чужой коннект как unknown_connection; principal-слот скоупа несёт connection id (ingress не пользовательский принципал, скоуп живёт только внутри команды приёма)
+- Replay идёт ДО admission (AC-4): retry отправителя не зависит от изменившихся состояний — интеграционный тест прямо проверяет (entitlement pause после приёма не ломает retry)
+- Идемпотентность материальна: partial UNIQUE (tenant, provider, provider_event_id) WHERE state='accepted' + advisory-lock материального ключа в транзакции приёма с re-check (гонка идентичных доставок разрешается в исходный результат — ровно один кейс); конфликт digest → НОВАЯ строка quarantined + операционное исключение (принятая запись не переписывается — грантов UPDATE нет)
+- Entitlement-слово нормализуется в фасаде (ok|blocked): точные коммерческие состояния (blocked_new_admissions, degraded) оба ограничивают новые обращения — honest reason передаётся текстом; cases не импортирует entitlement (DAG)
+- Ingresssyn принимает окружения test И sandbox (AG-4 структурно запрещает продакшн-credentials при создании — оба контура непродакшнные); «коннектор без верификатора» покрыт юнит-тестом ingresssyn (в реальном каталоге только один креируемый коннектор — ветка структурно недостижима интеграционно)
+- Карантинные записи видны в таймлайне кейса (state «Карантин») + отдельная панель исключений — оператор видит конфликт в контексте; ingress_rejections не содержат payload по построению
+- Спорные минуты форматирования: blanket gofmt вне story-файлов откачен (35+8 файлов), содержательные правки пере применены в исходной стилистике; правило retro-1-5 соблюдено
+next: review R1 (субагент) по спеке и коду → фиксы → R2 → спека/sprint-status → done → CHECKPOINT 2 (токен → push → PR → CI → merge)
+commit: TBD
+
+---
+date: 2026-10-09
+task: 43-review
+role: main (Super Z) + субагент-ревьюер
+story: 2-1
+summary: Review R1 (субагент, свежий контекст) — FAIL: 4 Major (фабрикация outbox-payload на продолжении сессии; float64-канонизация payload; необработанный конфликт идемпотентного ключа → 500; неограниченные записи отказов под заявленным скоупом) + 14 минорных; все Major закрыты, минорные исправлены, полный регресс зелёный
+done:
+- Ревьюер верифицировал на живом дереве (80305eb): полный прогон зелёный, DB-пробы outbox-записей; матрица покрытия: 14 строк — 12 yes, 2 partial (ambiguous — только домен; fail-closed продолжение — по построению)
+- M1 (фабрикация): AcceptedPayload передаётся в store СТРУКТУРОЙ, канонический JSON кодируется внутри транзакции после find-or-create с разрешёнными case/conversation id и честным new_case (пре-кодирование с мнимыми id на продолжении сессии невозможно); интеграционный ассерт outbox-материала продолжения (TestIngestSessionContinuationOutboxCarriesTrueMaterial: 4 записи, payload evt-2 → существующие case/conversation, new_case=false)
+- M2 (канонизация): CanonicalPayload с decoder.UseNumber() — литералы чисел переживают канонизацию (2^53+ целое сохраняется точно), 1 и 1.0 материально различны (разные digest → карантин конфликта, не ложный replay); юнит-тест TestCanonicalPayloadPreservesNumberPrecision
+- M3 (идемпотентный ключ): LookupEvent разрешает и материальную идентичность, и ключ (ReplayLookup.KeyConflict + владелец ключа); конфликт → карантин с исключением idempotency_key_conflict (словарь миграции уже знал вид); 23505 idempotency-индекса → ErrIdempotencyKeyConflict; защитный маппинг: ошибки конфликтов от AcceptEvent → повторный проход конвейера (пре-лукап решает replay/карантин, внутренняя ошибка невозможна); интеграционный TestIngestIdempotencyKeyConflictQuarantines
+- M4 (заявленный скоуп): recordRejection разделён на trusted (лестница после верификации) и untrusted (верификация источника): запись только если заявленный тенант существует (RLS-чит membership-фактов под заявленным скоупом — пусто = тенанта нет) И словарный лимит (100 записей на connection×kind за окно 1ч, CountRejections) не достигнут — неаутентифицированная поверхность не пишет неограниченно; напряжение замороженных клозул честно зафиксировано в deferred-work для решения владельца
+- Минорные: (5) комментарий DoS-капа 4×256К; (6) логирование внутренних ошибок поверхностей cases с correlation id; (7) session advisory-lock перед find-or-create (гонка разных событий новой сессии → ожидание и продолжение, не 500); (8) фикстурный UUID-литерал исправлен; (9) OpenAPI payload — любое одно JSON-значение (не только объект); (10) текст теста словаря 20; (11) FK conversation_id в operational_exceptions; (12) ReadPayload — контейнмент case (URL-путь не декоративен); (13) journey без постороннего события; (14) in-flight только юнит — задокументировано
+- Новые интеграционные тесты R1: outbox-материал продолжения, конфликт идемпотентного ключа, ambiguous_routing ПОЛНЫМ путём записи (второй сотрудник: полный кандидат — pack/behavior/knowledge/voice/manifest/profile/publish — два действующих решения запечатывают один connection → карантин + исключение, кейс не создаётся), fail-closed продолжение сессии (отзыв connection → новое событие сессии отказано, сессия не расширена; replay принятого события НЕЗАВИСИМ от изменившейся адмиссии)
+- Полный регресс после фиксов: build ✓ vet ✓ unit 22 ✓ интеграция UTC + TZ=Europe/Moscow ✓ (13 cases-тестов) journeys 18/18 ✓ контракт ✓ diff ✓
+decisions:
+- Ошибки конфликтов raced-постав от AcceptEvent решаются повторным проходом конвейера, а не локальным ветвлением: пре-лукап второго прохода детерминированно разрешает replay/конфликт (advisory-лок гарантирует, что состояние уже закоммичено)
+- Untrusted-отказы ограничены, а не запрещены: матрица явно требует строку unknown_connection — напряжение клозул решено ограничением + честной записью в deferred-work (владелец решит судьбу тенант-нейтральной зоны)
+- In-flight-счётчик остаётся юнит-покрытым: интеграционный мир из 1000+ событий в окне — искусственная нагрузка без доказательной ценности; словарь фиксирован, логика чистая
+next: review R2 (субагент) — верификация фиксов R1 → при PASS спека/sprint-status → done → CHECKPOINT 2 владельцу (токен → push → PR → CI → merge)
+commit: TBD
+
+---
+date: 2026-10-09
+task: 43-review-2
+role: main (Super Z) + субагенты-ревьюеры
+story: 2-1
+summary: Review R2 — FAIL: 4 Major из R1 закрыты подлинно (M1/M2 полностью), но фиксы породили новый Critical N1 (проверка конфликта ключа игнорировала Provider → детерминированная бесконечная рекурсия/stack overflow) + N2 (лимит untrusted-отказов обходим сменой connection_id) + N3 (session-lock был заявлен, но реально не применён — патч потерян в неудачном батче); все N-находки закрыты, R3 верификация — PASS по коду; 2 минорных замечания R3 исправлены; полный регресс зелёный
+done:
+- R2 (субагент) верифицировал фиксы R1 на живом дереве da8d0a3: M1 (outbox-структура в транзакции) и M2 (UseNumber, точность литералов) — подлинно закрыты; M3 — рабочий, но породил N1; M4 — реализован, но N2
+- N1 (Critical) закрыт тройно: (a) конфликт ключа флагается по ПОЛНОЙ материальной идентичности (owner.Provider != provider ИЛИ event id) — провайдер-неймспейс часть идентичности, индекс идемпотентности провайдер-независим; (b) рекурсия УСТРАНЕНА как класс: raced-конфликты разрешаются инлайн (resolveRacedConflict — один свежий lookup детерминированно решает replay/digest-карантин/ключ-карантин, все ветки терминальны); (c) mapInsertError различает констрейнты по имени (channel_events_idempotency → ErrIdempotencyKeyConflict, остальные 23505 → ErrEventRaced) через pgconn.PgError; регрессионный тест TestIngestKeyConflictAcrossProviderNamespacesTerminates (тот же event id + тот же ключ + ДРУГОЙ provider → карантин, ровно один кейс — под старым кодом вход циклился вечно)
+- N2 закрыт: лимит untrusted-записей переключён с (tenant, connection, kind) на (tenant, kind) — connection id выбирает неотверифицированный отправитель, вариация не должна множить бюджет (100×10 видов на тенант-час); CountRejections без connection-фильтра
+- N3 закрыт: session advisory-lock ПЕРЕД find-or-create (материал → сессия → case_no → conversation_no — единый порядок, тупики невозможны); гонка разных событий одной новой сессии сериализуется — обе доставки приняты, один кейс/диалог/два события (TestIngestRaceDifferentEventsSameNewSession)
+- R3 (субагент) — PASS по коду: все три N-фикса верифицированы построчно; новые находки — 2 минорных; прогон тестов ревьюером заблокирован сбоем его песочницы — полный регресс прогнан main до запуска R3 и повторно после минорных фиксов (unit 22 ok / интеграция ×2 TZ / journeys 18/18 / контракт / diff — зелёные)
+- Минорные R3: устаревший комментарий recordRejection (tenant,kind); event_id в 409-теле raced-карантина унифицирован с пре-лестничными ветками (id карантинной строки)
+- Итоговый набор: 15 интеграционных тестов cases (демо-путь, replay-до-admission, digest-карантин, продолжение сессии + outbox-материал, все ступени лестницы, hard-limit, no-owner, гонки ×2, скоупы, кросс-тенант, envelope, ключ-конфликт ×2 вида, ambiguous полный путь, fail-closed продолжение), домен ~20 юнит-тестов, wire-набор, journey 320px, контракт-тест
+decisions:
+- Разрешение raced-конфликтов — только инлайн-лукап, рекурсия запрещена как паттерн: детерминированное состояние + один лукап = терминальная ветка, внутренняя ошибка остаётся честным исходом для подлинно аномальных состояний
+- Provider-клеймо события остаётся свободным текстом (верификатор проверяет connection, не строку провайдера) — это делает N1-сценарий представимым и честно документировано: реальная дисциплина sender-identity — с провайдерскими адаптерами (AG-4, deferred-work)
+- Прогон тестов субагентом не состоялся из-за сбоя его инструментов — не блокирует: регресс прогнан main дважды (до R3 и после фиксов), R3 верифицировал код построчно
+next: спека/sprint-status → done; DEVLOG 43-close; CHECKPOINT 2 владельцу — STAFFY_GH_TOKEN → push ветки (5 коммитов: checkpoint+feat+fix R1+fix R2/R3+docs) → PR → CI (verify) → merge (merge_method=merge) → Epic 2 story 2-1 влита
+commit: TBD
+
+---
+date: 2026-10-09
+task: 43-close
+role: main (Super Z)
+story: 2-1
+summary: Story 2-1 закрыта локально — спека и sprint-status синхронно переведены в done (review_loop_iteration: 2); полный регресс зелёный в двух таймзонах; ветка несёт 5 коммитов (CHECKPOINT 1, feat, fix R1, fix R2/R3, docs-done); merge отложен до токена владельца (CHECKPOINT 2)
+done:
+- spec-2-1-channel-event-case.md → done: Spec Change Log дополнен записями review loop 1 и 2 (замороженные секции не изменялись)
+- sprint-status.yaml: 2-1 → done (синхронно спеке — check-continuity); epic-2 остаётся in-progress (15 stories осталось)
+- Полный регресс финальный: build, vet, unit (22 ok), интеграция UTC и TZ=Europe/Moscow (15 cases-тестов), journeys 18/18, контракт OpenAPI, git diff --check — зелёные
+- Ветка codex/story-2-1-channel-event-case: 618889d..3e6d5ac локально (5 коммитов: 90709bf CHECKPOINT 1 [skip ci], 80305eb feat, da8d0a3 fix R1, 3e6d5ac fix R2/R3 + done, этот docs-коммит); push отложен до STAFFY_GH_TOKEN (батч-прецедент 1-13/1-14)
+decisions:
+- Канон-нота к review loop 1: DEVLOG 43-review заявлял session-lock среди исполненных — патч был потерян в неудачном атомарном батче правок и реально применён только в loop 2; R2 вскрыл расхождение заявки и кода — запись 43-review-2 фиксирует честную историю (урок: заявки DEVLOG сверять с диффом до коммита)
+- Прогон субагентом R3 был заблокирован сбоем его песочницы — регресс прогнан main дважды независимо от R3; вердикт R3 по коду принимён с этой оговоркой, зафиксированной в 43-review-2
+next: CHECKPOINT 2 владельцу — STAFFY_GH_TOKEN → push ветки одним батчем (прецедент 1-13/1-14) → PR через GitHub API → CI (job verify: unit+integration+journeys) → merge (merge_method=merge) → DEVLOG 43-merge → docs-push [skip ci] → check-continuity → Epic 2: story 2-1 влита, далее 2-2 (Work Items, факты и provenance внутри Case)
+commit: 52dfd0b

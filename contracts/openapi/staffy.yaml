@@ -1933,6 +1933,80 @@ paths:
         '404': { $ref: '#/components/responses/Problem' }
         '409': { $ref: '#/components/responses/Problem' }
         '415': { $ref: '#/components/responses/Problem' }
+  /v1/ingress/channel-events:
+    post:
+      operationId: ingestChannelEvent
+      summary: Машинный приём канонического Channel Event (срез 2-1; скоуп — только из верифицированного connection, не принципал пользователя)
+      x-staffy-principal-required: false
+      x-staffy-machine-ingress: true
+      description: 'Версионированный канонический envelope (schema 1). Идемпотентность материальна: повтор того же provider event id с тем же digest возвращает исходный результат ДО проверок admission; иной digest — карантин и операционное исключение. Отказы лестницы честные, без payload. Продакшн-источники fail-closed (AG-4).'
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 128 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IngressEnvelope' }
+      responses:
+        '201': { description: Событие принято — одна транзакция создала кейс-материал (Case, Conversation, Work Item, событие, запечатанный payload, outbox), content: { application/json: { schema: { $ref: '#/components/schemas/IngestResult' } } } }
+        '200': { description: Идемпотентный повтор принятого события — исходные идентификаторы и пометка replay, content: { application/json: { schema: { $ref: '#/components/schemas/IngestResult' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+        '415': { $ref: '#/components/responses/Problem' }
+        '429': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/cases:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+    get:
+      operationId: listCases
+      summary: Список обращений и операционных исключений (review/configuration/audit)
+      x-staffy-principal-required: true
+      responses:
+        '200': { description: Кейсы тенанта с операционными исключениями, content: { application/json: { schema: { $ref: '#/components/schemas/CasesView' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/cases/{case_id}:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - name: case_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: readCase
+      summary: Обращение с таймлайном диалогов и событий (review/configuration/audit; автоответ не отправляется)
+      x-staffy-principal-required: true
+      responses:
+        '200': { description: Полное чтение одного кейса, content: { application/json: { schema: { $ref: '#/components/schemas/CaseView' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/cases/{case_id}/events/{event_id}/payload:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - name: case_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: event_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: readCaseEventPayload
+      summary: Запечатанный payload события под строгой границей (только review/audit; digest и HMAC-печать проверяются при чтении)
+      x-staffy-principal-required: true
+      responses:
+        '200': { description: Payload с digest и результатом проверки печати, content: { application/json: { schema: { $ref: '#/components/schemas/SealedPayloadView' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
 components:
   parameters:
     EmployeeID:
@@ -3443,6 +3517,167 @@ components:
         employee_id: { type: string, format: uuid }
         active_release: { $ref: '#/components/schemas/ReleaseAdmission' }
         admissions: { type: array, items: { $ref: '#/components/schemas/ReleaseAdmission' } }
+    IngressEnvelope:
+      type: object
+      additionalProperties: false
+      required: [schema_version, tenant_id, connection_id, provider, provider_event_id, provider_session_id, direction, modality, channel, provider_timestamp, payload]
+      properties:
+        schema_version: { type: integer, enum: [1] }
+        tenant_id: { type: string, format: uuid, description: 'Заявленный тенант (-routing claim); доверенный скоуп строится из верифицированного connection' }
+        connection_id: { type: string, format: uuid }
+        provider: { type: string, minLength: 1, maxLength: 64 }
+        provider_event_id: { type: string, minLength: 1, maxLength: 128 }
+        provider_session_id: { type: string, minLength: 1, maxLength: 128, description: 'Единственная доказанная связь событий — продолжение channel session' }
+        direction: { type: string, enum: [inbound] }
+        modality: { type: string, enum: [voice, text] }
+        channel: { type: string, enum: [phone, web_chat, telegram, whatsapp, email, max, jivo, avito, mobile_app_chat] }
+        provider_timestamp: { type: string, format: date-time, description: 'Время провайдера; временем приёма не считается' }
+        payload: { description: 'Материальный payload — любое одно JSON-значение (объект, массив, строка, число, логическое или null); канонизируется без потери точности чисел, запечатывается, наружу — только digest' }
+    IngestResult:
+      type: object
+      required: [event_id, case_id, conversation_id, case_no, conversation_no, response_owner_id, employee_id, new_case, replay]
+      properties:
+        event_id: { type: string, format: uuid }
+        case_id: { type: string, format: uuid }
+        conversation_id: { type: string, format: uuid }
+        case_no: { type: integer, minimum: 1 }
+        conversation_no: { type: integer, minimum: 1 }
+        response_owner_id: { type: string, format: uuid, description: 'Первоначальный владелец из human coverage запечатленной версии профиля' }
+        employee_id: { type: string, format: uuid }
+        new_case: { type: boolean }
+        replay: { type: boolean }
+    IngestOutcome:
+      type: object
+      description: 'Один из трёх исходов доставки: accepted (в т.ч. replay), refused (лестница; bounded — с counter) или quarantined (с исключением)'
+      properties:
+        accepted: { $ref: '#/components/schemas/IngestResult' }
+        refused: { $ref: '#/components/schemas/IngestRefusal' }
+        quarantined: { $ref: '#/components/schemas/IngestQuarantine' }
+    IngestRefusal:
+      type: object
+      required: [kind, message, bounded]
+      properties:
+        kind: { type: string, enum: [malformed, unknown_connection, revoked_connection, production_forbidden, channel_mismatch, route_not_admitted, no_active_release, no_response_owner, entitlement_blocked, envelope_exceeded] }
+        message: { type: string, description: 'Безопасный текст: payload не раскрывается' }
+        counter: { type: integer, description: 'Счётчик bounded-исхода (байты или in-flight)' }
+        bounded: { type: boolean }
+    IngestQuarantine:
+      type: object
+      required: [kind, exception_id, event_id]
+      properties:
+        kind: { type: string, enum: [digest_conflict, ambiguous_employee] }
+        exception_id: { type: string, format: uuid }
+        event_id: { type: string, format: uuid }
+    CasesView:
+      type: object
+      required: [tenant_id, cases, operational_exceptions, can_view, view_scope]
+      properties:
+        tenant_id: { type: string, format: uuid }
+        cases: { type: array, items: { $ref: '#/components/schemas/CaseSummary' } }
+        operational_exceptions: { type: array, items: { $ref: '#/components/schemas/OperationalException' } }
+        can_view: { type: boolean }
+        view_scope: { type: string }
+    CaseSummary:
+      type: object
+      required: [case_id, case_no, employee_id, state, created_at, conversations, events, last_event_at, owner_id]
+      properties:
+        case_id: { type: string, format: uuid }
+        case_no: { type: integer, minimum: 1 }
+        employee_id: { type: string, format: uuid }
+        state: { type: string, enum: [open] }
+        created_at: { type: string, format: date-time }
+        conversations: { type: integer }
+        events: { type: integer }
+        last_event_at: { type: string, format: date-time }
+        owner_id: { type: string, format: uuid }
+    CaseView:
+      type: object
+      required: [tenant_id, case, conversations, timeline, work_items, operational_exceptions, untriaged_note, no_auto_reply_note, can_view_payload, view_scope]
+      properties:
+        tenant_id: { type: string, format: uuid }
+        case: { $ref: '#/components/schemas/CaseRecord' }
+        conversations: { type: array, items: { $ref: '#/components/schemas/ConversationRecord' } }
+        timeline: { type: array, items: { $ref: '#/components/schemas/TimelineEvent' } }
+        work_items: { type: array, items: { $ref: '#/components/schemas/WorkItemRecord' } }
+        operational_exceptions: { type: array, items: { $ref: '#/components/schemas/OperationalException' } }
+        untriaged_note: { type: string }
+        no_auto_reply_note: { type: string }
+        can_view_payload: { type: boolean }
+        view_scope: { type: string }
+    CaseRecord:
+      type: object
+      required: [tenant_id, case_id, case_no, employee_id, state, created_at]
+      properties:
+        tenant_id: { type: string, format: uuid }
+        case_id: { type: string, format: uuid }
+        case_no: { type: integer, minimum: 1 }
+        employee_id: { type: string, format: uuid }
+        state: { type: string, enum: [open] }
+        created_at: { type: string, format: date-time }
+    ConversationRecord:
+      type: object
+      required: [tenant_id, case_id, conversation_id, conversation_no, employee_id, connection_id, provider, provider_session_id, response_owner_id, response_owner_epoch, writable_surface, state, created_at]
+      properties:
+        tenant_id: { type: string, format: uuid }
+        case_id: { type: string, format: uuid }
+        conversation_id: { type: string, format: uuid }
+        conversation_no: { type: integer, minimum: 1 }
+        employee_id: { type: string, format: uuid }
+        connection_id: { type: string, format: uuid }
+        provider: { type: string }
+        provider_session_id: { type: string, description: 'Только внешний идентификатор: слияние по имени/номеру отсутствует как класс' }
+        response_owner_id: { type: string, format: uuid }
+        response_owner_epoch: { type: integer, enum: [1] }
+        writable_surface: { type: string, enum: [inbox] }
+        state: { type: string, enum: [active] }
+        created_at: { type: string, format: date-time }
+    TimelineEvent:
+      type: object
+      required: [event_id, channel, modality, direction, provider, provider_event_id, state, provider_timestamp, received_at, payload_digest, correlation_id]
+      properties:
+        event_id: { type: string, format: uuid }
+        channel: { type: string, enum: [phone, web_chat, telegram, whatsapp, email, max, jivo, avito, mobile_app_chat] }
+        modality: { type: string, enum: [voice, text] }
+        direction: { type: string, enum: [inbound] }
+        provider: { type: string }
+        provider_event_id: { type: string }
+        state: { type: string, enum: [accepted, quarantined] }
+        provider_timestamp: { type: string, format: date-time }
+        received_at: { type: string, format: date-time }
+        payload_digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+        correlation_id: { type: string, format: uuid }
+    WorkItemRecord:
+      type: object
+      required: [tenant_id, case_id, conversation_id, work_item_id, state, created_at]
+      properties:
+        tenant_id: { type: string, format: uuid }
+        case_id: { type: string, format: uuid }
+        conversation_id: { type: string, format: uuid }
+        work_item_id: { type: string, format: uuid }
+        state: { type: string, enum: [untriaged], description: 'Классификация — story 2-2' }
+        created_at: { type: string, format: date-time }
+    OperationalException:
+      type: object
+      required: [tenant_id, exception_id, kind, summary, correlation_id, event_id, created_at]
+      properties:
+        tenant_id: { type: string, format: uuid }
+        exception_id: { type: string, format: uuid }
+        kind: { type: string, enum: [digest_conflict, ambiguous_employee, idempotency_key_conflict] }
+        summary: { type: string, description: 'Безопасный текст: payload не раскрывается' }
+        correlation_id: { type: string, format: uuid }
+        event_id: { type: string, format: uuid }
+        original_event_id: { type: string, format: uuid }
+        case_id: { type: string, format: uuid }
+        conversation_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+    SealedPayloadView:
+      type: object
+      required: [event_id, payload_digest, seal_ok, payload]
+      properties:
+        event_id: { type: string, format: uuid }
+        payload_digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+        seal_ok: { type: boolean, description: 'HMAC-печать проверена при чтении' }
+        payload: { description: 'Только под полномочиями review/audit; любое одно JSON-значение' }
   responses:
     Problem:
       description: Безопасная ошибка

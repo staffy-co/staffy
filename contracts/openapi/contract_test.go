@@ -811,3 +811,114 @@ func TestReadinessContractIsHonest(t *testing.T) {
 		}
 	}
 }
+
+func TestCaseContourContractIsHonest(t *testing.T) {
+	content, err := os.ReadFile("staffy.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document map[string]any
+	if err = yaml.Unmarshal(content, &document); err != nil {
+		t.Fatal(err)
+	}
+	paths := mapping(t, document, "paths")
+
+	// The machine ingress is NOT a principal surface: the trusted scope is
+	// derived from the verified connection, and the marker documents the
+	// boundary honestly instead of claiming a principal.
+	ingress := mapping(t, paths, "/v1/ingress/channel-events")
+	post := mapping(t, ingress, "post")
+	if required, _ := post["x-staffy-principal-required"].(bool); required {
+		t.Fatal("the ingress is a machine contract: no user principal boundary may be claimed")
+	}
+	if machine, _ := post["x-staffy-machine-ingress"].(bool); !machine {
+		t.Fatal("the ingress must document the machine-ingress boundary")
+	}
+	for _, status := range []string{"201", "200", "400", "403", "404", "409", "415", "429"} {
+		responses := mapping(t, post, "responses")
+		if _, ok := responses[status]; !ok {
+			t.Fatalf("the ingress must document the %s answer", status)
+		}
+	}
+
+	// The operator surfaces ARE principal surfaces with the strict
+	// review/audit payload boundary.
+	for path, methods := range map[string][]string{
+		"/v1/tenants/{tenant_id}/cases":                                  {"get"},
+		"/v1/tenants/{tenant_id}/cases/{case_id}":                        {"get"},
+		"/v1/tenants/{tenant_id}/cases/{case_id}/events/{event_id}/payload": {"get"},
+	} {
+		item := mapping(t, paths, path)
+		for _, method := range methods {
+			operation := mapping(t, item, method)
+			if required, _ := operation["x-staffy-principal-required"].(bool); !required {
+				t.Fatalf("%s %s must document the verified principal boundary", method, path)
+			}
+		}
+	}
+
+	schemas := mapping(t, mapping(t, document, "components"), "schemas")
+
+	// The envelope is strict and versioned: unknown fields are impossible,
+	// the direction dictionary is inbound-only, the idempotency header is
+	// documented and the payload never leaks into answers.
+	envelope := mapping(t, schemas, "IngressEnvelope")
+	if additional, _ := envelope["additionalProperties"].(bool); additional {
+		t.Fatal("the ingress envelope must reject unknown fields")
+	}
+	envelopeProps := mapping(t, envelope, "properties")
+	direction := mapping(t, envelopeProps, "direction")
+	directionEnum, _ := direction["enum"].([]any)
+	if len(directionEnum) != 1 || directionEnum[0] != "inbound" {
+		t.Fatalf("the first slice receives inbound events only, got %v", directionEnum)
+	}
+
+	// The refusal vocabulary is the honest ladder dictionary; the bounded
+	// kinds are marked and counted.
+	refusal := mapping(t, schemas, "IngestRefusal")
+	refusalProps := mapping(t, refusal, "properties")
+	kind := mapping(t, refusalProps, "kind")
+	kindEnum, _ := kind["enum"].([]any)
+	expected := []string{"malformed", "unknown_connection", "revoked_connection", "production_forbidden",
+		"channel_mismatch", "route_not_admitted", "no_active_release", "no_response_owner",
+		"entitlement_blocked", "envelope_exceeded"}
+	if len(kindEnum) != len(expected) {
+		t.Fatalf("the refusal dictionary must keep %d kinds, got %v", len(expected), kindEnum)
+	}
+	for index, value := range expected {
+		if kindEnum[index] != value {
+			t.Fatalf("refusal kind %d: expected %s, got %v", index, value, kindEnum[index])
+		}
+	}
+
+	// The honest fixed states of the slice: one case state, one
+	// conversation surface, the first owner epoch and the untriaged work
+	// item (the classification is Story 2-2).
+	conversation := mapping(t, schemas, "ConversationRecord")
+	conversationProps := mapping(t, conversation, "properties")
+	surface := mapping(t, conversationProps, "writable_surface")
+	surfaceEnum, _ := surface["enum"].([]any)
+	if len(surfaceEnum) != 1 || surfaceEnum[0] != "inbox" {
+		t.Fatalf("the single writable surface of the slice is the inbox, got %v", surfaceEnum)
+	}
+	epoch := mapping(t, conversationProps, "response_owner_epoch")
+	epochEnum, _ := epoch["enum"].([]any)
+	if len(epochEnum) != 1 || epochEnum[0] != 1 {
+		t.Fatalf("the owner epoch of the slice is 1 (rotation is 2-4), got %v", epochEnum)
+	}
+	workItem := mapping(t, schemas, "WorkItemRecord")
+	workItemProps := mapping(t, workItem, "properties")
+	workState := mapping(t, workItemProps, "state")
+	workEnum, _ := workState["enum"].([]any)
+	if len(workEnum) != 1 || workEnum[0] != "untriaged" {
+		t.Fatalf("the work item stays untriaged until Story 2-2, got %v", workEnum)
+	}
+
+	for _, schema := range []string{"IngressEnvelope", "IngestResult", "IngestOutcome", "IngestRefusal",
+		"IngestQuarantine", "CasesView", "CaseSummary", "CaseView", "CaseRecord", "ConversationRecord",
+		"TimelineEvent", "WorkItemRecord", "OperationalException", "SealedPayloadView"} {
+		if _, ok := schemas[schema]; !ok {
+			t.Errorf("schema %s is missing", schema)
+		}
+	}
+}

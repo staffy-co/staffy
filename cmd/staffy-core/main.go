@@ -14,6 +14,9 @@ import (
         _ "time/tzdata" // IANA zones without a system zone database (the profile window validator loads zones)
 
         "github.com/artemiosu/staffy/internal/adapters/authdev"
+        "github.com/artemiosu/staffy/internal/adapters/ingresssyn"
+        casesApp "github.com/artemiosu/staffy/internal/cases/app"
+        casesStore "github.com/artemiosu/staffy/internal/cases/store"
         connectorApp "github.com/artemiosu/staffy/internal/connector/app"
         connectorStore "github.com/artemiosu/staffy/internal/connector/store"
         connectorVerifier "github.com/artemiosu/staffy/internal/connector/verifier"
@@ -101,6 +104,9 @@ func run(logger *slog.Logger) error {
         // admission state through the narrow fact port; without it the
         // derivation honestly refuses instead of assuming "ok".
         employeeService = employeeService.WithEntitlementFacts(entitlementService)
+        // The RouteFacts facade (Story 2-1) relays the scope-based
+        // entitlement admission word for the ingress ladder.
+        employeeService = employeeService.WithEntitlementAdmissionFacts(entitlementService)
         transport.BindEmployee(employeeService)
         transport.BindRelease(employeeService)
         transport.BindProfile(employeeService)
@@ -112,6 +118,16 @@ func run(logger *slog.Logger) error {
         }
         transport.BindPrivacy(privacyApp.New(privacyStore.NewPostgres(pool), identityService, privacyExecutors, clock, ids))
         transport.BindEntitlement(entitlementService)
+        // The case contour (Story 2-1): the machine ingress over the
+        // synthetic source verifier of the test contour (production stays
+        // fail-closed — AG-4), the operator Cases/Timeline surface and the
+        // sealed payload reads. The ingress scope is derived from the
+        // verified connection, never from a user principal.
+        casesService := casesApp.New(casesStore.NewPostgres(pool), identityService, ingresssyn.New(connectorService), clock, ids).
+                WithRouteFacts(employeeService).
+                WithConnectionFacts(connectorService).
+                WithMembers(identityService)
+        transport.BindCases(casesService)
         server := &http.Server{
                 Addr:              listenAddress,
                 Handler:           transport.Handler(),

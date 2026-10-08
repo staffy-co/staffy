@@ -131,10 +131,26 @@ func (f *fakeConnector) ConnectionsFacts(ctx context.Context, _ tenancy.Context)
 	}
 	return []connectorAPI.ConnectionFacts{{
 		ConnectionID: state.Connection.ConnectionID, ConnectorID: state.Connection.ConnectorID,
+		ConnectorType: "SIP/telephony",
 		ContractVersion: state.ContractVersion, AdapterBuild: state.AdapterBuild,
 		Environment: string(state.Connection.Environment), Status: state.Connection.Status,
 		Capabilities: state.Capabilities,
 	}}, nil
+}
+
+// ConnectionFactsByID is the single-connection facts read of the fake.
+func (f *fakeConnector) ConnectionFactsByID(ctx context.Context, _ tenancy.Context, connectionID id.UUID) (connectorAPI.ConnectionFacts, error) {
+	state, err := f.CapabilityState(ctx, domain.Principal{}, "", "")
+	if err != nil || !connectionID.Valid() {
+		return connectorAPI.ConnectionFacts{}, connectorDomain.ErrNotFound
+	}
+	return connectorAPI.ConnectionFacts{
+		ConnectionID: state.Connection.ConnectionID, ConnectorID: state.Connection.ConnectorID,
+		ConnectorType: "SIP/telephony",
+		ContractVersion: state.ContractVersion, AdapterBuild: state.AdapterBuild,
+		Environment: string(state.Connection.Environment), Status: state.Connection.Status,
+		Capabilities: state.Capabilities,
+	}, nil
 }
 
 func newConnectorTestServer(t *testing.T, fake *fakeConnector) *Server {

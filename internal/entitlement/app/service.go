@@ -894,3 +894,23 @@ func usagePayloadHash(tenant interface{ String() string }, event entitlementDoma
         writeField(event.Provenance)
         return hex.EncodeToString(h.Sum(nil))
 }
+
+// AdmissionFacts is the caller-authority admission read (the
+// ConnectionsFacts/MembersFacts precedent): the consumer (the employee
+// RouteFacts facade relaying the word for the Story 2-1 ingress) has
+// already verified its own scope from the trusted connection metadata, so
+// this read does not re-require a user principal; RLS still isolates the
+// tenant. The concrete derivation is the same DeriveAdmission of the
+// acting state, the meter and the budget — never a copied "ok".
+func (s *Service) AdmissionFacts(ctx context.Context, scope tenancy.Context) (entitlementDomain.AdmissionState, error) {
+	if !scope.Valid() {
+		return entitlementDomain.AdmissionState{}, entitlementDomain.ErrNotFound
+	}
+	_, stateEvents, budgets, sources, events, err := s.loadFacts(ctx, scope)
+	if err != nil {
+		return entitlementDomain.AdmissionState{}, err
+	}
+	state := entitlementDomain.DeriveEntitlementState(stateEvents)
+	meter := entitlementDomain.ComputeMeter(events, entitlementDomain.CurrentSources(sources), latestBudget(budgets), s.clock.Now().UTC())
+	return entitlementDomain.DeriveAdmission(state, meter.ConfirmedTotal, latestBudget(budgets)), nil
+}

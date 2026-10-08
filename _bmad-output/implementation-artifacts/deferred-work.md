@@ -84,3 +84,35 @@
 - source_spec: `spec-1-14-readiness-publication.md`
   summary: Спека содержит два прочтения strict-конъюнкции для controlled+ стадий: «независимые маршруты живут / блокировка маршрута не блокирует кандидата целиком» vs «ready только если все обязательные элементы... дают pass» + AC-5 «все обязательные проверки стадии имеют действующий PASS». Реализация (R1-M3) держит элементную конъюнкцию: смешанный кандидат (web_chat чист, phone без OQ-12) не публикует controlled+ пока ВСЕ маршруты не пройдут гейты.
   evidence: Замечание R2/N4: прочтение защитимо (gates — обязательный элемент, AC-5 явен), но замороженный текст допускает оба; решение владельца — к следующей версии спеки (Epic 2 enforcement уточнит).
+
+- source_spec: `spec-2-1-channel-event-case.md`
+  summary: Реальные провайдерские адаптеры и схемы подписи для ingress (AG-4): сейчас единственный верификатор — синтетический тестового контура (staffy-synthetic-telephony в sandbox/test); все прочие коннекторы fail-closed («коннектор без верификатора»), продакшн-трафик честно невозможен.
+  evidence: internal/adapters/ingresssyn — порт SourceVerifier с одной реализацией; ingresssyn-тест покрывает production_forbidden и connector-without-verifier ветки поверх фейкового факт-порта; интеграционное покрытие этих веток структурно недостижимо — каталог admits только один креируемый коннектор.
+
+- source_spec: `spec-2-1-channel-event-case.md`
+  summary: Фоновые outbox-воркеры (leased jobs) и реальная доставка connector-ack провайдеру: сейчас DrainOutbox — идемпотентная команда с append-only исходами «deferred» (нет ни воркеров, ни адаптеров — AG-4); транспорта у команды нет (только сервис-метод, интеграционно покрыт).
+  evidence: cases.DrainOutbox в api.Service; исходы deferred с честной причиной; спека честно откладывает фоновую доставку; перенесено сюда из соображения «команда без триггера — мёртвый код в продакшн-контуре».
+
+- source_spec: `spec-2-1-channel-event-case.md`
+  summary: Транспортные записи ingress_rejections для нераскодируемых тел (400 на уровне декода): строка отказа не создаётся, если body не распарсилось или tenant-claim невалиден — нет честного скоупа для записи; correlation ID ответа остаётся единственной связью.
+  evidence: transport cases.go — decode-фейлы возвращают 400 problem без записи; app recordRejection честно пропускает запись при невалидном скоупе; потенциальный enhancement — отдельная global-scope таблица для decode-фейлов при появлении реального трафика.
+
+- source_spec: `spec-2-1-channel-event-case.md`
+  summary: Проверка provider-клейма против ConnectorID коннектора и cross-check подписи в ingress-контракте: сейчас provider — строка происхождения события (материальная часть идемпотентности), совпадение с коннектором проверяется неявно (верификатор знает единственный коннектора контура).
+  evidence: Envelope.Provider валидируется форматом ≤64; материальный ключ (tenant, provider, provider_event_id); реальная дисциплина — с провайдерскими адаптерами (AG-4), когда подпись и sender identity станут проверяемыми.
+
+- source_spec: `spec-2-1-channel-event-case.md`
+  summary: Load envelope по AG-1/AG-4-доказанным значениям и bounded-очередь вместо честного bounded-отказа: сейчас фиксированный консервативный словарь (256К/128К/1000 in-flight/окно 1ч) без конфигурации на Tenant, превышение — честный отказ envelope_exceeded со счётчиком.
+  evidence: cases/domain dictionaries.go FixedLoadEnvelope; спека Never-клауза прямо запрещает выдуманные значения; замена словаря доказанными метриками — после измерительного фундамента (Epic 6).
+
+- source_spec: `spec-2-1-channel-event-case.md`
+  summary: Legal-basis enforcement против data perimeter для pre-case sessions (AC-8): запись сессии с объявленной capture policy хранится, проверка основания отложена до связки privacy (privacy не входит в DAG case — архитектура).
+  evidence: cases.pre_case_sessions.capture_policy CHECK-словарь (metadata_only|sealed_payload); спека честно откладывает enforcement; privacy-классы case-operations/case-content зарегистрированы.
+
+- source_spec: `spec-2-1-channel-event-case.md`
+  summary: Signed TTL-ссылки на запечатанный payload (вместо прямой серверной авторизации review/audit) и текстовые коннекторы end-to-end (chat-адаптер для восьми текстовых каналов; словарь и контракт ingress уже готовы — channel_mismatch честно拒绝ывает текстовые события на SIP/telephony).
+  evidence: ReadPayload — серверная авторизация review/audit + HMAC-проверка печати; интеграционный тест TestIngestRefusesEveryLadderStep покрывает channel_mismatch; спека откладывает оба пункта явно.
+
+- source_spec: `spec-2-1-channel-event-case.md`
+  summary: Напряжение замороженных клозул по записям отказов верификации источника: Boundaries требует «без скоупа никакого SQL» (скоуп только из верифицированного connection), а матрица требует строку ingress_rejections для unknown_connection — реализация пишет отказ под заявленным (непроверенным) скоупом с ограничениями: тенант заявки обязан существовать (RLS-чит membership-фактов) и фиксированный словарный лимит 100 записей (connection×kind×окно 1ч).
+  evidence: app/service.go recordRejection (trusted=false путь + claimedTenantIsReal + CountRejections); DEVLOG 43-review finding R1-M4; решение владельца (тенант-нейтральная зона / полный запрет записи / подтверждение ограниченного варианта) — к следующей версии спеки.

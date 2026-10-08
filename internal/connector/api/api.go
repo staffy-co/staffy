@@ -117,6 +117,7 @@ type Service interface {
 	VerifyCapability(ctx context.Context, c VerifyCommand) (VerifyResult, error)
 	CapabilityState(ctx context.Context, actor domain.Principal, tenantID, connectionID id.UUID) (CapabilityStateResult, error)
 	ConnectionsFacts(ctx context.Context, scope tenancy.Context) ([]ConnectionFacts, error)
+	ConnectionFactsByID(ctx context.Context, scope tenancy.Context, connectionID id.UUID) (ConnectionFacts, error)
 }
 
 // ConnectionFacts is the safe cross-module projection of one connection for
@@ -127,6 +128,7 @@ type Service interface {
 type ConnectionFacts struct {
 	ConnectionID    id.UUID                            `json:"connection_id"`
 	ConnectorID     string                             `json:"connector_id"`
+	ConnectorType   string                             `json:"connector_type"`
 	ContractVersion string                             `json:"contract_version"`
 	AdapterBuild    string                             `json:"adapter_build"`
 	Environment     string                             `json:"environment"`
