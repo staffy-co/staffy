@@ -1253,6 +1253,9 @@ func canonicalizeAdmission(admission ReleaseAdmission) ReleaseAdmission {
 	out.Routes = append([]RouteAdmission(nil), admission.Routes...)
 	sort.SliceStable(out.Routes, func(i, j int) bool { return out.Routes[i].Route.String() < out.Routes[j].Route.String() })
 	out.ApproverRoles = sortedCopy(admission.ApproverRoles)
+	// The canonical bytes render the decision time in UTC: the digest is a
+	// property of the record, never of the reading process's timezone.
+	out.DecidedAt = out.DecidedAt.UTC()
 	return out
 }
 

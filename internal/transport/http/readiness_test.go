@@ -237,6 +237,26 @@ func TestPublicationWireShapeMatchesContract(t *testing.T) {
 	}
 }
 
+// The admission history wire shape: the documented key set of
+// AdmissionHistoryView with the acting decision derived.
+func TestAdmissionHistoryWireShapeMatchesContract(t *testing.T) {
+	server := newReadinessTestServer(t, &fakeReadiness{})
+	response := httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, readinessJSONRequest(http.MethodGet, readinessPath("/admissions"), ""))
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d", response.Code)
+	}
+	var body struct {
+		EmployeeID id.UUID          `json:"employee_id"`
+		Active     *map[string]any  `json:"active_release"`
+		Admissions []map[string]any `json:"admissions"`
+	}
+	decodeBody(t, response, &body)
+	if body.Admissions == nil || len(body.Admissions) != 0 {
+		t.Fatalf("the empty history must serialize as an empty list, got %v", body.Admissions)
+	}
+}
+
 // The commands reject unknown fields (the strict decode boundary).
 func TestReadinessCommandsRejectUnknownFields(t *testing.T) {
 	server := newReadinessTestServer(t, &fakeReadiness{})

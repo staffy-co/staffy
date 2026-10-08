@@ -55,6 +55,14 @@ func scanGateInstance(r row) (domain.GateInstance, error) {
 	if expiryTrigger != nil {
 		instance.ExpiryTrigger = *expiryTrigger
 	}
+	// The same UTC canonicalization for the chain records (a non-UTC host
+	// keeps identical ordering and identical serializations).
+	instance.RecordedAt = instance.RecordedAt.UTC()
+	if instance.TestedAt != nil {
+		utc := instance.TestedAt.UTC()
+		instance.TestedAt = &utc
+	}
+
 	instance.TestedAt = testedAt
 	instance.SupersedesInstanceID = supersedes
 	if len(approvedBy) > 0 {
@@ -98,7 +106,12 @@ func scanAdmission(r row) (domain.ReleaseAdmission, error) {
 	if err := json.Unmarshal(roles, &admission.ApproverRoles); err != nil {
 		return domain.ReleaseAdmission{}, err
 	}
-	if admission.Routes == nil {
+	if admission.Routes == nil { // The read boundary canonicalizes the timestamp to UTC: pgx decodes
+		// timestamptz into the process-local zone, while the canonical digest
+		// bytes were rendered in UTC at the write — a non-UTC host must recompute
+		// the same digest (R2/N1).
+		admission.DecidedAt = admission.DecidedAt.UTC()
+
 		admission.Routes = []domain.RouteAdmission{}
 	}
 	if admission.ApproverRoles == nil {

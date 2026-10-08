@@ -505,11 +505,40 @@ func TestValidateStageProgressionLadder(t *testing.T) {
 	other := closed
 	other.Manifest = ManifestLink{ManifestID: profileOwner, ConfigVersion: 2, Digest: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}
 	other.ProfileVersion = 2
+	// The interleaved fixtures: the other candidate's own two decisions
+	// (synthetic №2, closed №3) recorded after this candidate's synthetic №1.
+	otherCandidate := CandidateKey{Manifest: other.Manifest, ProfileVersion: other.ProfileVersion, ProfileDigest: other.ProfileDigest}
+	otherSynthetic := other
+	otherSynthetic.DecisionNo = 2
+	otherSynthetic.Stage = StageSynthetic
+	otherClosed := other
+	otherClosed.DecisionNo = 3
+	otherClosed.Stage = StageClosedAccountTest
 	if err := ValidateStageProgression(StageSynthetic, candidate, []ReleaseAdmission{other}); err != nil {
 		t.Fatalf("a new candidate starts from synthetic: %v", err)
 	}
 	if err := ValidateStageProgression(StageClosedAccountTest, candidate, []ReleaseAdmission{other}); err == nil {
 		t.Fatal("a new candidate cannot skip synthetic")
+	}
+	// Interleaved candidates (R2/N2): the globally latest decisions belong to
+	// another candidate, but this candidate's own synthetic decision stays
+	// acting for the ladder — the closed stage of THIS candidate is allowed
+	// even though a newer decision of ANOTHER candidate is the active
+	// pointer, and a newer decision of another candidate at a higher stage
+	// does not look like this candidate's rollback.
+	interleaved := []ReleaseAdmission{otherClosed, otherSynthetic, synthetic}
+	if err := ValidateStageProgression(StageClosedAccountTest, candidate, interleaved); err != nil {
+		t.Fatalf("an interleaved candidate must not break this candidate's ladder: %v", err)
+	}
+	// The repeat of this candidate's stage conflicts with ITS record.
+	err = ValidateStageProgression(StageSynthetic, candidate, interleaved)
+	var interleavedConflict AdmissionConflictError
+	if !errors.As(err, &interleavedConflict) || interleavedConflict.Current == nil || interleavedConflict.Current.DecisionNo != synthetic.DecisionNo {
+		t.Fatalf("the repeat of this candidate's stage must conflict with its own record, got %v", err)
+	}
+	// The other candidate's own ladder is unaffected by this candidate.
+	if err := ValidateStageProgression(StageControlledRealCustomer, otherCandidate, interleaved); err != nil {
+		t.Fatalf("the other candidate may step to controlled after its closed decision: %v", err)
 	}
 }
 

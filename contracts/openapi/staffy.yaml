@@ -3330,7 +3330,7 @@ components:
       description: 'Чистая деривация живых фактов: ничего не кэшируется, stale-факты видны при следующем чтении'
       properties:
         stage: { type: string }
-        status: { type: string, enum: [incomplete, blocked, ready], description: 'incomplete — обязательный элемент отсутствует; blocked — элементы заполнены, маршрутов не допущено; ready — минимум один маршрут допущен' }
+        status: { type: string, enum: [incomplete, blocked, ready], description: 'incomplete — обязательный элемент отсутствует; blocked — элементы заполнены, но есть блокировки (заблокированный элемент или ноль допущенных маршрутов; исключение — entitlement на synthetic); ready — все элементы pass/not_applicable и минимум один маршрут допущен' }
         status_text: { type: string }
         elements: { type: array, items: { $ref: '#/components/schemas/ReadinessElement' } }
         routes: { type: array, items: { $ref: '#/components/schemas/RouteAdmission' } }
