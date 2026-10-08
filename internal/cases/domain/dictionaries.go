@@ -84,6 +84,16 @@ var FixedLoadEnvelope = LoadEnvelope{
 	InflightWindow:           time.Hour,
 }
 
+// The bound of pre-verification rejection rows: an unauthenticated machine
+// endpoint may honestly record refusals of unverifiable deliveries, but
+// never unboundedly — a fixed dictionary cap per (claimed tenant,
+// connection, kind) inside the window keeps the durable noise bounded
+// until a tenant-neutral area exists (deferred-work).
+const (
+	MaxClaimedRejectionsPerKey = 100
+	RejectionBoundWindow       = time.Hour
+)
+
 // ---------------------------------------------------------------------------
 // Refusal kinds (the vocabulary of every honest refusal)
 // ---------------------------------------------------------------------------

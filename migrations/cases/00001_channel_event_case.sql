@@ -147,7 +147,8 @@ CREATE TABLE cases.operational_exceptions (
  PRIMARY KEY (tenant_id, exception_id),
  FOREIGN KEY (tenant_id, event_id) REFERENCES cases.channel_events(tenant_id, event_id),
  FOREIGN KEY (tenant_id, original_event_id) REFERENCES cases.channel_events(tenant_id, event_id),
- FOREIGN KEY (tenant_id, case_id) REFERENCES cases.cases(tenant_id, case_id)
+ FOREIGN KEY (tenant_id, case_id) REFERENCES cases.cases(tenant_id, case_id),
+ FOREIGN KEY (tenant_id, conversation_id) REFERENCES cases.conversations(tenant_id, conversation_id)
 );
 
 CREATE TABLE cases.outbox_events (

@@ -3532,7 +3532,7 @@ components:
         modality: { type: string, enum: [voice, text] }
         channel: { type: string, enum: [phone, web_chat, telegram, whatsapp, email, max, jivo, avito, mobile_app_chat] }
         provider_timestamp: { type: string, format: date-time, description: 'Время провайдера; временем приёма не считается' }
-        payload: { type: object, description: 'Материальный payload (одно JSON-значение); канонизируется, запечатывается, наружу — только digest' }
+        payload: { description: 'Материальный payload — любое одно JSON-значение (объект, массив, строка, число, логическое или null); канонизируется без потери точности чисел, запечатывается, наружу — только digest' }
     IngestResult:
       type: object
       required: [event_id, case_id, conversation_id, case_no, conversation_no, response_owner_id, employee_id, new_case, replay]
@@ -3677,7 +3677,7 @@ components:
         event_id: { type: string, format: uuid }
         payload_digest: { type: string, pattern: '^[0-9a-f]{64}$' }
         seal_ok: { type: boolean, description: 'HMAC-печать проверена при чтении' }
-        payload: { type: object, description: 'Только под полномочиями review/audit' }
+        payload: { description: 'Только под полномочиями review/audit; любое одно JSON-значение' }
   responses:
     Problem:
       description: Безопасная ошибка

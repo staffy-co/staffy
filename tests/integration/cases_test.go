@@ -4,6 +4,7 @@ package integration_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -24,6 +25,7 @@ import (
 	identityAPI "github.com/artemiosu/staffy/internal/identity/api"
 	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
 	"github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/artemiosu/staffy/internal/platform/tenancy"
 )
 
 // casesWorld wraps the readiness world with the case contour service: the
@@ -639,5 +641,192 @@ func TestIngressEnvelopeBoundsBoundedOutcome(t *testing.T) {
 	}
 	if outcome.Refused == nil || outcome.Refused.Kind != casesDomain.KindEnvelopeExceeded || !outcome.Refused.Bounded || outcome.Refused.Counter == 0 {
 		t.Fatalf("expected the bounded envelope refusal with the counter, got %+v", outcome.Refused)
+	}
+}
+
+// TestIngestSessionContinuationOutboxCarriesTrueMaterial asserts the R1
+// fix: the accepted-event outbox record of a session continuation is
+// marshalled inside the transaction with the RESOLVED material — the
+// canonical JSON of an extending event references the existing case and
+// conversation and carries new_case=false.
+func TestIngestSessionContinuationOutboxCarriesTrueMaterial(t *testing.T) {
+	w := newCasesWorld(t, 410)
+	ctx := context.Background()
+	first := acceptedOutcome(t, mustIngest(t, w, w.ingestCommand("evt-outbox-1", "sess-outbox-1", `{"call":"inbound-call","seq":1}`)))
+	second := acceptedOutcome(t, mustIngest(t, w, w.ingestCommand("evt-outbox-2", "sess-outbox-1", `{"call":"inbound-call","seq":2}`)))
+	if second.CaseID != first.CaseID {
+		t.Fatal("expected the continuation of the same session")
+	}
+	store := casesStore.NewPostgres(runtimePool)
+	scope, err := tenancy.New(w.connection, w.tenant)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pending, err := store.PendingOutbox(ctx, scope, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pending) != 4 {
+		t.Fatalf("expected two outbox records per accepted event, got %d", len(pending))
+	}
+	acceptedRecords := map[string]casesDomain.AcceptedEventPayload{}
+	for _, event := range pending {
+		if event.EventType != casesDomain.OutboxEventAccepted {
+			continue
+		}
+		var payload casesDomain.AcceptedEventPayload
+		if err := json.Unmarshal(event.Payload, &payload); err != nil {
+			t.Fatal(err)
+		}
+		acceptedRecords[payload.ProviderEventID] = payload
+	}
+	if len(acceptedRecords) != 2 {
+		t.Fatalf("expected one accepted-event record per event, got %d", len(acceptedRecords))
+	}
+	extension := acceptedRecords["evt-outbox-2"]
+	if extension.CaseID != first.CaseID || extension.ConversationID != first.ConversationID {
+		t.Fatalf("the continuation record must reference the resolved material, got %+v", extension)
+	}
+	if extension.NewCase {
+		t.Fatalf("the continuation is not a new case, got %+v", extension)
+	}
+	// The referenced material exists — the record never carries fabricated
+	// identifiers.
+	detail, err := w.cases.CaseView(ctx, w.owner, w.tenant, extension.CaseID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(detail.Timeline) != 2 {
+		t.Fatalf("expected both events of the session, got %d", len(detail.Timeline))
+	}
+}
+
+// TestIngestIdempotencyKeyConflictQuarantines covers the R1 fix: a
+// delivery reusing an idempotency key already held by an accepted event of
+// another provider event id is quarantined with the honest exception —
+// never an internal error.
+func TestIngestIdempotencyKeyConflictQuarantines(t *testing.T) {
+	w := newCasesWorld(t, 420)
+	ctx := context.Background()
+	acceptedOutcome(t, mustIngest(t, w, w.ingestCommand("evt-key-1", "sess-key-1", `{"call":"x"}`)))
+	// The second event has another provider event id and session, but the
+	// SAME idempotency key.
+	conflicting := w.ingestCommand("evt-key-2", "sess-key-2", `{"call":"y"}`)
+	original := w.ingestCommand("evt-key-1", "sess-key-1", `{"call":"x"}`)
+	conflicting.IdempotencyKey = original.IdempotencyKey
+	outcome, err := w.cases.IngestEvent(ctx, conflicting)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if outcome.Quarantined == nil || outcome.Quarantined.Kind != casesDomain.ExceptionIdempotencyConflict {
+		t.Fatalf("expected the idempotency-key conflict quarantine, got %+v", outcome)
+	}
+	view, err := w.cases.CasesView(ctx, w.owner, w.tenant)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, exception := range view.Exceptions {
+		if exception.Kind == casesDomain.ExceptionIdempotencyConflict {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected the idempotency conflict exception for the operator, got %+v", view.Exceptions)
+	}
+}
+
+// TestIngestAmbiguousRoutingQuarantines covers the full write path of the
+// ambiguous-routing matrix line: two employees with acting decisions that
+// both seal the connection quarantine the delivery and raise one
+// operational exception; no case is created.
+func TestIngestAmbiguousRoutingQuarantines(t *testing.T) {
+	w := newCasesWorld(t, 430)
+	ctx := context.Background()
+	// The second employee walks the same candidate path over the SAME
+	// tenant connection: its manifest seals the connection too, so two
+	// acting decisions resolve the route.
+	employee2 := w.createEmployee(t, true)
+	w.pinPack(t, employee2)
+	w.saveBehavior(t, employee2, 3)
+	w.addKnowledge(t, employee2)
+	w.addVoice(t, employee2)
+	draft := w.assemble(t, employee2, 0)
+	version := w.createVersion(t, employee2, draft.Revision, "Кандидат второго сотрудника")
+	manifest, err := w.seal(t, employee2, version.Version, draft.Revision+1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	link2 := employeeDomain.ManifestLink{ManifestID: manifest.ManifestID, ConfigVersion: manifest.ConfigVersion, Digest: manifest.Digest}
+	owner := actorPrincipal{principalID: w.owner.ID, stepUp: true}
+	if _, err := w.saveDraft(t, employee2, link2, profileContent(w.owner.ID, w.backup), 0, owner); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.approve(t, employee2, 1, owner); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.employee.PublishAdmission(ctx, employeeAPI.PublishAdmissionCommand{
+		Actor: owner.principal(), TenantID: w.tenant, EmployeeID: employee2,
+		CorrelationID: id.MustParse("01994f64-6c00-7000-8000-000000000719"),
+		Stage:         employeeDomain.StageSynthetic,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	outcome, err := w.cases.IngestEvent(ctx, w.ingestCommand("evt-ambiguous-1", "sess-ambiguous-1", `{"call":"x"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if outcome.Quarantined == nil || outcome.Quarantined.Kind != casesDomain.ExceptionAmbiguousRouting {
+		t.Fatalf("expected the ambiguous-routing quarantine, got %+v", outcome)
+	}
+	view, err := w.cases.CasesView(ctx, w.owner, w.tenant)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(view.Cases) != 0 {
+		t.Fatalf("no case may be created on ambiguity, got %d", len(view.Cases))
+	}
+	if len(view.Exceptions) != 1 || view.Exceptions[0].Kind != casesDomain.ExceptionAmbiguousRouting {
+		t.Fatalf("expected one ambiguous-routing exception, got %+v", view.Exceptions)
+	}
+}
+
+// TestIngestSessionContinuationFailClosed covers the matrix line: an event
+// of an EXISTING session is refused fail-closed when the admission has
+// changed since the acceptance — the session is not extended.
+func TestIngestSessionContinuationFailClosed(t *testing.T) {
+	w := newCasesWorld(t, 440)
+	ctx := context.Background()
+	first := acceptedOutcome(t, mustIngest(t, w, w.ingestCommand("evt-failclosed-1", "sess-failclosed-1", `{"call":"x"}`)))
+	// The connection is revoked after the acceptance: a NEW event of the
+	// same session is refused (a replay of the already-accepted event
+	// still returns the original result — replay goes before admission).
+	current, err := w.connector.Read(ctx, w.owner, w.tenant, w.connection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.connector.Revoke(ctx, connectorAPI.RevokeCommand{
+		Actor: w.owner, TenantID: w.tenant, ConnectionID: w.connection,
+		ExpectedVersion: current.Version, Reason: "Отзыв для теста fail-closed",
+		CorrelationID:  id.MustParse("01994f64-6c00-7000-8000-00000000071a"),
+		IdempotencyKey: "cases-revoke-failclosed",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	newEvent := w.ingestCommand("evt-failclosed-2", "sess-failclosed-1", `{"call":"y"}`)
+	refusedOutcome(t, mustIngest(t, w, newEvent), casesDomain.KindRevokedConnection)
+	// The session was not extended: exactly one accepted event.
+	detail, err := w.cases.CaseView(ctx, w.owner, w.tenant, first.CaseID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(detail.Timeline) != 1 {
+		t.Fatalf("the revoked admission must not extend the session, got %d events", len(detail.Timeline))
+	}
+	// The identical redelivery of the accepted event still replays (the
+	// retry does not depend on the changed states).
+	replay := acceptedOutcome(t, mustIngest(t, w, w.ingestCommand("evt-failclosed-1", "sess-failclosed-1", `{"call":"x"}`)))
+	if !replay.Replay || replay.EventID != first.EventID {
+		t.Fatalf("expected the replay of the accepted event despite the revoked admission, got %+v", replay)
 	}
 }

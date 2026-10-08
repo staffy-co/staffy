@@ -285,3 +285,23 @@ func TestDictionariesAreFixed(t *testing.T) {
 }
 
 func testTenantID() id.UUID { return id.MustParse("01994f64-6c00-7000-8000-000000000011") }
+
+func TestCanonicalPayloadPreservesNumberPrecision(t *testing.T) {
+	// An integer beyond 2^53 is material content: a float64 round-trip
+	// would silently corrupt the sealed blob and its digest.
+	big, err := CanonicalPayload(json.RawMessage(`{"id":9007199254740993}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(big) != `{"id":9007199254740993}` {
+		t.Fatalf("expected the exact literal to survive canonicalization, got %s", big)
+	}
+	// 1 and 1.0 are materially different payloads: the digest must differ
+	// (a collapsed digest would return a false replay instead of the
+	// digest-conflict quarantine).
+	one, _ := CanonicalPayload(json.RawMessage(`{"n":1}`))
+	oneDot, _ := CanonicalPayload(json.RawMessage(`{"n":1.0}`))
+	if PayloadDigest(one) == PayloadDigest(oneDot) {
+		t.Fatal("expected 1 and 1.0 to keep distinct material identities")
+	}
+}

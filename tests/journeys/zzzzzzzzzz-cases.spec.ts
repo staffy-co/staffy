@@ -105,8 +105,6 @@ test('cases: ingress creates one case, honest timeline and replay without growth
 
     // 8. The honest refusal of the ladder: an unknown connection is a
     // plain 404 problem with the dictionary kind, no payload disclosed.
-    const unknown = await postIngress(api, inboundEvent('journey-cases-evt-3', 'journey-cases-sess-2', { event: 'x' }), 'journey-cases-key-4');
-    unknown.url(); // force evaluation
     const broken = { ...inboundEvent('journey-cases-evt-3', 'journey-cases-sess-2'), connection_id: '01994f64-6c00-7000-8000-0000000000ff' };
     const refused = await postIngress(api, broken, 'journey-cases-key-5');
     expect(refused.status()).toBe(404);

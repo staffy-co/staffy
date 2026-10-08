@@ -165,7 +165,7 @@ func (f *casesFixture) IngestEvent(_ context.Context, command casesAPI.IngestCom
 		}}, nil
 	default:
 		exception := casesDomain.OperationalException{
-			TenantID: f.tenant, ExceptionID: id.MustParse("01994f64-6c00-7000-8000-0000000amb5"),
+			TenantID: f.tenant, ExceptionID: id.MustParse("01994f64-6c00-7000-8000-0000000000b5"),
 			Kind: casesDomain.ExceptionAmbiguousRouting, Summary: outcome.Text,
 			CorrelationID: command.CorrelationID, CreatedAt: now,
 		}

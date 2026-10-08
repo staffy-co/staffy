@@ -112,3 +112,7 @@
 - source_spec: `spec-2-1-channel-event-case.md`
   summary: Signed TTL-ссылки на запечатанный payload (вместо прямой серверной авторизации review/audit) и текстовые коннекторы end-to-end (chat-адаптер для восьми текстовых каналов; словарь и контракт ingress уже готовы — channel_mismatch честно拒绝ывает текстовые события на SIP/telephony).
   evidence: ReadPayload — серверная авторизация review/audit + HMAC-проверка печати; интеграционный тест TestIngestRefusesEveryLadderStep покрывает channel_mismatch; спека откладывает оба пункта явно.
+
+- source_spec: `spec-2-1-channel-event-case.md`
+  summary: Напряжение замороженных клозул по записям отказов верификации источника: Boundaries требует «без скоупа никакого SQL» (скоуп только из верифицированного connection), а матрица требует строку ingress_rejections для unknown_connection — реализация пишет отказ под заявленным (непроверенным) скоупом с ограничениями: тенант заявки обязан существовать (RLS-чит membership-фактов) и фиксированный словарный лимит 100 записей (connection×kind×окно 1ч).
+  evidence: app/service.go recordRejection (trusted=false путь + claimedTenantIsReal + CountRejections); DEVLOG 43-review finding R1-M4; решение владельца (тенант-нейтральная зона / полный запрет записи / подтверждение ограниченного варианта) — к следующей версии спеки.

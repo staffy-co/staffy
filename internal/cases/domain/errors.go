@@ -14,4 +14,9 @@ var (
 	// ErrEventRaced marks the defensive backstop of the material insert
 	// (the advisory lock already serializes the normal path).
 	ErrEventRaced = errors.New("cases: event raced")
+	// ErrIdempotencyKeyConflict marks a delivery reusing an idempotency
+	// key that an accepted event of another provider event id already
+	// holds: the honest outcome is a quarantine with an operational
+	// exception, never an internal error.
+	ErrIdempotencyKeyConflict = errors.New("cases: idempotency key conflict")
 )

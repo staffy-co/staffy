@@ -111,7 +111,7 @@ func TestPerimeterIntegrity(t *testing.T) {
 
 func TestClassDictionaryShape(t *testing.T) {
         if got := len(AllClasses()); got != 20 {
-                t.Fatalf("dictionary size = %d, want 18", got)
+                t.Fatalf("dictionary size = %d, want 20", got)
         }
         // Every class is resolvable and has a title and at least one table.
         for _, class := range AllClasses() {

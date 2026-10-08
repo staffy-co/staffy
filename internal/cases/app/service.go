@@ -65,7 +65,7 @@ func (s *Service) IngestEvent(ctx context.Context, command casesAPI.IngestComman
 	now := command.Now.Truncate(time.Microsecond)
 	envelope, err := casesDomain.ValidateEnvelope(command.Envelope, now)
 	if err != nil {
-		s.recordRejection(ctx, tenancy.Context{}, command, casesDomain.KindMalformed, err.Error(), 0, envelope.ConnectionID)
+		s.recordRejection(ctx, tenancy.Context{}, command, casesDomain.KindMalformed, err.Error(), 0, envelope.ConnectionID, false)
 		return casesAPI.IngestOutcome{Refused: &casesAPI.IngestRefusal{Kind: casesDomain.KindMalformed, Message: err.Error()}}, nil
 	}
 	// The source verification is the only durable thing that may precede
@@ -81,7 +81,7 @@ func (s *Service) IngestEvent(ctx context.Context, command casesAPI.IngestComman
 		// keeps it inside the claimed tenant (the connection was never
 		// found in it).
 		scope, _ := tenancy.New(envelope.ConnectionID, envelope.TenantClaim)
-		s.recordRejection(ctx, scope, command, verification.Kind, verification.Text, 0, envelope.ConnectionID)
+		s.recordRejection(ctx, scope, command, verification.Kind, verification.Text, 0, envelope.ConnectionID, false)
 		return casesAPI.IngestOutcome{Refused: &casesAPI.IngestRefusal{Kind: verification.Kind, Message: verification.Text}}, nil
 	}
 	// The trusted scope: principal slot carries the verified connection —
@@ -94,9 +94,23 @@ func (s *Service) IngestEvent(ctx context.Context, command casesAPI.IngestComman
 	// The replay lookup happens BEFORE the admission ladder: a sender
 	// retry never depends on the changed admission states (entitlement
 	// pause after acceptance does not break the retry).
-	lookup, err := s.repository.LookupEvent(ctx, scope, envelope.Provider, envelope.ProviderEventID, envelope.PayloadDigest)
+	lookup, err := s.repository.LookupEvent(ctx, scope, envelope.Provider, envelope.ProviderEventID, envelope.PayloadDigest, command.IdempotencyKey)
 	if err != nil {
 		return casesAPI.IngestOutcome{}, err
+	}
+	if lookup.KeyConflict {
+		// The idempotency key is already held by an accepted event of
+		// another provider event id: the delivery is quarantined for the
+		// human — never an internal error.
+		event, exception, err := s.quarantine(ctx, scope, command, envelope, now,
+			casesDomain.ExceptionIdempotencyConflict,
+			fmt.Sprintf("Идемпотентный ключ %s уже использован принятым событием %s/%s; доставка карантинится для человека.", command.IdempotencyKey, lookup.KeyOwnerEvent.Provider, lookup.KeyOwnerEvent.ProviderEventID),
+			lookup.KeyOwnerEvent.EventID, lookup.KeyOwnerEvent.CaseID, lookup.KeyOwnerEvent.ConversationID)
+		if err != nil {
+			return casesAPI.IngestOutcome{}, err
+		}
+		return casesAPI.IngestOutcome{Quarantined: &casesAPI.IngestQuarantine{
+			Kind: casesDomain.ExceptionIdempotencyConflict, ExceptionID: exception.ExceptionID, EventID: event.EventID}}, nil
 	}
 	if lookup.Found {
 		if lookup.DigestMatch {
@@ -127,7 +141,7 @@ func (s *Service) IngestEvent(ctx context.Context, command casesAPI.IngestComman
 	case casesDomain.OutcomeAccept:
 		return s.accept(ctx, scope, command, envelope, outcome, now)
 	case casesDomain.OutcomeReject, casesDomain.OutcomeBounded:
-		s.recordRejection(ctx, scope, command, outcome.RefusalKind, outcome.Text, outcome.Counter, envelope.ConnectionID)
+		s.recordRejection(ctx, scope, command, outcome.RefusalKind, outcome.Text, outcome.Counter, envelope.ConnectionID, true)
 		return casesAPI.IngestOutcome{Refused: &casesAPI.IngestRefusal{
 			Kind: outcome.RefusalKind, Message: outcome.Text, Counter: outcome.Counter,
 			Bounded: casesDomain.IsBoundedKind(outcome.RefusalKind)}}, nil
@@ -270,9 +284,11 @@ func (s *Service) accept(ctx context.Context, scope tenancy.Context, command cas
 		ReceivedAt: now, PayloadDigest: envelope.PayloadDigest,
 		IdempotencyKey: command.IdempotencyKey, State: casesDomain.EventStateAccepted,
 	}
-	acceptedPayload, err := encodeAcceptedPayload(event, outcome, caseID)
-	if err != nil {
-		return casesAPI.IngestOutcome{}, err
+	acceptedPayload := casesDomain.AcceptedEventPayload{
+		TenantID: event.TenantID, EventID: event.EventID, ConnectionID: event.ConnectionID,
+		Provider: event.Provider, ProviderEventID: event.ProviderEventID, ProviderSessionID: event.ProviderSessionID,
+		Channel: event.Channel, Modality: event.Modality, Direction: event.Direction,
+		PayloadDigest: event.PayloadDigest,
 	}
 	ackPayload, err := casesDomain.ConnectorAckPayloadJSON(casesDomain.ConnectorAckPayload{
 		TenantID: scope.TenantID(), EventID: eventID, ConnectionID: envelope.ConnectionID,
@@ -296,6 +312,14 @@ func (s *Service) accept(ctx context.Context, scope tenancy.Context, command cas
 		AcceptedPayload: acceptedPayload, AckPayload: ackPayload, Now: now,
 	})
 	if err != nil {
+		// The raced conflicts resolve honestly: the material advisory lock
+		// makes them rare, but a 23505 backstop or an in-lock digest
+		// conflict must become a replay or a quarantine, never an internal
+		// error — the pipeline is re-run once and the pre-ladder lookup
+		// now decides (the second pass cannot race the same way).
+		if errors.Is(err, casesDomain.ErrDigestConflict) || errors.Is(err, casesDomain.ErrIdempotencyKeyConflict) || errors.Is(err, casesDomain.ErrEventRaced) {
+			return s.IngestEvent(ctx, command)
+		}
 		return casesAPI.IngestOutcome{}, err
 	}
 	return casesAPI.IngestOutcome{Accepted: acceptedView(result, result.Replay)}, nil
@@ -336,7 +360,17 @@ func (s *Service) quarantine(ctx context.Context, scope tenancy.Context, command
 // recordRejection commits one honest refusal row (its own transaction, no
 // payload by construction). A storage failure never masks the refusal
 // outcome: the rejection row is the trace, not the gate.
-func (s *Service) recordRejection(ctx context.Context, scope tenancy.Context, command casesAPI.IngestCommand, kind, text string, counter int, connectionID id.UUID) {
+//
+// TRUSTED-scope refusals (the admission ladder after the verified source)
+// are written plainly. UNTRUSTED-scope refusals (the source verification
+// of an unverifiable delivery — the endpoint is a machine contract without
+// a principal) are written only when the CLAIMED tenant is real (the
+// membership facts of the claim are visible under the RLS-scoped read)
+// and the fixed dictionary bound of recorded refusals per (claimed
+// tenant, connection, kind) inside the window is not reached: the
+// unauthenticated surface may never write unboundedly into someone's
+// tenant — a frozen-clause tension documented in deferred-work.
+func (s *Service) recordRejection(ctx context.Context, scope tenancy.Context, command casesAPI.IngestCommand, kind, text string, counter int, connectionID id.UUID, trusted bool) {
 	if s.repository == nil {
 		return
 	}
@@ -361,10 +395,34 @@ func (s *Service) recordRejection(ctx context.Context, scope tenancy.Context, co
 			return
 		}
 	}
+	if !trusted {
+		if !s.claimedTenantIsReal(ctx, scope, connectionID) {
+			return
+		}
+		count, err := s.repository.CountRejections(ctx, scope, connectionID, kind, casesDomain.RejectionBoundWindow, s.clock.Now().UTC())
+		if err != nil || count >= casesDomain.MaxClaimedRejectionsPerKey {
+			return
+		}
+	}
 	_, _ = s.repository.RecordRejection(ctx, casesPort.RejectionParams{
 		Scope: scope, RejectionID: rejectionID, Kind: kind, Message: text,
 		CorrelationID: correlation, ConnectionID: connectionID, Counter: counter, Now: s.clock.Now().UTC(),
 	})
+}
+
+// claimedTenantIsReal resolves the membership facts under the claimed
+// scope: the RLS tenant policy keeps the read inside the claim, and an
+// empty answer means the claimed tenant does not exist (or holds no
+// member) — no durable trace is written for it.
+func (s *Service) claimedTenantIsReal(ctx context.Context, scope tenancy.Context, connectionID id.UUID) bool {
+	if s.members == nil || !scope.Valid() {
+		return false
+	}
+	memberships, err := s.members.MembersFacts(ctx, domain.Principal{ID: connectionID}, scope.TenantID())
+	if err != nil || len(memberships) == 0 {
+		return false
+	}
+	return true
 }
 
 func acceptedView(result casesDomain.IngestResult, replay bool) *casesAPI.IngestResult {
@@ -374,16 +432,6 @@ func acceptedView(result casesDomain.IngestResult, replay bool) *casesAPI.Ingest
 		ResponseOwnerID: result.ResponseOwnerID, EmployeeID: result.EmployeeID,
 		NewCase: result.NewCase, Replay: replay,
 	}
-}
-
-func encodeAcceptedPayload(event casesDomain.ChannelEvent, outcome casesDomain.Outcome, caseID id.UUID) ([]byte, error) {
-	return casesDomain.AcceptedEventPayloadJSON(casesDomain.AcceptedEventPayload{
-		TenantID: event.TenantID, CaseID: caseID, ConversationID: event.ConversationID,
-		EventID: event.EventID, ConnectionID: event.ConnectionID, Provider: event.Provider,
-		ProviderEventID: event.ProviderEventID, ProviderSessionID: event.ProviderSessionID,
-		Channel: event.Channel, Modality: event.Modality, Direction: event.Direction,
-		PayloadDigest: event.PayloadDigest, NewCase: true, Replay: false,
-	})
 }
 
 // ---------------------------------------------------------------------------
@@ -501,7 +549,7 @@ func (s *Service) ReadPayload(ctx context.Context, actor domain.Principal, tenan
 	if !payloadAllowed {
 		return casesAPI.PayloadView{}, domain.ErrForbidden
 	}
-	sealed, err := s.repository.ReadPayload(ctx, scope, eventID)
+	sealed, err := s.repository.ReadPayload(ctx, scope, caseID, eventID)
 	if err != nil {
 		return casesAPI.PayloadView{}, err
 	}

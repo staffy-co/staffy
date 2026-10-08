@@ -46,11 +46,11 @@ type ingressEnvelopeInput struct {
 	Payload           *json.RawMessage `json:"payload"`
 }
 
-// ingressBodyLimit is the hard transport DoS cap: twice the fixed envelope
-// dictionary limit. The admission ladder bounds the honest sizes with
-// counters (envelope_exceeded); the transport only refuses what it cannot
-// safely read.
-const ingressBodyLimit = 2 * 512 * 1024
+// ingressBodyLimit is the hard transport DoS cap: four times the fixed
+// envelope dictionary limit (1 MiB over a 256 KiB bound). The admission
+// ladder bounds the honest sizes with counters (envelope_exceeded); the
+// transport only refuses what it cannot safely read.
+const ingressBodyLimit = 4 * 256 * 1024 // 4 × MaxEnvelopeBytes of the fixed domain dictionary
 
 func (s *Server) ingressChannelEventAPI(w http.ResponseWriter, r *http.Request) {
 	if s.cases == nil {
@@ -89,6 +89,8 @@ func (s *Server) ingressChannelEventAPI(w http.ResponseWriter, r *http.Request) 
 	}
 	outcome, err := s.cases.IngestEvent(r.Context(), command)
 	if err != nil {
+		correlationID, _ := correlationFromRequest(r)
+		s.logger.ErrorContext(r.Context(), "ingress failed", "code", "ingress_failed", "correlation_id", correlationID.String(), "error", err.Error())
 		casesProblem(w, r, s, err)
 		return
 	}
@@ -209,7 +211,9 @@ func jsonInt(value int) string {
 
 // casesProblem maps the service errors of the case surface onto the
 // problem contract: a foreign tenant is a plain 404 (the tenant existence
-// is never disclosed), a member without the scope a 403.
+// is never disclosed), a member without the scope a 403. Internal
+// failures are logged with the correlation id — the honest text never
+// leaks internals, the log carries them for the operator.
 func casesProblem(w http.ResponseWriter, r *http.Request, s *Server, err error) {
 	switch {
 	case errors.Is(err, domain.ErrNotFound), errors.Is(err, casesDomain.ErrNotFound):
@@ -217,6 +221,8 @@ func casesProblem(w http.ResponseWriter, r *http.Request, s *Server, err error) 
 	case errors.Is(err, domain.ErrForbidden):
 		s.problem(w, r, http.StatusForbidden, "cases_forbidden", "Недостаточно полномочий для контура обращений.", false, nil)
 	default:
+		correlationID, _ := correlationFromRequest(r)
+		s.logger.ErrorContext(r.Context(), "cases surface failed", "code", "cases_surface_failed", "correlation_id", correlationID.String(), "error", err.Error())
 		s.problem(w, r, http.StatusInternalServerError, "internal_error", "Не удалось выполнить запрос. Повторите позднее.", true, nil)
 	}
 }

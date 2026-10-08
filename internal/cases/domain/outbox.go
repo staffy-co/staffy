@@ -44,6 +44,12 @@ func PayloadSeal(key, payload []byte) string {
 func CanonicalPayload(raw json.RawMessage) ([]byte, error) {
 	var value any
 	decoder := json.NewDecoder(bytes.NewReader(raw))
+	// UseNumber keeps every number as its exact literal: a canonical
+	// re-render must never lose precision (an integer beyond 2^53 is
+	// material content, not a float approximation) and must never
+	// collapse 1 and 1.0 into one digest — the material identity of the
+	// delivered payload depends on it.
+	decoder.UseNumber()
 	if err := decoder.Decode(&value); err != nil {
 		return nil, fmt.Errorf("payload не является JSON-значением: %w", err)
 	}

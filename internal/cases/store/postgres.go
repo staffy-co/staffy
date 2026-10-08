@@ -83,7 +83,7 @@ func tenantNumberLockKey(kind string, tenantID id.UUID) string {
 // ladder: an accepted event with the same payload digest replays the
 // original result; another digest marks the delivery a digest conflict
 // (the caller quarantines it).
-func (s *Postgres) LookupEvent(ctx context.Context, scope tenancy.Context, provider, providerEventID, payloadDigest string) (casesPort.ReplayLookup, error) {
+func (s *Postgres) LookupEvent(ctx context.Context, scope tenancy.Context, provider, providerEventID, payloadDigest, idempotencyKey string) (casesPort.ReplayLookup, error) {
 	tx, err := s.begin(ctx, scope, true)
 	if err != nil {
 		return casesPort.ReplayLookup{}, err
@@ -92,6 +92,16 @@ func (s *Postgres) LookupEvent(ctx context.Context, scope tenancy.Context, provi
 	lookup, err := lookupEventTx(ctx, tx, scope.TenantID(), provider, providerEventID, payloadDigest)
 	if err != nil {
 		return casesPort.ReplayLookup{}, err
+	}
+	if idempotencyKey != "" {
+		owner, err := scanEvent(tx.QueryRow(ctx, "select "+eventColumns+" from cases.channel_events where tenant_id=$1 and idempotency_key=$2 and state='accepted'", scope.TenantID(), idempotencyKey))
+		if err != nil && !errors.Is(err, casesDomain.ErrNotFound) {
+			return casesPort.ReplayLookup{}, err
+		}
+		if err == nil && owner.ProviderEventID != providerEventID {
+			lookup.KeyConflict = true
+			lookup.KeyOwnerEvent = owner
+		}
 	}
 	return lookup, tx.Commit(ctx)
 }
@@ -237,12 +247,26 @@ func (s *Postgres) AcceptEvent(ctx context.Context, p casesPort.AcceptParams) (c
 		tenantID, p.Event.EventID, p.SealKey, p.Payload, p.Event.PayloadDigest, p.Seal, now); err != nil {
 		return casesDomain.IngestResult{}, err
 	}
+	// The outbox record of the accepted event is marshalled INSIDE the
+	// transaction with the resolved material: the canonical JSON never
+	// carries fabricated identifiers (a pre-encoded payload of a session
+	// continuation would otherwise reference a case that was never
+	// created).
+	acceptedPayload := p.AcceptedPayload
+	acceptedPayload.CaseID = caseID
+	acceptedPayload.ConversationID = conversationID
+	acceptedPayload.NewCase = newCase
+	acceptedPayload.Replay = false
+	acceptedJSON, err := casesDomain.AcceptedEventPayloadJSON(acceptedPayload)
+	if err != nil {
+		return casesDomain.IngestResult{}, err
+	}
 	// The outbox records: the accepted event and the connector-ack.
 	if _, err = tx.Exec(ctx, `
                 insert into cases.outbox_events (tenant_id,event_id,event_type,schema_version,aggregate_id,source_connection_id,correlation_id,occurred_at,payload,dedup_key,created_at)
                 values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
 		tenantID, p.OutboxEventID, casesDomain.OutboxEventAccepted, casesDomain.OutboxEventAcceptedV1,
-		caseID, p.Event.ConnectionID, p.Event.CorrelationID, now, p.AcceptedPayload,
+		caseID, p.Event.ConnectionID, p.Event.CorrelationID, now, acceptedJSON,
 		casesDomain.DedupKeyAccepted(p.Event.EventID), now); err != nil {
 		return casesDomain.IngestResult{}, err
 	}
@@ -357,6 +381,24 @@ func (s *Postgres) CountInflight(ctx context.Context, scope tenancy.Context, con
                 select count(*) from cases.channel_events
                 where tenant_id=$1 and connection_id=$2 and state='accepted' and received_at > $3`,
 		scope.TenantID(), connectionID, now.UTC().Add(-window)).Scan(&count); err != nil {
+		return 0, err
+	}
+	return count, tx.Commit(ctx)
+}
+
+// CountRejections counts the recorded refusals of one connection and kind
+// inside the window — the bound of the pre-verification rejection rows.
+func (s *Postgres) CountRejections(ctx context.Context, scope tenancy.Context, connectionID id.UUID, kind string, window time.Duration, now time.Time) (int, error) {
+	tx, err := s.begin(ctx, scope, true)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	var count int
+	if err = tx.QueryRow(ctx, `
+		select count(*) from cases.ingress_rejections
+		where tenant_id=$1 and connection_id=$2 and kind=$3 and created_at > $4`,
+		scope.TenantID(), connectionID, kind, now.UTC().Add(-window)).Scan(&count); err != nil {
 		return 0, err
 	}
 	return count, tx.Commit(ctx)
@@ -517,7 +559,7 @@ func readCaseTx(ctx context.Context, tx pgx.Tx, tenantID, caseID id.UUID) (cases
 
 // ReadPayload reads the sealed payload of one event and verifies the
 // digest and the HMAC seal at the read boundary.
-func (s *Postgres) ReadPayload(ctx context.Context, scope tenancy.Context, eventID id.UUID) (casesDomain.SealedPayload, error) {
+func (s *Postgres) ReadPayload(ctx context.Context, scope tenancy.Context, caseID, eventID id.UUID) (casesDomain.SealedPayload, error) {
 	tx, err := s.begin(ctx, scope, true)
 	if err != nil {
 		return casesDomain.SealedPayload{}, err
@@ -530,7 +572,7 @@ func (s *Postgres) ReadPayload(ctx context.Context, scope tenancy.Context, event
                 select p.payload, p.seal_key, p.payload_digest, p.seal
                 from cases.channel_event_payloads p
                 join cases.channel_events e on e.tenant_id=p.tenant_id and e.event_id=p.event_id
-                where p.tenant_id=$1 and p.event_id=$2 and e.state='accepted'`, scope.TenantID(), eventID).
+                where p.tenant_id=$1 and p.event_id=$2 and e.state='accepted' and e.case_id=$3`, scope.TenantID(), eventID, caseID).
 		Scan(&payload, &sealKey, &digest, &seal)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return casesDomain.SealedPayload{}, casesDomain.ErrNotFound

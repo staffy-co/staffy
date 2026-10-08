@@ -58,12 +58,19 @@ type IDGenerator interface {
 // Repository
 // ---------------------------------------------------------------------------
 
-// ReplayLookup is the outcome of the pre-admission idempotent lookup.
+// ReplayLookup is the outcome of the pre-admission idempotent lookup: the
+// material identity (provider event id) AND the idempotency key are both
+// resolved — a key held by another accepted event is an honest conflict,
+// never an internal error.
 type ReplayLookup struct {
 	Found         bool
 	DigestMatch   bool
 	Result        casesDomain.IngestResult
 	OriginalEvent casesDomain.ChannelEvent
+	// KeyConflict is set when the delivery's idempotency key is already
+	// held by an accepted event of ANOTHER provider event id.
+	KeyConflict   bool
+	KeyOwnerEvent casesDomain.ChannelEvent
 }
 
 // AcceptParams is the single-transaction admission write: the event, the
@@ -83,7 +90,11 @@ type AcceptParams struct {
 	SessionID       id.UUID
 	OutboxEventID   id.UUID
 	AckEventID      id.UUID
-	AcceptedPayload []byte
+	// AcceptedPayload is the struct form of the accepted-event outbox
+	// record: the store resolves the case material INSIDE the transaction
+	// and marshals the canonical JSON with the true identifiers — the
+	// payload is never pre-encoded with fabricated ones.
+	AcceptedPayload casesDomain.AcceptedEventPayload
 	AckPayload      []byte
 	Now             time.Time
 }
@@ -117,8 +128,9 @@ type RejectionParams struct {
 type Repository interface {
 	// LookupEvent resolves the material idempotency before the admission
 	// ladder: an accepted event with the same digest replays the original
-	// result; another digest marks the delivery a digest conflict.
-	LookupEvent(ctx context.Context, scope tenancy.Context, provider, providerEventID, payloadDigest string) (ReplayLookup, error)
+	// result; another digest marks the delivery a digest conflict; an
+	// idempotency key held by another accepted event marks a key conflict.
+	LookupEvent(ctx context.Context, scope tenancy.Context, provider, providerEventID, payloadDigest, idempotencyKey string) (ReplayLookup, error)
 	// AcceptEvent performs the one-transaction admission: the advisory lock
 	// on the material key, the re-check, the find-or-create of the case
 	// material and the inserts of the event, the sealed payload and the
@@ -132,11 +144,15 @@ type Repository interface {
 	// CountInflight counts the accepted events of the connection inside the
 	// load-envelope window.
 	CountInflight(ctx context.Context, scope tenancy.Context, connectionID id.UUID, window time.Duration, now time.Time) (int, error)
+	// CountRejections counts the recorded refusals of one connection and
+	// kind inside the window — the bound of the pre-verification rejection
+	// rows.
+	CountRejections(ctx context.Context, scope tenancy.Context, connectionID id.UUID, kind string, window time.Duration, now time.Time) (int, error)
 	// ListCases, ReadCase, ReadPayload and ListExceptions are the operator
 	// surface reads.
 	ListCases(ctx context.Context, scope tenancy.Context) ([]casesDomain.CaseSummary, error)
 	ReadCase(ctx context.Context, scope tenancy.Context, caseID id.UUID) (casesDomain.CaseDetail, error)
-	ReadPayload(ctx context.Context, scope tenancy.Context, eventID id.UUID) (casesDomain.SealedPayload, error)
+	ReadPayload(ctx context.Context, scope tenancy.Context, caseID, eventID id.UUID) (casesDomain.SealedPayload, error)
 	ListExceptions(ctx context.Context, scope tenancy.Context) ([]casesDomain.OperationalException, error)
 	// PendingOutbox returns the outbox events without an append-only
 	// delivery outcome (the idempotent drain input).
