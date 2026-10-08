@@ -20,6 +20,7 @@ var migrationDirs = []string{
         "../../../migrations/employee",
         "../../../migrations/connector",
         "../../../migrations/privacy",
+        "../../../migrations/cases",
 }
 
 func migrationTables(t *testing.T) []string {
@@ -109,7 +110,7 @@ func TestPerimeterIntegrity(t *testing.T) {
 }
 
 func TestClassDictionaryShape(t *testing.T) {
-        if got := len(AllClasses()); got != 18 {
+        if got := len(AllClasses()); got != 20 {
                 t.Fatalf("dictionary size = %d, want 18", got)
         }
         // Every class is resolvable and has a title and at least one table.

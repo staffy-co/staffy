@@ -1,0 +1,69 @@
+{{define "case"}}
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Обращение №{{.View.CaseNo}} · Staffy</title><link rel="stylesheet" href="/assets/app.css"></head>
+<body><a class="skip-link" href="#main">К основному содержанию</a><header class="topbar"><a class="brand" href="/app/tenants/{{.TenantID}}">Staffy</a><strong>Обращение №{{.View.CaseNo}}</strong></header>
+<div class="shell"><nav aria-label="Основная навигация"><a href="/app/tenants/{{.TenantID}}">Сегодня</a><a href="/app/tenants/{{.TenantID}}/cases">Обращения</a></nav><main id="main"><section class="panel"><h1>Обращение №{{.View.CaseNo}}</h1>
+<p><strong>{{.View.NoAutoReplyText}}</strong> Исходящие сообщения — последующие stories контура.</p>
+<p class="next-note">Сотрудник: <span class="digest-block">{{.View.EmployeeID}}</span>. Создано: {{.View.CreatedAt}}. Case ID: <span class="digest-block">{{.View.CaseID}}</span>.</p>
+<p class="next-note">Ваши полномочия на этой странице: {{.View.ScopeText}}.</p>
+
+<h2>Диалоги канала</h2>
+<p role="status" aria-live="polite">{{if .View.HasConversations}}Диалогов: <strong>{{len .View.Conversations}}</strong>; каждый — продолжение одной channel session.{{else}}Диалогов нет.{{end}}</p>
+{{if .View.HasConversations}}
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Диалоги обращения">
+<table class="datamap-table">
+<caption>Диалоги: провайдер, внешний идентификатор сессии, первоначальный владелец, epoch, writable surface, состояние</caption>
+<thead><tr><th scope="col">Диалог</th><th scope="col">Провайдер</th><th scope="col">Сессия провайдера</th><th scope="col">Владелец (epoch)</th><th scope="col">Writable surface</th><th scope="col">Состояние</th><th scope="col">Создан</th></tr></thead>
+<tbody>
+{{range .View.Conversations}}<tr><th scope="row">№{{.ConversationNo}}</th><td>{{.Provider}}</td><td><span class="digest-block">{{.ProviderSessionID}}</span></td><td><span class="digest-block">{{.OwnerID}}</span> ({{.OwnerEpoch}})</td><td>{{.WritableSurface}}</td><td>{{.StateText}}</td><td>{{.CreatedAt}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+{{end}}
+
+<h2>Таймлайн событий</h2>
+<p class="next-note">Время провайдера и время приёма сохраняются раздельно: время провайдера не считается временем приёма.</p>
+{{if .View.HasTimeline}}
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Таймлайн событий">
+<table class="datamap-table">
+<caption>События: канал, модальность, направление, провайдер, оба времени, digest payload — семантический порядок по времени приёма</caption>
+<thead><tr><th scope="col">Событие</th><th scope="col">Канал</th><th scope="col">Модальность</th><th scope="col">Направление</th><th scope="col">Время провайдера</th><th scope="col">Время приёма</th><th scope="col">Состояние</th><th scope="col">Digest payload</th></tr></thead>
+<tbody>
+{{range .View.Timeline}}<tr><th scope="row"><span class="digest-block">{{.EventID}}</span></th><td>{{.Channel}}</td><td>{{.Modality}}</td><td>{{.Direction}}</td><td>{{.ProviderTimestamp}}</td><td>{{.ReceivedAt}}</td><td>{{.StateText}}</td><td><span class="digest-block">{{.PayloadDigest}}</span></td></tr>{{end}}
+</tbody>
+</table>
+</div>
+{{else}}
+<p role="status">Событий нет.</p>
+{{end}}
+
+<h2>Рабочие элементы</h2>
+{{if .View.HasWorkItems}}
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Рабочие элементы">
+<table class="datamap-table">
+<caption>Рабочие элементы обращения: классификация появится в story 2-2</caption>
+<thead><tr><th scope="col">Элемент</th><th scope="col">Состояние</th><th scope="col">Создан</th></tr></thead>
+<tbody>
+{{range .View.WorkItems}}<tr><th scope="row"><span class="digest-block">{{.WorkItemID}}</span></th><td>{{.StateText}}</td><td>{{.CreatedAt}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+{{else}}
+<p role="status">Рабочих элементов нет.</p>
+{{end}}
+<p class="next-note"><strong>{{.View.UntriagedText}}</strong> Классификация запроса — story 2-2; сейчас элемент фиксирует факт обращения без категории.</p>
+<p class="next-note">Доступ к payload: только полномочия review или audit; защищённая ссылка (digest + HMAC-печать) проверяется при чтении.{{if not .View.CanViewPayload}} У вас доступа к payload нет.{{end}}</p>
+
+{{if .View.HasExceptions}}
+<h2>Операционные исключения этого обращения</h2>
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Операционные исключения обращения">
+<table class="datamap-table">
+<caption>Исключения: вид, описание, correlation ID, время</caption>
+<thead><tr><th scope="col">Вид</th><th scope="col">Описание</th><th scope="col">Correlation ID</th><th scope="col">Время</th></tr></thead>
+<tbody>
+{{range .View.Exceptions}}<tr><th scope="row">{{.KindText}}</th><td>{{.Summary}}</td><td><span class="digest-block">{{.CorrelationID}}</span></td><td>{{.CreatedAt}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+{{end}}
+</section></main></div></body></html>
+{{end}}

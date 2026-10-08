@@ -1,0 +1,41 @@
+{{define "cases"}}
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Обращения · Staffy</title><link rel="stylesheet" href="/assets/app.css"></head>
+<body><a class="skip-link" href="#main">К основному содержанию</a><header class="topbar"><a class="brand" href="/app/tenants/{{.TenantID}}">Staffy</a><strong>Обращения</strong></header>
+<div class="shell"><nav aria-label="Основная навигация"><a href="/app/tenants/{{.TenantID}}">Сегодня</a><a href="/app/tenants/{{.TenantID}}/employees">Сотрудники</a><a href="/app/tenants/{{.TenantID}}/people">Люди</a><a href="/app/tenants/{{.TenantID}}/integrations">Интеграции</a></nav><main id="main"><section class="panel"><h1>Обращения</h1>
+<p>Единый контур обращений: каждое входящее событие канала создаёт или продолжает один Case; автоответ клиенту не отправляется.</p>
+<p class="next-note">Ваши полномочия на этой странице: {{.View.ScopeText}}.</p>
+{{if .View.ForbiddenText}}<p class="alert" role="alert">{{.View.ForbiddenText}}</p>{{end}}
+
+<h2>Список обращений</h2>
+<p role="status" aria-live="polite">{{if .View.HasCases}}Всего обращений: <strong>{{len .View.Cases}}</strong>.{{else}}Обращений пока нет: ни одного входящего события не принято.{{end}}</p>
+{{if .View.HasCases}}
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Список обращений">
+<table class="datamap-table">
+<caption>Обращения: номер, сотрудник, владелец, диалоги, события, время последнего события — состояние текстом, не только цветом</caption>
+<thead><tr><th scope="col">Обращение</th><th scope="col">Состояние</th><th scope="col">Сотрудник</th><th scope="col">Владелец</th><th scope="col">Диалоги</th><th scope="col">События</th><th scope="col">Последнее событие</th></tr></thead>
+<tbody>
+{{range .View.Cases}}<tr><th scope="row"><a href="/app/tenants/{{$.TenantID}}/cases/{{.CaseID}}">№{{.CaseNo}}</a></th><td>{{.StateText}}</td><td><span class="digest-block">{{.EmployeeID}}</span></td><td><span class="digest-block">{{.OwnerID}}</span></td><td>{{.Conversations}}</td><td>{{.Events}}</td><td>{{.LastEventAt}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+{{else}}
+<p class="next-note">Кейс создаётся первым принятым inbound-событием допущенного маршрута (действующее решение 1-14 + допустимый владелец).</p>
+{{end}}
+
+<h2>Операционные исключения</h2>
+<p class="next-note">Карантин доставок и неоднозначности требуют решения человека; correlation ID связывает запись с доставкой.</p>
+{{if .View.HasExceptions}}
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Операционные исключения">
+<table class="datamap-table">
+<caption>Исключения: вид, описание, correlation ID, время — каждая запись append-only</caption>
+<thead><tr><th scope="col">Вид</th><th scope="col">Описание</th><th scope="col">Correlation ID</th><th scope="col">Время</th></tr></thead>
+<tbody>
+{{range .View.Exceptions}}<tr><th scope="row">{{.KindText}}</th><td>{{.Summary}}</td><td><span class="digest-block">{{.CorrelationID}}</span></td><td>{{.CreatedAt}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+{{else}}
+<p role="status">Операционных исключений нет.</p>
+{{end}}
+</section></main></div></body></html>
+{{end}}

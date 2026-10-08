@@ -500,6 +500,7 @@ func (s *Service) ConnectionsFacts(ctx context.Context, scope tenancy.Context) (
 		reports := connectorDomain.DeriveCapabilityStates(def, connection, evidence, s.verifier.Build(), s.clock.Now().UTC())
 		facts = append(facts, api.ConnectionFacts{
 			ConnectionID: connection.ConnectionID, ConnectorID: connection.ConnectorID,
+			ConnectorType:   string(def.Type),
 			ContractVersion: connection.ConnectorVer, AdapterBuild: s.verifier.Build(),
 			Environment: string(connection.Environment), Status: connection.Status, Capabilities: reports,
 		})
@@ -619,4 +620,37 @@ func sortedKeys(m map[string]string) []string {
                 }
         }
         return keys
+}
+
+// ConnectionFactsByID returns the derived capability state of one
+// connection as the safe cross-module projection (the single-connection
+// variant of ConnectionsFacts for the ingress ladder of Story 2-1). This
+// is a caller-authority facts read: the consumer has already verified its
+// own scope (the verified connection metadata of the ingress, or the
+// acting member of a surface); RLS still isolates the tenant, and only
+// identifiers, versions, states and evidence cross the boundary — never
+// secrets, hints or config values.
+func (s *Service) ConnectionFactsByID(ctx context.Context, scope tenancy.Context, connectionID id.UUID) (api.ConnectionFacts, error) {
+	if !scope.Valid() || !connectionID.Valid() {
+		return api.ConnectionFacts{}, connectorDomain.ErrNotFound
+	}
+	connection, err := s.repository.Read(ctx, scope, connectionID)
+	if err != nil {
+		return api.ConnectionFacts{}, err
+	}
+	def, ok := catalog.Get(connection.ConnectorID, connection.ConnectorVer)
+	if !ok {
+		return api.ConnectionFacts{}, connectorDomain.ErrInvalid
+	}
+	evidence, err := s.repository.ListEvidence(ctx, scope, connection.ConnectionID)
+	if err != nil {
+		return api.ConnectionFacts{}, err
+	}
+	reports := connectorDomain.DeriveCapabilityStates(def, connection, evidence, s.verifier.Build(), s.clock.Now().UTC())
+	return api.ConnectionFacts{
+		ConnectionID: connection.ConnectionID, ConnectorID: connection.ConnectorID,
+		ConnectorType:   string(def.Type),
+		ContractVersion: connection.ConnectorVer, AdapterBuild: s.verifier.Build(),
+		Environment: string(connection.Environment), Status: connection.Status, Capabilities: reports,
+	}, nil
 }

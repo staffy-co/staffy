@@ -572,11 +572,35 @@ func (f *connectorFixture) ConnectionsFacts(_ context.Context, _ tenancy.Context
 		}
 		facts = append(facts, connectorAPI.ConnectionFacts{
 			ConnectionID: current.ConnectionID, ConnectorID: current.ConnectorID,
+			ConnectorType:   string(def.Type),
 			ContractVersion: current.ConnectorVer, AdapterBuild: result.AdapterBuild,
 			Environment: string(current.Environment), Status: current.Status, Capabilities: result.Capabilities,
 		})
 	}
 	return facts, nil
+}
+
+// ConnectionFactsByID is the single-connection caller-authority projection
+// for the ingress verifier and the cases ladder (Story 2-1): the real
+// catalog and the real derivation, never secrets.
+func (f *connectorFixture) ConnectionFactsByID(_ context.Context, _ tenancy.Context, connectionID id.UUID) (connectorAPI.ConnectionFacts, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	current, ok := f.connections[connectionID]
+	if !ok {
+		return connectorAPI.ConnectionFacts{}, connectorDomain.ErrNotFound
+	}
+	def, _ := connectorCatalog.Get(current.ConnectorID, current.ConnectorVer)
+	result, err := f.capabilityStateLocked(current, def)
+	if err != nil {
+		return connectorAPI.ConnectionFacts{}, err
+	}
+	return connectorAPI.ConnectionFacts{
+		ConnectionID: current.ConnectionID, ConnectorID: current.ConnectorID,
+		ConnectorType:   string(def.Type),
+		ContractVersion: current.ConnectorVer, AdapterBuild: result.AdapterBuild,
+		Environment: string(current.Environment), Status: current.Status, Capabilities: result.Capabilities,
+	}, nil
 }
 
 func (f *connectorFixture) CapabilityState(_ context.Context, _ domain.Principal, tenant, connectionID id.UUID) (connectorAPI.CapabilityStateResult, error) {
@@ -852,6 +876,7 @@ func main() {
         server.BindRelease(release)
         server.BindProfile(profile)
         server.BindReadiness(newReadinessFixture(profile, release, entitlement))
+        server.BindCases(newCasesFixture())
         // The fixture-only step-up toggle wraps the transport: production never
         // exposes it; the journey uses it to walk both step-up outcomes.
         root := http.NewServeMux()

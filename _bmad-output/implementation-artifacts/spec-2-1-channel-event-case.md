@@ -2,8 +2,9 @@
 title: 'Story 2.1 — Приём Channel Event и создание единого Case (первый срез)'
 type: 'feature'
 created: '2026-10-08'
-status: 'ready-for-dev'
+status: 'review'
 route: 'dispatch'
+review_loop_iteration: 0
 baseline_commit: '28b5d6f4cde9f677928c9da1e0d5248d44b04985'
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-1-context.md'
@@ -63,11 +64,11 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `internal/cases/domain` — модель события, словари, лестница адмиссии, идемпотентная семантика, модели Case/Conversation/Work Item; юнит-тесты.
-- [ ] `migrations/cases/00001_channel_event_case.sql` — таблицы, RLS, гранты, UNIQUE, CHECK.
-- [ ] `internal/cases/{port,app,store,api}` + расширения `employee/api` (RouteFacts) и `connector/api` (ConnectionFactsByID) + `internal/adapters/ingresssyn` + монтаж.
-- [ ] `internal/transport/http` + OpenAPI + шаблоны Cases/Case + privacy-классы + architecture-забор.
-- [ ] `tests/integration/cases_test.go`, unit-набор, `tests/journeys/` — все строки матрицы, гонки, доступность.
+- [x] `internal/cases/domain` — модель события, словари, лестница адмиссии, идемпотентная семантика, модели Case/Conversation/Work Item; юнит-тесты.
+- [x] `migrations/cases/00001_channel_event_case.sql` — таблицы, RLS, гранты, UNIQUE, CHECK.
+- [x] `internal/cases/{port,app,store,api}` + расширения `employee/api` (RouteFacts) и `connector/api` (ConnectionFactsByID) + `internal/adapters/ingresssyn` + монтаж.
+- [x] `internal/transport/http` + OpenAPI + шаблоны Cases/Case + privacy-классы + architecture-забор.
+- [x] `tests/integration/cases_test.go`, unit-набор, `tests/journeys/` — все строки матрицы, гонки, доступность.
 
 **Acceptance Criteria:**
 - Given поддерживаемый connection получает входящее событие, when ingress подтверждает источник, Tenant, Connection и допустимость, then событие преобразуется в канонический Channel Event с полным набором полей и защищённой ссылкой на payload; provider DTO не становится доменной моделью.
@@ -100,6 +101,7 @@ context:
 ## Spec Change Log
 
 - 2026-10-08, review loop 0: создана спека первого среза Story 2.1 (SM) по делегированному решению владельца (CHECKPOINT 2 закрытия Epic 1: «выбор доверяю вашей экспертости»; решение SM — запуск Epic 2, story 2-1). Статус `backlog` до CHECKPOINT 1 — одобрения владельцем; после одобрения спека и sprint-status.yaml одновременно переходят в `ready-for-dev`, epic-2 → `in-progress` (первая story эпика стартует).
+- 2026-10-09, review loop 0 (dev): первый срез реализован полностью — домен cases (лестница/словари/идемпотентность), миграция 00001, port/app/store/api, фасады RouteFacts (employee) и ConnectionFactsByID (connector), ретрансляция AdmissionFacts (entitlement, скоуп-основанная), ingresssyn-верификатор, транспорт+OpenAPI+Cases/Case UI, privacy-классы 18→20, architecture-заборы cases/store + DAG; полный регресс зелёный (build/vet/unit 22/интеграция ×2 TZ/journeys 18/18/контракт/diff); спека → review.
 - 2026-10-09, CHECKPOINT 1: спека одобрена владельцем без правок («одобряю», чат 2026-10-09). Замороженные секции (Intent / Boundaries & Constraints / I/O & Edge-Case Matrix) не изменялись. Спека и sprint-status.yaml одновременно переведены в `ready-for-dev`; epic-2 → `in-progress` (первая story эпика стартует); далее — Dev (step-03). Push коммита отложен до появления STAFFY_GH_TOKEN сессии (батч-пуш прецедента 1-13/1-14).
 
 ## Design Notes

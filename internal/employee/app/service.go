@@ -24,6 +24,7 @@ type Service struct {
 	testTTS    port.TestTTS
 	connectors port.ConnectorFacts
 	entitlement EntitlementFactsSource
+	entitlementFacts EntitlementAdmissionFacts
 }
 
 func New(repository port.Repository, identity identityAPI.MembershipService, clock api.Clock, ids api.IDGenerator) *Service {

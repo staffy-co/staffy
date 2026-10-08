@@ -59,7 +59,7 @@ func TestMain(m *testing.M) {
                 panic(err)
         }
         if os.Getenv("STAFFY_TEST_DATABASE_URL") != "" {
-                if _, err = adminPool.Exec(ctx, "drop schema if exists employee cascade; drop schema if exists identity cascade; drop schema if exists connector cascade; drop schema if exists privacy cascade; drop schema if exists entitlement cascade; drop role if exists staffy_app"); err != nil {
+                if _, err = adminPool.Exec(ctx, "drop schema if exists employee cascade; drop schema if exists identity cascade; drop schema if exists connector cascade; drop schema if exists privacy cascade; drop schema if exists entitlement cascade; drop schema if exists cases cascade; drop role if exists staffy_app"); err != nil {
                         panic(err)
                 }
         }
@@ -201,6 +201,13 @@ func TestMain(m *testing.M) {
                 panic(err)
         }
         if _, err = adminPool.Exec(ctx, strings.Split(string(readinessMigration), "-- +goose Down")[0]); err != nil {
+                panic(err)
+        }
+        casesMigration, err := os.ReadFile("../../migrations/cases/00001_channel_event_case.sql")
+        if err != nil {
+                panic(err)
+        }
+        if _, err = adminPool.Exec(ctx, strings.Split(string(casesMigration), "-- +goose Down")[0]); err != nil {
                 panic(err)
         }
         if _, err = adminPool.Exec(ctx, "alter role staffy_app login password 'staffy-runtime-test'"); err != nil {

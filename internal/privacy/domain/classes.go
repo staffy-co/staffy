@@ -28,6 +28,8 @@ const (
 	ClassIdempotencyRecords     ArtifactClass = "idempotency-records"
 	ClassAuditTrail             ArtifactClass = "audit-trail"
 	ClassOutboxEvents           ArtifactClass = "outbox-events"
+	ClassCaseOperations         ArtifactClass = "case-operations"
+	ClassCaseContent            ArtifactClass = "case-content"
 )
 
 // Executor names the owning module that executes local deletion for a class.
@@ -81,9 +83,9 @@ var OffboardingBlock = ManagedBlock{
 // ClassSpec describes one class of the dictionary: its title, the physical
 // tables it claims and its deletion execution profile for this slice.
 type ClassSpec struct {
-	ID      ArtifactClass
-	Title   string
-	Tables  []string
+	ID     ArtifactClass
+	Title  string
+	Tables []string
 	// Executor is the owning-module port that may delete local copies.
 	// Empty string means there is no local executor in this slice.
 	Executor string
@@ -114,7 +116,9 @@ var classRegistry = []ClassSpec{
 	{ID: ClassCapabilityEvidence, Title: "Доказательства capabilities", Tables: []string{"connector.capability_evidence"}, Block: &ImmutableEvidenceBlock},
 	{ID: ClassIdempotencyRecords, Title: "Идемпотентные записи команд", Tables: []string{"identity.idempotency_records", "employee.idempotency_records", "connector.idempotency_records"}},
 	{ID: ClassAuditTrail, Title: "Журналы аудита", Tables: []string{"identity.membership_audit", "employee.audit", "employee.knowledge_audit", "connector.audit"}, AuditMinTerm: true},
-	{ID: ClassOutboxEvents, Title: "События outbox", Tables: []string{"identity.outbox_events", "employee.outbox_events", "employee.knowledge_outbox", "connector.outbox_events"}},
+	{ID: ClassOutboxEvents, Title: "События outbox", Tables: []string{"identity.outbox_events", "employee.outbox_events", "employee.knowledge_outbox", "connector.outbox_events", "cases.outbox_events"}},
+	{ID: ClassCaseOperations, Title: "Кейсы, события и метаданные обращений", Tables: []string{"cases.cases", "cases.conversations", "cases.work_items", "cases.channel_events", "cases.pre_case_sessions", "cases.ingress_rejections", "cases.operational_exceptions", "cases.outbox_deliveries"}},
+	{ID: ClassCaseContent, Title: "Запечатанные payload событий обращений", Tables: []string{"cases.channel_event_payloads"}},
 }
 
 var classIndex = func() map[ArtifactClass]ClassSpec {
