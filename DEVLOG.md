@@ -722,3 +722,22 @@ decisions:
 - Элементная конъюнкция controlled+ (N4) — защита реализации по AC-5; два прочтения спеки вынесены в deferred-work для решения владельца
 next: CHECKPOINT 2 владельцу — токен STAFFY_GH_TOKEN → push ветки (5 коммитов) → PR через GitHub API → CI (verify: unit+integration+journeys) → merge (merge_method=merge, прецедент PR #13/#14) → DEVLOG 41-merge + epic-1 → complete → Epic 1 закрыт (14/14)
 commit: 5b83c8e
+
+---
+date: 2026-10-08
+task: 41-merge
+role: main (Super Z)
+story: 1-14
+summary: Story 1-14 влита в main — PR #15, merge-коммит 2d8e3e7; CI зелёный тремя полными verify-прогонами (push/PR/main); sprint-status epic-1 → done; Epic 1 полностью закрыт — 14/14 stories + retrospective
+done:
+- Токен выдан владельцем в чате (CHECKPOINT 2); smoke-регресс перед push: build, vet, unit, интеграция UTC + TZ=Europe/Moscow — зелёные
+- Push ветки одним батчем (прецедент 1-13): c7c2d33..4ab2a5b — 5 коммитов (4efd497 CHECKPOINT 1 [skip ci], 8ecc671 feat, 843044a fix R1, 382731a fix R2, 4ab2a5b docs → done); origin синхронен, 0 незапушенных
+- PR #15 создан через GitHub API (внешний скрипт create_pr_1_14.sh, токен только из env STAFFY_GH_TOKEN — на диск не попадает): https://github.com/artemiosu/staffy/pull/15
+- CI: три полных verify-прогона (job verify, 14 шагов, 0 skipped), все success — push-run 37818852689 (2m16s), pull_request-run 37818914511 (2m42s), main-run 37819366411 (4m40s, head 2d8e3e7)
+- Merge через API (merge_method=merge — прецедент PR #13/#14): merge-коммит 2d8e3e7; локальный main синхронизирован ff-only; дерево чистое и синхронно с origin
+- sprint-status.yaml: epic-1 in-progress → done (14/14 stories done, epic-1-retrospective done); статусы спек синхронны (check-continuity OK)
+decisions:
+- Канон-факт (прецедент 1-13 bde18c3/b2c43b5): DEVLOG 40-close ссылается на пре-amend хеш 5b83c8e; фактический хеш docs-коммита закрытия — 4ab2a5b (amend выполнен до первого push ветки, публичная история не переписывалась; объект 5b83c8e существует в локальном клоне)
+- Урок токена подтверждён второй раз: git pull без inline export STAFFY_GH_TOKEN в той же команде падает «Invalid username or token» (env не переживает границы вызовов инструментов); протокол не изменён — export и git-операция к remote только в одной команде
+next: Epic 1 закрыт полностью (14/14). Владельцу — выбор следующего шага: запуск Epic 2 «Case-контур» (16 stories, backlog; входы из 1-14 готовы: admission_state, route states, applicability, gate-инстансы) или фиксация паузы после закрытия эпика
+commit: 2d8e3e7
