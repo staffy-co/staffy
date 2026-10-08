@@ -761,3 +761,16 @@ decisions:
 - Доказанная связь обращений в срезе — только продолжение channel session (provider session ID → существующая Conversation); merge-логики нет как класса (имя/номер/модель — никогда, 2.3 свяжет каналы человеком)
 next: CHECKPOINT 1 владельцу — «одобряю» → спека и sprint-status синхронно → ready-for-dev, epic-2 → in-progress → Dev (step-03: bootstrap в foreground перед Dev обязателен; реализация среза по спеке: домен cases, миграция 00001, port/app/store/api, расширения employee/connector факт-портов, ingresssyn-адаптер, transport+OpenAPI+Cases UI, privacy-классы, тесты unit/integration/journey/wire)
 commit: 618889d
+
+---
+date: 2026-10-09
+task: 43-checkpoint
+role: main (Super Z)
+story: 2-1
+summary: CHECKPOINT 1 — владелец одобрил спеку 2-1 («одобряю», чат 2026-10-09); спека и sprint-status.yaml синхронно переведены в ready-for-dev; epic-2 → in-progress (первая story эпика стартует); push отложен до STAFFY_GH_TOKEN
+done:
+- spec-2-1-channel-event-case.md: status backlog → ready-for-dev; Spec Change Log дополнен записью об одобрении (frozen-часть Intent/Boundaries/Edge-Case Matrix без изменений)
+- sprint-status.yaml: 2-1 → ready-for-dev (синхронность check-continuity); epic-2 → in-progress; last_updated 10-09-2026
+- Токен сессии не переживает границы вызовов инструментов (урок 41-merge подтверждён повторно); коммит локальный [skip ci], push отложен — весь пакет ветки (checkpoint + dev + review-фиксы) будет запушен одним батчем после выдачи токена владельцем (прецедент 1-13/1-14)
+next: Dev step-03 — bootstrap в foreground, затем реализация среза по спеке: домен cases (модель события, словари, лестница адмиссии, идемпотентная семантика), миграция 00001, port/app/store/api, расширения employee/api (RouteFacts) и connector/api (ConnectionFactsByID), ingresssyn-адаптер, transport+OpenAPI+Cases UI, privacy-классы, тесты (unit/integration/journey/wire), полный регресс
+commit: TBD

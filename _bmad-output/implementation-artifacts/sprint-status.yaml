@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-16-2026 16:47
-last_updated: 10-08-2026
+last_updated: 10-09-2026
 project: staffy
 project_key: NOKEY
 tracking_system: file-system
@@ -52,8 +52,8 @@ development_status:
   1-14-readiness-проверка-и-контролируемая-публикация: done
   epic-1-retrospective: done
 
-  epic-2: backlog
-  2-1-приём-channel-event-и-создание-единого-case: backlog
+  epic-2: in-progress
+  2-1-приём-channel-event-и-создание-единого-case: ready-for-dev
   2-2-work-items-факты-и-provenance-внутри-case: backlog
   2-3-проверка-личности-и-безопасное-связывание-каналов: backlog
   2-4-единственный-response-owner-и-записывающий-inbox: backlog

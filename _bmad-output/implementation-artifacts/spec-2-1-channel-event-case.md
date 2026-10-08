@@ -2,7 +2,7 @@
 title: 'Story 2.1 — Приём Channel Event и создание единого Case (первый срез)'
 type: 'feature'
 created: '2026-10-08'
-status: 'backlog'
+status: 'ready-for-dev'
 route: 'dispatch'
 baseline_commit: '28b5d6f4cde9f677928c9da1e0d5248d44b04985'
 context:
@@ -100,6 +100,7 @@ context:
 ## Spec Change Log
 
 - 2026-10-08, review loop 0: создана спека первого среза Story 2.1 (SM) по делегированному решению владельца (CHECKPOINT 2 закрытия Epic 1: «выбор доверяю вашей экспертости»; решение SM — запуск Epic 2, story 2-1). Статус `backlog` до CHECKPOINT 1 — одобрения владельцем; после одобрения спека и sprint-status.yaml одновременно переходят в `ready-for-dev`, epic-2 → `in-progress` (первая story эпика стартует).
+- 2026-10-09, CHECKPOINT 1: спека одобрена владельцем без правок («одобряю», чат 2026-10-09). Замороженные секции (Intent / Boundaries & Constraints / I/O & Edge-Case Matrix) не изменялись. Спека и sprint-status.yaml одновременно переведены в `ready-for-dev`; epic-2 → `in-progress` (первая story эпика стартует); далее — Dev (step-03). Push коммита отложен до появления STAFFY_GH_TOKEN сессии (батч-пуш прецедента 1-13/1-14).
 
 ## Design Notes
 
