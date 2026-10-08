@@ -2,7 +2,7 @@
 title: 'Story 1.14 — Readiness-проверка и контролируемая публикация (первый срез)'
 type: 'feature'
 created: '2026-10-08'
-status: 'backlog'
+status: 'ready-for-dev'
 route: 'dispatch'
 review_loop_iteration: 0
 baseline_commit: '208c44f1eef4203e6a4e465753694d966a7e1f95'
@@ -101,6 +101,7 @@ context:
 ## Spec Change Log
 
 - 2026-10-08, review loop 0: создана спека первого среза Story 1.14 (SM) по решению владельца (CHECKPOINT 2 story 1-13: «1-14» — исполнение варианта А ретроспективы Epic 1). Статус `backlog` до CHECKPOINT 1 — одобрения владельцем; после одобрения спека и sprint-status.yaml одновременно переходят в `ready-for-dev` (условие синхронности check-continuity).
+- 2026-10-08, CHECKPOINT 1: спека одобрена владельцем без правок («одобряю», чат 2026-10-08). Замороженные секции (Intent / Boundaries & Constraints / I/O & Edge-Case Matrix) не изменялись. Спека и sprint-status.yaml одновременно переведены в `ready-for-dev`; далее — Dev (step-03). Push коммита отложен до появления STAFFY_GH_TOKEN сессии (батч-пуш прецедента 1-13).
 
 ## Design Notes
 

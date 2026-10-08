@@ -630,3 +630,16 @@ decisions:
 - Элемент eval = eval-ссылки coverage matrix 1-13, состояние linked-not-executed (прогонов нет — Epic 6): честная блокировка controlled+ до eval-поверхностей
 next: CHECKPOINT 1 владельцу — «одобряю» → спека и sprint-status синхронно → ready-for-dev → Dev (step-03; bootstrap перед Dev обязателен — окружение сброшено, фоновый запуск погиб на распаковке PG, запуск в foreground)
 commit: 633055a
+
+---
+date: 2026-10-08
+task: 36-checkpoint
+role: main (Super Z)
+story: 1-14
+summary: CHECKPOINT 1 — владелец одобрил спеку 1-14 («одобряю», чат 2026-10-08); спека и sprint-status.yaml синхронно переведены в ready-for-dev; Dev step-03 начат; push отложен до STAFFY_GH_TOKEN
+done:
+- spec-1-14-readiness-publication.md: status backlog → ready-for-dev; Spec Change Log дополнен записью об одобрении (frozen-часть без изменений)
+- sprint-status.yaml: 1-14-readiness-проверка-и-контролируемая-публикация → ready-for-dev (синхронность check-continuity соблюдена)
+- Токен сессии утрачен вместе с env (не переживает границы вызовов инструментов, урок Task 16); коммит локальный [skip ci], push отложен — весь пакет ветки (checkpoint + dev + review-фиксы) будет запушен одним батчем после выдачи токена владельцем (прецедент 1-13: bd5b866..b2c43b5)
+next: Dev step-03 — bootstrap в foreground (Go 1.27.1 установлен, PG распаковать из third_party), затем реализация среза по спеке: домен readiness/gates/publication, миграция 00012, port/app/store/api, transport+OpenAPI+панель, тесты (unit/integration/journey/wire), полный регресс
+commit: TBD
