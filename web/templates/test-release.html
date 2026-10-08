@@ -1,0 +1,159 @@
+{{define "test-release"}}
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Test &amp; Release · Staffy</title><link rel="stylesheet" href="/assets/app.css"></head>
+<body><a class="skip-link" href="#main">К основному содержанию</a><header class="topbar"><a class="brand" href="/app/tenants/{{.TenantID}}">Staffy</a><strong>Сотрудник → Test &amp; Release</strong></header>
+<div class="shell"><nav aria-label="Основная навигация"><a href="/app/tenants/{{.TenantID}}">Сегодня</a><a href="/app/tenants/{{.TenantID}}/employees">Сотрудники</a><a href="/app/tenants/{{.TenantID}}/employees/{{.EmployeeID}}">Brief</a><a href="/app/tenants/{{.TenantID}}/employees/{{.EmployeeID}}/release">Релиз</a><a href="/app/tenants/{{.TenantID}}/employees/{{.EmployeeID}}/operating-profile">Профиль</a></nav><main id="main"><section class="panel"><h1>Test &amp; Release Panel</h1>
+<p>Readiness-проверка релиз-кандидата и контролируемая публикация: состояние всех обязательных элементов, маршруты с блокировками, gate-инстансы платформы и append-only решения о допуске. Панель никогда не направляет трафик и не привязывает Conversations — enforcement остаётся за Epic 2.</p>
+<p class="next-note">Ваши полномочия на этой странице: {{.View.ScopeText}}.</p>
+<p class="next-note">Профиль: <strong>{{.View.ApplicabilityText}}</strong>. {{.View.ApplicabilityReason}}</p>
+{{if .Error}}<p class="alert" role="alert">{{.Error}}</p>{{end}}{{if .Notice}}<p class="status" role="status" tabindex="-1" id="page-notice">{{.Notice}}</p><script>addEventListener('DOMContentLoaded', () => document.getElementById('page-notice').focus());</script>{{end}}
+
+<h2>Предпросмотр стадии (dry-run, записи не создаёт)</h2>
+<form method="get" action="/app/tenants/{{.TenantID}}/employees/{{.EmployeeID}}/test-release" class="knowledge-form">
+<fieldset>
+<legend>Выберите стадию — деривация предпросматривается до подтверждения</legend>
+{{range .View.StageChoices}}
+<label><input type="radio" name="stage" value="{{.Stage}}"{{if .Selected}} checked{{end}}> {{.StageText}}</label>
+{{end}}
+</fieldset>
+<button type="submit">Предпросмотреть стадию</button>
+</form>
+<p role="status" aria-live="polite">Общий статус для стадии <strong>{{.View.StageText}}</strong>: <strong>{{.View.StatusStateText}}</strong>. {{.View.StatusText}}</p>
+
+<h2>Обязательные элементы (источник факта указан для каждого)</h2>
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Обязательные элементы">
+<table class="datamap-table">
+<caption>Чек-лист элементов: состояние текстом, не только цветом; источник факта честно назван</caption>
+<thead><tr><th scope="col">Элемент</th><th scope="col">Состояние</th><th scope="col">Причина</th><th scope="col">Источник</th></tr></thead>
+<tbody>
+{{range .View.Elements}}<tr><th scope="row">{{.Title}}</th><td>{{.StateText}}</td><td>{{.Reason}}</td><td>{{.Source}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+
+<h2>Маршруты: допуск per-route с блокировками</h2>
+<p class="next-note">Разрешение одного маршрута не расширяет остальные: решения per-route, прав расширения нет.</p>
+{{if .View.Routes}}
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Допуск маршрутов">
+<table class="datamap-table">
+<caption>Маршрут × стадия: допущен или заблокирован; каждая блокировка несёт причину, владельца, требуемое доказательство и следующий шаг</caption>
+<thead><tr><th scope="col">Маршрут</th><th scope="col">Modality</th><th scope="col">Autonomy Class</th><th scope="col">Состояние</th><th scope="col">Блокировки</th></tr></thead>
+<tbody>
+{{range .View.Routes}}<tr><th scope="row">{{.Route}}</th><td>{{.Modality}}</td><td>{{if .AutonomyClasses}}{{.AutonomyClasses}}{{else}}—{{end}}</td><td>{{.StateText}}</td><td>{{if .Blocks}}<ul class="form-error">{{range .Blocks}}<li><span class="digest-block">{{.Cause}}</span>: {{.Reason}}<br>Владелец разблокирования: {{.UnlockOwner}}. Требуемое доказательство: {{.RequiredEvidence}}. Следующий шаг: {{.NextStep}}.</li>{{end}}</ul>{{else}}—{{end}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+{{else}}<p role="status">Разрешённых маршрутов в профиле нет.</p>{{end}}
+
+{{if .View.Active}}
+<h2>Действующее решение (активный указатель)</h2>
+<dl>
+<dt>Решение №{{.View.Active.DecisionNo}} · стадия {{.View.Active.StageText}}</dt><dd class="digest-block">{{.View.Active.RoutesSummary}}; actor {{.View.Active.ActorID}} (роли: {{.View.Active.ApproverRoles}}); {{.View.Active.DecidedAt}}</dd>
+<dt>Кандидат</dt><dd class="digest-block">{{.View.Active.Manifest}}; {{.View.Active.Profile}}</dd>
+<dt>Digest решения</dt><dd class="digest-block">{{.View.Active.Digest}}</dd>
+</dl>
+{{else}}
+<h2>Действующего решения нет</h2>
+<p role="status">Публикаций ещё не было: активный указатель отсутствует, первая стадия — synthetic.</p>
+{{end}}
+
+{{if .View.CanManage}}
+<h2>Публикация (единственное основное действие; требует step-up)</h2>
+{{if eq .View.Status "ready"}}
+<p role="status">Стадия <strong>{{.View.StageText}}</strong> готова: подтвердите публикацию — решение будет записано атомарно с точными digest'ами кандидата.</p>
+<form method="post" action="/app/tenants/{{.TenantID}}/employees/{{.EmployeeID}}/test-release/admissions">
+<input type="hidden" name="stage" value="{{.View.Stage}}">
+<button class="primary" type="button" id="publish-open" aria-haspopup="dialog">Подтвердить публикацию стадии {{.View.StageText}}</button>
+<dialog id="publish-confirm" aria-labelledby="publish-title">
+<form method="post" action="/app/tenants/{{.TenantID}}/employees/{{.EmployeeID}}/test-release/admissions">
+<input type="hidden" name="stage" value="{{.View.Stage}}">
+<h3 id="publish-title">Подтверждение публикации</h3>
+<p>Стадия: <strong>{{.View.StageText}}</strong>. Решение записывается append-only: monotone-номер, точные digest'ы манифеста и профиля, per-route результаты, approver-роли и время. Отката нет (указатель только растёт); Conversations не переключаются — их в системе нет, привязка остаётся за Epic 2.</p>
+<button class="primary" type="submit">Записать решение о допуске</button>
+<button type="button" id="publish-cancel">Отмена</button>
+</form>
+</dialog>
+<script>
+(function () {
+  var open = document.getElementById('publish-open');
+  var dialog = document.getElementById('publish-confirm');
+  var cancel = document.getElementById('publish-cancel');
+  if (!open || !dialog || !cancel || typeof dialog.showModal !== 'function') { return; }
+  open.addEventListener('click', function () { dialog.showModal(); });
+  cancel.addEventListener('click', function () { dialog.close(); });
+})();
+</script>
+</form>
+<p class="next-note">Публикация требует step-up подтверждения: провайдер повторной аутентификации не подключён в этом срезе — отказ честный (как у membership и профиля), без обхода.</p>
+{{else}}
+<p role="status">Публикация недоступна: статус стадии — {{.View.StatusStateText}}. Основное действие — устранение блокировок из таблицы маршрутов, а не переключение стадии. Пустых публикаций не существует: ноль допущенных маршрутов — честный отказ.</p>
+{{end}}
+
+<h2>Переход gate-инстанса (требует step-up)</h2>
+<form method="post" action="/app/tenants/{{.TenantID}}/employees/{{.EmployeeID}}/test-release/gate-instances" class="knowledge-form">
+<label for="gate-definition">Определение (словарь платформы: OQ-11, OQ-12, OQ-13B, OQ-14, OQ-7B, AG-1, AG-2, AG-4)</label>
+<input id="gate-definition" name="definition_id" required maxlength="8">
+<label for="gate-state">Целевое состояние (open, in_test, pass, fail, expired, not_applicable)</label>
+<input id="gate-state" name="state" required maxlength="16">
+<label for="gate-route-channel">Scope маршрут: канал (только OQ-11; пусто — tenant-уровень)</label>
+<input id="gate-route-channel" name="route_channel" maxlength="16">
+<label for="gate-route-direction">Scope маршрут: направление (inbound/outbound, вместе с каналом)</label>
+<input id="gate-route-direction" name="route_direction" maxlength="10">
+<label for="gate-modality">Scope modality (voice/text; пусто — измерение отсутствует)</label>
+<input id="gate-modality" name="modality" maxlength="8">
+<label for="gate-supersedes">supersedes_instance_id (UUID перехода/reopening; пусто — новая цепочка)</label>
+<input id="gate-supersedes" name="supersedes_instance_id" maxlength="36">
+<label for="gate-approved">approved_by для PASS (по одной на строку: UUID_участника РОЛЬ_РЕЕСТРА)</label>
+<textarea id="gate-approved" name="approved_by" rows="3"></textarea>
+<label for="gate-evidence">Evidence-ссылки для PASS (по одной на строку)</label>
+<textarea id="gate-evidence" name="evidence_refs" rows="2"></textarea>
+<label for="gate-hash">Hash доказательства для PASS (64 hex sha256)</label>
+<input id="gate-hash" name="evidence_hash" maxlength="64">
+<label for="gate-reason">Обоснование not_applicable (1–300)</label>
+<input id="gate-reason" name="not_applicable_reason" maxlength="300">
+<label for="gate-expiry">Триггер экспирации (1–300; планировщиков нет — триггер хранится и отображается)</label>
+<input id="gate-expiry" name="expiry_trigger" maxlength="300">
+<button type="submit">Записать переход инстанса</button>
+<p class="next-note">PASS принимается только с полным покрытием approver-ролей различными принципалами (кроме явного allow_role_coincidence), непустыми evidence-ссылками и hash. Роли — метки реестра; орг-истина «кто Technical Lead» — governance-факт человека. Инстансы append-only: проваленный/истёкший/superseded PASS никогда не перезаписывается — reopening создаёт новый инстанс со ссылкой supersedes.</p>
+</form>
+{{else}}
+<p role="status">Команды Test &amp; Release требуют полномочия configuration: просмотр доступен, формы скрыты.</p>
+{{end}}
+
+{{if .Gates.HasInstances}}
+<h2>Gate-инстансы (история цепочек supersedes)</h2>
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Gate-инстансы">
+<table class="datamap-table">
+<caption>Записи жизненного цикла: scope точный (без wildcards), история перезаписи не знает</caption>
+<thead><tr><th scope="col">Инстанс</th><th scope="col">Определение · scope</th><th scope="col">Состояние</th><th scope="col">Approvers · evidence</th><th scope="col">Supersedes · время</th></tr></thead>
+<tbody>
+{{range .Gates.Instances}}<tr><th scope="row">{{.InstanceID}}</th><td>{{.Definition}} · {{.Scope}}</td><td>{{.StateText}}{{if .TestedAt}} (tested {{.TestedAt}}){{end}}{{if .Reason}}: {{.Reason}}{{end}}</td><td>{{if .Approvers}}{{.Approvers}}{{else}}—{{end}}{{if .Evidence}}; evidence: {{.Evidence}}{{end}}{{if .Hash}}; hash <span class="digest-block">{{.Hash}}</span>{{end}}{{if .Expiry}}; триггер: {{.Expiry}}{{end}}</td><td>{{if .Supersedes}}supersedes {{.Supersedes}}{{else}}начало цепочки{{end}} · {{.RecordedAt}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+{{end}}
+
+<h2>Словарь gate-определений платформы (фиксирован, не настраивается на Tenant)</h2>
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Словарь определений">
+<table class="datamap-table">
+<caption>Восемь определений принятого GATE-REGISTRY: критичность, approver-роли-метки, требуемое доказательство и safe state до PASS</caption>
+<thead><tr><th scope="col">Определение</th><th scope="col">Критичность</th><th scope="col">Approver-роли</th><th scope="col">Требуемое доказательство</th><th scope="col">Safe state · совпадение ролей · scope</th></tr></thead>
+<tbody>
+{{range .Gates.Definitions}}<tr><th scope="row">{{.ID}}</th><td>{{.Criticality}}</td><td>{{.Roles}}</td><td>{{.Evidence}}</td><td>{{.SafeState}}; {{.AllowCoincidence}}; {{.RouteScoped}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+
+{{if .View.HasHistory}}
+<h2>История публикаций (append-only)</h2>
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="История публикаций">
+<table class="datamap-table">
+<caption>Решения не переписываются; активный указатель — последняя запись</caption>
+<thead><tr><th scope="col">№</th><th scope="col">Стадия</th><th scope="col">Кандидат</th><th scope="col">Маршруты</th><th scope="col">Actor · роли · время</th><th scope="col">Digest</th></tr></thead>
+<tbody>
+{{range .View.History}}<tr><th scope="row">{{.DecisionNo}}</th><td>{{.StageText}}</td><td class="digest-block">{{.Manifest}}; {{.Profile}}</td><td>{{.RoutesSummary}}</td><td>{{.ActorID}} ({{.ApproverRoles}}) · {{.DecidedAt}}</td><td class="digest-block">{{.Digest}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+{{end}}
+</section></main></div></body></html>
+{{end}}
