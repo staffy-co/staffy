@@ -118,6 +118,9 @@ func scanAdmission(r row) (domain.ReleaseAdmission, error) {
 // supersedes keeps exactly one successor per record: a raced transition of
 // the same predecessor surfaces as an honest GateConflictError.
 func (s *Postgres) SaveGateInstance(ctx context.Context, p port.GateInstanceParams) (domain.GateInstance, error) {
+	// The same microsecond truncation keeps the recorded_at ordering of the
+	// append-only chain stable between the write and every later read.
+	p.Now = p.Now.Truncate(time.Microsecond)
 	tx, err := s.begin(ctx, p.Scope, false)
 	if err != nil {
 		return domain.GateInstance{}, err
@@ -259,6 +262,12 @@ func (s *Postgres) ListReleaseAdmissions(ctx context.Context, scope tenancy.Cont
 // number. A raced or repeated publication of the same candidate and stage
 // surfaces as an honest AdmissionConflictError — exactly one record.
 func (s *Postgres) SaveReleaseAdmission(ctx context.Context, p port.AdmissionParams) (domain.ReleaseAdmission, error) {
+	// Postgres timestamptz keeps microseconds: the decision time is truncated
+	// BEFORE the canonical digest is computed and BEFORE the insert, so the
+	// digest of the stored row (recomputed on every read as an integrity
+	// guard) always matches the digest computed at the write — a
+	// nanosecond-precision production clock never breaks the read path.
+	p.Now = p.Now.Truncate(time.Microsecond)
 	tx, err := s.begin(ctx, p.Scope, false)
 	if err != nil {
 		return domain.ReleaseAdmission{}, err
@@ -363,31 +372,30 @@ func (s *Postgres) SaveReleaseAdmission(ctx context.Context, p port.AdmissionPar
 		Instances:          instances,
 	}
 	report := domain.DeriveReadiness(facts, p.Stage)
-	if report.Status == domain.ReadinessIncomplete {
-		return domain.ReleaseAdmission{}, admissionRejection(report, "обязательные элементы не заполнены — публикация невозможна")
-	}
 	candidate := domain.CandidateKey{Manifest: approved.Manifest, ProfileVersion: approved.Version, ProfileDigest: approved.Digest}
-	var latest *domain.ReleaseAdmission
-	if len(admissions) > 0 {
-		// The list is ordered by decision_no desc; the acting decision is
-		// the first row.
-		latest = &admissions[0]
-	}
-	if err := domain.ValidateStageProgression(p.Stage, candidate, latest); err != nil {
+	// The full history travels into the ladder check: the candidate's own
+	// decisions stay acting for the ladder regardless of interleaved
+	// candidates (the list is ordered by decision_no desc, the acting
+	// pointer is the first row).
+	if err := domain.ValidateStageProgression(p.Stage, candidate, admissions); err != nil {
 		return domain.ReleaseAdmission{}, err
 	}
-	admitted := 0
-	for _, route := range report.Routes {
-		if route.State == domain.RouteAdmitted {
-			admitted++
-		}
+	// The publication exists only in the ready state: a missing element, a
+	// blocked element (the entitlement-at-synthetic exception stays inside
+	// the derivation) or zero admitted routes each refuse honestly with the
+	// derivation's own status text — never behind an aggregate.
+	if report.Status != domain.ReadinessReady {
+		return domain.ReleaseAdmission{}, admissionRejection(report, report.StatusText)
 	}
-	if admitted == 0 {
-		return domain.ReleaseAdmission{}, admissionRejection(report, "ни один маршрут не допущен: пустых публикаций не существует")
-	}
+	// The monotonic number under the aggregate lock: the globally highest
+	// decision of the employee (the list is ordered by decision_no desc).
 	decisionNo := int64(1)
-	if latest != nil {
-		decisionNo = latest.DecisionNo + 1
+	if len(admissions) > 0 {
+		decisionNo = admissions[0].DecisionNo + 1
+	}
+	acting := (*domain.ReleaseAdmission)(nil)
+	if len(admissions) > 0 {
+		acting = &admissions[0]
 	}
 	admission := domain.ReleaseAdmission{
 		TenantID: p.Scope.TenantID(), EmployeeID: p.EmployeeID, DecisionNo: decisionNo, Stage: p.Stage,
@@ -416,7 +424,7 @@ func (s *Postgres) SaveReleaseAdmission(ctx context.Context, p port.AdmissionPar
 		admission.StepUpVerified, admission.DecidedAt, admission.Digest); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return domain.ReleaseAdmission{}, domain.AdmissionConflictError{Stage: p.Stage, Current: latest}
+			return domain.ReleaseAdmission{}, domain.AdmissionConflictError{Stage: p.Stage, Current: acting}
 		}
 		return domain.ReleaseAdmission{}, err
 	}

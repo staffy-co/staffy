@@ -68,3 +68,15 @@
 - source_spec: `spec-1-12-release-manifest.md`
   summary: Выровнять выбор «последнего манифеста» в ReleaseView (surface 1-12) с детерминированным паттерном 1-13 (максимальный config_version): сейчас records[0] по сортировке sealed_at desc, manifest_id desc — под фиксированным clock это coin flip (тот же корень, что M2 review R1 по 1-13).
   evidence: В продакшене sealed_at практически уникален, риск латентный; профильная поверхность уже исправлена (app/profile.go — выбор по config_version), паттерн стоит вынести в общий хелпер и применить к release при случае (замечание R2 по 1-13, P4).
+
+- source_spec: `spec-1-14-readiness-publication.md`
+  summary: Перечитать кросс-модульные факты (entitlement admission, текущие connections) ВНУТРИ транзакции публикации: сейчас они читаются непосредственно перед командой под той же верифицированной скоуп-проверкой, но технически вне tx — миллисекундное окно TOCTOU между чтением и коммитом остаётся.
+  evidence: In-module факты (профиль, манифест, инстансы, история) перечитываются в транзакции (store/readiness.go), порты фактов (WithEntitlementFacts/connectorFacts) не предлагают tx-scoped чтение — архитектурное ограничение факт-портов; комментарий в порте честно документирует границу (замечание m4 review R1 по 1-14).
+
+- source_spec: `spec-1-14-readiness-publication.md`
+  summary: Точный per-route маппинг capability→маршрут для fail-closed блокировки маршрута: сейчас элемент capabilities требует «хотя бы одно действующее подключение с verified capability» (aggregate), потому что ConnectionFacts не несёт связи маршрут↔capability.
+  evidence: Решение DEVLOG 37-dev/R1-m5: непроверенные остатки — честные ноты элемента, полная дисциплина — gate AG-4 стадий от controlled_real_customer; точная блокировка требует расширения факт-порта связью маршрута (Epic 2, когда появится направление трафика).
+
+- source_spec: `spec-1-14-readiness-publication.md`
+  summary: Спека: уточнить формулировку «переход в pass/fail требует … evidence-ссылок и hash» — прочитанная буквально она покрывает и fail-переходы, реализация (по Never-клаузе и edge-кейсам, упоминающим только pass) принимает payload только с PASS.
+  evidence: Замечание review R1 по 1-14 (confidence note); механика корректна по Never-клаузе, уточнение — к следующей версии спеки.

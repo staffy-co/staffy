@@ -281,11 +281,17 @@ test('test & release: readiness checklist, controlled publication ladder and hon
 
     // The gate PASS discipline: OQ-12 allows the single approver
     // (allow_role_coincidence) — the fixture world has one member. The form
-    // resets on every redirect, so each transition re-fills every field.
+    // resets on every redirect, so each transition re-fills every field; the
+    // instance identifiers are read back from the view, never hardcoded.
     const gateForm = {
       definition: () => page.getByLabel('Определение (словарь платформы: OQ-11, OQ-12, OQ-13B, OQ-14, OQ-7B, AG-1, AG-2, AG-4)'),
       state: () => page.getByLabel(/Целевое состояние/),
       supersedes: () => page.getByLabel(/supersedes_instance_id/)
+    };
+    const latestInstanceID = async () => {
+      const view = await (await api.get(`${apiBase}/employees/${employeeUUID}/test-release/gate-instances`)).json();
+      const instances = view.instances ?? [];
+      return instances.length > 0 ? instances[instances.length - 1].instance_id : '';
     };
     const recordGate = async (state, supersedes, extra) => {
       await gateForm.definition().fill('OQ-12');
@@ -298,22 +304,26 @@ test('test & release: readiness checklist, controlled publication ladder and hon
       }
       await page.getByRole('button', { name: 'Записать переход инстанса' }).click();
       await expect(page.getByRole('status').filter({ hasText: 'Переход gate-инстанса записан' })).toBeVisible();
+      return latestInstanceID();
     };
     // The chain: open → in_test → pass with the full PASS payload.
-    await recordGate('open', '');
-    await recordGate('in_test', '01994f64-6c00-7000-8000-000000000201');
-    await recordGate('pass', '01994f64-6c00-7000-8000-000000000202', {
+    const openID = await recordGate('open', '');
+    const inTestID = await recordGate('in_test', openID);
+    const passID = await recordGate('pass', inTestID, {
       approvedBy: `${ownerUUID} VoiceTechnicalLead`,
       evidence: 'evidence://oq12/voice-baseline',
       hash: evidenceHash
     });
+    expect(openID).not.toBe('');
+    expect(inTestID).not.toBe(openID);
+    expect(passID).not.toBe(inTestID);
     // The instance table: the chain with the PASS and its evidence.
     const instanceTable = page.locator('.datamap-table').filter({ hasText: 'scope точный' });
     await expect(instanceTable).toBeVisible();
-    await expect(instanceTable.locator('tr', { hasText: '000000000203' })).toContainText('PASS');
-    await expect(instanceTable.locator('tr', { hasText: '000000000203' })).toContainText('VoiceTechnicalLead');
+    await expect(instanceTable.locator('tr', { hasText: passID })).toContainText('PASS');
+    await expect(instanceTable.locator('tr', { hasText: passID })).toContainText('VoiceTechnicalLead');
     // The superseded open record is honest history, never a permission.
-    await expect(instanceTable.locator('tr', { hasText: '000000000201' }).first()).toContainText('начало цепочки');
+    await expect(instanceTable.locator('tr', { hasText: openID }).first()).toContainText('начало цепочки');
   } finally {
     // Reset the fixture step-up flag for the other journeys.
     if (stepUpEnabled) {

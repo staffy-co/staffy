@@ -664,3 +664,25 @@ decisions:
 - Commit предыдущей сессии (4efd497 CHECKPOINT 1) остаётся локальным; push всего пакета ветки одним батчем после STAFFY_GH_TOKEN (прецедент 1-13)
 next: review R1 (субагент) по спеке и коду → фиксы → R2 → спека/sprint-status → done → push → PR → CI → merge
 commit: TBD
+
+---
+date: 2026-10-08
+task: 38-review
+role: main (Super Z)
+story: 1-14
+summary: Review R1 (субагент) — FAIL с 3 Major; все M/m закрыты в этом же срезе, полный регресс зелёный
+done:
+- R1 вердикт: FAIL. M1 (digest ломается на наносекундных таймстампах продакшна: timestamptz хранит µs, канонические байты считались по nano → каждая попытка чтения после первой публикации падала бы «Digest не совпал»; тесты сидели на fixedClock целых секунд), M2 (лестница стадий валидировалась только по глобально-последнему решению: интерливинг кандидатов давал ложные отказы «новый кандидат» при существующем N−1 того же кандидата), M3 (общий статус игнорировал element-level blocked: stale-профиль давал ready и публикацию — спека: «ready только если все обязательные элементы pass»)
+- M1 фикс: p.Now.Truncate(time.Microsecond) в начале SaveReleaseAdmission и SaveGateInstance — digest и insert согласованы до записи; регрессионный тест TestPublicationDigestSurvivesProductionClock (nano-часы: publish → history read → readiness read → следующая публикация с in-tx перечитыванием)
+- M2 фикс: ValidateStageProgression(requested, candidate, history []ReleaseAdmission) — лестница по СОБСТВЕННОЙ истории кандидата (append-only → записанное решение действует для лестницы всегда): интерливинг кандидатов не мешает; повтор стадии = AdmissionConflictError с записанным решением; downgrade = rollback-отказ; skip называет требуемую предыдущую стадию и действующее решение. Store передаёт полную историю из транзакции. Доменный тест расширен интерливингом; фикстура journey обновлена
+- M3 фикс: финальный статус-свитч DeriveReadiness: missing → incomplete; blocked-элементы (с единственным документированным исключением entitlement@synthetic — фикстуры) → blocked со списком; ноль допущенных → blocked; иначе ready. Store: публикация только при status==ready (summary = честный StatusText деривации); порядок проверок: ЛЕСТНИЦА до готовности (skip — свойство запроса; live-skip называет controlled_real_customer, как прежде). Stale-интеграционный тест усилен: статус blocked + публикация отвергается
+- m2 фикс (стал бы критичным после M3): элемент gates деривируется по ФАКТИЧЕСКИМ маршрутам профиля (union RequiredGateIDs + per-route ValidPassForRoute): text-only профиль не листит голосовые гейты, route-scoped PASS другого маршрута не даёт элементу pass; stageGateSet/definitionPassState удалены
+- m1 фикс: internal/transport/http/readiness_test.go — wire-тесты всех 5 поверхностей (ключевые наборы ReadinessView/Report/Element/Route/Definition/Instance/ReleaseAdmission, strict-decode unknown field → 400, конфликт 409 с decision_no в field_errors, step-up 403) — урок M1 по 1-13 закрыт для 1-14
+- m3 фикс: errReadinessUnsupportedMedia → 415 unsupported_media_type (контракт документировал 415, граница теперь держит слово); TestReadinessCommandsRefuseNonJSONContentType
+- m6 фикс: journey читает instance_id из gate-instances view (без хардкода UUID-счётчика фикстуры)
+- m4/m5: честные записи в deferred-work.md (TOCTOU-окно кросс-модульных фактов вне tx; per-route capability маппинг — расширение факт-порта в Epic 2; уточнение формулировки спеки про fail-payload)
+decisions:
+- Порядок gate-проверок публикации: лестница → готовность → вставка; repeat-конфликт срабатывает даже если кандидат не готов (ровно одна запись — свойство истории, не готовности)
+- Красивый побочный эффект M2: сообщения об отказе честно называют стадию И решение №N кандидата (спека edge-case 47: «сообщение называет требуемую предыдущую стадию и её статус»)
+next: review R2 (субагент) — подтверждение закрытия M1/M2/M3 и отсутствия новых рисков
+commit: TBD

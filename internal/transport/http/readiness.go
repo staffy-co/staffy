@@ -48,6 +48,8 @@ func (s *Server) readinessProblem(w http.ResponseWriter, r *http.Request, err er
 	var gateConflict employeeDomain.GateConflictError
 	var admissionConflict employeeDomain.AdmissionConflictError
 	switch {
+	case errors.Is(err, errReadinessUnsupportedMedia):
+		status, code, message = 415, "unsupported_media_type", "Команды Test & Release принимают только application/json."
 	case errors.Is(err, employeeDomain.ErrNotFound):
 		status, code, message = 404, "not_found", "Ресурс не найден."
 	case errors.Is(err, employeeDomain.ErrReadinessForbidden):
@@ -98,11 +100,15 @@ func (s *Server) BindReadiness(service employeeAPI.ReadinessService) {
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/employees/{employee_id}/test-release/admissions", s.publishAdmissionForm)
 }
 
+// errReadinessUnsupportedMedia names the honest 415 of the JSON commands:
+// the contract documents the status and the boundary keeps its word.
+var errReadinessUnsupportedMedia = errors.New("readiness commands expect application/json")
+
 // decodeReadinessBody reads one strict JSON command body.
 func decodeReadinessBody(w http.ResponseWriter, r *http.Request, out any) error {
 	media, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 	if err != nil || media != "application/json" {
-		return employeeDomain.ProfileRuleError{Section: "request", Field: "content_type", Reason: "Ожидается application/json.", Kind: employeeDomain.ProfileProblemInvalid}
+		return errReadinessUnsupportedMedia
 	}
 	d := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10))
 	d.DisallowUnknownFields()

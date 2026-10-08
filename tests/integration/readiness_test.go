@@ -14,7 +14,9 @@ import (
 	connectorAPI "github.com/artemiosu/staffy/internal/connector/api"
 	connectorDomain "github.com/artemiosu/staffy/internal/connector/domain"
 	employeeAPI "github.com/artemiosu/staffy/internal/employee/api"
+	employeeApp "github.com/artemiosu/staffy/internal/employee/app"
 	employeeDomain "github.com/artemiosu/staffy/internal/employee/domain"
+	employeeStore "github.com/artemiosu/staffy/internal/employee/store"
 	entitlementAPI "github.com/artemiosu/staffy/internal/entitlement/api"
 	entitlementApp "github.com/artemiosu/staffy/internal/entitlement/app"
 	entitlementDomain "github.com/artemiosu/staffy/internal/entitlement/domain"
@@ -672,6 +674,53 @@ func TestReadinessReflectsStaleFactsImmediately(t *testing.T) {
 	}
 	if !strings.Contains(strings.ToLower(after.Applicability.State), "stale") {
 		t.Fatalf("applicability must be stale, got %s", after.Applicability.State)
+	}
+	// R1/M3: a blocked element blocks the whole candidate — the stale
+	// profile never publishes behind a ready-looking route table.
+	if after.Report.Status != employeeDomain.ReadinessBlocked {
+		t.Fatalf("the stale candidate must be blocked overall, got %s (%s)", after.Report.Status, after.Report.StatusText)
+	}
+	if _, err := w.employee.PublishAdmission(ctx, employeeAPI.PublishAdmissionCommand{
+		Actor: w.readinessActor(true), TenantID: w.tenant, EmployeeID: employee,
+		CorrelationID: id.MustParse("01994f64-6c00-7000-8000-000000000741"), Stage: employeeDomain.StageSynthetic,
+	}); err == nil {
+		t.Fatal("a stale candidate must refuse the publication (a blocked element is not a ready state)")
+	}
+}
+
+// TestPublicationDigestSurvivesProductionClock: the production clock carries
+// nanoseconds while Postgres keeps microseconds — the decision time is
+// truncated before the digest and the insert, so every read path (the
+// history view, the readiness view and the in-transaction re-read of the
+// next publication) keeps working after the first publication (R1/M1).
+func TestPublicationDigestSurvivesProductionClock(t *testing.T) {
+	w, employee, _ := newReadinessWorld(t, 67)
+	ctx := context.Background()
+	corr := id.MustParse("01994f64-6c00-7000-8000-000000000740")
+	nanoClock := fixedClock{time.Now().UTC()}
+	nano := employeeApp.New(employeeStore.NewPostgres(runtimePool), w.identity, nanoClock, &employeeIDs{}).
+		WithConnectorFacts(w.connector).WithEntitlementFacts(w.entitlement)
+	synthetic, err := nano.PublishAdmission(ctx, employeeAPI.PublishAdmissionCommand{
+		Actor: w.readinessActor(true), TenantID: w.tenant, EmployeeID: employee, CorrelationID: corr, Stage: employeeDomain.StageSynthetic,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if digest, err := employeeDomain.AdmissionDigest(synthetic); err != nil || digest != synthetic.Digest {
+		t.Fatalf("the returned digest must recompute: %v %s vs %s", err, digest, synthetic.Digest)
+	}
+	// Every read path must stay honest after a nanosecond publication.
+	if _, err := w.employee.AdmissionHistoryView(ctx, w.owner, w.tenant, employee); err != nil {
+		t.Fatalf("the history read must not break on the digest guard: %v", err)
+	}
+	if _, err := w.employee.ReadinessView(ctx, w.owner, w.tenant, employee, employeeDomain.StageClosedAccountTest); err != nil {
+		t.Fatalf("the readiness view must not break on the digest guard: %v", err)
+	}
+	// The next publication re-reads the history inside its transaction.
+	if _, err := nano.PublishAdmission(ctx, employeeAPI.PublishAdmissionCommand{
+		Actor: w.readinessActor(true), TenantID: w.tenant, EmployeeID: employee, CorrelationID: corr, Stage: employeeDomain.StageClosedAccountTest,
+	}); err != nil {
+		t.Fatalf("the next publication must re-read the history without a digest failure: %v", err)
 	}
 }
 

@@ -933,20 +933,39 @@ func DeriveReadiness(facts ReadinessFacts, stage string) ReadinessReport {
 		element("eval", ElementMissing, "Матрица покрытия не содержит допущенных ячеек с eval-ссылками: обязательный элемент не заполнен.", profileSource)
 	}
 	evalRequired := StageRequiresEval(stage)
-	// Gates of the stage.
+	// Gates of the stage: the element derives from the profile's ACTUAL
+	// routes — the union of the per-route requirements (voice routes add
+	// OQ-12/OQ-13B, live adds OQ-14/OQ-7B) resolved per route, so the
+	// aggregate never disagrees with the route table (a text-only profile
+	// never lists voice gates; a route-scoped PASS never satisfies another
+	// route's requirement).
 	if !StageRequiresGates(stage) {
 		element("gates", ElementNotApplicable, "Стадия "+stage+" не требует gate PASS (синтетика и закрытые тестовые аккаунты до OQ-11 PASS — словарь реестра).", "gate_instances + словарь домена")
 	} else {
+		required := map[string][]Route{}
+		for _, routeState := range routeStates {
+			for _, gateID := range RequiredGateIDs(stage, routeState.Route) {
+				required[gateID] = append(required[gateID], routeState.Route)
+			}
+		}
+		gateIDs := make([]string, 0, len(required))
+		for gateID := range required {
+			gateIDs = append(gateIDs, gateID)
+		}
+		sort.Strings(gateIDs)
 		var gateProblems []string
-		for _, gateID := range stageGateSet(stage) {
-			state, reason := definitionPassState(gateID, facts.Instances)
-			if state != ElementPass {
-				definition, _ := GateDefinitionByID(gateID)
-				gateProblems = append(gateProblems, fmt.Sprintf("%s: %s (%s) — safe state: %s", gateID, state, reason, definition.SafeState))
+		for _, gateID := range gateIDs {
+			definition, _ := GateDefinitionByID(gateID)
+			for _, route := range required[gateID] {
+				if ValidPassForRoute(gateID, facts.Instances, route) != nil {
+					continue
+				}
+				state, reason := InstanceStateForRoute(gateID, facts.Instances, route)
+				gateProblems = append(gateProblems, fmt.Sprintf("%s · маршрут %s: %s (%s) — safe state: %s", gateID, route, state, reason, definition.SafeState))
 			}
 		}
 		if len(gateProblems) == 0 {
-			element("gates", ElementPass, "Все определения стадии имеют действующие unsuperseded PASS.", "gate_instances + словарь домена")
+			element("gates", ElementPass, "Все требования стадии по всем маршрутам профиля имеют действующие применимые unsuperseded PASS.", "gate_instances + словарь домена")
 		} else {
 			element("gates", ElementBlocked, joinDictionary(gateProblems), "gate_instances + словарь домена")
 		}
@@ -1002,12 +1021,25 @@ func DeriveReadiness(facts ReadinessFacts, stage string) ReadinessReport {
 		report.Routes = append(report.Routes, admission)
 	}
 	// The overall status is the conjunction: a missing element makes the
-	// whole candidate incomplete; otherwise at least one admitted route
-	// makes it ready; zero admitted routes make it blocked.
+	// whole candidate incomplete; a blocked element makes it blocked (the
+	// one documented exception: the entitlement element shows its honest
+	// draft/paused/blocked state at synthetic but never blocks the
+	// synthetic publication — fixtures do not consume commercial surfaces);
+	// otherwise at least one admitted route makes it ready, zero admitted
+	// routes make it blocked. A technical success of a single component
+	// never becomes the readiness of the whole, and no block hides behind
+	// an aggregate.
 	missing := 0
+	var blockedTitles []string
 	for _, item := range report.Elements {
-		if item.State == ElementMissing {
+		switch item.State {
+		case ElementMissing:
 			missing++
+		case ElementBlocked:
+			if item.Key == "entitlement" && stage == StageSynthetic {
+				continue
+			}
+			blockedTitles = append(blockedTitles, item.Title)
 		}
 	}
 	admitted := 0
@@ -1020,6 +1052,9 @@ func DeriveReadiness(facts ReadinessFacts, stage string) ReadinessReport {
 	case missing > 0:
 		report.Status = ReadinessIncomplete
 		report.StatusText = fmt.Sprintf("Обязательные элементы не заполнены (%d): публикация невозможна — технический успех компонента не превращается в готовность целого.", missing)
+	case len(blockedTitles) > 0:
+		report.Status = ReadinessBlocked
+		report.StatusText = "Обязательные элементы заблокированы: " + joinDictionary(blockedTitles) + ". Блокировка элемента не скрывается за статусом маршрутов."
 	case admitted == 0:
 		report.Status = ReadinessBlocked
 		report.StatusText = "Все маршруты заблокированы: пустых публикаций не существует (ноль допущенных маршрутов — честный отказ)."
@@ -1053,50 +1088,6 @@ func anyActingCapability(connections []ConnectionFacts) bool {
 		}
 	}
 	return false
-}
-
-// stageGateSet lists the distinct gate IDs a stage can require across all
-// routes (the element-level view; the route-level check is exact).
-func stageGateSet(stage string) []string {
-	set := map[string]bool{}
-	for _, gateID := range RequiredGateIDs(stage, Route{Channel: "phone", Direction: DirectionInbound}) {
-		set[gateID] = true
-	}
-	out := make([]string, 0, len(set))
-	for gateID := range set {
-		out = append(out, gateID)
-	}
-	sort.Strings(out)
-	return out
-}
-
-// definitionPassState derives the element-level state of one definition at
-// the current facts: pass when an unsuperseded PASS record exists (any
-// applicable scope), otherwise the honest current state of the newest
-// unsuperseded record.
-func definitionPassState(definitionID string, instances []GateInstance) (string, string) {
-	superseded := SupersededSet(instances)
-	var latest *GateInstance
-	pass := false
-	for index := range instances {
-		instance := instances[index]
-		if instance.DefinitionID != definitionID || superseded[instance.InstanceID] {
-			continue
-		}
-		if instance.State == GateStatePass {
-			pass = true
-		}
-		if latest == nil || instance.RecordedAt.After(latest.RecordedAt) || (instance.RecordedAt == latest.RecordedAt && instance.InstanceID.String() > latest.InstanceID.String()) {
-			latest = &instances[index]
-		}
-	}
-	if pass {
-		return ElementPass, "действующий unsuperseded PASS есть"
-	}
-	if latest == nil {
-		return "missing", "инстансов нет"
-	}
-	return latest.State, fmt.Sprintf("новейшая запись %s", latest.InstanceID)
 }
 
 // firstDigestRunes renders the first 12 runes of a digest for display.
@@ -1194,43 +1185,64 @@ func DeriveActiveRelease(admissions []ReleaseAdmission) *ReleaseAdmission {
 	return active
 }
 
-// ValidateStageProgression checks the ladder rule for the requested stage:
-// a closed stage N requires the acting decision of stage N-1 of the same
-// candidate (the exact manifest and profile digests); synthetic is the
-// first stage and requires none. A request for the acting stage of the same
-// candidate is an honest conflict (exactly one record); a request below or
-// above the acting stage of the same candidate is refused — a stage cannot
-// be skipped and a downgrade would be a rollback (deliberately deferred).
-func ValidateStageProgression(requested string, candidate CandidateKey, latest *ReleaseAdmission) error {
+// ValidateStageProgression checks the ladder rule for the requested stage
+// against the candidate's OWN decision history (the exact manifest and
+// profile digests): a closed stage N requires a recorded decision of stage
+// N-1 of the same candidate — decisions are append-only and never rollback,
+// so a recorded decision of the same candidate stays "acting" for the
+// ladder forever. Interleaved candidates never interfere: the globally
+// latest decision of another candidate is irrelevant to this one. A repeat
+// of a stage the candidate already recorded is an honest conflict (exactly
+// one record per candidate and stage); a request below the candidate's
+// highest recorded stage is a disguised rollback (rollback is deferred); a
+// skip above the ladder names the required previous stage and the
+// candidate's acting decision.
+func ValidateStageProgression(requested string, candidate CandidateKey, history []ReleaseAdmission) error {
 	requestedIndex, known := StageIndex(requested)
 	if !known {
 		return ProfileRuleError{Section: "publication", Field: "stage", Reason: "Неизвестная стадия: synthetic, closed_account_test, controlled_real_customer или live.", Kind: ProfileProblemInvalid}
 	}
-	if latest == nil {
+	mine := make([]ReleaseAdmission, 0, len(history))
+	for _, admission := range history {
+		if CandidateOf(admission).SameCandidate(candidate) {
+			mine = append(mine, admission)
+		}
+	}
+	// Exactly one record per candidate and stage: the repeat is a conflict
+	// carrying the recorded decision for an honest comparison.
+	for index := range mine {
+		if mine[index].Stage == requested {
+			recorded := mine[index]
+			return AdmissionConflictError{Stage: recorded.Stage, Current: &recorded}
+		}
+	}
+	highest := (*ReleaseAdmission)(nil)
+	highestIndex := -1
+	for index := range mine {
+		stageIndex, _ := StageIndex(mine[index].Stage)
+		if highest == nil || stageIndex > highestIndex {
+			highest = &mine[index]
+			highestIndex = stageIndex
+		}
+	}
+	if highest == nil {
 		if requested != StageSynthetic {
-			return ProfileRuleError{Section: "publication", Field: "stage", Reason: "Перескок стадии невозможен: synthetic — первая стадия, предыдущего решения нет. Опубликуйте synthetic этого кандидата.", Kind: ProfileProblemInvalid}
+			return ProfileRuleError{Section: "publication", Field: "stage", Reason: "Перескок стадии невозможен: synthetic — первая стадия, решений этого кандидата нет. Опубликуйте synthetic этого кандидата.", Kind: ProfileProblemInvalid}
 		}
 		return nil
 	}
-	if CandidateOf(*latest).SameCandidate(candidate) {
-		latestIndex, _ := StageIndex(latest.Stage)
-		switch {
-		case latestIndex == requestedIndex:
-			return AdmissionConflictError{Stage: latest.Stage, Current: latest}
-		case requestedIndex == latestIndex+1:
-			return nil
-		case requestedIndex < latestIndex:
-			return ProfileRuleError{Section: "publication", Field: "stage", Reason: fmt.Sprintf("Действующее решение этого кандидата — стадия %s (решение №%d): публикация нижней стадии выглядела бы откатом, а rollback отложен. Разрешение не расширяется автоматически.", latest.Stage, latest.DecisionNo), Kind: ProfileProblemInvalid}
-		default:
-			previous := StageOrder[requestedIndex-1]
-			return ProfileRuleError{Section: "publication", Field: "stage", Reason: fmt.Sprintf("Перескок стадии невозможен: требуется действующее решение стадии %s того же кандидата (те же digest'ы манифеста и профиля); действующее решение — %s (№%d).", previous, latest.Stage, latest.DecisionNo), Kind: ProfileProblemInvalid}
-		}
+	switch {
+	case requestedIndex == highestIndex:
+		// Unreachable (the repeat conflict fired above); kept for defense.
+		return AdmissionConflictError{Stage: highest.Stage, Current: highest}
+	case requestedIndex == highestIndex+1:
+		return nil
+	case requestedIndex < highestIndex:
+		return ProfileRuleError{Section: "publication", Field: "stage", Reason: fmt.Sprintf("Действующее решение этого кандидата — стадия %s (решение №%d): публикация нижней стадии выглядела бы откатом, а rollback отложен. Разрешение не расширяется автоматически.", highest.Stage, highest.DecisionNo), Kind: ProfileProblemInvalid}
+	default:
+		previous := StageOrder[requestedIndex-1]
+		return ProfileRuleError{Section: "publication", Field: "stage", Reason: fmt.Sprintf("Перескок стадии невозможен: требуется действующее решение стадии %s того же кандидата (те же digest'ы манифеста и профиля); действующее решение этого кандидата — %s (№%d, стадия заполнена и действует).", previous, highest.Stage, highest.DecisionNo), Kind: ProfileProblemInvalid}
 	}
-	// A different candidate: the ladder starts from synthetic.
-	if requested != StageSynthetic {
-		return ProfileRuleError{Section: "publication", Field: "stage", Reason: "Новый кандидат (другие digest'ы): перескок невозможен — начните со стадии synthetic этого кандидата.", Kind: ProfileProblemInvalid}
-	}
-	return nil
 }
 
 // canonicalizeAdmission returns a copy with the routes in the canonical

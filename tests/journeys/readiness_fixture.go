@@ -197,7 +197,7 @@ func (f *readinessFixture) PublishAdmission(_ context.Context, c employeeAPI.Pub
 		return employeeDomain.ReleaseAdmission{}, employeeDomain.ProfileRuleError{Section: "publication", Field: "profile", Reason: "Утверждённой версии Operating Profile нет: публикация невозможна.", Kind: employeeDomain.ProfileProblemInvalid}
 	}
 	candidate := employeeDomain.CandidateKey{Manifest: facts.Approved.Manifest, ProfileVersion: facts.Approved.Version, ProfileDigest: facts.Approved.Digest}
-	if err := employeeDomain.ValidateStageProgression(c.Stage, candidate, employeeDomain.DeriveActiveRelease(f.admissions)); err != nil {
+	if err := employeeDomain.ValidateStageProgression(c.Stage, candidate, f.admissions); err != nil {
 		return employeeDomain.ReleaseAdmission{}, err
 	}
 	admitted := 0

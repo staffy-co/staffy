@@ -481,34 +481,34 @@ func TestValidateStageProgressionLadder(t *testing.T) {
 	synthetic := ReleaseAdmission{TenantID: readinessTenant, EmployeeID: readinessEmployee, DecisionNo: 1, Stage: StageSynthetic,
 		Manifest: facts.Approved.Manifest, ProfileVersion: 1, ProfileDigest: facts.Approved.Digest}
 	// The next step of the ladder is allowed.
-	if err := ValidateStageProgression(StageClosedAccountTest, candidate, &synthetic); err != nil {
+	if err := ValidateStageProgression(StageClosedAccountTest, candidate, []ReleaseAdmission{synthetic}); err != nil {
 		t.Fatalf("closed_account_test after synthetic must pass: %v", err)
 	}
 	// The acting stage of the same candidate is an honest conflict.
-	err := ValidateStageProgression(StageSynthetic, candidate, &synthetic)
+	err := ValidateStageProgression(StageSynthetic, candidate, []ReleaseAdmission{synthetic})
 	var conflict AdmissionConflictError
 	if !errors.As(err, &conflict) {
 		t.Fatalf("a repeated publication of the acting stage must conflict, got %v", err)
 	}
 	// A jump over a stage is refused naming the required stage.
-	if err := ValidateStageProgression(StageControlledRealCustomer, candidate, &synthetic); err == nil || !strings.Contains(err.Error(), StageClosedAccountTest) {
+	if err := ValidateStageProgression(StageControlledRealCustomer, candidate, []ReleaseAdmission{synthetic}); err == nil || !strings.Contains(err.Error(), StageClosedAccountTest) {
 		t.Fatalf("a jump must name the required previous stage, got %v", err)
 	}
 	// A downgrade would be a rollback (deferred).
 	closed := synthetic
 	closed.DecisionNo = 2
 	closed.Stage = StageClosedAccountTest
-	if err := ValidateStageProgression(StageSynthetic, candidate, &closed); err == nil {
+	if err := ValidateStageProgression(StageSynthetic, candidate, []ReleaseAdmission{closed}); err == nil {
 		t.Fatal("a downgrade must be refused (rollback is deferred)")
 	}
 	// A different candidate restarts from synthetic.
 	other := closed
 	other.Manifest = ManifestLink{ManifestID: profileOwner, ConfigVersion: 2, Digest: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}
 	other.ProfileVersion = 2
-	if err := ValidateStageProgression(StageSynthetic, candidate, &other); err != nil {
+	if err := ValidateStageProgression(StageSynthetic, candidate, []ReleaseAdmission{other}); err != nil {
 		t.Fatalf("a new candidate starts from synthetic: %v", err)
 	}
-	if err := ValidateStageProgression(StageClosedAccountTest, candidate, &other); err == nil {
+	if err := ValidateStageProgression(StageClosedAccountTest, candidate, []ReleaseAdmission{other}); err == nil {
 		t.Fatal("a new candidate cannot skip synthetic")
 	}
 }
