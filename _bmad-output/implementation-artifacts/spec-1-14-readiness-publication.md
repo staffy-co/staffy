@@ -2,9 +2,9 @@
 title: 'Story 1.14 — Readiness-проверка и контролируемая публикация (первый срез)'
 type: 'feature'
 created: '2026-10-08'
-status: 'ready-for-dev'
+status: 'done'
 route: 'dispatch'
-review_loop_iteration: 0
+review_loop_iteration: 2
 baseline_commit: '208c44f1eef4203e6a4e465753694d966a7e1f95'
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-1-context.md'
@@ -102,6 +102,8 @@ context:
 
 - 2026-10-08, review loop 0: создана спека первого среза Story 1.14 (SM) по решению владельца (CHECKPOINT 2 story 1-13: «1-14» — исполнение варианта А ретроспективы Epic 1). Статус `backlog` до CHECKPOINT 1 — одобрения владельцем; после одобрения спека и sprint-status.yaml одновременно переходят в `ready-for-dev` (условие синхронности check-continuity).
 - 2026-10-08, CHECKPOINT 1: спека одобрена владельцем без правок («одобряю», чат 2026-10-08). Замороженные секции (Intent / Boundaries & Constraints / I/O & Edge-Case Matrix) не изменялись. Спека и sprint-status.yaml одновременно переведены в `ready-for-dev`; далее — Dev (step-03). Push коммита отложен до появления STAFFY_GH_TOKEN сессии (батч-пуш прецедента 1-13).
+- 2026-10-08, review loop 1: реализация (коммиты 8ecc671 feat + 843044a fix). Review R1 (субагент): FAIL — M1 digest на наносекундах продакшн-часов, M2 лестница только по глобально-последнему решению (интерливинг кандидатов), M3 element-level blocked не блокировали общий статус; m1 wire-тесты, m2 элемент gates по фактическим маршрутам, m3 415, m4/m5 deferred-work, m6 хардкод UUID journey. Все закрыты в 843044a; замороженные секции не изменялись.
+- 2026-10-08, review loop 2: Review R2 (субагент): M2/M3/m1/m3/m6 подтверждены; M1 наполовину — pgx декодирует timestamptz в локальную зону: не-UTC хост ломал digest-гвард на чтении (эмпирика TZ=Europe/Moscow). Закрыто в 382731a: UTC-канонизация на границе чтения и в канонических байтах; интеграция зелёная в UTC и Europe/Moscow; интерливинг-тест, описание OpenAPI, wire-тест истории, N4 в deferred-work. Спека и sprint-status.yaml одновременно переведены в `done` (review_loop_iteration: 2); замороженные секции не изменялись.
 
 ## Design Notes
 

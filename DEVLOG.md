@@ -704,4 +704,21 @@ decisions:
 - Digest = свойство записи: канонизация UTC и на записи, и на чтении, и в канонических байтах — три слоя одной истины
 - TZ=Europe/Moscow прогон интеграции добавлен в обязательный регресс среза (урок R1-M1 «тестовая среда ≠ продакшн» теперь покрывает и зону)
 next: R2-вердикт после фиксов (перезапуск субагента не требуется: единственный Major закрыт эмпирически в обеих зонах + родные тесты); спека/sprint-status → done; CHECKPOINT 2 владельцу
-commit: TBD
+commit: 382731a
+
+---
+date: 2026-10-08
+task: 40-close
+role: main (Super Z)
+story: 1-14
+summary: Story 1-14 закрыта локально — спека и sprint-status синхронно переведены в done (review_loop_iteration: 2); полный регресс зелёный в двух таймзонах; Epic 1 — 14/14 stories done (merge отложен до токена)
+done:
+- spec-1-14-readiness-publication.md → done: Spec Change Log дополнен записями review loop 1 и 2 (замороженные секции не изменялись); review_loop_iteration: 2
+- sprint-status.yaml: 1-14 → done (синхронно спеке — check-continuity); epic-1 остаётся in-progress до merge (честно: закрытие эпика фиксирует merge-коммит)
+- Полный регресс: build, vet, unit (20 ok), интеграция в UTC и TZ=Europe/Moscow (урок R2/N1 — обе зоны в обязательном наборе), journeys 17/17, контракт OpenAPI, git diff --check — зелёные
+- Ветка: 6 локальных коммитов (4efd497 CHECKPOINT 1 [skip ci] → 8ecc671 feat → 843044a fix R1 → 382731a fix R2 → этот docs-коммит); push отложен до STAFFY_GH_TOKEN (батч прецедента 1-13)
+decisions:
+- R2-перезапуск не требуется: единственный Major (N1) закрыт ровно тем условием, которым субагент его доказал (TZ=Europe/Moscow теперь зелёный); все четыре рекомендованных действия R2 исполнены (UTC-канонизация, интерливинг-тест, yaml-описание, owner-нот)
+- Элементная конъюнкция controlled+ (N4) — защита реализации по AC-5; два прочтения спеки вынесены в deferred-work для решения владельца
+next: CHECKPOINT 2 владельцу — токен STAFFY_GH_TOKEN → push ветки (5 коммитов) → PR через GitHub API → CI (verify: unit+integration+journeys) → merge (merge_method=merge, прецедент PR #13/#14) → DEVLOG 41-merge + epic-1 → complete → Epic 1 закрыт (14/14)
+commit: 5b83c8e
