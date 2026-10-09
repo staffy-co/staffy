@@ -903,3 +903,15 @@ decisions:
 - DROP cases.work_items.state миграцией 00002: версии — единственный носитель состояния; якорь без денормализации (чтение JOIN LATERAL максимальной версии)
 next: CHECKPOINT 1 владельцу — «одобряю» → спека и sprint-status синхронно → ready-for-dev → Dev (step-03: bootstrap в foreground; домен+миграция+команды+фасады+транспорт+WCC+тесты; регресс 2-1 зелёный обязателен)
 commit: 8864c05
+---
+date: 2026-10-09
+task: 44-checkpoint
+role: main (Super Z)
+story: 2-2
+summary: CHECKPOINT 1 — владелец одобрил спеку 2-2 («одобряю», чат 2026-10-09); спека и sprint-status.yaml синхронно переведены в ready-for-dev; epic-2 остаётся in-progress (вторая story эпика стартует); push коммита — сразу (credential helper жив с 43-merge, прецедент task 24: push ветки работал без токена)
+done:
+- spec-2-2-work-items-facts-provenance.md: status backlog → ready-for-dev; Spec Change Log дополнен записью CHECKPOINT 1 (frozen-часть Intent/Boundaries/Edge-Case Matrix без изменений)
+- sprint-status.yaml: 2-2 → ready-for-dev (синхронность check-continuity); epic-2 in-progress; last_updated 10-09-2026
+- Коммит [skip ci] на ветке codex/story-2-2-work-items-facts (четвёртый: 8864c05 spec, fd0ec40 канон-хеш, b6814ab фикс-ап, checkpoint)
+next: Dev step-03 — bootstrap в foreground (окружение могло сброситься); push отложен до STAFFY_GH_TOKEN (батч-прецедент 1-13/1-14/2-1: helper существует, но токен в нём истёк — remote: Invalid username or token), затем реализация среза по спеке: домен cases (WI-версии, лестница состояний, taxonomy-пин, факты/provenance/конфликты/подтверждения), миграция 00002 (DROP work_items.state), port/app/store/api (10 идемпотентных команд, optimistic concurrency), employee фасад PackID/PackVersion/PackJourneys, расширение IngestEvent (пин+version 1+линк), транспорт+OpenAPI+Work Control Card, privacy-классы, тесты (unit/integration ×2 TZ/journey/wire); регресс 2-1 зелёный обязателен (15 cases-тестов)
+commit: TBD
