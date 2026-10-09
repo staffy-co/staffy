@@ -1077,6 +1077,27 @@ func TestVerificationContractIsHonest(t *testing.T) {
                         t.Errorf("the command enum misses %s", name)
                 }
         }
+        resolve := mapping(t, schemas, "ResolveDuplicateRequest")
+        resolveProperties := mapping(t, resolve, "properties")
+        subject, _ := resolveProperties["subject_handle"].(map[string]any)
+        if subject == nil {
+                t.Errorf("ResolveDuplicateRequest.subject_handle is missing")
+        } else {
+                if _, ok := subject["minLength"]; !ok {
+                        t.Errorf("subject_handle must carry minLength (the M4 discipline)")
+                }
+        }
+        if required, _ := resolve["required"].([]any); len(required) > 0 {
+                found := false
+                for _, field := range required {
+                        if field == "subject_handle" {
+                                found = true
+                        }
+                }
+                if !found {
+                        t.Errorf("ResolveDuplicateRequest.required must list subject_handle")
+                }
+        }
         caseView := mapping(t, schemas, "CaseView")
         viewProperties := mapping(t, caseView, "properties")
         for _, section := range []string{"assurance", "bindings", "duplicates"} {

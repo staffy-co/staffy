@@ -965,7 +965,7 @@ func TestResolveDuplicateRequiresSubject(t *testing.T) {
 	if _, err := w.cases.ResolveDuplicate(ctx, casesAPI.ResolveDuplicateCommand{
 		Actor: w.workActor(), TenantID: w.tenant, CaseID: caseB, CandidateID: candidate.CandidateID,
 		Decision: casesDomain.DuplicateDecisionSameClient, Note: "тот же клиент по истории",
-		SubjectHandle: "клиент ACME",
+		SubjectHandle:  "клиент ACME",
 		ConversationID: w.conversationFirst(t, caseA), BoundConversationID: w.conversationFirst(t, caseB),
 		IdempotencyKey: "resolve-subject-2", Now: verificationNow,
 	}); err != nil {
