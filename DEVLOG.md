@@ -992,3 +992,23 @@ decisions:
 - Урок инструмента записи: правки конвертируют табы→пробелы → gofmt -w после каждой серии правок (иначе однофайловый N2 повторяется)
 next: CHECKPOINT 2 владельцу — STAFFY_GH_TOKEN → батч-push 5 коммитов → PR через GitHub API → CI verify → merge (merge_method=merge) → DEVLOG 44-merge → Epic 2: 2/16 done
 commit: TBD
+---
+date: 2026-10-09
+task: 44-merge
+role: main (Super Z)
+story: 2-2
+summary: Story 2-2 влита в main — PR #17, merge-коммит c89312f; CI зелёный тремя полными verify-прогонами (push/PR/main); Epic 2: 2/16 stories done — кейс стал рабочим (версионируемые Work Items, факты с provenance, Work Control Card)
+done:
+- Токен выдан владельцем в чате (CHECKPOINT 2); валидация через GitHub API (login artemiosu, push/merge права); применён только inline export STAFFY_GH_TOKEN внутри команд — на диск не попадал (маска github_pat_***)
+- Окружение сессии сброшено (Go/PG отсутствовали) → bootstrap в foreground (Go 1.27.1, PG 54329 жив); smoke-регресс перед push: build, vet, unit (22 ok), интеграция -tags=integration UTC + TZ=Europe/Moscow — зелёные
+- Push ветки батчем b6814ab..dcb46d3: 4 коммита (8e966ae CHECKPOINT 1 [skip ci], 77c4042 feat, 87b9a82 fix R1+R2, dcb46d3 docs → done)
+- ИНЦИДЕНТ (диагностирован и закрыт в тот же час): CI не стартовал ни на push, ни на открытие PR — head-коммит dcb46d3 нёс [skip ci] в сообщении, а GitHub гасит push- и pull_request-воркфлоу по маркеру head-коммита (в 2-1 head d03e87e маркера не имел). Диагностика пробой: временная ветка ci-trigger-probe с пустым коммитом без маркера → run стартовал мгновенно (37930729455 — отменён, ветка удалена) → токен и репозиторий невиновны, виновен маркер. Фикс: amend message head-коммита со снятием маркера (дерево байт-в-байт = dcb46d3) → force-push ветки → 7d62154; переписывание публичной истории ветки произошло ДО каких-либо CI-прогонов на ней и ДО merge; main не затронут
+- PR #17 создан через GitHub API (внешний скрипт create_pr_2_2.sh, токен только из env, прецедент 2-1): https://github.com/artemiosu/staffy/pull/17 (34 файла, 7 коммитов, +8311/−99) — состав, review R1/R2/R3, честные границы, регресс, ссылка на спеку
+- CI: три полных verify-прогона (job verify: Go checks / PostgreSQL integration / Browser dependencies / Browser journeys), все success — push-run 37931051431 и pull_request-run 37931056435 (head 7d62154), main-run 37931374797 (head c89312f)
+- Merge через API (merge_method=merge — прецедент PR #13/#14/#15/#16): merge-коммит c89312f; локальный main синхронизирован ff-only; дерево чистое, синхронно с origin
+decisions:
+- Канон-нота (прецедент 1-13/1-14/2-1): 44-review/44-review-2 и тело 44-close ссылаются на пре-amend хеш edb8e11 (фикс R1+R2 + gofmt m1); фактический хеш в истории — 87b9a82 (amend до push CI); «commit: TBD» записи 44-close → фактический docs-коммит закрытия dcb46d3 → после снятия [skip ci] амендом — 7d62154 (дерево идентично); исторические записи не редактировались (урок fd0ec40/b6814ab)
+- Урок [skip ci]: маркер глушит не только run самого коммита — он глушит push- и pull_request-события ЛЮБОЙ ветки, чьим head-коммитом является; [skip ci] допустим только на docs-коммитах, идущих прямо на main; вершина story-ветки перед PR обязана быть без маркера
+- Итог review-цикла 2-2 подтверждён CI независимо: 3 Major R1 + N1/N2 Major R2 закрыты, полный регресс зелёный в обеих таймзонах — локально (main, R2, R3) и в CI (×3)
+next: Epic 2 продолжается — story 2-3 «Проверка личности и безопасное связывание каналов» (backlog; первый шаг — SM-спека первого среза → CHECKPOINT 1 владельцу). Осталось 14/16 stories
+commit: c89312f
