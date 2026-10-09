@@ -2,7 +2,7 @@
 title: 'Story 2.2 — Work Items, факты и provenance внутри Case (первый срез)'
 type: 'feature'
 created: '2026-10-09'
-status: 'review'
+status: 'done'
 route: 'dispatch'
 baseline_commit: '5a8362f4cde9f677928c9da1e0d5248d44b04985'
 context:
@@ -97,6 +97,10 @@ context:
 - 2026-10-09, review loop 0: создана спека первого среза Story 2.2 (SM) по решению владельца «приступай» (CHECKPOINT 2 закрытия 2-1). Статус `backlog` до CHECKPOINT 1 — одобрения владельцем; после одобрения спека и sprint-status.yaml одновременно переходят в `ready-for-dev`. Демо-путь и честные границы — в Intent.
 - 2026-10-09, CHECKPOINT 1: спека одобрена владельцем без правок («одобряю», чат 2026-10-09). Замороженные секции (Intent / Boundaries & Constraints / I/O & Edge-Case Matrix) не изменялись. Спека и sprint-status.yaml одновременно переведены в `ready-for-dev`; далее — Dev (step-03).
 - 2026-10-09, review loop 0 (dev): первый срез реализован полностью — домен cases/work (лестница состояний, словари, taxonomy-пин, факты с полным provenance, конфликт-деривация, подтверждения к точной версии, guards), миграция 00002 (work_item_versions/event_links/facts/fact_versions/fact_confirmations/command_records, RLS+FORCE, гранты INSERT/SELECT, UNIQUE материальной идемпотентности, DROP work_items.state, пин пака на cases), port/app/store/api (10 идемпотентных команд с optimistic concurrency, чтения WCC/FactsView), employee фасад PackID/PackVersion/PackJourneys, расширение IngestEvent (пин+version 1+линк первого события, той же транзакцией), транспорт (машинный JSON-контракт + операторские формы PRG) + OpenAPI + Work Control Card 320px + privacy-классы 20→(case-operations/case-content расширены, command_records в idempotency-records); архитектурное разрешение напряжения: якоря сериализуются advisory-локами в детерминированном порядке (row FOR UPDATE требует UPDATE-привилегию, отсутствующую у append-only грантов — прецедент AcceptEvent); полный регресс зелёный (build/vet/unit 23/интеграция ×2 TZ (7 новых cases_work-тестов)/journeys 19/19 с новым WCC-чейном/контракт/diff); спека → review.
+
+- 2026-10-09, review loop 1: R1 FAIL (4 Major-класса R1: M1 непересекающиеся факт-локи + необработанный 23505 fact_versions_pkey → детерминированный 500; M2 record_fact без work-лока скоупа и терминальной проверки под транзакцией; M3 гонка идентичного Idempotency-Key → ложный 409) + 10 минорных. Фиксы: унифицированная пара факт-ключей (material-key+fact-id) для всех пишущих факт команд + план факт-локов merge; workLock+Terminal в execRecordFact; executeWork — inline разрешение raced-ключа/stale свежим lookup по request-hash (replay исхода); CHECK 3072-бэкстоп; viewScope-накопление прав; материальный replay до guard терминальности; CriticalEntities в подсказках; flash-focus; конкурентные интеграционные тесты; откат blanket-переформата родительских файлов (retro-1-5).
+- 2026-10-09, review loop 2: R2 FAIL (N1 Major — экспоненциальная запись чисел: 2046 канонических байт массива 1e10 разворачиваются jsonb в ~5300 текстовых → CHECK 23514 → сырой 500; N2 Major процессный — фикс-коммит переиндентировал 11 файлов пробелами ~5900 строк) + N3-N6. Фиксы: домен отклоняет экспоненциальные литералы (jsonb-стабильная цифровая форма; CanonicalPayload ingress не тронут — bytea); gofmt-нормализация; critical_entities в OpenAPI+контракт; потокобезопасный генератор в гонках; свидетели подсказки пака и накопления скоупов. Честная коррекция заявки loop 0: unit-пакетов ok — 22, не 23.
+- 2026-10-09, review loop 3: R3 PASS — все находки R1/R2 закрыты подлинно (живые pgx-зонды ревьюера: потолок экспансии jsonb для цифровой формы = ровно 2048×1.5 = 3072 ≤ CHECK; единый вход FactValue; кумулятивный шум ветки 10 строк; R1-фиксы не размыты). Спека и sprint-status.yaml синхронно → done.
 
 ## Design Notes
 
