@@ -1101,3 +1101,21 @@ decisions:
 next: review R3 (субагент, свежий контекст) — вердикт по закрытию среза
 unpushed: 6
 commit: TBD
+---
+date: 2026-10-10
+task: 46-close
+role: main (Super Z)
+story: 2-3
+summary: Review R3 (субагент, живые пробы) — PASS; story 2-3 закрыта локально (спека+sprint-status → done, review loop 3 итерации)
+done:
+- R3 вердикт PASS: M4 закрыт подлинно (доменный отказ ДО стора, subject из пробелов тоже отказан, атомарная резолюция+связь с заполненным subject); R1/R2-фиксы не размыты — RLS×7 живьём (кросс-тенант 0 строк под staffy_app при админ-контроле >0), duplicate_review-отказ, step-up-блокировка consent-bind, ErrActiveBinding-409, маска совпавшей версии, гонки без сырых ошибок; спека-заморозка чиста
+- Минор m1 R3 (gofmt-выравнивка одной строки теста из ded10db) закрыт gofmt -w; нит n-a (контракт-ассерт required+minLength subject_handle ResolveDuplicateRequest) закрыт одной строкой TestVerificationContractIsHonest
+- Спека → done (Change Log: loop 0 dev, loop 1 R1-фиксы, loop 2 R2-фиксы, loop 3 R3 PASS); Execution-чекбоксы отмечены; sprint-status.yaml 2-3 → done
+- Финальный регресс: build ✓ vet ✓ unit ✓ интеграция UTC + TZ=Europe/Moscow ✓ journeys 20/20 ✓ контракт ✓ git diff --check ✓; шум ветки: 38 файлов, +5870/−29 raw, дифф -w дельта 10 строк
+- Ветка codex/story-2-3-identity-verification: 5 коммитов (144c03d спека [skip ci], aeec3f7 CHECKPOINT 1 [skip ci], 9c4c5ef feat, db258dc fix R1, ded10db fix R2, 44cc7b6 docs-done [skip ci] — head-коммит docs несёт маркер, но это вершина ДО PR-фазы: перед PR будет безмаркерный head по уроку 2-2 — батч-пуш с amend message при CHECKPOINT 2)
+decisions:
+- Цикл ревью 2-3 = 3 итерации (прецедент 2-1/2-2): R1 — классы RLS/гейта/409, R2 — класс, внесённый срезом (subject-дисциплина M4, зеркала фикстуры), R3 — вердикт; фикстура обязана зеркалить стор без удобных дефолтов (урок R2)
+- Спор/уточнения Change Log фиксируются как loop-записи без правки замороженных секций (прецедент)
+next: CHECKPOINT 2 владельцу — STAFFY_GH_TOKEN → подготовить head без [skip ci] → батч-пуш 5 коммитов ветки + 3 main (docs) → PR через GitHub API → CI verify → merge → DEVLOG 46-merge; далее story 2-4 «Единственный response-owner и записывающий inbox»
+unpushed: 7
+commit: TBD
