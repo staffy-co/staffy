@@ -1084,3 +1084,20 @@ decisions:
 next: review R2 (субагент, свежий контекст) — верификация фиксов R1
 unpushed: 5
 commit: TBD
+---
+date: 2026-10-10
+task: 46-review-2
+role: main (Super Z)
+story: 2-3
+summary: Review R2 (субагент, живые пробы) — фиксы R1 верифицированы подлинно; найден M4 (same_client без subject → сырой 23514 → 500) + n1/n2; фиксы применены, регресс зелёный
+done:
+- R2 свидетели: RLS×7 enable+force живьём + кросс-тенант 0 строк под staffy_app (контроль adminControl видит); BindChannel(duplicate_review) → доменный отказ; step-up блокирует consent-bind, резолюция ревьюера под step-up проходит (кандидат обязателен — не дыра, ревьюер = проверка по AC-7); ErrActiveBinding → 409; бэкстопы живы (гонки 2×unlink/2×resolve → 1 победа + ErrCommandKeyConflict); маска совпавшей версии (перезапись не сдвигает); конкурентные resolve vs bind → ровно одна связь; переформат родительских файлов отсутствует (дифф -w сопоставим); экспоненты/jsonb-класс — нет пользовательского jsonb в 7 таблицах
+- M4: GuardResolveDuplicate(decision, note, subject) — same_client требует имя участника (домен отказывает ДО store CHECK — прецедент «никогда сырой 500»); форма required; OpenAPI required+minLength; фикстура без молчаливого дефолта (зеркало стора); юнит TestGuardResolveDuplicateRequiresSubject + интеграционный TestResolveDuplicateRequiresSubject (отказ не пишет резолюцию; subject → связь)
+- n1: порог step-up по кейсу (Intent говорит «на разговор») — поведенчески эквивалентно в срезе (кейс=1 разговор), консервативнее; честная запись в deferred-work с трассировкой R1-m3; n2: мёртвый now-параметр readDuplicatesOfCaseTx удалён
+- Регресс после фиксов: build/vet/unit (0)/интеграция UTC 4.15s + Europe/Moscow 4.32s/journeys 20/20 (journey заполняет subject формы)/контракт/diff — зелёные
+decisions:
+- subject_handle резолюции обязателен только для same_client (separate не связывает — имя не нужно); домен валидирует ДО стора (класс M4 — CHECK 23514 никогда не достигается командой)
+- Фикстура обязана зеркалить стор без «удобных» дефолтов — молчаливая подстановка маскировала дефект (урок R2)
+next: review R3 (субагент, свежий контекст) — вердикт по закрытию среза
+unpushed: 6
+commit: TBD
