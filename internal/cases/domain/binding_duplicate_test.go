@@ -155,16 +155,16 @@ func TestDuplicateResolutionDerivation(t *testing.T) {
 }
 
 func TestGuardResolveDuplicate(t *testing.T) {
-	if err := GuardResolveDuplicate(DuplicateDecisionSeparate, "телефоны разных операторов"); err != nil {
+	if err := GuardResolveDuplicate(DuplicateDecisionSeparate, "телефоны разных операторов", ""); err != nil {
 		t.Fatalf("valid resolution refused: %v", err)
 	}
-	if err := GuardResolveDuplicate("merge", "нота"); err == nil {
+	if err := GuardResolveDuplicate("merge", "нота", ""); err == nil {
 		t.Fatalf("unknown decision must refuse (auto-merge is not a class)")
 	}
-	if err := GuardResolveDuplicate(DuplicateDecisionSameClient, ""); err == nil {
+	if err := GuardResolveDuplicate(DuplicateDecisionSameClient, "", ""); err == nil {
 		t.Fatalf("resolution without the basis note must refuse")
 	}
-	if err := GuardResolveDuplicate(DuplicateDecisionSameClient, "4815162342"); err == nil {
+	if err := GuardResolveDuplicate(DuplicateDecisionSameClient, "4815162342", ""); err == nil {
 		t.Fatalf("bare numeric note must refuse")
 	}
 }
@@ -181,3 +181,17 @@ func TestNewIdentifierKey(t *testing.T) {
 }
 
 var _ = time.Now
+
+func TestGuardResolveDuplicateRequiresSubject(t *testing.T) {
+	// The same-client resolution without the subject handle: the honest
+	// domain refusal BEFORE the store CHECK (never a raw 23514 → 500).
+	if err := GuardResolveDuplicate(DuplicateDecisionSameClient, "тот же клиент по истории", ""); err == nil {
+		t.Fatalf("the same-client resolution must require the subject handle")
+	}
+	if err := GuardResolveDuplicate(DuplicateDecisionSameClient, "тот же клиент по истории", "клиент ACME"); err != nil {
+		t.Fatalf("the same-client resolution with the subject must pass: %v", err)
+	}
+	if err := GuardResolveDuplicate(DuplicateDecisionSeparate, "разные услуги", ""); err != nil {
+		t.Fatalf("the separate decision does not bind — the subject is not required: %v", err)
+	}
+}

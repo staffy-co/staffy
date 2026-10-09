@@ -916,3 +916,59 @@ func TestVerificationTablesRLSForced(t *testing.T) {
 		}
 	}
 }
+
+// TestResolveDuplicateRequiresSubject covers the R2 M4 fix: the same-client
+// resolution without the subject handle is the honest DOMAIN refusal —
+// never a raw 23514 → 500 of the store CHECK.
+func TestResolveDuplicateRequiresSubject(t *testing.T) {
+	w := newCasesWorld(t, 570)
+	ctx := context.Background()
+	caseA, workItemA := w.acceptedCase(t, "evt-verify-95", "sess-verify-95", `{"call":"inbound-call","from":"+79000000095"}`)
+	caseB, workItemB := w.acceptedCase(t, "evt-verify-96", "sess-verify-96", `{"call":"inbound-call","from":"+79000000095"}`)
+	recordPhone := func(caseID, workItemID id.UUID, key string) {
+		if _, err := w.cases.RecordFact(ctx, casesAPI.RecordFactCommand{
+			Actor: w.workActor(), TenantID: w.tenant, CaseID: caseID, WorkItemID: workItemID,
+			MaterialKey: "phone", Value: []byte(`"+7 (912) 345-67-89"`),
+			SourceType: casesDomain.FactSourceOperator, SourceID: key,
+			IdempotencyKey: key, Now: verificationNow,
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	recordPhone(caseA, workItemA, "subject-phone-a")
+	recordPhone(caseB, workItemB, "subject-phone-b")
+	detail, err := w.cases.CaseView(ctx, w.workActor(), w.tenant, caseB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(detail.Duplicates) != 1 {
+		t.Fatalf("expected the candidate, got %d", len(detail.Duplicates))
+	}
+	candidate := detail.Duplicates[0].Candidate
+	// The empty subject: the honest domain refusal before the store CHECK.
+	_, err = w.cases.ResolveDuplicate(ctx, casesAPI.ResolveDuplicateCommand{
+		Actor: w.workActor(), TenantID: w.tenant, CaseID: caseB, CandidateID: candidate.CandidateID,
+		Decision: casesDomain.DuplicateDecisionSameClient, Note: "тот же клиент по истории",
+		ConversationID: w.conversationFirst(t, caseA), BoundConversationID: w.conversationFirst(t, caseB),
+		IdempotencyKey: "resolve-subject-1", Now: verificationNow,
+	})
+	assertRuleError(t, err, "имя участника")
+	// The resolution did not land: the candidate stays open.
+	detail, err = w.cases.CaseView(ctx, w.workActor(), w.tenant, caseB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if detail.Duplicates[0].Resolution != nil {
+		t.Fatalf("the refused resolution must not land")
+	}
+	// The filled subject: the binding lands.
+	if _, err := w.cases.ResolveDuplicate(ctx, casesAPI.ResolveDuplicateCommand{
+		Actor: w.workActor(), TenantID: w.tenant, CaseID: caseB, CandidateID: candidate.CandidateID,
+		Decision: casesDomain.DuplicateDecisionSameClient, Note: "тот же клиент по истории",
+		SubjectHandle: "клиент ACME",
+		ConversationID: w.conversationFirst(t, caseA), BoundConversationID: w.conversationFirst(t, caseB),
+		IdempotencyKey: "resolve-subject-2", Now: verificationNow,
+	}); err != nil {
+		t.Fatal(err)
+	}
+}

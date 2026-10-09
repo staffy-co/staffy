@@ -335,8 +335,8 @@
 <input id="dup-conversation-{{.CandidateID}}" name="conversation_id" type="text" required maxlength="64">
 <label for="dup-bound-{{.CandidateID}}">Связываемый диалог этого кейса (UUID)</label>
 <input id="dup-bound-{{.CandidateID}}" name="bound_conversation_id" type="text" required maxlength="64">
-<label for="dup-subject-{{.CandidateID}}">Имя участника (до 64 символов)</label>
-<input id="dup-subject-{{.CandidateID}}" name="subject_handle" type="text" maxlength="64">
+<label for="dup-subject-{{.CandidateID}}">Имя участника (обязательно для «тот же клиент», до 64 символов)</label>
+<input id="dup-subject-{{.CandidateID}}" name="subject_handle" type="text" maxlength="64" required>
 <button class="primary" type="submit">Решить (resolution + связь одной транзакцией)</button>
 </form></details>
 {{end}}{{end}}

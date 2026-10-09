@@ -4190,14 +4190,14 @@ components:
         reason: { type: string, maxLength: 200 }
     ResolveDuplicateRequest:
       type: object
-      required: [decision, note, conversation_id, bound_conversation_id]
+      required: [decision, note, conversation_id, bound_conversation_id, subject_handle]
       additionalProperties: false
       properties:
         decision: { type: string, enum: [same_client, separate] }
         note: { type: string, maxLength: 200, description: 'Обоснование ревьюера' }
         conversation_id: { type: string, format: uuid }
         bound_conversation_id: { type: string, format: uuid }
-        subject_handle: { type: string, maxLength: 64 }
+        subject_handle: { type: string, maxLength: 64, minLength: 1, description: 'Обязательно для same_client (переносится в связь)' }
     CreateWorkItemRequest:
       type: object
       required: [conversation_id, type, title]

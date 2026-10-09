@@ -187,6 +187,7 @@ test('cases-verification: the assurance panel, binding gate, channel binding, du
     const resolveForm = duplicateCard.locator('form[action$="/resolution"]');
     await resolveForm.locator('select[name="decision"]').selectOption('separate');
     await resolveForm.locator('input[name="note"]').fill('Телефон общий, обращения о разных услугах');
+    await resolveForm.locator('input[name="subject_handle"]').fill('клиент по телефону');
     await resolveForm.locator('input[name="conversation_id"]').fill(targetConversation);
     await resolveForm.locator('input[name="bound_conversation_id"]').fill(boundConversation);
     await resolveForm.getByRole('button', { name: /Решить/ }).click();

@@ -223,7 +223,7 @@ func (f *casesFixture) UnlinkChannel(_ context.Context, command casesAPI.UnlinkC
 func (f *casesFixture) ResolveDuplicate(_ context.Context, command casesAPI.ResolveDuplicateCommand) (casesAPI.WorkOutcome, error) {
 	f.lock()
 	defer f.unlock()
-	if err := fixtureWorkRule("resolve_duplicate", casesDomain.GuardResolveDuplicate(command.Decision, command.Note)); err != nil {
+	if err := fixtureWorkRule("resolve_duplicate", casesDomain.GuardResolveDuplicate(command.Decision, command.Note, command.SubjectHandle)); err != nil {
 		return casesAPI.WorkOutcome{}, err
 	}
 	if command.ConversationID == command.BoundConversationID {
@@ -255,15 +255,11 @@ func (f *casesFixture) ResolveDuplicate(_ context.Context, command casesAPI.Reso
 	confirmation := ""
 	if command.Decision == casesDomain.DuplicateDecisionSameClient {
 		bindingID = f.nextVerificationID()
-		subject := command.SubjectHandle
-		if subject == "" {
-			subject = "тот же клиент (решение ревьюера)"
-		}
 		f.bindings = append(f.bindings, casesDomain.ChannelBinding{
 			TenantID: command.TenantID, BindingID: bindingID, CaseID: candidate.CaseIDExisting,
 			ConversationID: command.ConversationID, BoundCaseID: candidate.CaseIDNew,
 			BoundConversationID: command.BoundConversationID, Method: casesDomain.BindingMethodDuplicateReview,
-			SubjectHandle: subject, ActorID: command.Actor.ID, CreatedAt: command.Now,
+			SubjectHandle: command.SubjectHandle, ActorID: command.Actor.ID, CreatedAt: command.Now,
 		})
 		confirmation = casesDomain.BindingClientConfirmation(casesDomain.BindingMethodDuplicateReview)
 	}

@@ -276,7 +276,7 @@ func (s *Service) ResolveDuplicate(ctx context.Context, command casesAPI.Resolve
 	if err != nil {
 		return casesAPI.WorkOutcome{}, err
 	}
-	if err := rule("resolve_duplicate", casesDomain.GuardResolveDuplicate(command.Decision, command.Note)); err != nil {
+	if err := rule("resolve_duplicate", casesDomain.GuardResolveDuplicate(command.Decision, command.Note, command.SubjectHandle)); err != nil {
 		return casesAPI.WorkOutcome{}, err
 	}
 	if command.ConversationID == command.BoundConversationID {

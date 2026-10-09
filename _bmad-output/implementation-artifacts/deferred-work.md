@@ -160,3 +160,7 @@
 - source_spec: `spec-2-3-identity-verification-channel-binding.md`
   summary: N+1 чтения карточек дублей и реверсий: readDuplicatesOfCaseTx делает по два запроса на кандидата (версии факта + резолюция + канал) и readBindingsTouchingCaseTx читает ВСЕ реверсии тенанта. Для среза допустимо (кейс содержит 1-3 кандидата), с ростом числа кейсов чтение деградирует линейно; пакетные чтения одной проекцией — оптимизация будущих stories с бенчмарком (прецедент N+1 фактов 2-2).
   evidence: review R1 m8 (Task 28-r1); store/verification.go readDuplicatesOfCaseTx/readBindingsTouchingCaseTx; интеграционные тесты не измеряют план чтения.
+
+- source_spec: `spec-2-3-identity-verification-channel-binding.md`
+  summary: Порог step-up считается по записям ВСЕГО кейса, а замороженный Intent говорит «на разговор» (≥3 failed|ambiguous per conversation в окне 1ч). В срезе поведенчески эквивалентно (кейс владеет ровно одним разговором — новые сессии рождают новые кейсы, связанные разговоры принадлежат чужим кейсам), направление консервативнее (кейс-уровень блокирует раньше). Фильтр окна по conversation_id записи — честная правка будущих stories, когда кейс станет многоразговорным (после срезов 2-4+).
+  evidence: review R2 n1 (Task 29-r2); domain/verification.go DeriveAssuranceState — StepUpFailures без фильтра conversation; R1 m3 сброшен без трассировки — эта запись восстанавливает честность трассировки.

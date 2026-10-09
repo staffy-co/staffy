@@ -208,14 +208,14 @@ func (s *Postgres) ReadDuplicatesOfCase(ctx context.Context, scope tenancy.Conte
 		return nil, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
-	cards, err := readDuplicatesOfCaseTx(ctx, tx, scope, time.Now().UTC(), caseID)
+	cards, err := readDuplicatesOfCaseTx(ctx, tx, scope, caseID)
 	if err != nil {
 		return nil, err
 	}
 	return cards, tx.Commit(ctx)
 }
 
-func readDuplicatesOfCaseTx(ctx context.Context, tx pgx.Tx, scope tenancy.Context, now time.Time, caseID id.UUID) ([]casesPort.DuplicateCard, error) {
+func readDuplicatesOfCaseTx(ctx context.Context, tx pgx.Tx, scope tenancy.Context, caseID id.UUID) ([]casesPort.DuplicateCard, error) {
 	tenantID := scope.TenantID()
 	rows, err := tx.Query(ctx, `
 		select d.candidate_id, d.case_id_new, d.case_id_existing, d.token, d.material_key, d.match_reason, d.rule_confidence, d.created_at,

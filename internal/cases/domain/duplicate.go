@@ -199,9 +199,11 @@ func ResolvedDecision(resolutions []DuplicateResolution, candidateID id.UUID) st
 }
 
 // GuardResolveDuplicate validates the resolution command: the decision
-// dictionary and the evidence note (required — the reviewer records the
-// basis, never a bare code).
-func GuardResolveDuplicate(decision, note string) error {
+// dictionary, the evidence note (required — the reviewer records the
+// basis, never a bare code) and the subject handle of the same-client
+// decision (the binding row requires it — the domain refuses BEFORE the
+// store CHECK, never a raw 23514).
+func GuardResolveDuplicate(decision, note, subjectHandle string) error {
 	if !inDictionary(DuplicateDecisions, decision) {
 		return fmt.Errorf("решение дубля %s не входит в словарь (%s)", decision, joinQuoted(DuplicateDecisions))
 	}
@@ -213,6 +215,15 @@ func GuardResolveDuplicate(decision, note string) error {
 	}
 	if noteIsBareCode(note) {
 		return fmt.Errorf("нота решения не может быть чистым кодом: запишите обоснование словами")
+	}
+	if decision == DuplicateDecisionSameClient {
+		handle := strings.TrimSpace(subjectHandle)
+		if handle == "" {
+			return fmt.Errorf("решение «тот же клиент» требует имя участника (переносится в связь)")
+		}
+		if utf8.RuneCountInString(handle) > MaxSubjectHandleRunes {
+			return fmt.Errorf("имя участника длиннее %d символов", MaxSubjectHandleRunes)
+		}
 	}
 	return nil
 }
