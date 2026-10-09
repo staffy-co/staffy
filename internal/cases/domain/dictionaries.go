@@ -153,7 +153,6 @@ func IsBoundedKind(kind string) bool {
 const (
 	CaseStateOpen           = "open"
 	ConversationStateActive = "active"
-	WorkItemStateUntriaged  = "untriaged"
 	WritableSurfaceInbox    = "inbox"
 	ResponseOwnerEpochFirst = 1
 )
@@ -163,6 +162,7 @@ const (
 	ExceptionDigestConflict      = "digest_conflict"
 	ExceptionAmbiguousRouting    = "ambiguous_employee"
 	ExceptionIdempotencyConflict = "idempotency_key_conflict"
+	ExceptionWorkItemDispute     = "work_item_dispute"
 )
 
 // Outbox event types of the slice (each with its schema version).

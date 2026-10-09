@@ -126,7 +126,8 @@ func run(logger *slog.Logger) error {
         casesService := casesApp.New(casesStore.NewPostgres(pool), identityService, ingresssyn.New(connectorService), clock, ids).
                 WithRouteFacts(employeeService).
                 WithConnectionFacts(connectorService).
-                WithMembers(identityService)
+                WithMembers(identityService).
+                WithPackTaxonomy(employeeService)
         transport.BindCases(casesService)
         server := &http.Server{
                 Addr:              listenAddress,

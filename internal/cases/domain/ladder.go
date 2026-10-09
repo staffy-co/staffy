@@ -42,12 +42,16 @@ func (w CoverageWord) Route() string { return w.Channel + ":" + w.Direction }
 
 // RouteCandidate is one employee whose acting decision seals the
 // connection: the per-route results and the human coverage of the exact
-// profile version pinned by that decision.
+// profile version pinned by that decision. PackID/PackVersion carry the
+// Domain Pack of the sealed configuration version (the taxonomy source of
+// the case the ingress pins onto the case row).
 type RouteCandidate struct {
 	EmployeeID     id.UUID
 	DecisionNo     int64
 	Stage          string
 	ProfileVersion int64
+	PackID         string
+	PackVersion    string
 	Routes         []RouteAdmissionWord
 	Coverage       []CoverageWord
 }
@@ -102,7 +106,8 @@ const (
 )
 
 // Outcome is the ladder verdict with the initial owner of the accepted
-// event and the counter of a bounded refusal.
+// event, the counter of a bounded refusal and the Domain Pack pin of the
+// admitting decision (the taxonomy the ingest writes onto the case).
 type Outcome struct {
 	Kind        OutcomeKind
 	RefusalKind string
@@ -110,6 +115,8 @@ type Outcome struct {
 	Counter     int
 	OwnerID     id.UUID
 	EmployeeID  id.UUID
+	PackID      string
+	PackVersion string
 }
 
 // AdmittedRouteStates are the per-route result values of a decision.
@@ -208,7 +215,8 @@ func DeriveIngressOutcome(facts IngressFacts) Outcome {
 			Counter: facts.InflightCount,
 			Text:    fmt.Sprintf("In-flight предел подключения достигнут: %d событий в окне %s из %d; событие не принято, молчаливой потери нет.", facts.InflightCount, envelope.InflightWindow, envelope.MaxInflightPerConnection)}
 	}
-	return Outcome{Kind: OutcomeAccept, OwnerID: ownerID, EmployeeID: candidate.EmployeeID}
+	return Outcome{Kind: OutcomeAccept, OwnerID: ownerID, EmployeeID: candidate.EmployeeID,
+		PackID: candidate.PackID, PackVersion: candidate.PackVersion}
 }
 
 func noOwnerText(employeeID id.UUID, hint id.UUID) string {

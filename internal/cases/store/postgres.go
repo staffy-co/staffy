@@ -221,9 +221,10 @@ func (s *Postgres) AcceptEvent(ctx context.Context, p casesPort.AcceptParams) (c
 			return casesDomain.IngestResult{}, err
 		}
 		if _, err = tx.Exec(ctx, `
-                        insert into cases.cases (tenant_id,case_id,case_no,employee_id,state,created_at)
-                        values ($1,$2,$3,$4,$5,$6)`,
-			tenantID, p.CaseID, caseNo, employeeID, casesDomain.CaseStateOpen, now); err != nil {
+                        insert into cases.cases (tenant_id,case_id,case_no,employee_id,state,pack_id,pack_version,created_at)
+                        values ($1,$2,$3,$4,$5,$6,$7,$8)`,
+			tenantID, p.CaseID, caseNo, employeeID, casesDomain.CaseStateOpen,
+			nilText(p.PackID), nilText(p.PackVersion), now); err != nil {
 			return casesDomain.IngestResult{}, err
 		}
 		if _, err = tx.Exec(ctx, "select pg_advisory_xact_lock(hashtextextended($1,0))", tenantNumberLockKey("conversation_no", tenantID)); err != nil {
@@ -241,10 +242,18 @@ func (s *Postgres) AcceptEvent(ctx context.Context, p casesPort.AcceptParams) (c
 			casesDomain.ConversationStateActive, now); err != nil {
 			return casesDomain.IngestResult{}, err
 		}
-		// The initial work item is created only with a new conversation.
+		// The initial work item is created only with a new conversation —
+		// the anchor, the version 1 (kind create, the honest untriaged
+		// state, the system actor) and the link of the first event.
 		if _, err = tx.Exec(ctx, `
-                        insert into cases.work_items (tenant_id,case_id,conversation_id,work_item_id,state,created_at)
-                        values ($1,$2,$3,$4,$5,$6)`,
+                        insert into cases.work_items (tenant_id,case_id,conversation_id,work_item_id,created_at)
+                        values ($1,$2,$3,$4,$5)`,
+			tenantID, p.CaseID, p.ConversationID, p.WorkItemID, now); err != nil {
+			return casesDomain.IngestResult{}, err
+		}
+		if _, err = tx.Exec(ctx, `
+                        insert into cases.work_item_versions (tenant_id,case_id,conversation_id,work_item_id,version_no,kind,state,created_at)
+                        values ($1,$2,$3,$4,1,'create',$5,$6)`,
 			tenantID, p.CaseID, p.ConversationID, p.WorkItemID, casesDomain.WorkItemStateUntriaged, now); err != nil {
 			return casesDomain.IngestResult{}, err
 		}
@@ -266,6 +275,17 @@ func (s *Postgres) AcceptEvent(ctx context.Context, p casesPort.AcceptParams) (c
                 values ($1,$2,$3,$4,$5,$6,$7)`,
 		tenantID, p.Event.EventID, p.SealKey, p.Payload, p.Event.PayloadDigest, p.Seal, now); err != nil {
 		return casesDomain.IngestResult{}, err
+	}
+	// The link of the first event of a new conversation to the initial
+	// work item (the system link, actor NULL); a session continuation
+	// writes no new work item and no automatic link.
+	if newCase {
+		if _, err = tx.Exec(ctx, `
+                        insert into cases.work_item_event_links (tenant_id, work_item_id, event_id, actor_id, created_at)
+                        values ($1,$2,$3,NULL,$4)`,
+			tenantID, p.WorkItemID, p.Event.EventID, now); err != nil {
+			return casesDomain.IngestResult{}, err
+		}
 	}
 	// The outbox record of the accepted event is marshalled INSIDE the
 	// transaction with the resolved material: the canonical JSON never
@@ -424,8 +444,8 @@ func (s *Postgres) CountRejections(ctx context.Context, scope tenancy.Context, k
 	defer func() { _ = tx.Rollback(ctx) }()
 	var count int
 	if err = tx.QueryRow(ctx, `
-		select count(*) from cases.ingress_rejections
-		where tenant_id=$1 and kind=$2 and created_at > $3`,
+                select count(*) from cases.ingress_rejections
+                where tenant_id=$1 and kind=$2 and created_at > $3`,
 		scope.TenantID(), kind, now.UTC().Add(-window)).Scan(&count); err != nil {
 		return 0, err
 	}
@@ -496,10 +516,11 @@ func (s *Postgres) ReadCase(ctx context.Context, scope tenancy.Context, caseID i
 
 func readCaseTx(ctx context.Context, tx pgx.Tx, tenantID, caseID id.UUID) (casesDomain.CaseDetail, error) {
 	detail := casesDomain.CaseDetail{}
+	var packID, packVersion *string
 	err := tx.QueryRow(ctx, `
-                select case_id, case_no, employee_id, state, created_at
+                select case_id, case_no, employee_id, state, pack_id, pack_version, created_at
                 from cases.cases where tenant_id=$1 and case_id=$2`, tenantID, caseID).
-		Scan(&detail.Case.CaseID, &detail.Case.CaseNo, &detail.Case.EmployeeID, &detail.Case.State, &detail.Case.CreatedAt)
+		Scan(&detail.Case.CaseID, &detail.Case.CaseNo, &detail.Case.EmployeeID, &detail.Case.State, &packID, &packVersion, &detail.Case.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return casesDomain.CaseDetail{}, casesDomain.ErrNotFound
 	}
@@ -507,6 +528,9 @@ func readCaseTx(ctx context.Context, tx pgx.Tx, tenantID, caseID id.UUID) (cases
 		return casesDomain.CaseDetail{}, err
 	}
 	detail.Case.TenantID = tenantID
+	if packID != nil {
+		detail.Case.PackID, detail.Case.PackVersion = *packID, *packVersion
+	}
 	detail.Case.CreatedAt = detail.Case.CreatedAt.UTC()
 
 	conversations, err := tx.Query(ctx, `
@@ -557,21 +581,33 @@ func readCaseTx(ctx context.Context, tx pgx.Tx, tenantID, caseID id.UUID) (cases
 	}
 
 	items, err := tx.Query(ctx, `
-                select work_item_id, case_id, conversation_id, state, created_at
-                from cases.work_items where tenant_id=$1 and case_id=$2 order by created_at, work_item_id`, tenantID, caseID)
+                select w.work_item_id, w.case_id, w.conversation_id, w.created_at,
+                       v.version_no, v.kind, v.state, v.reason, v.actor_id, v.ref,
+                       coalesce(t.type, ''), coalesce(t.title, '')
+                from cases.work_items w
+                left join lateral (
+                        select version_no, kind, state, reason, actor_id, ref from cases.work_item_versions
+                        where tenant_id = w.tenant_id and work_item_id = w.work_item_id
+                        order by version_no desc limit 1
+                ) v on true
+                left join lateral (
+                        select type, title from cases.work_item_versions
+                        where tenant_id = w.tenant_id and work_item_id = w.work_item_id and type is not null
+                        order by version_no desc limit 1
+                ) t on true
+                where w.tenant_id=$1 and w.case_id=$2 order by w.created_at, w.work_item_id`, tenantID, caseID)
 	if err != nil {
 		return casesDomain.CaseDetail{}, err
 	}
 	defer items.Close()
-	detail.WorkItems = []casesDomain.WorkItem{}
+	detail.WorkItems = []casesDomain.WorkItemCurrent{}
 	for items.Next() {
-		var item casesDomain.WorkItem
-		if err = items.Scan(&item.WorkItemID, &item.CaseID, &item.ConversationID, &item.State, &item.CreatedAt); err != nil {
+		current, err := scanCurrent(items.Scan)
+		if err != nil {
 			return casesDomain.CaseDetail{}, err
 		}
-		item.TenantID = tenantID
-		item.CreatedAt = item.CreatedAt.UTC()
-		detail.WorkItems = append(detail.WorkItems, item)
+		current.Terminal = casesDomain.TerminalWorkItemStates[current.State]
+		detail.WorkItems = append(detail.WorkItems, current)
 	}
 	if err = items.Err(); err != nil {
 		return casesDomain.CaseDetail{}, err
@@ -633,7 +669,7 @@ func (s *Postgres) ListExceptions(ctx context.Context, scope tenancy.Context) ([
 
 func exceptionRows(ctx context.Context, tx pgx.Tx, tenantID id.UUID, where string, args ...any) ([]casesDomain.OperationalException, error) {
 	rows, err := tx.Query(ctx, `
-                select exception_id, kind, summary, correlation_id, event_id, coalesce(original_event_id, '00000000-0000-0000-0000-000000000000'), coalesce(case_id, '00000000-0000-0000-0000-000000000000'), coalesce(conversation_id, '00000000-0000-0000-0000-000000000000'), created_at
+                select exception_id, kind, summary, correlation_id, coalesce(event_id, '00000000-0000-0000-0000-000000000000'), coalesce(original_event_id, '00000000-0000-0000-0000-000000000000'), coalesce(case_id, '00000000-0000-0000-0000-000000000000'), coalesce(conversation_id, '00000000-0000-0000-0000-000000000000'), created_at
                 from cases.operational_exceptions where `+where+` order by created_at desc`, args...)
 	if err != nil {
 		return nil, err

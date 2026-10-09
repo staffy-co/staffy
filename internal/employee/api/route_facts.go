@@ -18,12 +18,16 @@ type RouteFacts struct {
 }
 
 // RouteCandidate is one employee whose acting decision's sealed manifest
-// contains the connection.
+// contains the connection. PackID/PackVersion carry the Domain Pack of the
+// sealed configuration version — the taxonomy source the case contour pins
+// onto the case row at ingest (Story 2.2).
 type RouteCandidate struct {
 	EmployeeID     id.UUID                 `json:"employee_id"`
 	DecisionNo     int64                   `json:"decision_no"`
 	Stage          string                  `json:"stage"`
 	ProfileVersion int64                   `json:"profile_version"`
+	PackID         string                  `json:"pack_id,omitempty"`
+	PackVersion    string                  `json:"pack_version,omitempty"`
 	Routes         []domain.RouteAdmission `json:"routes"`
 	Coverage       []domain.HumanCoverage  `json:"human_coverage"`
 }

@@ -883,3 +883,112 @@ decisions:
 - Итог review-цикла 2-1 подтверждён CI независимо: 4 Major R1 + Critical N1 R2 закрыты, полный регресс зелёный в обеих таймзонах (локально и в CI)
 next: Epic 2 продолжается — story 2-2 «Work Items, факты и provenance внутри Case» (backlog; первый шаг — SM-спека первого среза → CHECKPOINT 1 владельцу). Осталось 15/16 stories
 commit: 84b5120
+
+---
+date: 2026-10-09
+task: 44-sm
+role: main (Super Z, роль SM)
+story: 2-2
+summary: SM-спека первого среза story 2-2 «Work Items, факты и provenance внутри Case» (FR-10, FR-12) написана и запушена — ожидает CHECKPOINT 1 владельца; решение владельца «приступай» (CHECKPOINT 2 закрытия 2-1) зафиксировано
+done:
+- Входы SM прочитаны: epics §2.2 (11 AC-блоков: классификация, разделение/объединение, факты с provenance, подтверждение точной версии, конфликты, идемпотентность, состояния WI, продолжение, Work Control Card, a11y), PRD FR-10 (источник/provenance, Owning System-следствия) и FR-12 (несколько намерений как отдельные WI), deferred-work 2-1/1-14, спека 2-1 (формат, границы, отложенное «классификация — 2.2»), код: cases domain (WorkItem только untriaged + CHECK), миграция 00001, RouteFacts-фасад (RouteCandidate: Candidate/Coverage/Entitlement), ConfigRefs.Pack запечатанной версии, packs catalog (auto-parts@2.0.0: journeys «поиск детали», «уточнение аналога»), UX Work Control Card (EXPERIENCE.md: situation-first summary + trace раскрывается отдельно)
+- Спека spec-2-2-work-items-facts-provenance.md (~108 строк, frozen Intent/Boundaries/Matrix): чистый append-only — work_item_versions/work_item_event_links/fact_versions/fact_confirmations с грантами только INSERT/SELECT; «текущее» и «conflicting» — производные максимальной версии (никаких UPDATE); пин Domain Pack на Case при ingest (taxonomy типов стабилен на весь жизненный цикл кейса, работа не зависит от текущей адмиссии); команды ClassifyWorkItem/TransitionWorkItem/SplitWorkItem/MergeWorkItems/CreateWorkItem/LinkEvent/DisputeWorkItem/RecordFact/ConfirmFactVersion/RescopeFact — все идемпотентны (прецедент 1-9), expected_version = optimistic concurrency под FOR UPDATE якоря; факты: материальный ключ + канонический JSON (UseNumber) + полный provenance (source/channel/actor/observed+received раздельно) + UNIQUE идемпотентности (tenant, source_type, source_id, material_key, value_digest); подтверждения — append-only к ТОЧНОЙ версии, confirmer-словарь client|owning_system|operator_relay (продюсер среза только operator_relay с evidence-ссылкой на событие); конфликт-деривация без авто-выбора (authority rules/Owning System отложены честно); split ≥2 целей / merge с merged_into + оспаривание через операционное исключение; автосвязи событий с WI нет как класса; privacy: факт-значения = case-content (review/audit), WI-метаданные = case-operations; Work Control Card со словарём next-action (без AI); IngestEvent расширяется минимально (пин + version 1 + линк первого события), регресс 2-1 обязан остаться зелёным
+- Честные границы среза: client/owning_system-подтверждения без продюсеров (исходящих диалогов и write-path коннекторов нет), extraction-источники фактов (AI в контуре нет — факты записывает оператор), authority rules/State-Authority Matrix, автосвязь (2-3), закрытие кейса, open questions/options/Commitments (2-6/2-9)
+- Ветка codex/story-2-2-work-items-facts от 5a8362f; коммит спеки + DEVLOG 44-sm (этот); push; sprint-status 2-2 = backlog (синхронен спеке до CHECKPOINT 1)
+decisions:
+- Пин пака на Case вместо живого чтения RouteFacts при классификации: живое чтение создало бы ложную зависимость работы над кейсом от текущей адмиссии (отзыв решения блокировал бы классификацию существующего кейса); пин из запечатанной версии, допустившей обращение, — тот же provenance-принцип, что у первоначального владельца 2-1
+- Подтверждение — отдельная append-only таблица, а не статус в строке версии: привязка к ТОЧНОЙ версии (AC-5) исполняется структурой; подтверждённая версия принципиально не перезаписывается, история подтверждений неизменяема
+- Conflicting — производная на чтении (последняя версия ≠ последней подтверждённой или ≥2 digest без подтверждений), не хранимый флаг: append-only не нарушается, спорные значения видны всегда
+- source_id факта для operator-источника — ключ команды (не принципал): оператор может исправлять значения (новые версии того же ключа), точный повтор команды — replay; для channel_event — event_id (материал события неизменяем)
+- DROP cases.work_items.state миграцией 00002: версии — единственный носитель состояния; якорь без денормализации (чтение JOIN LATERAL максимальной версии)
+next: CHECKPOINT 1 владельцу — «одобряю» → спека и sprint-status синхронно → ready-for-dev → Dev (step-03: bootstrap в foreground; домен+миграция+команды+фасады+транспорт+WCC+тесты; регресс 2-1 зелёный обязателен)
+commit: 8864c05
+---
+date: 2026-10-09
+task: 44-checkpoint
+role: main (Super Z)
+story: 2-2
+summary: CHECKPOINT 1 — владелец одобрил спеку 2-2 («одобряю», чат 2026-10-09); спека и sprint-status.yaml синхронно переведены в ready-for-dev; epic-2 остаётся in-progress (вторая story эпика стартует); push коммита — сразу (credential helper жив с 43-merge, прецедент task 24: push ветки работал без токена)
+done:
+- spec-2-2-work-items-facts-provenance.md: status backlog → ready-for-dev; Spec Change Log дополнен записью CHECKPOINT 1 (frozen-часть Intent/Boundaries/Edge-Case Matrix без изменений)
+- sprint-status.yaml: 2-2 → ready-for-dev (синхронность check-continuity); epic-2 in-progress; last_updated 10-09-2026
+- Коммит [skip ci] на ветке codex/story-2-2-work-items-facts (четвёртый: 8864c05 spec, fd0ec40 канон-хеш, b6814ab фикс-ап, checkpoint)
+next: Dev step-03 — bootstrap в foreground (окружение могло сброситься); push отложен до STAFFY_GH_TOKEN (батч-прецедент 1-13/1-14/2-1: helper существует, но токен в нём истёк — remote: Invalid username or token), затем реализация среза по спеке: домен cases (WI-версии, лестница состояний, taxonomy-пин, факты/provenance/конфликты/подтверждения), миграция 00002 (DROP work_items.state), port/app/store/api (10 идемпотентных команд, optimistic concurrency), employee фасад PackID/PackVersion/PackJourneys, расширение IngestEvent (пин+version 1+линк), транспорт+OpenAPI+Work Control Card, privacy-классы, тесты (unit/integration ×2 TZ/journey/wire); регресс 2-1 зелёный обязателен (15 cases-тестов)
+commit: TBD
+---
+date: 2026-10-09
+task: 44-dev
+role: main (Super Z)
+story: 2-2
+summary: Dev step-03 завершён — первый срез story 2-2 реализован полностью (домен work-команд, миграция 00002, port/app/store/api с 10 идемпотентными командами, employee-фасад taxonomy, расширение IngestEvent, транспорт+OpenAPI+Work Control Card, privacy-классы), полный регресс зелёный в обеих таймзонах; спека → review
+done:
+- internal/cases/domain/work.go: лестница состояний untriaged→in_work→waiting|resolved|cancelled (+терминальные split/merged), словари видов версий (create/classify/transition/split/merge) и ref-семантика, RecommendedNextAction — фиксированный словарь (никогда не AI); факты: NormalizeMaterialKey (trim+lower ≤64), FactValue (канонический JSON UseNumber, ≤2КБ, 1≠1.0), FactSourceChannel (channel_event наследует канал события, operator — псевдоканал), Guard-набор всех команд (Classify/Transition/Split/Merge/Link/RecordFact/Confirm/Rescope), DeriveFactStatus — конфликт/подтверждение как производные чтения (последняя версия ≠ последней подтверждённой ИЛИ ≥2 digest без подтверждений), авто-выбора значения нет; юнит-тесты всех словарей/лестницы/дериваций/evidence-правил
+- migrations/cases/00002: cases.cases += pack_id/pack_version (пин из RouteCandidate при ingest); DROP work_items.state (версии — единственный носитель); work_item_versions (kind/state/ref/actor NULL=система), work_item_event_links, facts (UNIQUE case+material_key), fact_versions (UNIQUE tenant+source_type+source_id+material_key+value_digest — материальная идемпотентность; source_type словарь с зарезервированными connector/system без продюсеров), fact_confirmations (confirmer-словарь, evidence: событие ИЛИ нота — ровно одно, CHECK), command_records (идемпотентность команд, actor-scoped RLS); operational_exceptions: kind += work_item_dispute, event_id NULL-able (спор без события); RLS+FORCE, гранты INSERT/SELECT, REVOKE UPDATE/DELETE/TRUNCATE
+- internal/cases/{api,port,app,store}: WorkService-интерфейс (10 команд + FactsView); команды — идемпотентность по ключу с сохранённым исходом ДО стражей (прецедент 1-9), optimistic concurrency (expected_version сверяется под локами), ErrStaleVersion/ErrCommandKeyConflict/ErrFactMaterialExists + WorkRuleError — честные ошибки; ExecuteWorkCommand — единый транзакционный исполнитель: advisory-локи всех якорей в СОРТИРОВАННОМ порядке (deadlock-free), факт find-or-create по ключу, merge: ре-скоуп фактов источников НОВЫМИ версиями (строки не дублируются) + перенос линов с дедупликацией; чтения: ReadWorkItemCurrents (JOIN LATERAL производной), FactsView/ReadFactsOfCase, LookupCommand, LookupFactVersionBySource
+- КЛЮЧЕВОЕ АРХИТЕКТУРНОЕ РЕШЕНИЕ: row FOR UPDATE якорей заменён advisory-локами в детерминированном порядке — SELECT FOR UPDATE требует привилегию UPDATE, которую append-only гранты (INSERT/SELECT) сознательно не выдают; спека требует и «FOR UPDATE якоря», и «гранты INSERT/SELECT только» — конфликт разрешён в пользу append-only (суть дисциплины), сериализация команд идентична (прецедент AcceptEvent 2-1); честная запись в deferred-work
+- internal/employee: RouteCandidate += PackID/PackVersion (из Refs запечатанной версии манифеста), фасад PackJourneys (обёртка packs.Get — каталог неизменяем в бинарнике, TOCTOU нет); cmd/staffy-core: WithPackTaxonomy
+- IngestEvent расширен минимально в той же транзакции: пин пака на Case (из outcome принимающего решения), version 1 начального WI (kind create, untriaged, actor NULL), линк первого события ↔ начального WI (только новый диалог; продолжение — ничего); регресс 2-1 зелёный (все 15 cases-тестов)
+- Транспорт: машинный JSON-контракт 10 команд (строгий decode, Idempotency-Key 8-200, 201/200-replay/400-правило/409-stale+key-conflict/404/403) + GET facts; операторские формы WCC (PRG, flash-ошибки, детерминированные form-ключи); OpenAPI: +11 путей, +17 схем, +4 параметра, обновлены WorkItemRecord (лестница состояний+version)/CaseRecord (пин)/OperationalException (dispute+nullable event)/CaseView (facts/manage rights+taxonomy); контракт-тест расширен (Idempotency-Key на всех POST, честные ответы, зарезервированные словари)
+- Work Control Card: case.html переработан — карточки WI (тип/название/состояние/версия/следующее действие/факты с обеими версиями конфликта+provenance в details), формы классификации/перехода/разделения/объединения/связи/оспаривания/подтверждения/переноса/создания/записи факта; prepareWorkCards с группировкой фактов по скоупу; CanManageWork (review) скрывает формы у configuration/audit-членов; 320px без горизонтального скролла
+- privacy: ClassCaseOperations += work_item_versions/work_item_event_links; ClassCaseContent += facts/fact_versions/fact_confirmations; ClassIdempotencyRecords += cases.command_records; TestPerimeterIntegrity синхронно
+- Тесты: юнит (лестница/словари/деривации/guards, 1≠1.0 точность), интеграция 7 новых тестов (классификация+replay+taxonomy-отказ+stale, факты: provenance/материальная идемпотентность/конфликт/подтверждение/новое-значение-после-подтверждения/отказ client+connector+evidence, split/merge/rescope/dispute полного цикла, optimistic concurrency гонка, авторизация (configurator → honest 403, чужой тенант → 404), продолжение сессии без пересоздания + CreateWorkItem+LinkEvent, NULL-pin отказ), journeys: cases_work_fixture (in-memory на РЕАЛЬНЫХ доменных guard-функциях) + zzzzzzzzzzz-cases-work.spec.ts (WCC-цепочка 320px: classify→факт→конфликт→confirm→split→rescope→merge→dispute→no-scroll)
+- Полный регресс: build ✓ vet ✓ unit 23 ok ✓ интеграция UTC + TZ=Europe/Moscow ✓ journeys 19/19 ✓ контракт ✓ git diff --check ✓; регресс 2-1 зелёный
+decisions:
+- Advisory-локи вместо row FOR UPDATE — см. выше (главное напряжение спеки, разрешено в пользу append-only с честной записью)
+- Fact-идемпотентность двухслойна: command_records (actor-scoped replay точного повтора команды) + материальная UNIQUE (tenant, source_type, source_id, material_key, value_digest) — точный повтор того же материала ЧЕРЕЗ ДРУГУЮ команду/актора возвращает replay исходной версии, тот же ключ с иным значением — новая версия (и read-time конфликт)
+- Rescoped-версия факта несёт source operator+command-key (operator может исправлять значения — источник = ключ команды, не принципал); merge-ре-скоупы аналогично с ключем merge-команды
+- Формы WCC: детерминированные idempotency-ключи из материала формы — двойной сабмит = replay, изменённый материал = новая команда под версионными стражами
+- work_items.state удалён миграцией: единственный носитель состояния — версии; чтение JOIN LATERAL максимальной версии (тип/название — последняя non-null строка)
+next: review R1 (субагент, свежий контекст) → фиксы → R2 → закрытие story → CHECKPOINT 2 владельцу (STAFFY_GH_TOKEN → батч-push → PR → CI → merge)
+commit: TBD
+---
+date: 2026-10-09
+task: 44-review
+role: main (Super Z)
+story: 2-2
+summary: Review R1 (субагент, свежий контекст) — FAIL: 3 Major + 10 минорных; все фиксы применены и закоммичены
+done:
+- R1 Major: M1 — факт-якоря сериализовались РАЗНЫМИ ключами в разных командах (record по material-key, confirm/rescope по fact-id, merge без факт-локов) → конкурентные версии → необработанный 23505 fact_versions_pkey → детерминированный 500 (пробы ревьюера на живом PG); M2 — record_fact не держал work-лок скоупа и не перепроверял терминальность в транзакции → факт писался в скоуп resolved/cancelled/split/merged; M3 — гонка двух идентичных команд по одному ключу: проигравший получал ложный 409 «ключ занят другим материалом» вместо replay
+- Фиксы M1: унифицированная пара ключей факта (factKeyLockKey+factIDLockKey) для ВСЕХ пишущих факт команд; merge планирует факт-локи пред-чтением (факт не может войти в источник под work-локами merge); fact_versions_pkey → ErrStaleVersion; rescope-вставка обёрнута mapWorkInsertError; ErrFactMaterialExists в rescope/merge → честный rule-отказ (межоператорный ключ)
+- Фиксы M2: record_fact += workLockKey(скоупа) + Terminal-проверка под локом в execRecordFact
+- Фиксы M3: executeWork — единый транзакционный исполнитель с inline-разрешением raced-ключа И stale-близнеца: свежий lookup по (actor, command, key), request-hash совпал → replay сохранённого исхода; все 10 команд переведены на него
+- Минорные: m1 CHECK 2048→3072 текстовых байт jsonb (бэкстоп с ≤50% оверхедом разделителей, комментарий); m2 raced-путь выводит DERIVED статус (DeriveFactStatus по свежему материалу); m3 viewScope накапливает права всех скоупов (configuration+audit видит payload; metadata-поверхность configuration-only сохранена через anyScope); m4 материальный replay выполняется ДО guard терминальности (повтор материала на терминальном скоупе — replay, не 400); m5 подсказки материальных ключей из CriticalEntities закреплённого пака (порт PackCriticalEntities + фасад + CaseView + materialKeyHints + шаблон); m6 flash получает tabindex=-1 и focus (прецедент budget.html 1-9) + journey-шаг toBeFocused; m7 unknown-field тест строит поле ВНУТРИ JSON-объекта; m8 4 конкурентных интеграционных теста (raced twin → один применён/один replay; унифицированные локи; терминальный скоуп; merge-гонка); m9 blanket-переформат трёх родительских файлов откачен к родительскому стилю (retro-1-5, кумулятивно 97/6 содержательных строк); m10 N+1 чтения — deferred-work
+- Полный регресс зелёный: build/vet/unit 22 ok/интеграция UTC+TZ=Europe/Moscow/journeys 19/19/контракт/diff
+decisions:
+- Разрешение stale-гонки идентичных близнецов НЕ через материал, а через ключ команды: lookup по (actor, command, key) + request-hash — покрывает ВСЕ команды единообразно; материальная идентичность остаётся доменом record_fact
+- Конкурентные инварианты интерливинг-независимы: честный сигнал-сет {nil, stale, key-conflict, rule, material-exists} + лестницы контекстуальны (2-3 версии в зависимости от порядка перечитывания expected на входе)
+next: review R2 (субагент) — верификация фиксов
+commit: edb8e11
+---
+date: 2026-10-09
+task: 44-review-2
+role: main (Super Z)
+story: 2-2
+summary: Review R2 (субагент) — FAIL: N1 Major (экспоненциальная запись jsonb) + N2 Major (переформат 11 файлов инструментом записи) + N3-N6; фиксы применены
+done:
+- N1: домен отклоняет экспоненциальные литералы чисел (assertJsonbStableNumbers: regexp ^-?\d+(\.\d+)?$ по декодированному UseNumber-значению любой глубины): jsonb РАЗВОРАЧИВАЕТ 1e10 в 10000000000 — канонические байты (дайджест-материал) и хранимый рендер разошлись бы, а плотный массив 409×1e10 (2046 канонич. байт) пробивал CHECK 3072 → сырой 23514 → 500; CanonicalPayload ingress НЕ тронут (bytea-хранилище — экспоненты легальны там); комментарий миграции обновлён честно; свидетели: юнит (экспоненты на любой глубине/строки не тронуты) + интеграция (PROBE A → 400 rule, цифровая форма хранится)
+- N2: gofmt-нормализация 11 файлов (инструмент записи сессии конвертирует табы→пробелы при правках — УРОК: gofmt -w после каждой серии правок; 3 родительских файла остаются в родительском пробельном стиле по retro-1-5); кумулятивный шум ветки сведён к 10 строкам (8246/89 substantive vs 8256/99 raw)
+- N3: critical_entities в OpenAPI CaseView + ассерт контракт-теста; N4: конкурентные тесты на потокобезопасном employeeIDs-генераторе (прецедент 2-1); N5: journey ассертит текст подсказки пака + интеграционный config+audit (роли Configurator+ExpertQA) → FactsView ок / команды 403
+- Регресс: build/vet/unit/интеграция ×2 TZ (-race полный прогон зелёный)/journeys 19/19/контракт/diff; конкурентное подмножество ×5 стабильно
+decisions:
+- Экспоненты запрещаются ДОМНОМ (не расширением CHECK): дайджест — свойство канонических байт, jsonb-рендер не обязан совпадать, но НЕ должен расширяться за границы бэкстопа; -0→0 усадка — единственное безопасное исключение (зафиксировано комментарием)
+next: review R3 (субагент) — вердикт PASS (см. 44-close)
+commit: edb8e11
+---
+date: 2026-10-09
+task: 44-close
+role: main (Super Z)
+story: 2-2
+summary: Review R3 (субагент) — PASS; story 2-2 закрыта локально (спека+sprint-status → done, review loop 3)
+done:
+- R3 верифицировал: N1 закрыт подлинно (живой pgx-зонд: потолок jsonb-экспансии цифровой формы = ровно 2048×1.5=3072 ≤ CHECK; единственный вход FactValue; строки/ingress не тронуты), N2 закрыт по метрикам (шум ветки 10 строк, 11 файлов gofmt-чисты), N3-N5 закрыты; R1-фиксы не размыты (lock-план/executeWork/Terminal/pkey-маппинг проверены построчно)
+- Минорная m1 R3 (domain/work.go пробельно-переиндентирован) — закрыта gofmt -w до закрытия
+- ЧЕСТНАЯ КОРРЕКЦИЯ заявки 44-dev: «unit 23 ok» → фактически 22 пакета ok (прогнано независимо трижды: R2, R3, main); заявка фиксировалась в Change Log loop 2 спеки и здесь
+- Финальный регресс: build ✓ vet ✓ unit 22 ✓ интеграция UTC + TZ=Europe/Moscow ✓ (89 тестов, -race зелёный) journeys 19/19 ✓ контракт ✓ git diff --check ✓; кумулятивный дифф ветки: 8246 вставок/89 удалений substantive, шум 10 строк
+- Спека → done (Change Log: loop 1 R1-фиксы, loop 2 R2-фиксы + коррекция, loop 3 R3 PASS); sprint-status.yaml 2-2 → done синхронно
+- Ветка codex/story-2-2-work-items-facts: 5 локальных коммитов (8864c05 спека [skip ci], fd0ec40+b6814ab continuity, 8e966ae CHECKPOINT 1 [skip ci], 77c4042 feat, edb8e11 fix R1+R2+R3-нормализация) — push отложен до токена (батч-прецедент 1-13/1-14/2-1)
+decisions:
+- Цикл ревью 2-2 = 3 итерации (2-1 также 3): R1 находит классы гонок/дисциплины, R2 — классы, внесённые самими фиксами (экспоненты jsonb, переформат), R3 — вердикт; конкурентные тесты теперь часть обязательного регресса
+- Урок инструмента записи: правки конвертируют табы→пробелы → gofmt -w после каждой серии правок (иначе однофайловый N2 повторяется)
+next: CHECKPOINT 2 владельцу — STAFFY_GH_TOKEN → батч-push 5 коммитов → PR через GitHub API → CI verify → merge (merge_method=merge) → DEVLOG 44-merge → Epic 2: 2/16 done
+commit: TBD

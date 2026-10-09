@@ -3,8 +3,173 @@
 <body><a class="skip-link" href="#main">К основному содержанию</a><header class="topbar"><a class="brand" href="/app/tenants/{{.TenantID}}">Staffy</a><strong>Обращение №{{.View.CaseNo}}</strong></header>
 <div class="shell"><nav aria-label="Основная навигация"><a href="/app/tenants/{{.TenantID}}">Сегодня</a><a href="/app/tenants/{{.TenantID}}/cases">Обращения</a></nav><main id="main"><section class="panel"><h1>Обращение №{{.View.CaseNo}}</h1>
 <p><strong>{{.View.NoAutoReplyText}}</strong> Исходящие сообщения — последующие stories контура.</p>
-<p class="next-note">Сотрудник: <span class="digest-block">{{.View.EmployeeID}}</span>. Создано: {{.View.CreatedAt}}. Case ID: <span class="digest-block">{{.View.CaseID}}</span>.</p>
+<p class="next-note">Сотрудник: <span class="digest-block">{{.View.EmployeeID}}</span>. Создано: {{.View.CreatedAt}}. Domain Pack: <span class="digest-block">{{.View.PackText}}</span>. Case ID: <span class="digest-block">{{.View.CaseID}}</span>.</p>
 <p class="next-note">Ваши полномочия на этой странице: {{.View.ScopeText}}.</p>
+{{if .View.Flash}}<p class="alert" role="alert" tabindex="-1" id="case-flash">{{.View.Flash}}</p><script>addEventListener('DOMContentLoaded', () => document.getElementById('case-flash').focus());</script>{{end}}
+
+<h2>Work Control Card — рабочие элементы</h2>
+<p class="next-note">Версии — истина: каждая команда пишет новую версию; текущее состояние и тип — производные. Автоматической связи событий с элементами нет; факты не выбирают значение сами — только подтверждение человеком.</p>
+{{if .View.HasWorkItems}}
+{{range .View.WorkCards}}
+<section class="panel" aria-label="Рабочий элемент {{.WorkItemID}}">
+<h3>Элемент №{{.IndexNo}}{{if .TitleText}} — {{.TitleText}}{{else}} — без названия{{end}}</h3>
+<p>Тип: <strong>{{.TypeText}}</strong>. Состояние: <strong>{{.StateText}}</strong> (версия {{.Version}}, {{.KindText}}).{{if .RefText}} Ссылка: <span class="digest-block">{{.RefText}}</span>.{{end}}</p>
+<p class="next-note">Создан: {{.CreatedAt}}.{{if .ActorID}} Последняя команда: оператор <span class="digest-block">{{.ActorID}}</span>.{{if .Reason}} Причина: {{.Reason}}.{{end}}{{end}}</p>
+<p class="status" role="status">Следующее действие: {{.NextAction}}</p>
+{{if .HasFacts}}
+<h4>Факты элемента</h4>
+{{range .Facts}}
+<details class="connector-connect"{{if eq .Status "conflicting"}} open{{end}}>
+<summary>{{.MaterialKey}} — {{.StatusText}}</summary>
+{{if .NextAction}}<p class="status" role="status">{{.NextAction}}</p>{{end}}
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Версии факта {{.MaterialKey}}">
+<table class="datamap-table">
+<caption>Версии факта {{.MaterialKey}}: значение, источник, канал, оба времени, подтверждение</caption>
+<thead><tr><th scope="col">Версия</th><th scope="col">Значение</th><th scope="col">Источник</th><th scope="col">Канал</th><th scope="col">Наблюдено</th><th scope="col">Принято</th><th scope="col">Статус</th></tr></thead>
+<tbody>
+{{range .Versions}}<tr><th scope="row">{{.VersionNo}}</th><td><code>{{.Value}}</code></td><td>{{.SourceType}} <span class="digest-block">{{.SourceID}}</span></td><td>{{.Channel}}</td><td>{{.ObservedAt}}</td><td>{{.ReceivedAt}}</td><td>{{if .ConfirmedText}}Подтверждена{{else}}Без подтверждения{{end}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+{{if $.View.CanManageWork}}
+<details class="connector-connect"><summary>Подтвердить точную версию факта {{.MaterialKey}}</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/facts/{{.FactID}}/confirmations">
+<label for="version-{{.FactID}}">Версия</label>
+<select id="version-{{.FactID}}" name="version_no" required>{{range .Versions}}<option value="{{.VersionNo}}">Версия {{.VersionNo}} — {{.Value}}{{if .ConfirmedText}} (уже подтверждена){{end}}</option>{{end}}</select>
+<label for="evidence-{{.FactID}}">Evidence-событие кейса (или пусто + нота)</label>
+<select id="evidence-{{.FactID}}" name="evidence_event_id">{{range $.View.EventOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}<option value="">— без события, использовать ноту —</option></select>
+<label for="note-{{.FactID}}">Нота (если события нет, до 200 символов)</label>
+<input id="note-{{.FactID}}" name="note" type="text" maxlength="200">
+<button class="primary" type="submit">Подтвердить версию (operator_relay)</button>
+</form></details>
+<details class="connector-connect"><summary>Перенести факт {{.MaterialKey}} в другой элемент</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/facts/{{.FactID}}/rescope">
+<label for="rescope-target-{{.FactID}}">Целевой элемент</label>
+<select id="rescope-target-{{.FactID}}" name="target_work_item_id" required>{{range $.View.ActiveWIOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}</select>
+<label for="rescope-reason-{{.FactID}}">Причина переноса</label>
+<input id="rescope-reason-{{.FactID}}" name="reason" type="text" maxlength="500">
+<input type="hidden" name="expected_version" value="{{len .Versions}}">
+<button class="primary" type="submit">Перенести (новая версия)</button>
+</form></details>
+{{end}}
+</details>
+{{end}}
+{{else}}
+<p role="status">Фактов на элементе нет.</p>
+{{end}}
+{{if and $.View.CanManageWork (not .Terminal)}}
+<details class="connector-connect"><summary>Классифицировать / переклассифицировать</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/work-items/{{.WorkItemID}}/classify">
+<input type="hidden" name="expected_version" value="{{.Version}}">
+<label for="type-{{.WorkItemID}}">Тип (из словаря пака)</label>
+{{if $.View.TaxonomyKnown}}<select id="type-{{.WorkItemID}}" name="type" required>{{range $.View.TaxonomyTypes}}<option value="{{.}}">{{.}}</option>{{end}}</select>
+{{else}}<input id="type-{{.WorkItemID}}" name="type" type="text" required maxlength="200">
+<p class="next-note">Словарь пака неизвестен: введите тип вручную (до-миграционные данные).</p>{{end}}
+<label for="title-{{.WorkItemID}}">Название (до 200 символов)</label>
+<input id="title-{{.WorkItemID}}" name="title" type="text" required maxlength="200" {{if .TitleText}}value="{{.TitleText}}"{{end}}>
+<label for="reason-{{.WorkItemID}}">Причина</label>
+<input id="reason-{{.WorkItemID}}" name="reason" type="text" maxlength="500">
+<button class="primary" type="submit">Классифицировать (новая версия)</button>
+</form></details>
+{{if .AllowedTransitions}}
+<details class="connector-connect"><summary>Перевести состояние</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/work-items/{{.WorkItemID}}/transition">
+<input type="hidden" name="expected_version" value="{{.Version}}">
+<label for="state-{{.WorkItemID}}">Новое состояние</label>
+<select id="state-{{.WorkItemID}}" name="to_state" required>{{range .AllowedTransitions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}</select>
+<label for="transition-reason-{{.WorkItemID}}">Причина</label>
+<input id="transition-reason-{{.WorkItemID}}" name="reason" type="text" maxlength="500">
+<button class="primary" type="submit">Перевести (новая версия)</button>
+</form></details>
+{{end}}
+<details class="connector-connect"><summary>Разделить на два намерения</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/work-items/{{.WorkItemID}}/split">
+<input type="hidden" name="expected_version" value="{{.Version}}">
+<fieldset><legend>Цель 1</legend>
+<label for="t1-type-{{.WorkItemID}}">Тип</label>
+{{if $.View.TaxonomyKnown}}<select id="t1-type-{{.WorkItemID}}" name="target_1_type" required>{{range $.View.TaxonomyTypes}}<option value="{{.}}">{{.}}</option>{{end}}</select>
+{{else}}<input id="t1-type-{{.WorkItemID}}" name="target_1_type" type="text" required maxlength="200">{{end}}
+<label for="t1-title-{{.WorkItemID}}">Название</label>
+<input id="t1-title-{{.WorkItemID}}" name="target_1_title" type="text" required maxlength="200">
+</fieldset>
+<fieldset><legend>Цель 2</legend>
+<label for="t2-type-{{.WorkItemID}}">Тип</label>
+{{if $.View.TaxonomyKnown}}<select id="t2-type-{{.WorkItemID}}" name="target_2_type" required>{{range $.View.TaxonomyTypes}}<option value="{{.}}">{{.}}</option>{{end}}</select>
+{{else}}<input id="t2-type-{{.WorkItemID}}" name="target_2_type" type="text" required maxlength="200">{{end}}
+<label for="t2-title-{{.WorkItemID}}">Название</label>
+<input id="t2-title-{{.WorkItemID}}" name="target_2_title" type="text" required maxlength="200">
+</fieldset>
+<label for="split-reason-{{.WorkItemID}}">Причина разделения</label>
+<input id="split-reason-{{.WorkItemID}}" name="reason" type="text" maxlength="500">
+<button class="primary" type="submit">Разделить (исходный → терминальный split)</button>
+</form></details>
+{{if .MergeSources}}
+<details class="connector-connect"><summary>Объединить другой элемент сюда</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/work-items/{{.WorkItemID}}/merge">
+<input type="hidden" name="expected_version" value="{{.Version}}">
+<label for="merge-source-{{.WorkItemID}}">Источник (станет merged)</label>
+<select id="merge-source-{{.WorkItemID}}" name="source" required>{{range .MergeSources}}<option value="{{.Value}}">{{.Text}}</option>{{end}}</select>
+<label for="merge-reason-{{.WorkItemID}}">Причина объединения</label>
+<input id="merge-reason-{{.WorkItemID}}" name="reason" type="text" maxlength="500">
+<button class="primary" type="submit">Объединить (факты ре-скоупятся новыми версиями)</button>
+</form></details>
+{{end}}
+<details class="connector-connect"><summary>Связать событие с элементом</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/work-items/{{.WorkItemID}}/events">
+<input type="hidden" name="expected_version" value="{{.Version}}">
+<label for="event-{{.WorkItemID}}">Событие кейса</label>
+<select id="event-{{.WorkItemID}}" name="event_id" required>{{range $.View.EventOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}</select>
+<button class="primary" type="submit">Связать (явная команда)</button>
+</form></details>
+{{end}}
+{{if and $.View.CanManageWork (not .Terminal)}}
+<details class="connector-connect"><summary>Оспорить (исключение человеку)</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/work-items/{{.WorkItemID}}/dispute">
+<input type="hidden" name="expected_version" value="{{.Version}}">
+<label for="dispute-note-{{.WorkItemID}}">Что оспаривается (до 500 символов)</label>
+<input id="dispute-note-{{.WorkItemID}}" name="note" type="text" required maxlength="500">
+<button class="primary" type="submit">Оспорить (append-only исключение)</button>
+</form></details>
+{{end}}
+</section>
+{{end}}
+{{else}}
+<p role="status">Рабочих элементов нет.</p>
+{{end}}
+{{if $.View.CanManageWork}}
+<details class="connector-connect"><summary>Новое намерение в существующем диалоге</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/work-items">
+<label for="create-conversation">Диалог</label>
+<select id="create-conversation" name="conversation_id" required>{{range $.View.ConversationOpts}}<option value="{{.Value}}">{{.Text}}</option>{{end}}</select>
+<label for="create-type">Тип (из словаря пака)</label>
+{{if $.View.TaxonomyKnown}}<select id="create-type" name="type" required>{{range $.View.TaxonomyTypes}}<option value="{{.}}">{{.}}</option>{{end}}</select>
+{{else}}<input id="create-type" name="type" type="text" required maxlength="200">{{end}}
+<label for="create-title">Название (до 200 символов)</label>
+<input id="create-title" name="title" type="text" required maxlength="200">
+<label for="create-reason">Причина</label>
+<input id="create-reason" name="reason" type="text" maxlength="500">
+<button class="primary" type="submit">Создать рабочий элемент</button>
+</form></details>
+<details class="connector-connect"><summary>Записать факт</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/facts">
+<label for="fact-scope">Элемент-скоуп</label>
+<select id="fact-scope" name="work_item_id" required>{{range $.View.ActiveWIOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}</select>
+<label for="fact-key">{{$.View.MaterialKeyHints}}</label>
+<input id="fact-key" name="material_key" type="text" required maxlength="64">
+<label for="fact-value">Значение — один JSON (до 2 КБ, например {"model":"Civic","year":2020})</label>
+<textarea id="fact-value" name="value" required rows="3"></textarea>
+<label for="fact-source">Источник</label>
+<select id="fact-source" name="source_type" required>
+<option value="channel_event">Событие кейса (channel_event)</option>
+<option value="operator">Слова оператора (operator)</option>
+</select>
+<label for="fact-source-id">Событие-источник (для channel_event)</label>
+<select id="fact-source-id" name="source_id">{{range $.View.EventOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}<option value="">— для источника operator не нужно —</option></select>
+<label for="fact-reason">Причина</label>
+<input id="fact-reason" name="reason" type="text" maxlength="500">
+<button class="primary" type="submit">Записать факт (полный provenance)</button>
+</form></details>
+{{end}}
 
 <h2>Диалоги канала</h2>
 <p role="status" aria-live="polite">{{if .View.HasConversations}}Диалогов: <strong>{{len .View.Conversations}}</strong>; каждый — продолжение одной channel session.{{else}}Диалогов нет.{{end}}</p>
@@ -40,7 +205,7 @@
 {{if .View.HasWorkItems}}
 <div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Рабочие элементы">
 <table class="datamap-table">
-<caption>Рабочие элементы обращения: классификация появится в story 2-2</caption>
+<caption>Рабочие элементы обращения: якоря и производные состояния (Work Control Card выше)</caption>
 <thead><tr><th scope="col">Элемент</th><th scope="col">Состояние</th><th scope="col">Создан</th></tr></thead>
 <tbody>
 {{range .View.WorkItems}}<tr><th scope="row"><span class="digest-block">{{.WorkItemID}}</span></th><td>{{.StateText}}</td><td>{{.CreatedAt}}</td></tr>{{end}}
@@ -50,7 +215,7 @@
 {{else}}
 <p role="status">Рабочих элементов нет.</p>
 {{end}}
-<p class="next-note"><strong>{{.View.UntriagedText}}</strong> Классификация запроса — story 2-2; сейчас элемент фиксирует факт обращения без категории.</p>
+<p class="next-note">{{if .View.HasFacts}}{{.View.FactsNote}}{{else}}Фактов нет. {{.View.FactsNote}}{{end}}</p>
 <p class="next-note">Доступ к payload: только полномочия review или audit; защищённая ссылка (digest + HMAC-печать) проверяется при чтении.{{if not .View.CanViewPayload}} У вас доступа к payload нет.{{end}}</p>
 
 {{if .View.HasExceptions}}

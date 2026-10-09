@@ -2007,6 +2007,253 @@ paths:
         '401': { $ref: '#/components/responses/Problem' }
         '403': { $ref: '#/components/responses/Problem' }
         '404': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/cases/{case_id}/work-items:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+    post:
+      operationId: createWorkItem
+      summary: Новое намерение существующего диалога (review; идемпотентно по ключу; автосвязи событий нет)
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateWorkItemRequest' }
+      responses:
+        '201': { description: Элемент создан (версия 1, in_work), content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/classify:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - $ref: '#/components/parameters/WorkItemID'
+    post:
+      operationId: classifyWorkItem
+      summary: Классификация новой версией (тип из journeys закреплённого пака; optimistic concurrency)
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ClassifyWorkItemRequest' }
+      responses:
+        '201': { description: Версия классификации записана, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/transition:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - $ref: '#/components/parameters/WorkItemID'
+    post:
+      operationId: transitionWorkItem
+      summary: Переход состояния по лестнице (завершение элемента не закрывает диалог/кейс)
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TransitionWorkItemRequest' }
+      responses:
+        '201': { description: Версия перехода записана, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/split:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - $ref: '#/components/parameters/WorkItemID'
+    post:
+      operationId: splitWorkItem
+      summary: Разделение на ≥2 типизированные цели (исходный → терминальный split; факты остаются)
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SplitWorkItemRequest' }
+      responses:
+        '201': { description: Цели созданы, источник терминален, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/merge:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - $ref: '#/components/parameters/WorkItemID'
+    post:
+      operationId: mergeWorkItems
+      summary: Объединение источников в цель (факты ре-скоупятся новыми версиями; линки переносятся; оспариваемо)
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MergeWorkItemsRequest' }
+      responses:
+        '201': { description: Источники терминальны (merged_into), content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/events:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - $ref: '#/components/parameters/WorkItemID'
+    post:
+      operationId: linkEvent
+      summary: Явная связь принятого события с элементом (автоматической связи не существует)
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LinkEventRequest' }
+      responses:
+        '201': { description: Связь записана, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/dispute:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - $ref: '#/components/parameters/WorkItemID'
+    post:
+      operationId: disputeWorkItem
+      summary: Оспаривание — append-only операционное исключение человеку (материал не переписывается)
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DisputeWorkItemRequest' }
+      responses:
+        '201': { description: Исключение создано, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/cases/{case_id}/facts:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+    get:
+      operationId: readCaseFacts
+      summary: Факты кейса с версиями и подтверждениями (значения — только review/audit)
+      x-staffy-principal-required: true
+      responses:
+        '200': { description: Факты с полным provenance, content: { application/json: { schema: { $ref: '#/components/schemas/FactsView' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+    post:
+      operationId: recordFact
+      summary: 'Запись факта с полным provenance (идемпотентность материальна: источник+ключ+digest)'
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecordFactRequest' }
+      responses:
+        '201': { description: Версия факта записана, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор материала (replay исходной версии), content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/cases/{case_id}/facts/{fact_id}/confirmations:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - $ref: '#/components/parameters/FactID'
+    post:
+      operationId: confirmFactVersion
+      summary: Подтверждение ТОЧНОЙ версии (confirmer operator_relay; evidence — событие кейса или нота)
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConfirmFactRequest' }
+      responses:
+        '201': { description: Подтверждение привязано к версии, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/cases/{case_id}/facts/{fact_id}/rescope:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - $ref: '#/components/parameters/FactID'
+    post:
+      operationId: rescopeFact
+      summary: Ре-скоуп факта новой версией (строки фактов не дублируются)
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RescopeFactRequest' }
+      responses:
+        '201': { description: Новая версия со скоупом-целью, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
 components:
   parameters:
     EmployeeID:
@@ -2024,6 +2271,27 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    CaseID:
+      name: case_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    WorkItemID:
+      name: work_item_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    FactID:
+      name: fact_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: 'Ключ команды: точный повтор возвращает сохранённый исход; тот же ключ с другим материалом — конфликт'
+      schema: { type: string, minLength: 8, maxLength: 200 }
   schemas:
     DataClassView:
       type: object
@@ -3592,7 +3860,7 @@ components:
         owner_id: { type: string, format: uuid }
     CaseView:
       type: object
-      required: [tenant_id, case, conversations, timeline, work_items, operational_exceptions, untriaged_note, no_auto_reply_note, can_view_payload, view_scope]
+      required: [tenant_id, case, conversations, timeline, work_items, operational_exceptions, untriaged_note, no_auto_reply_note, can_view_payload, can_view_facts, can_manage_work, view_scope]
       properties:
         tenant_id: { type: string, format: uuid }
         case: { $ref: '#/components/schemas/CaseRecord' }
@@ -3603,7 +3871,11 @@ components:
         untriaged_note: { type: string }
         no_auto_reply_note: { type: string }
         can_view_payload: { type: boolean }
+        can_view_facts: { type: boolean, description: 'Значения фактов — граница review/audit как payload' }
+        can_manage_work: { type: boolean, description: 'Команды рабочих элементов — только review' }
         view_scope: { type: string }
+        taxonomy_types: { type: array, items: { type: string }, description: 'Journeys закреплённого пака (словарь типов)' }
+        critical_entities: { type: array, items: { type: string }, description: 'CriticalEntities закреплённого пака (словарь материальных ключей — подсказки форм фактов)' }
     CaseRecord:
       type: object
       required: [tenant_id, case_id, case_no, employee_id, state, created_at]
@@ -3613,6 +3885,8 @@ components:
         case_no: { type: integer, minimum: 1 }
         employee_id: { type: string, format: uuid }
         state: { type: string, enum: [open] }
+        pack_id: { type: string, nullable: true, description: 'Пин Domain Pack приёма (NULL — только до-миграционные данные)' }
+        pack_version: { type: string, nullable: true }
         created_at: { type: string, format: date-time }
     ConversationRecord:
       type: object
@@ -3646,15 +3920,194 @@ components:
         received_at: { type: string, format: date-time }
         payload_digest: { type: string, pattern: '^[0-9a-f]{64}$' }
         correlation_id: { type: string, format: uuid }
+    WorkOutcome:
+      type: object
+      required: [command, replay]
+      description: 'Материальный исход команды: сохранён и повторяется идемпотентным ключом'
+      properties:
+        command: { type: string, enum: [create_work_item, classify_work_item, transition_work_item, split_work_item, merge_work_items, link_event, dispute_work_item, record_fact, confirm_fact_version, rescope_fact] }
+        replay: { type: boolean }
+        work_item_id: { type: string, format: uuid }
+        version: { type: integer }
+        state: { type: string }
+        type: { type: string }
+        title: { type: string }
+        event_id: { type: string, format: uuid }
+        target_ids: { type: array, items: { type: string, format: uuid } }
+        source_ids: { type: array, items: { type: string, format: uuid } }
+        merged_into: { type: string, format: uuid }
+        fact_id: { type: string, format: uuid }
+        fact_version: { type: integer }
+        fact_status: { type: string, enum: [confirmed, conflicting, unverified] }
+        exception_id: { type: string, format: uuid }
+    CreateWorkItemRequest:
+      type: object
+      required: [conversation_id, type, title]
+      additionalProperties: false
+      properties:
+        conversation_id: { type: string, format: uuid }
+        type: { type: string }
+        title: { type: string, maxLength: 200 }
+        reason: { type: string, maxLength: 500 }
+    ClassifyWorkItemRequest:
+      type: object
+      required: [expected_version, type, title]
+      additionalProperties: false
+      properties:
+        expected_version: { type: integer, minimum: 1 }
+        type: { type: string, description: 'Только из journeys закреплённого пака' }
+        title: { type: string, maxLength: 200 }
+        reason: { type: string, maxLength: 500 }
+    TransitionWorkItemRequest:
+      type: object
+      required: [expected_version, to_state]
+      additionalProperties: false
+      properties:
+        expected_version: { type: integer, minimum: 1 }
+        to_state: { type: string, enum: [waiting, resolved, cancelled, in_work] }
+        reason: { type: string, maxLength: 500 }
+    SplitWorkItemRequest:
+      type: object
+      required: [expected_version, targets]
+      additionalProperties: false
+      properties:
+        expected_version: { type: integer, minimum: 1 }
+        targets:
+          type: array
+          minItems: 2
+          items:
+            type: object
+            required: [type, title]
+            additionalProperties: false
+            properties:
+              type: { type: string }
+              title: { type: string, maxLength: 200 }
+        reason: { type: string, maxLength: 500 }
+    MergeWorkItemsRequest:
+      type: object
+      required: [expected_version, sources]
+      additionalProperties: false
+      properties:
+        expected_version: { type: integer, minimum: 1 }
+        sources:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [work_item_id, expected_version]
+            additionalProperties: false
+            properties:
+              work_item_id: { type: string, format: uuid }
+              expected_version: { type: integer, minimum: 1 }
+        reason: { type: string, maxLength: 500 }
+    LinkEventRequest:
+      type: object
+      required: [expected_version, event_id]
+      additionalProperties: false
+      properties:
+        expected_version: { type: integer, minimum: 1 }
+        event_id: { type: string, format: uuid, description: 'Принятое событие этого кейса' }
+    DisputeWorkItemRequest:
+      type: object
+      required: [expected_version, note]
+      additionalProperties: false
+      properties:
+        expected_version: { type: integer, minimum: 1 }
+        note: { type: string, maxLength: 500 }
+    RecordFactRequest:
+      type: object
+      required: [work_item_id, material_key, value, source_type]
+      additionalProperties: false
+      properties:
+        work_item_id: { type: string, format: uuid, description: 'Скоуп: действующий элемент' }
+        material_key: { type: string, maxLength: 64, description: 'trim+lower; словарь не ограничивается' }
+        value: { description: 'Одно JSON-значение ≤2КБ (UseNumber: 1 ≠ 1.0)' }
+        source_type: { type: string, enum: [channel_event, operator] }
+        source_id: { type: string, description: 'event_id принятого события (channel_event) или ключ команды (operator)' }
+        reason: { type: string, maxLength: 500 }
+    ConfirmFactRequest:
+      type: object
+      required: [version_no, confirmer_type]
+      additionalProperties: false
+      properties:
+        version_no: { type: integer, minimum: 1, description: 'ТОЧНАЯ версия' }
+        confirmer_type: { type: string, enum: [operator_relay], description: 'client/owning_system зарезервированы без продюсеров' }
+        evidence_event_id: { type: string, format: uuid, description: 'Evidence: событие кейса ИЛИ нота — ровно одно' }
+        note: { type: string, maxLength: 200 }
+    RescopeFactRequest:
+      type: object
+      required: [target_work_item_id, expected_version]
+      additionalProperties: false
+      properties:
+        target_work_item_id: { type: string, format: uuid }
+        expected_version: { type: integer, minimum: 1, description: 'Высота лестницы версий факта' }
+        reason: { type: string, maxLength: 500 }
+    FactVersionRecord:
+      type: object
+      required: [fact_id, work_item_id, version_no, material_key, value, value_digest, source_type, source_id, channel, actor_id, observed_at, received_at, created_at]
+      properties:
+        fact_id: { type: string, format: uuid }
+        work_item_id: { type: string, format: uuid, description: 'Скоуп версии' }
+        version_no: { type: integer, minimum: 1 }
+        material_key: { type: string }
+        value: { description: 'Канонический JSON' }
+        value_digest: { type: string, pattern: '^[0-9a-f]{64}$' }
+        source_type: { type: string, enum: [channel_event, operator, connector, system], description: 'connector/system зарезервированы без продюсеров' }
+        source_id: { type: string }
+        channel: { type: string, enum: [phone, web_chat, telegram, whatsapp, email, max, jivo, avito, mobile_app_chat, operator] }
+        actor_id: { type: string, format: uuid }
+        observed_at: { type: string, format: date-time, description: 'Провайдерское время события — не время приёма' }
+        received_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+    FactConfirmationRecord:
+      type: object
+      required: [fact_id, confirmation_id, version_no, confirmer_type, actor_id, created_at]
+      properties:
+        fact_id: { type: string, format: uuid }
+        confirmation_id: { type: string, format: uuid }
+        version_no: { type: integer, minimum: 1, description: 'Привязка к ТОЧНОЙ версии' }
+        confirmer_type: { type: string, enum: [client, owning_system, operator_relay], description: 'Продюсер среза — только operator_relay' }
+        evidence_event_id: { type: string, format: uuid, nullable: true }
+        note: { type: string }
+        actor_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+    FactView:
+      type: object
+      required: [fact_id, material_key, status, versions, confirmations]
+      properties:
+        fact_id: { type: string, format: uuid }
+        material_key: { type: string }
+        status: { type: string, enum: [confirmed, conflicting, unverified], description: 'Производная на чтении; авто-выбора значения нет' }
+        next_action: { type: string, description: 'Словарь по состоянию, не интеллект' }
+        versions: { type: array, items: { $ref: '#/components/schemas/FactVersionRecord' } }
+        confirmations: { type: array, items: { $ref: '#/components/schemas/FactConfirmationRecord' } }
+    FactsView:
+      type: object
+      required: [tenant_id, case_id, facts, can_view, view_scope]
+      properties:
+        tenant_id: { type: string, format: uuid }
+        case_id: { type: string, format: uuid }
+        facts: { type: array, items: { $ref: '#/components/schemas/FactView' } }
+        can_view: { type: boolean }
+        view_scope: { type: string }
     WorkItemRecord:
       type: object
-      required: [tenant_id, case_id, conversation_id, work_item_id, state, created_at]
+      required: [tenant_id, case_id, conversation_id, work_item_id, version, state, created_at]
+      description: 'Производная максимальной версии: состояние/тип/название — версии, не столбцы (story 2-2)'
       properties:
         tenant_id: { type: string, format: uuid }
         case_id: { type: string, format: uuid }
         conversation_id: { type: string, format: uuid }
         work_item_id: { type: string, format: uuid }
-        state: { type: string, enum: [untriaged], description: 'Классификация — story 2-2' }
+        version: { type: integer, minimum: 1 }
+        kind: { type: string, enum: [create, classify, transition, split, merge] }
+        type: { type: string, description: 'Тип из journeys закреплённого пака; пуст до классификации' }
+        title: { type: string }
+        state: { type: string, enum: [untriaged, in_work, waiting, resolved, cancelled, split, merged] }
+        reason: { type: string }
+        actor_id: { type: string, format: uuid, description: 'Нулевой actor = система (ingress)' }
+        ref: { type: string, format: uuid, description: 'split: первая цель; create-from-split: источник; merge: merged_into' }
+        terminal: { type: boolean }
         created_at: { type: string, format: date-time }
     OperationalException:
       type: object
@@ -3662,10 +4115,10 @@ components:
       properties:
         tenant_id: { type: string, format: uuid }
         exception_id: { type: string, format: uuid }
-        kind: { type: string, enum: [digest_conflict, ambiguous_employee, idempotency_key_conflict] }
+        kind: { type: string, enum: [digest_conflict, ambiguous_employee, idempotency_key_conflict, work_item_dispute] }
         summary: { type: string, description: 'Безопасный текст: payload не раскрывается' }
         correlation_id: { type: string, format: uuid }
-        event_id: { type: string, format: uuid }
+        event_id: { type: string, format: uuid, nullable: true, description: 'Спор рабочего элемента не имеет события: NULL' }
         original_event_id: { type: string, format: uuid }
         case_id: { type: string, format: uuid }
         conversation_id: { type: string, format: uuid }

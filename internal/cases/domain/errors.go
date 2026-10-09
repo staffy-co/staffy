@@ -1,6 +1,9 @@
 package domain
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 // The honest error surface of the cases module: the transport maps these
 // onto the problem contract; nothing internal ever leaks as text.
@@ -19,4 +22,31 @@ var (
 	// holds: the honest outcome is a quarantine with an operational
 	// exception, never an internal error.
 	ErrIdempotencyKeyConflict = errors.New("cases: idempotency key conflict")
+	// ErrStaleVersion marks a work command whose expected_version no
+	// longer matches the material: the honest optimistic concurrency
+	// refusal (the material stays consistent, the command is not
+	// silently merged).
+	ErrStaleVersion = errors.New("cases: stale version")
+	// ErrCommandKeyConflict marks a work command reusing an idempotency
+	// key with another request material: the honest conflict (the stored
+	// outcome never replays a different command).
+	ErrCommandKeyConflict = errors.New("cases: command key conflict")
+	// ErrFactMaterialExists marks a raced fact write whose material
+	// idempotency tuple was written concurrently: one fresh lookup
+	// decides the honest answer (replay of the original version or the
+	// cross-case conflict) — never an internal error.
+	ErrFactMaterialExists = errors.New("cases: fact material exists")
 )
+
+// WorkRuleError is the honest work-command refusal: the command name and
+// the safe reason (the ladder, the taxonomy, the provenance or the evidence
+// rule that fired). The transport maps it onto a 400 problem — internal
+// details never leak as text.
+type WorkRuleError struct {
+	Rule   string
+	Reason string
+}
+
+func (e WorkRuleError) Error() string {
+	return fmt.Sprintf("work command %s: %s", e.Rule, e.Reason)
+}

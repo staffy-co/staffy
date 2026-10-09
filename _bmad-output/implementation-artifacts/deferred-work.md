@@ -116,3 +116,43 @@
 - source_spec: `spec-2-1-channel-event-case.md`
   summary: Напряжение замороженных клозул по записям отказов верификации источника: Boundaries требует «без скоупа никакого SQL» (скоуп только из верифицированного connection), а матрица требует строку ingress_rejections для unknown_connection — реализация пишет отказ под заявленным (непроверенным) скоупом с ограничениями: тенант заявки обязан существовать (RLS-чит membership-фактов) и фиксированный словарный лимит 100 записей (connection×kind×окно 1ч).
   evidence: app/service.go recordRejection (trusted=false путь + claimedTenantIsReal + CountRejections); DEVLOG 43-review finding R1-M4; решение владельца (тенант-нейтральная зона / полный запрет записи / подтверждение ограниченного варианта) — к следующей версии спеки.
+
+- source_spec: `spec-2-2-work-items-facts-provenance.md`
+  summary: Confirmer-типы client и owning_system без продюсеров: механика подтверждений (append-only, привязка к точной версии, evidence-словарь) готова к их приёму, но исходящих диалогов (client) и write-path коннекторов (owning_system) в контуре нет — продюсер среза только operator_relay.
+  evidence: domain/work.go ConfirmerTypes словарь + GuardConfirmFactVersion; миграция 00002 CHECK confirmer_type IN ('client','owning_system','operator_relay'); контракт ConfirmFactRequest enum [operator_relay]; интеграционный тест отказывает client-подтверждение.
+
+- source_spec: `spec-2-2-work-items-facts-provenance.md`
+  summary: Fact source-типы connector и system зарезервированы без продюсеров: write-path коннекторы (прямые записи внешних систем как источники фактов) прибудут со своими stories; домен честно отказывает их при записи.
+  evidence: domain/work.go FactSourceTypes/FactSourceProducers; миграция 00002 CHECK source_type IN ('channel_event','operator','connector','system'); контракт FactVersionRecord enum с пометкой reserved.
+
+- source_spec: `spec-2-2-work-items-facts-provenance.md`
+  summary: Authority rules / Owning System / State-Authority Matrix: авто-выбора значения факта нет как класса (разрешение конфликта — подтверждение человеком); выбор значения по авторитетному источнику — архитектурный артефакт будущих stories.
+  evidence: domain/work.go DeriveFactStatus — производная без авто-выбора; спека Never-клауза прямо запрещает выдуманные authority rules; Design Notes фиксируют отложение.
+
+- source_spec: `spec-2-2-work-items-facts-provenance.md`
+  summary: Extraction-источники фактов (AI в контуре нет): факты записывает оператор; автоматическое извлечение материальных ключей/значений из payload — будущая AI-story с собственными gate.
+  evidence: RecordFact — операторская команда с полным provenance; IngestEvent не создаёт фактов (только пин+version 1+линк первого события); спека Never-клауза «не создавать факты автоматически из событий».
+
+- source_spec: `spec-2-2-work-items-facts-provenance.md`
+  summary: Автосвязь событий с рабочими элементами (2-3 — человек связывает каналы): привязка события к WI — только явная команда LinkEvent/CreateWorkItem; слабых совпадений нет как класса.
+  evidence: GuardLinkEvent + LinkEvent/транспорт; интеграционный TestSessionContinuationGrowsTimelineWithoutNewWorkItems — продолжение сессии не создаёт WI/линк автоматически.
+
+- source_spec: `spec-2-2-work-items-facts-provenance.md`
+  summary: Закрытие кейса и Conversation (lifecycle за пределами среза): завершение WI никогда не закрывает диалог/кейс (case остаётся open); правила закрытия — последующие stories контура.
+  evidence: интеграционные тесты: переходы в waiting/resolved/split/merged не меняют case.state='open' и conversation.state='active'; домен лестницы без кейс-переходов.
+
+- source_spec: `spec-2-2-work-items-facts-provenance.md`
+  summary: Merge-форма оператора сливает один источник за команду (API поддерживает список источников): многоисточниковое слияние в одной команде — расширение формы WCC по мере реальных сценариев; срез честно покрывает ≥1 источник (матрица).
+  evidence: transport cases_work.go mergeWorkItemForm — один select-источник; app MergeCommand.Sources — список; интеграционный тест покрывает одноисточниковое слияние полного цикла.
+
+- source_spec: `spec-2-2-work-items-facts-provenance.md`
+  summary: Work item версии и dispute имеют НЕСКОЛЬКО advisory-локов вместо row FOR UPDATE: SELECT FOR UPDATE требует привилегию UPDATE, которую append-only гранты (INSERT/SELECT) сознательно не выдают; якоря сериализуются advisory-локами в детерминированном порядке (прецедент AcceptEvent) — материальная безопасность идентична, но гранулярность ниже строковой.
+  evidence: store/work.go ExecuteWorkCommand — lockKeys sorted + mapWorkInsertError; комментарий currentForUpdate фиксирует разрешение напряжения «FOR UPDATE якоря» против «грантов INSERT/SELECT только»; спека Boundaries требует оба — конфликт разрешён в пользу append-only (суть дисциплины).
+
+- source_spec: `spec-2-2-work-items-facts-provenance.md`
+  summary: N+1 чтения производных представлений: ReadWorkItemCurrents — запрос JOIN LATERAL на каждый WI, ReadFactsOfCase — два запроса на каждый факт (якорь + версии). Для среза допустимо (кейс стартует с 1-2 элементами), с возрастом кейса чтение деградирует линейно; пакетные чтения одной CASE WHEN-проецией — оптимизация будущих stories с бенчмарком.
+  evidence: review R1 m10 (Task 25-r1); store/work.go ReadWorkItemCurrents/ReadFactsOfCase; интеграционные тесты не измеряют план чтения.
+
+- source_spec: `spec-2-2-work-items-facts-provenance.md`
+  summary: Coverage локов после фиксов R1: унифицированная пара факт-ключей (material key + fact id) закрывает все пути записи фактов (record/confirm/rescope/merge — факты источника в плане локов merge), record_fact дополнительно держит work-лок скоупа с терминальной проверкой под локом; ОСТАЮЩИЙСЯ класс — три+ одновременных писателя одного факта, где merge ре-скоупит факт, спланированный ДО чужой записи (merge не держит факт-локи фактов, появившихся после планирования) — закрыт backstop-маппингом fact_versions_pkey → ErrStaleVersion (честный 409-stale, никогда сырой 500). Полная защита от этого класса = case-уровневый advisory-лок на merge (сериализация всех команд кейса) — отложена до реальных нагрузочных сценариев.
+  evidence: review R1 M1/M2 (Task 25-r1) + фиксы; store/work.go lock-план и mapWorkInsertError; конкурентные интеграционные тесты TestRacedFactWritersSerializeOnTheUnifiedFactLocks/TestMergeConcurrentRecordNeverLeaksRawConflicts; this-запись честности.

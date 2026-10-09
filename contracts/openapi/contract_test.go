@@ -847,6 +847,16 @@ func TestCaseContourContractIsHonest(t *testing.T) {
 		"/v1/tenants/{tenant_id}/cases":                                  {"get"},
 		"/v1/tenants/{tenant_id}/cases/{case_id}":                        {"get"},
 		"/v1/tenants/{tenant_id}/cases/{case_id}/events/{event_id}/payload": {"get"},
+		"/v1/tenants/{tenant_id}/cases/{case_id}/facts": {"get", "post"},
+		"/v1/tenants/{tenant_id}/cases/{case_id}/work-items": {"post"},
+		"/v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/classify": {"post"},
+		"/v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/transition": {"post"},
+		"/v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/split": {"post"},
+		"/v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/merge": {"post"},
+		"/v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/events": {"post"},
+		"/v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/dispute": {"post"},
+		"/v1/tenants/{tenant_id}/cases/{case_id}/facts/{fact_id}/confirmations": {"post"},
+		"/v1/tenants/{tenant_id}/cases/{case_id}/facts/{fact_id}/rescope": {"post"},
 	} {
 		item := mapping(t, paths, path)
 		for _, method := range methods {
@@ -892,8 +902,8 @@ func TestCaseContourContractIsHonest(t *testing.T) {
 	}
 
 	// The honest fixed states of the slice: one case state, one
-	// conversation surface, the first owner epoch and the untriaged work
-	// item (the classification is Story 2-2).
+	// conversation surface and the first owner epoch (the rotation is
+	// Story 2-4).
 	conversation := mapping(t, schemas, "ConversationRecord")
 	conversationProps := mapping(t, conversation, "properties")
 	surface := mapping(t, conversationProps, "writable_surface")
@@ -910,13 +920,94 @@ func TestCaseContourContractIsHonest(t *testing.T) {
 	workItemProps := mapping(t, workItem, "properties")
 	workState := mapping(t, workItemProps, "state")
 	workEnum, _ := workState["enum"].([]any)
-	if len(workEnum) != 1 || workEnum[0] != "untriaged" {
-		t.Fatalf("the work item stays untriaged until Story 2-2, got %v", workEnum)
+	expectedStates := []string{"untriaged", "in_work", "waiting", "resolved", "cancelled", "split", "merged"}
+	if len(workEnum) != len(expectedStates) {
+		t.Fatalf("the work item state dictionary must keep %d states, got %v", len(expectedStates), workEnum)
+	}
+	for index, value := range expectedStates {
+		if workEnum[index] != value {
+			t.Fatalf("work item state %d: expected %s, got %v", index, value, workEnum[index])
+		}
+	}
+	if _, ok := workItemProps["version"]; !ok {
+		t.Fatal("the work item view must carry the derived version")
+	}
+
+	// The pack dictionaries of the case view: the taxonomy of the Work
+	// Control Card forms AND the material key hints of the fact form — both
+	// come from the pinned pack, never a hardcoded list.
+	caseViewProps := mapping(t, mapping(t, schemas, "CaseView"), "properties")
+	if _, ok := caseViewProps["critical_entities"]; !ok {
+		t.Fatal("the case view must carry the critical entities of the pinned pack")
+	}
+
+	// The ten work commands are idempotent principal surfaces: every POST
+	// documents the Idempotency-Key parameter and the honest conflict
+	// answers (the stale version and the key conflict).
+	for _, path := range []string{
+		"/v1/tenants/{tenant_id}/cases/{case_id}/work-items",
+		"/v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/classify",
+		"/v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/transition",
+		"/v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/split",
+		"/v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/merge",
+		"/v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/events",
+		"/v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/dispute",
+		"/v1/tenants/{tenant_id}/cases/{case_id}/facts",
+		"/v1/tenants/{tenant_id}/cases/{case_id}/facts/{fact_id}/confirmations",
+		"/v1/tenants/{tenant_id}/cases/{case_id}/facts/{fact_id}/rescope",
+	} {
+		post := mapping(t, mapping(t, paths, path), "post")
+		parameters, _ := post["parameters"].([]any)
+		hasKey := false
+		for _, parameter := range parameters {
+			entry, _ := parameter.(map[string]any)
+			if entry["name"] == "Idempotency-Key" || entry["$ref"] == "#/components/parameters/IdempotencyKey" {
+				hasKey = true
+			}
+		}
+		if !hasKey {
+			t.Fatalf("%s post must document the Idempotency-Key parameter", path)
+		}
+		responses := mapping(t, post, "responses")
+		for _, status := range []string{"201", "200", "400", "403", "404", "409"} {
+			if _, ok := responses[status]; !ok {
+				t.Fatalf("%s post must document the %s answer (the idempotent replay and the honest conflicts)", path, status)
+			}
+		}
+	}
+
+	// The fact provenance dictionaries are honest: the reserved source
+	// types without producers, the operator_relay-only confirmer of the
+	// slice and the read-time status derivation.
+	factVersion := mapping(t, schemas, "FactVersionRecord")
+	factVersionProps := mapping(t, factVersion, "properties")
+	sourceType := mapping(t, factVersionProps, "source_type")
+	sourceEnum, _ := sourceType["enum"].([]any)
+	if len(sourceEnum) != 4 || sourceEnum[2] != "connector" || sourceEnum[3] != "system" {
+		t.Fatalf("connector and system are reserved fact source types without producers, got %v", sourceEnum)
+	}
+	confirmRequest := mapping(t, schemas, "ConfirmFactRequest")
+	confirmProps := mapping(t, confirmRequest, "properties")
+	confirmer := mapping(t, confirmProps, "confirmer_type")
+	confirmerEnum, _ := confirmer["enum"].([]any)
+	if len(confirmerEnum) != 1 || confirmerEnum[0] != "operator_relay" {
+		t.Fatalf("the only confirmer producer of the slice is operator_relay, got %v", confirmerEnum)
+	}
+	factView := mapping(t, schemas, "FactView")
+	factViewProps := mapping(t, factView, "properties")
+	status := mapping(t, factViewProps, "status")
+	statusEnum, _ := status["enum"].([]any)
+	if len(statusEnum) != 3 || statusEnum[1] != "conflicting" {
+		t.Fatalf("the fact statuses are the read-time derivations (conflicting has no automatic value choice), got %v", statusEnum)
 	}
 
 	for _, schema := range []string{"IngressEnvelope", "IngestResult", "IngestOutcome", "IngestRefusal",
 		"IngestQuarantine", "CasesView", "CaseSummary", "CaseView", "CaseRecord", "ConversationRecord",
-		"TimelineEvent", "WorkItemRecord", "OperationalException", "SealedPayloadView"} {
+		"TimelineEvent", "WorkItemRecord", "OperationalException", "SealedPayloadView",
+		"WorkOutcome", "CreateWorkItemRequest", "ClassifyWorkItemRequest", "TransitionWorkItemRequest",
+		"SplitWorkItemRequest", "MergeWorkItemsRequest", "LinkEventRequest", "DisputeWorkItemRequest",
+		"RecordFactRequest", "ConfirmFactRequest", "RescopeFactRequest", "FactVersionRecord",
+		"FactConfirmationRecord", "FactView", "FactsView"} {
 		if _, ok := schemas[schema]; !ok {
 			t.Errorf("schema %s is missing", schema)
 		}
