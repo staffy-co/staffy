@@ -515,10 +515,11 @@ func (f *casesFixture) RecordFact(_ context.Context, command casesAPI.RecordFact
 	}
 	f.workSeq++
 	factID := f.fixtureWorkSequence("fact", 80000+f.workSeq)
-	if anchorID, found := f.factAnchors[materialKey]; found {
+	anchorKey := command.CaseID.String() + "|" + materialKey
+	if anchorID, found := f.factAnchors[anchorKey]; found {
 		factID = anchorID
 	} else {
-		f.factAnchors[materialKey] = factID
+		f.factAnchors[anchorKey] = factID
 	}
 	versions := f.factVersions[factID]
 	f.factVersions[factID] = append(versions, casesDomain.FactVersion{
@@ -528,6 +529,12 @@ func (f *casesFixture) RecordFact(_ context.Context, command casesAPI.RecordFact
 		ObservedAt: observedAt, ReceivedAt: receivedAt, CreatedAt: command.Now,
 	})
 	status, _ := casesDomain.DeriveFactStatus(f.factVersions[factID], f.factConfirms[factID])
+	// The Story 2.3 tokenization: the identifier facts tokenize into the
+	// keyed HMAC tokens with the duplicate candidates of the exact
+	// matches (the same discipline as the store).
+	if raw, isString := casesDomain.IdentifierStringValue(value); isString {
+		f.recordIdentifierToken(command.CaseID, materialKey, raw, command.Now)
+	}
 	outcome = casesAPI.WorkOutcome{Command: "record_fact", WorkItemID: command.WorkItemID, FactID: factID, FactVersion: int64(len(versions)) + 1, FactStatus: status}
 	f.storeOutcome("record_fact", command.IdempotencyKey, outcome)
 	return outcome, nil
@@ -633,8 +640,12 @@ func (f *casesFixture) FactsView(_ context.Context, _ domain.Principal, tenant, 
 		}
 		confirmations := f.factConfirms[factID]
 		status, _ := casesDomain.DeriveFactStatus(versions, confirmations)
+		materialKey := key
+		if bar := strings.LastIndex(key, "|"); bar >= 0 {
+			materialKey = key[bar+1:]
+		}
 		view.Facts = append(view.Facts, casesAPI.FactView{
-			FactID: factID, MaterialKey: key, Status: status, NextAction: casesDomain.FactNextAction(status),
+			FactID: factID, MaterialKey: materialKey, Status: status, NextAction: casesDomain.FactNextAction(status),
 			Versions: versions, Confirmations: confirmations,
 		})
 	}

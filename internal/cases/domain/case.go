@@ -40,6 +40,7 @@ type Conversation struct {
 	ConnectionID       id.UUID
 	Provider           string
 	ProviderSessionID  string
+	Modality           string
 	ResponseOwnerID    id.UUID
 	ResponseOwnerEpoch int64
 	WritableSurface    string

@@ -39,6 +39,17 @@ func (s *Server) BindCases(service casesAPI.Service) {
 	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/facts/{fact_id}/confirmations", s.confirmFactAPI)
 	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/facts/{fact_id}/rescope", s.rescopeFactAPI)
 	s.mux.HandleFunc("GET /v1/tenants/{tenant_id}/cases/{case_id}/facts", s.factsViewAPI)
+
+	// The Story 2.3 surfaces: the verification commands (machine JSON +
+	// operator forms, PRG).
+	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/verifications", s.startVerificationAPI)
+	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/bindings", s.bindChannelAPI)
+	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/bindings/{binding_id}/unlink", s.unlinkChannelAPI)
+	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/duplicates/{candidate_id}/resolution", s.resolveDuplicateAPI)
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/verifications", s.startVerificationForm)
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/bindings", s.bindChannelForm)
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/bindings/{binding_id}/unlink", s.unlinkChannelForm)
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/duplicates/{candidate_id}/resolution", s.resolveDuplicateForm)
 	// The operator forms of the Work Control Card (the PRG pattern):
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/work-items", s.createWorkItemForm)
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/classify", s.classifyWorkItemForm)

@@ -23,15 +23,16 @@ import (
 // operator surface (review/configuration/audit; the sealed payload is
 // review/audit only). DrainOutbox is the idempotent delivery command.
 type Service struct {
-	repository      casesPort.Repository
-	identity        identityAPI.MembershipService
-	verifier        casesPort.SourceVerifier
-	routeFacts      casesPort.RouteFactsSource
-	connectionFacts casesPort.ConnectionFactsSource
-	members         casesPort.MembersSource
-	taxonomy        casesPort.PackTaxonomy
-	clock           casesAPI.Clock
-	ids             casesAPI.IDGenerator
+	repository       casesPort.Repository
+	identity         identityAPI.MembershipService
+	verifier         casesPort.SourceVerifier
+	routeFacts       casesPort.RouteFactsSource
+	connectionFacts  casesPort.ConnectionFactsSource
+	members          casesPort.MembersSource
+	taxonomy         casesPort.PackTaxonomy
+	identityVerifier casesPort.IdentityVerifier
+	clock            casesAPI.Clock
+	ids              casesAPI.IDGenerator
 }
 
 // New wires the cases service. The verifier is mandatory (the ingress
@@ -630,6 +631,37 @@ func (s *Service) CaseView(ctx context.Context, actor domain.Principal, tenantID
 	if criticalEntities == nil {
 		criticalEntities = []string{}
 	}
+	// The Story 2.3 sections: the assurance derivation, the bindings and
+	// the duplicate cards. The reads degrade honestly (an unreadable
+	// section never fails the case view): the assurance needs no extra
+	// right beyond the view scope, the bindings and the duplicates are the
+	// case-operations metadata of the same scope.
+	records, err := s.repository.ReadVerificationRecords(ctx, scope, caseID)
+	if err != nil {
+		return casesAPI.CaseView{}, err
+	}
+	now := s.clock.Now()
+	bindings, reversals, err := s.repository.ReadBindingsTouchingCase(ctx, scope, caseID)
+	if err != nil {
+		return casesAPI.CaseView{}, err
+	}
+	duplicates, err := s.repository.ReadDuplicatesOfCase(ctx, scope, caseID)
+	if err != nil {
+		return casesAPI.CaseView{}, err
+	}
+	cards := make([]casesPort.BindingCard, 0, len(bindings))
+	for _, binding := range bindings {
+		card := casesPort.BindingCard{Binding: binding, TargetCaseNo: caseNumberOf(detail.Case, binding.CaseID), BoundCaseNo: caseNumberOf(detail.Case, binding.BoundCaseID)}
+		if reversal := casesDomain.ReversalOf(reversals, binding.BindingID); reversal != nil {
+			card.Reversal = reversal
+		}
+		card.ConfirmationText = casesDomain.BindingClientConfirmation(binding.Method)
+		cards = append(cards, card)
+	}
+	modality := ""
+	if len(detail.Conversations) > 0 {
+		modality = detail.Conversations[0].Modality
+	}
 	return casesAPI.CaseView{
 		TenantID: tenantID, Case: detail.Case, Conversations: detail.Conversations,
 		Timeline: detail.Timeline, WorkItems: detail.WorkItems, Exceptions: detail.Exceptions,
@@ -637,7 +669,25 @@ func (s *Service) CaseView(ctx context.Context, actor domain.Principal, tenantID
 		NoAutoReplyText: "Автоответ клиенту не отправляется.",
 		CanViewPayload:  rights.Payload, CanViewFacts: rights.Payload, CanManageWork: rights.Manage,
 		ViewScope: casesAPI.CaseScopeView, TaxonomyTypes: taxonomy, CriticalEntities: criticalEntities,
+		Assurance: casesAPI.AssuranceView{
+			State:           casesDomain.DeriveAssuranceState(records, now),
+			Records:         records,
+			AllowedMethods:  casesDomain.MethodsOfModality(modality),
+			FallbackOptions: casesDomain.VerificationFallbackOptions,
+			StepUpText:      casesDomain.StepUpText,
+		},
+		Bindings:   cards,
+		Duplicates: duplicates,
 	}, nil
+}
+
+// caseNumberOf resolves the case number of one case id among the detail
+// (zero when unknown — the card degrades honestly).
+func caseNumberOf(anchor casesDomain.Case, caseID id.UUID) int64 {
+	if anchor.CaseID == caseID {
+		return anchor.CaseNo
+	}
+	return 0
 }
 
 // ReadPayload reads the sealed payload of one event under the strict

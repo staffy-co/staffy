@@ -7,6 +7,53 @@
 <p class="next-note">Ваши полномочия на этой странице: {{.View.ScopeText}}.</p>
 {{if .View.Flash}}<p class="alert" role="alert" tabindex="-1" id="case-flash">{{.View.Flash}}</p><script>addEventListener('DOMContentLoaded', () => document.getElementById('case-flash').focus());</script>{{end}}
 
+<h2>Проверка личности и полномочий</h2>
+<p class="next-note">Уровни доверия — производная записей проверки: личность и полномочия проверяются раздельно; отсутствие проверки никогда не выдаётся за подтверждённую личность; коды и секреты не хранятся.</p>
+<section class="panel" aria-label="Уровень доверия обращения">
+<p>Личность: <strong>{{.View.Assurance.IdentityText}}</strong>.{{if .View.Assurance.IdentityMethod}} Метод: {{.View.Assurance.IdentityMethod}}.{{if .View.Assurance.IdentitySubject}} Участник: {{.View.Assurance.IdentitySubject}}.{{end}}{{if .View.Assurance.IdentityExpires}} Действует до: {{.View.Assurance.IdentityExpires}}.{{end}}{{end}}</p>
+<p>Полномочия: <strong>{{.View.Assurance.AuthorityText}}</strong>.{{if .View.Assurance.AuthorityScope}} Скоуп: {{.View.Assurance.AuthorityScope}}.{{if .View.Assurance.AuthorityExpires}} Действуют до: {{.View.Assurance.AuthorityExpires}}.{{end}}{{end}}</p>
+{{if .View.Assurance.StepUp}}<p class="alert" role="alert" tabindex="-1" id="stepup-notice">{{.View.Assurance.StepUpText}}</p><script>addEventListener('DOMContentLoaded', () => document.getElementById('stepup-notice').focus());</script>{{end}}
+{{if .View.Assurance.AllowedMethods}}<p class="next-note">Разрешённые методы этого канала: {{.View.Assurance.AllowedMethods}}.</p>{{end}}
+{{if .View.Assurance.FallbackOptions}}<p class="next-note">Если проверка не пройдена: {{range $i, $o := .View.Assurance.FallbackOptions}}{{if $i}} {{end}}{{$o}}{{end}}</p>{{end}}
+{{if .View.Assurance.HasRecords}}
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Записи проверки">
+<table class="datamap-table">
+<caption>Записи проверки: вид, метод, канонический исход, уровень, участник, evidence, оба времени</caption>
+<thead><tr><th scope="col">Запись</th><th scope="col">Вид</th><th scope="col">Метод</th><th scope="col">Исход</th><th scope="col">Уровень</th><th scope="col">Участник</th><th scope="col">Evidence</th><th scope="col">Выдана</th><th scope="col">Действует до</th></tr></thead>
+<tbody>
+{{range .View.Assurance.Records}}<tr><th scope="row"><span class="digest-block">{{.VerificationID}}</span></th><td>{{.Kind}}</td><td>{{.Method}}</td><td>{{.OutcomeText}}</td><td>{{.Level}}</td><td>{{.Subject}}</td><td>{{.Evidence}}</td><td>{{.IssuedAt}}</td><td>{{.ExpiresAt}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+{{else}}
+<p role="status">Проверок не было: обслуживание общедоступного пути не блокируется.</p>
+{{end}}
+{{if .View.CanManageWork}}
+<details class="connector-connect"><summary>Записать проверку (канонический исход, срок по методу)</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/verifications">
+<label for="verify-conversation">Диалог проверки</label>
+<select id="verify-conversation" name="conversation_id" required>{{range $.View.ConversationOpts}}<option value="{{.Value}}">{{.Text}}</option>{{end}}</select>
+<label for="verify-kind">Вид проверки</label>
+<select id="verify-kind" name="kind" required>{{range $.View.KindOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}</select>
+<label for="verify-method">Метод</label>
+<select id="verify-method" name="method" required>{{range $.View.MethodOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}</select>
+<label for="verify-provider">Наблюдаемый исход (код контура; домен преобразует в канонический)</label>
+<select id="verify-provider" name="provider_code" required>{{range $.View.ProviderCodeOpts}}<option value="{{.Value}}">{{.Text}}</option>{{end}}</select>
+<label for="verify-subject">Объявленное имя участника (до 64 символов)</label>
+<input id="verify-subject" name="subject_handle" type="text" required maxlength="64">
+<label for="verify-scope">Скоуп полномочия (только для вида authority)</label>
+<input id="verify-scope" name="authority_scope" type="text" maxlength="200">
+<label for="verify-evidence">Evidence-событие кейса (или пусто + нота)</label>
+<select id="verify-evidence" name="evidence_event_id">{{range $.View.EventOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}<option value="">— без события, использовать ноту —</option></select>
+<label for="verify-note">Нота (если события нет, до 200 символов; не чистый код)</label>
+<input id="verify-note" name="note" type="text" maxlength="200">
+<button class="primary" type="submit">Записать проверку (append-only)</button>
+</form>
+<p class="next-note">Одноразовые коды и пароли не хранятся: команда не имеет поля для секрета; нота-код отклоняется.</p>
+</details>
+{{end}}
+</section>
+
 <h2>Work Control Card — рабочие элементы</h2>
 <p class="next-note">Версии — истина: каждая команда пишет новую версию; текущее состояние и тип — производные. Автоматической связи событий с элементами нет; факты не выбирают значение сами — только подтверждение человеком.</p>
 {{if .View.HasWorkItems}}
@@ -217,6 +264,85 @@
 {{end}}
 <p class="next-note">{{if .View.HasFacts}}{{.View.FactsNote}}{{else}}Фактов нет. {{.View.FactsNote}}{{end}}</p>
 <p class="next-note">Доступ к payload: только полномочия review или audit; защищённая ссылка (digest + HMAC-печать) проверяется при чтении.{{if not .View.CanViewPayload}} У вас доступа к payload нет.{{end}}</p>
+
+<h2>Связывание каналов</h2>
+<p class="next-note">Связь — append-only строка: разговор остаётся в своём кейсе, единая вьюха — производная чтения. Отмена не уничтожает историю: события и доступы сохраняются, вьюха пересчитывается.</p>
+{{if .View.HasBindings}}
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Связи каналов">
+<table class="datamap-table">
+<caption>Связи: метод, цель, связанный разговор, участник, состояние, подтверждение для клиента</caption>
+<thead><tr><th scope="col">Связь</th><th scope="col">Метод</th><th scope="col">Кейс-цель → связанный кейс</th><th scope="col">От имени</th><th scope="col">Участник</th><th scope="col">Состояние</th><th scope="col">Создана</th></tr></thead>
+<tbody>
+{{range .View.BindingRows}}<tr><th scope="row"><span class="digest-block">{{.BindingID}}</span></th><td>{{.Method}}</td><td>№{{.TargetCaseNo}} → №{{.BoundCaseNo}}</td><td>{{if .OnBehalf}}да{{else}}нет{{end}}</td><td>{{.Subject}}</td><td>{{if .Active}}активна{{else}}отменена ({{.ReversalAt}}): {{.ReversalReason}}{{end}}</td><td>{{.CreatedAt}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+{{range .View.BindingRows}}{{if .Active}}<p class="status" role="status">Подтверждение для клиента: «{{.ConfirmationText}}»</p>{{end}}{{end}}
+{{end}}
+{{if .View.CanManageWork}}
+<details class="connector-connect"><summary>Связать канал (по согласию клиента; требует verified)</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/bindings">
+<label for="bind-target">Целевой диалог этого кейса</label>
+<select id="bind-target" name="conversation_id" required>{{range $.View.ConversationOpts}}<option value="{{.Value}}">{{.Text}}</option>{{end}}</select>
+<label for="bind-case">Кейс связываемого разговора (UUID)</label>
+<input id="bind-case" name="bound_case_id" type="text" required maxlength="64">
+<label for="bind-conversation">Связываемый диалог (UUID)</label>
+<input id="bind-conversation" name="bound_conversation_id" type="text" required maxlength="64">
+<label for="bind-purpose">Цель (зачем клиент продолжает в другом канале, до 200 символов)</label>
+<input id="bind-purpose" name="purpose" type="text" required maxlength="200">
+<label for="bind-onbehalf">Действие от имени другого лица</label>
+<input id="bind-onbehalf" name="on_behalf" type="checkbox" value="on_behalf">
+<label for="bind-subject">Подтверждённое имя участника (до 64 символов)</label>
+<input id="bind-subject" name="subject_handle" type="text" required maxlength="64">
+<label for="bind-evidence">Evidence-событие согласия (или пусто + нота)</label>
+<select id="bind-evidence" name="evidence_event_id">{{range $.View.EventOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}<option value="">— без события, использовать ноту —</option></select>
+<label for="bind-note">Нота (если события нет, до 200 символов)</label>
+<input id="bind-note" name="note" type="text" maxlength="200">
+<button class="primary" type="submit">Связать (append-only связь)</button>
+</form>
+<p class="next-note">Гейт: личность ≥ verified{{if .View.Assurance.StepUp}}; сейчас шаг step-up приостановлен{{end}}. Недостаточный уровень блокирует только защищённый шаг — общедоступный путь не блокируется.</p>
+</details>
+{{range .View.BindingRows}}{{if and $.View.CanManageWork .CanUnlink}}
+<details class="connector-connect"><summary>Отменить связь {{.BindingID}}</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/bindings/{{.BindingID}}/unlink">
+<label for="unlink-reason-{{.BindingID}}">Причина отмены (до 200 символов)</label>
+<input id="unlink-reason-{{.BindingID}}" name="reason" type="text" required maxlength="200">
+<button class="primary" type="submit">Отменить связь (append-only реверсия)</button>
+</form></details>
+{{end}}{{end}}
+{{end}}
+
+{{if .View.HasDuplicates}}
+<h2>Возможные дубликаты</h2>
+<p class="next-note">Автоматического объединения нет как класса: совпадение идентификатора — только задача человеку. Карточка показывает минимальные сведения (замаскированное значение, канал, причину); защищённое содержимое не показывается до решения. Токенизируются идентификаторы словаря: {{$.View.IdentifierKindsText}} (keyed-HMAC, значение не хранится).</p>
+{{range .View.DuplicateCards}}
+<section class="panel" aria-label="Кандидат дубля {{.CandidateID}}">
+<h3>Дубль: новый кейс №{{.NewCaseNo}} ↔ существующий №{{.ExistingCaseNo}}</h3>
+<p>Идентификатор: <strong>{{.MaterialKey}}</strong> = <strong>{{.MaskedValue}}</strong> (маска: последние 2 символа).{{if .Channel}} Канал нового обращения: {{.Channel}}.{{end}} Причина: {{.MatchReason}} (уверенность правила: {{.RuleConfidence}}).</p>
+<p class="status" role="status">{{.ReviewText}}</p>
+{{if .Resolved}}<p>Решение: <strong>{{.DecisionText}}</strong>. Обоснование: {{.ResolutionNote}}.</p>
+{{else}}{{if and $.View.CanManageWork .IsNewSide}}
+<details class="connector-connect"><summary>Решить дубль</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/duplicates/{{.CandidateID}}/resolution">
+<label for="decision-{{.CandidateID}}">Решение</label>
+<select id="decision-{{.CandidateID}}" name="decision" required>
+<option value="same_client">Тот же клиент — связать (duplicate_review)</option>
+<option value="separate">Разные клиенты — оставить раздельными</option>
+</select>
+<label for="dup-note-{{.CandidateID}}">Обоснование (нота до 200 символов)</label>
+<input id="dup-note-{{.CandidateID}}" name="note" type="text" required maxlength="200">
+<label for="dup-conversation-{{.CandidateID}}">Целевой диалог существующего кейса (UUID)</label>
+<input id="dup-conversation-{{.CandidateID}}" name="conversation_id" type="text" required maxlength="64">
+<label for="dup-bound-{{.CandidateID}}">Связываемый диалог этого кейса (UUID)</label>
+<input id="dup-bound-{{.CandidateID}}" name="bound_conversation_id" type="text" required maxlength="64">
+<label for="dup-subject-{{.CandidateID}}">Имя участника (обязательно для «тот же клиент», до 64 символов)</label>
+<input id="dup-subject-{{.CandidateID}}" name="subject_handle" type="text" maxlength="64" required>
+<button class="primary" type="submit">Решить (resolution + связь одной транзакцией)</button>
+</form></details>
+{{end}}{{end}}
+</section>
+{{end}}
+{{end}}
 
 {{if .View.HasExceptions}}
 <h2>Операционные исключения этого обращения</h2>

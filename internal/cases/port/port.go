@@ -200,6 +200,24 @@ type Repository interface {
 	// inserts of the command material and the command record with the
 	// outcome JSON.
 	ExecuteWorkCommand(ctx context.Context, p WorkCommandParams) error
+	// Story 2.3 — the verification, binding and duplicate surface:
+	// ReadConversationOfCase reads one conversation of the case (the
+	// verification context and the binding target validation).
+	ReadConversationOfCase(ctx context.Context, scope tenancy.Context, caseID, conversationID id.UUID) (casesDomain.Conversation, error)
+	// ReadVerificationRecords reads the verification records of one case
+	// ordered by the issue time (the assurance derivation input).
+	ReadVerificationRecords(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]casesDomain.VerificationRecord, error)
+	// ReadBindingsTouchingCase reads the bindings that target the case or
+	// bind one of its conversations, with the reversals (the activity
+	// anti-join input).
+	ReadBindingsTouchingCase(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]casesDomain.ChannelBinding, []casesDomain.BindingReversal, error)
+	// ReadDuplicatesOfCase reads the candidate cards touching the case (the
+	// new or the existing side) with the resolutions.
+	ReadDuplicatesOfCase(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]DuplicateCard, error)
+	// ReadIdentifierKey reads (or creates on the first use) the per-tenant
+	// HMAC key of the identifier tokens. INSERT-only: the creation race
+	// resolves by ON CONFLICT DO NOTHING + re-read.
+	ReadIdentifierKey(ctx context.Context, scope tenancy.Context, now time.Time) ([]byte, error)
 }
 
 // ---------------------------------------------------------------------------
@@ -289,6 +307,26 @@ type WorkCommandParams struct {
 	ExceptionID     id.UUID
 	Outcome         []byte
 	Now             time.Time
+	// The Story 2.3 material (the command-specific fields of the four
+	// verification commands and the record_fact tokenization).
+	Kind                string
+	Method              string
+	OutcomeName         string
+	AssuranceLevel      string
+	SubjectHandle       string
+	AuthorityScope      string
+	ExpiresAt           time.Time
+	VerificationID      id.UUID
+	BoundCaseID         id.UUID
+	BoundConversationID id.UUID
+	BindingID           id.UUID
+	ReversalID          id.UUID
+	CandidateID         id.UUID
+	ResolutionID        id.UUID
+	Decision            string
+	IdentifierToken     string
+	Purpose             string
+	OnBehalf            bool
 }
 
 // FactMaterial is the full read of one fact: the anchor, the versions
@@ -298,3 +336,72 @@ type FactMaterial struct {
 	Versions      []casesDomain.FactVersion
 	Confirmations []casesDomain.FactConfirmation
 }
+
+// ---------------------------------------------------------------------------
+// Story 2.3: the identity verification persistence surface
+// ---------------------------------------------------------------------------
+
+// IdentityVerificationRequest is the material of one verification attempt
+// the contour verifier answers: the kind, the method, the modality of the
+// conversation (the eligibility dictionary) and the provider-observed code.
+type IdentityVerificationRequest struct {
+	Kind         string
+	Method       string
+	Modality     string
+	ProviderCode string
+}
+
+// IdentityVerification is the verifier answer: the eligibility of the
+// method for the conversation modality and the provider code the contour
+// observed (the domain maps it to the canonical outcome — the provider
+// spelling never lands in a record).
+type IdentityVerification struct {
+	Eligible          bool
+	IneligibilityText string
+	ProviderCode      string
+}
+
+// IdentityVerifier is the verification port: the synthetic contour verifier
+// checks the eligibility and passes the observed code; the real verifiers
+// (AG-4) will supply their own codes through this port without touching the
+// domain. A nil verifier refuses honestly — an "ok" contour is never
+// assumed.
+type IdentityVerifier interface {
+	Verify(ctx context.Context, request IdentityVerificationRequest) (IdentityVerification, error)
+}
+
+// DuplicateCard is the minimal review material of one candidate: the
+// candidate row, both case numbers, the MASKED identifier value (the last
+// two runes of the normalized value — the value itself never travels), the
+// material key and the resolution when the review is closed. The protected
+// content (payloads, facts) never enters this card.
+type DuplicateCard struct {
+	Candidate      casesDomain.DuplicateCandidate
+	NewCaseNo      int64
+	ExistingCaseNo int64
+	MaskedValue    string
+	// Channel is the channel of the first accepted event of the new case
+	// (the review material "which channel" — the card never carries the
+	// protected content).
+	Channel string
+	// IsNewSide reports whether the read case is the NEW side of the
+	// candidate (the resolution form lives there — the command's case
+	// discipline).
+	IsNewSide  bool
+	Resolution *casesDomain.DuplicateResolution
+}
+
+// BindingCard is one binding of the case view: the binding row, its
+// reversal when unlinked, both case numbers and the deterministic client
+// confirmation text (without the internal identifiers).
+type BindingCard struct {
+	Binding          casesDomain.ChannelBinding
+	Reversal         *casesDomain.BindingReversal
+	TargetCaseNo     int64
+	BoundCaseNo      int64
+	ConfirmationText string
+}
+
+// The Story 2.3 repository surface is part of Repository: the reads of the
+// assurance, binding and duplicate surfaces + the identifier key of the
+// HMAC tokens.

@@ -491,3 +491,21 @@ func TestFactsViewWireShape(t *testing.T) {
 		t.Fatalf("facts = %+v", view.Facts)
 	}
 }
+
+// The Story 2.3 command surface of the fake (the honest refusal shape —
+// the transport tests of the new commands use their own fixtures).
+func (f *fakeCases) StartVerification(context.Context, casesAPI.StartVerificationCommand) (casesAPI.WorkOutcome, error) {
+	return casesAPI.WorkOutcome{}, casesDomain.WorkRuleError{Rule: "start_verification", Reason: "контур проверки не сконфигурирован в фикстуре"}
+}
+
+func (f *fakeCases) BindChannel(context.Context, casesAPI.BindChannelCommand) (casesAPI.WorkOutcome, error) {
+	return casesAPI.WorkOutcome{}, casesDomain.WorkRuleError{Rule: "bind_channel", Reason: "контур проверки не сконфигурирован в фикстуре"}
+}
+
+func (f *fakeCases) UnlinkChannel(context.Context, casesAPI.UnlinkChannelCommand) (casesAPI.WorkOutcome, error) {
+	return casesAPI.WorkOutcome{}, casesDomain.WorkRuleError{Rule: "unlink_channel", Reason: "контур проверки не сконфигурирован в фикстуре"}
+}
+
+func (f *fakeCases) ResolveDuplicate(context.Context, casesAPI.ResolveDuplicateCommand) (casesAPI.WorkOutcome, error) {
+	return casesAPI.WorkOutcome{}, casesDomain.WorkRuleError{Rule: "resolve_duplicate", Reason: "контур проверки не сконфигурирован в фикстуре"}
+}

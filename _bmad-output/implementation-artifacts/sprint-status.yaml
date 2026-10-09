@@ -55,7 +55,7 @@ development_status:
   epic-2: in-progress
   2-1-приём-channel-event-и-создание-единого-case: done
   2-2-work-items-факты-и-provenance-внутри-case: done
-  2-3-проверка-личности-и-безопасное-связывание-каналов: backlog
+  2-3-проверка-личности-и-безопасное-связывание-каналов: done
   2-4-единственный-response-owner-и-записывающий-inbox: backlog
   2-5-conversation-mode-и-обязательное-ai-раскрытие: backlog
   2-6-progressive-intake-и-детерминированный-policy-outcome: backlog

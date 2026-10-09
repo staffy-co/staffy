@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/artemiosu/staffy/internal/adapters/ingresssyn"
+	"github.com/artemiosu/staffy/internal/adapters/verificationsyn"
 	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
 	casesApp "github.com/artemiosu/staffy/internal/cases/app"
 	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
@@ -62,11 +63,19 @@ func newCasesWorld(t *testing.T, seed int) *casesWorld {
 // buildCasesService wires the contour with the given id generator (the
 // race test uses the thread-safe real generator).
 func (w *casesWorld) buildCasesService(ids casesAPI.IDGenerator) *casesApp.Service {
-	return casesApp.New(casesStore.NewPostgres(runtimePool), w.identity, ingresssyn.New(w.connector), releaseClock, ids).
+	return w.buildCasesServiceClock(ids, releaseClock)
+}
+
+// buildCasesServiceClock wires the contour with an explicit clock (the
+// Story 2.3 threshold-window tests read the derivations of a later time)
+// and the synthetic identity verifier of the test contour.
+func (w *casesWorld) buildCasesServiceClock(ids casesAPI.IDGenerator, clock casesAPI.Clock) *casesApp.Service {
+	return casesApp.New(casesStore.NewPostgres(runtimePool).WithIDs(ids), w.identity, ingresssyn.New(w.connector), clock, ids).
 		WithRouteFacts(w.employee).
 		WithConnectionFacts(w.connector).
 		WithMembers(w.identity).
-		WithPackTaxonomy(w.employee)
+		WithPackTaxonomy(w.employee).
+		WithIdentityVerifier(verificationsyn.New())
 }
 
 func (w *casesWorld) publishSynthetic(t *testing.T) {

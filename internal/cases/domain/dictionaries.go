@@ -163,6 +163,7 @@ const (
 	ExceptionAmbiguousRouting    = "ambiguous_employee"
 	ExceptionIdempotencyConflict = "idempotency_key_conflict"
 	ExceptionWorkItemDispute     = "work_item_dispute"
+	ExceptionIdentityStepUp      = "identity_step_up"
 )
 
 // Outbox event types of the slice (each with its schema version).
