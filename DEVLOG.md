@@ -1066,3 +1066,21 @@ decisions:
 next: review R1 (субагент, свежий контекст) — верификация спеки против diff baseline 82db159..HEAD
 unpushed: 4
 commit: TBD
+---
+date: 2026-10-10
+task: 46-review
+role: main (Super Z)
+story: 2-3
+summary: Review R1 (субагент, живые пробы) — FAIL: 3 Major + 9 миноров; все фиксы применены и регресс зелёный
+done:
+- R1 вердикт FAIL с живыми свидетелями: M1 — RLS НЕ включён на 7 новых таблицах (CREATE POLICY без ENABLE/FORCE: pg_class relrowsecurity=false ×7, межтенантный SELECT под staffy_app видел чужие строки — критический пробел второго рубежа), M2 — машинный BindChannel(method=duplicate_review) чеканил связи без резолюции (подделка provenance ревьюера) и step-up не перепроверялся в сторе для не-consent методов (проба: commit под активным step-up), M3 — проигравший гонки связывания получал 400 вместо честного 409 (матрица №50)
+- Миноры: м1 мёртвые имена констрейнтов в mapVerificationInsertError (фактические: binding_reversals_tenant_id_binding_id_key, duplicate_resolutions_tenant_id_candidate_id_key), м2 карточка дубля без канала, м4 «№0 → №N» для чужих кейсов, м5 форма резолюции рендерилась на существующей стороне (команда требует новую → 404), м6 маска из последней версии факта (перепись сдвигала маску при неизменном токене), м7 fallback-варианты AC-4 и словарь идентификаторов не рендерились, м8 N+1 чтения (→ deferred-work), м9 тестовые пробелы (key-conflict 4 команд, RLS-зонд)
+- Фиксы применены (коммит на ветке): 14× ALTER TABLE ENABLE/FORCE + TestVerificationTablesRLSForced (pg_class-зонд); GuardBindChannel → duplicate_review отказ + TestBindChannelRefusesDuplicateReviewMethod; step-up в execBindChannel безусловно (identity-гейт — consent-материал); ErrActiveBinding sentinel → 409 + флеш; имена констрейнтов; Channel карточки (первое принятое событие нового кейса) + IsNewSide (форма резолюции только на новой стороне); externalCaseNo («внешний» вместо №0); маска СОВПАВШЕЙ версии (ключ читается read-only ДО курсоров — pgx conn busy исправлен, read-only tx не INSERT-ит); fallback-варианты + IdentifierKindsText в шаблоне; фикстура зеркалит сторе (sentinel, step-up, маска совпавшей версии)
+- Регресс после фиксов: build/vet/unit (0 падений)/интеграция UTC 3.78s + TZ=Europe/Moscow 4.19s/journeys 20/20/контракт/diff --check — зелёные; OpenAPI синхронен (enum метода связывания = consent_handoff, канал/IsNewSide карточки)
+decisions:
+- duplicate_review-связь рождается ТОЛЬКО командой resolve_duplicate (нота ревьюера = provenance): прямое связывание этим методом — подделка решения человека, отказ домена
+- Шаг step-up в сторе блокирует связывание КАК КЛАСС (AC-10), identity-гейт остаётся материалом consent_handoff; резолюция ревьюера step-up не проверяет (человек = проверка по AC-7)
+- маска ревью-карточки — свойство СОВПАВШЕГО значения (версия, чей keyed-HMAC равен токену кандидата): поздняя перезапись факта не меняет материал ревью
+next: review R2 (субагент, свежий контекст) — верификация фиксов R1
+unpushed: 5
+commit: TBD
