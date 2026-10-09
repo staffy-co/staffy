@@ -1032,3 +1032,16 @@ decisions:
 next: CHECKPOINT 1 владельцу — одобрение спеки первого среза 2-3 (после «одобряю»: спека+sprint-status → ready-for-dev, Dev step-03); токен для push не выдан этой сессии — оба коммита локальны
 unpushed: 2
 commit: TBD
+---
+date: 2026-10-09
+task: 45-checkpoint-1
+role: main (Super Z)
+story: 2-3
+summary: CHECKPOINT 1 закрыт — владелец одобрил спеку первого среза 2-3 без правок; спека и sprint-status одновременно → ready-for-dev
+done:
+- Одобрение зафиксировано в Spec Change Log спеки (замороженные секции не изменялись)
+- Спека status: ready-for-dev; sprint-status.yaml 2-3: ready-for-dev (синхронный переход, прецедент 2-2 8e966ae)
+- Коммит CHECKPOINT 1 на ветке codex/story-2-3-identity-verification [skip ci] (маркер лёгок: head перед PR будет без маркера — урок 2-2)
+next: Dev (step-03) — реализация первого среза 2-3 по спеке на ветке codex/story-2-3-identity-verification; затем review R1 свежим контекстом
+unpushed: 3
+commit: TBD
