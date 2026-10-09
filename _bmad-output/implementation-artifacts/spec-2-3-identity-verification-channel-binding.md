@@ -2,7 +2,7 @@
 title: 'Story 2.3 — Проверка личности и безопасное связывание каналов (первый срез)'
 type: 'feature'
 created: '2026-10-09'
-status: 'backlog'
+status: 'ready-for-dev'
 route: 'dispatch'
 baseline_commit: '82db1594d21bcff0f7929680fda124df3c5aa32c'
 context:
@@ -101,3 +101,4 @@ context:
 ## Spec Change Log
 
 - 2026-10-09, review loop 0: создана спека первого среза Story 2.3 (SM) по продолжению Epic 2 после закрытия 2-2 (DEVLOG 44-merge, next: 2-3). Статус `backlog` до CHECKPOINT 1 — одобрения владельцем; после одобрения спека и sprint-status.yaml одновременно переходят в `ready-for-dev`. Демо-путь и честные границы (P1–P6 → 2-6, реальные верификаторы → AG-4, AI-дубли → нет, Customer Profile → OQ-16, доставка в канал → исходящие) — в Intent.
+- 2026-10-09, CHECKPOINT 1: спека одобрена владельцем без правок («одобряю», чат 2026-10-09). Замороженные секции (Intent / Boundaries & Constraints / I/O & Edge-Case Matrix) не изменялись. Спека и sprint-status.yaml одновременно переведены в `ready-for-dev`; далее — Dev (step-03).
