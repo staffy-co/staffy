@@ -1119,3 +1119,25 @@ decisions:
 next: CHECKPOINT 2 владельцу — STAFFY_GH_TOKEN → подготовить head без [skip ci] → батч-пуш 5 коммитов ветки + 3 main (docs) → PR через GitHub API → CI verify → merge → DEVLOG 46-merge; далее story 2-4 «Единственный response-owner и записывающий inbox»
 unpushed: 7
 commit: TBD
+---
+date: 2026-10-10
+task: 46-merge
+role: main (Super Z)
+story: 2-3
+summary: Story 2-3 влита в main — PR #18, merge-коммит c4abf6a; CI зелёный тремя полными прогонами (push/PR/main); Epic 2: 3/16 stories done — контур получил проверку личности (verification records + производная assurance + порог), безопасное связывание каналов (append-only, единая вьюха) и честные дубликаты (keyed-HMAC, ревью человеком)
+done:
+- Токен выдан владельцем в чате (CHECKPOINT 2); валидация GitHub API (login artemiosu, private repo, admin/push perms) + git-проба receive-pack 200; применён только inline export STAFFY_GH_TOKEN при каждом вызове — на диск не попадал
+- ИНСТРУМЕНТАЛЬНЫЙ УРОК сессии: слом инструмента (broken session 403) пережит рестартом; после него шелл РЕЦИКЛИТСЯ между вызовами — export не живёт, токен передаётся в каждом вызове (STAFFY_GH_TOKEN=... bash <script>); все remote-операции оформлены скриптами с токеном только из env (push_batch_2_3.sh, create_pr_2_3.sh, merge_pr_2_3.sh, ci_poll_2_3.sh + ci_eval_2_3.py)
+- Push батчем: main 82db159..6b8c0d9 (6 docs-коммитов DEVLOG 45-sm..46-close; [skip ci] на них легитимен — docs прямо на main) + ветка codex/story-2-3-identity-verification 144c03d..44cc7b6 (6 story-коммитов, первая публикация ветки, -u tracking); маркеры [skip ci] на mid-ветке docs-коммитах CI не гасят (гасит только head) — подтверждено живьём
+- [skip ci]-инцидента 2-2 НЕ воспроизведён: head 44cc7b6 реально БЕЗ маркера (git log --format=%B), CI стартовал мгновенно на оба события; канон-нота: 46-close (и worklog Task 30) утверждали «head несёт [skip ci], планируем amend при CHECKPOINT 2» — фактически closure-коммит создан уже без маркера (урок 2-2 применён проактивно при создании); amend НЕ потребовался, история не переписывалась, ветка опубликована байт-в-байт (44cc7b6 == HEAD, отревьюенный R3)
+- PR #18 создан через GitHub API (create_pr_2_3.sh, токен только из env, прецедент PR #17): https://github.com/artemiosu/staffy/pull/18 — состав среза (миграция 00003, домен, 4 идемпотентные команды, единая вьюха, дубликаты keyed-HMAC, транспорт/UI/OpenAPI), review R1/R2/R3, честные границы, регресс, ссылка на спеку
+- CI: три полных прогона, все success — push-run 38000487230 и pull_request-run 38000743017 (head 44cc7b6), main-run 38001034989 (head c4abf6a)
+- Merge через API (merge_method=merge, sha-pinned 44cc7b6, прецедент PR #13/#14/#15/#16/#17): merge-коммит c4abf6a; локальный main синхронизирован ff-only (6b8c0d9..c4abf6a: 38 файлов, +5892/−29); оверлап файлов main/ветки пуст (main-сторона трогала только DEVLOG.md) — конфликтов не было
+- Канон-ноты 46-close: «commit: TBD» → фактический docs-коммит 6b8c0d9; «5 коммитов ветки» → фактически 6 (список в 46-close сам перечисляет шесть: 144c03d, aeec3f7, 9c4c5ef, db258dc, ded10db, 44cc7b6); «unpushed: 7» → фактически 12 до батч-пуша (6 main + 6 ветки); исторические записи не редактировались (прецедент fd0ec40/b6814ab/44-merge)
+- Локальный Go/PG в этой сессии не поднимался (окружение сброшено): регресс подтверждён R3 (полный suite зелёный, UTC + Europe/Moscow) на этом же дереве 44cc7b6 без изменений + независимо CI ×3 — amend/перезаписи не было, дерево байт-в-байт
+decisions:
+- Дисциплина [skip ci] трансформирована из реактивной (снять amend'ом перед PR) в проактивную: closure-коммит story-ветки создаётся сразу без маркера — CHECKPOINT 2 2-3 прошёл без amend-фазы и без переписывания истории
+- Токен в этой среде живёт в env ровно один вызов (шелл рециклится): паттерн «STAFFY_GH_TOKEN=... bash script.sh» с env-only чтением внутри — рабочий стандарт следующих сессий
+- Итог review-цикла 2-3 подтверждён CI независимо: 3 Major R1 + M4 R2 закрыты, регресс зелёный локально (×2 TZ, R1/R2/R3) и в CI (×3)
+next: Epic 2 продолжается — story 2-4 «Единственный response-owner и записывающий inbox» (backlog; первый шаг — SM-спека первого среза → CHECKPOINT 1 владельцу). Осталось 13/16 stories
+commit: c4abf6a
