@@ -1045,3 +1045,24 @@ done:
 next: Dev (step-03) — реализация первого среза 2-3 по спеке на ветке codex/story-2-3-identity-verification; затем review R1 свежим контекстом
 unpushed: 3
 commit: TBD
+---
+date: 2026-10-10
+task: 46-dev
+role: main (Super Z)
+story: 2-3
+summary: Dev step-03 завершён — первый срез story 2-3 реализован целиком; спека и sprint-status → review; полный регресс зелёный (build/vet/unit/интеграция UTC+Europe/Moscow/journeys 20/20/контракт/diff)
+done:
+- Домен: verification.go (словари kind/method/provider/outcome/level, CanonicalOutcome, MethodValidity/Level, DeriveAssuranceState с окном порога, BindingAllowed гейт, noteIsBareCode — кириллические ноты легальны, чистые цифровые коды отвергаются), binding.go (методы, ReversalOf/ActiveBindings анти-join, GuardBind/Unlink, BindingClientConfirmation без внутренних идентификаторов), duplicate.go (словарь phone|email|order_number, NormalizeIdentifier, MaskIdentifier, IdentifierToken keyed-HMAC, GuardResolveDuplicate); юнит-тесты всех словарей/дериваций/гейтов/токенов
+- Миграция 00003: 7 таблиц append-only (verification_records с XOR evidence и scope-of-kind CHECK, channel_bindings с consent-материалом, binding_reversals UNIQUE, identifier_hmac_keys INSERT-only, identifier_tokens, duplicate_candidates UNIQUE (new, existing, token) — уточнение материи пары: несколько совпадений токена видимы ревью (AC-7), duplicate_resolutions UNIQUE), расширение словарей command_records (+4) и operational_exceptions (+identity_step_up); RLS+FORCE, гранты INSERT/SELECT
+- App/store: 4 команды через единую executeWork-машину (command_records идемпотентность, replay до стражей); advisory-локи case/conversation(×2)/binding/candidate/token в сортированном порядке; exec-ревалидации под локами (step-up пересечения, гейт assurance, no-active-binding, реверсия/резолюция UNIQUE-бэкстопы 23505 → честные конфликты); токенизация в execRecordFact той же транзакцией (токен-лок сериализует матч-сет); ReadIdentifierKey read-or-create ON CONFLICT; единая вьюха кейса — подзапрос активных связей в readCaseTx (конверсации + таймлайн), ingest 2-1 не изменён ни строкой
+- Адаптер verificationsyn (eligibility словарь домена + пропуск provider-кода; продакшн fail-closed без AG-4); транспорт: 8 маршрутов (4 API + 4 формы PRG), панель assurance (уровни/метод/срок/step_up-flash-focus), таблицы записей с evidence-нотами, карточки дублей с маской, формы с select-словарями; view-типы + prepare-расширение; OpenAPI +258 строк (пути/схемы/enum) + контракт-тест (нет полей-секретов, enum 4 команд, секции CaseView)
+- Тесты: интеграционные cases_verification_test.go (гейт→лестница→связь→единая вьюха→продолжение; threshold окно часами вход/выход; authority раздельно с истечением; дубль обе ветки; unlink с сохранением истории и повторной связью; RLS 404; конкурентные bind ровно один; отсутствие секретов); journeys 20/20 с новой цепью 320px
+- Урок применён: gofmt-переформат ДВУХ родительских файлов (main.go/tenant_test.go) пойман по diff-статам и откачен с точечным пере-применением в родительском стиле (ретро-1-5); контракт-тест тоже в родительском пробельном стиле
+decisions:
+- Уникальность кандидата дубля: (new, existing, token) — материальная пара читалась как (кейс, токен) неоднозначно; AC-7 требует ВСЕ совпадения видимыми ревью, посему пара = пара кейсов + токен (Change Log спеки фиксирует уточнение)
+- assurance-деривация кейса (не разговора): AC-1 говорит «Case явно показывает уровень» — панель кейса; conversation_id в записи — контекст provenance
+- duplicate_review-связывание БЕЗ identity-гейта: ревьюер — уполномоченный человек, его решение с нотой и есть проверка (AC-7); consent_handoff — гейт identity ≥ verified
+- фикстура: factAnchors ключ кейс|ключ (дисциплина стора UNIQUE per case) — сломало 2-2 journey (ключ утёк в MaterialKey), исправлено стрипом префикса в FactsView
+next: review R1 (субагент, свежий контекст) — верификация спеки против diff baseline 82db159..HEAD
+unpushed: 4
+commit: TBD
