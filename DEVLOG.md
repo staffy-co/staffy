@@ -545,7 +545,7 @@ done:
 - sprint-status.yaml: 1-13-утверждение-operating-profile-и-правил-измерения → ready-for-dev, last_updated 10-08-2026 (синхронность check-continuity соблюдена)
 - Коммит на ветке codex/story-1-13-operating-profile [skip ci]
 next: Dev step-03 — реализация Code Map по спеке: internal/employee/domain/profile.go (модель, словари, деривации, digest, валидация) + юнит-тесты, миграция 00011, port/app/store/api (порты участников и манифеста, UpdateDraft/ApproveProfile/DecideThreshold), transport+OpenAPI+шаблон operating-profile.html, privacy-класс, integration+journeys; полный регресс; затем DEVLOG dev-запись, push, PR, CHECKPOINT 2
-commit: TBD
+commit: 8864c05
 
 ---
 date: 2026-10-08
@@ -642,7 +642,7 @@ done:
 - sprint-status.yaml: 1-14-readiness-проверка-и-контролируемая-публикация → ready-for-dev (синхронность check-continuity соблюдена)
 - Токен сессии утрачен вместе с env (не переживает границы вызовов инструментов, урок Task 16); коммит локальный [skip ci], push отложен — весь пакет ветки (checkpoint + dev + review-фиксы) будет запушен одним батчем после выдачи токена владельцем (прецедент 1-13: bd5b866..b2c43b5)
 next: Dev step-03 — bootstrap в foreground (Go 1.27.1 установлен, PG распаковать из third_party), затем реализация среза по спеке: домен readiness/gates/publication, миграция 00012, port/app/store/api, transport+OpenAPI+панель, тесты (unit/integration/journey/wire), полный регресс
-commit: TBD
+commit: 8864c05
 
 ---
 date: 2026-10-08
@@ -663,7 +663,7 @@ decisions:
 - Privacy-класс release-admission: employee.gate_instances + employee.release_admissions (таблицы миграции), словарь 18
 - Commit предыдущей сессии (4efd497 CHECKPOINT 1) остаётся локальным; push всего пакета ветки одним батчем после STAFFY_GH_TOKEN (прецедент 1-13)
 next: review R1 (субагент) по спеке и коду → фиксы → R2 → спека/sprint-status → done → push → PR → CI → merge
-commit: TBD
+commit: 8864c05
 
 ---
 date: 2026-10-08
@@ -685,7 +685,7 @@ decisions:
 - Порядок gate-проверок публикации: лестница → готовность → вставка; repeat-конфликт срабатывает даже если кандидат не готов (ровно одна запись — свойство истории, не готовности)
 - Красивый побочный эффект M2: сообщения об отказе честно называют стадию И решение №N кандидата (спека edge-case 47: «сообщение называет требуемую предыдущую стадию и её статус»)
 next: review R2 (субагент) — подтверждение закрытия M1/M2/M3 и отсутствия новых рисков
-commit: TBD
+commit: 8864c05
 
 ---
 date: 2026-10-08
@@ -773,7 +773,7 @@ done:
 - sprint-status.yaml: 2-1 → ready-for-dev (синхронность check-continuity); epic-2 → in-progress; last_updated 10-09-2026
 - Токен сессии не переживает границы вызовов инструментов (урок 41-merge подтверждён повторно); коммит локальный [skip ci], push отложен — весь пакет ветки (checkpoint + dev + review-фиксы) будет запушен одним батчем после выдачи токена владельцем (прецедент 1-13/1-14)
 next: Dev step-03 — bootstrap в foreground, затем реализация среза по спеке: домен cases (модель события, словари, лестница адмиссии, идемпотентная семантика), миграция 00001, port/app/store/api, расширения employee/api (RouteFacts) и connector/api (ConnectionFactsByID), ingresssyn-адаптер, transport+OpenAPI+Cases UI, privacy-классы, тесты (unit/integration/journey/wire), полный регресс
-commit: TBD
+commit: 8864c05
 
 ---
 date: 2026-10-09
@@ -802,7 +802,7 @@ decisions:
 - Карантинные записи видны в таймлайне кейса (state «Карантин») + отдельная панель исключений — оператор видит конфликт в контексте; ingress_rejections не содержат payload по построению
 - Спорные минуты форматирования: blanket gofmt вне story-файлов откачен (35+8 файлов), содержательные правки пере применены в исходной стилистике; правило retro-1-5 соблюдено
 next: review R1 (субагент) по спеке и коду → фиксы → R2 → спека/sprint-status → done → CHECKPOINT 2 (токен → push → PR → CI → merge)
-commit: TBD
+commit: 8864c05
 
 ---
 date: 2026-10-09
@@ -824,7 +824,7 @@ decisions:
 - Untrusted-отказы ограничены, а не запрещены: матрица явно требует строку unknown_connection — напряжение клозул решено ограничением + честной записью в deferred-work (владелец решит судьбу тенант-нейтральной зоны)
 - In-flight-счётчик остаётся юнит-покрытым: интеграционный мир из 1000+ событий в окне — искусственная нагрузка без доказательной ценности; словарь фиксирован, логика чистая
 next: review R2 (субагент) — верификация фиксов R1 → при PASS спека/sprint-status → done → CHECKPOINT 2 владельцу (токен → push → PR → CI → merge)
-commit: TBD
+commit: 8864c05
 
 ---
 date: 2026-10-09
@@ -845,7 +845,7 @@ decisions:
 - Provider-клеймо события остаётся свободным текстом (верификатор проверяет connection, не строку провайдера) — это делает N1-сценарий представимым и честно документировано: реальная дисциплина sender-identity — с провайдерскими адаптерами (AG-4, deferred-work)
 - Прогон тестов субагентом не состоялся из-за сбоя его инструментов — не блокирует: регресс прогнан main дважды (до R3 и после фиксов), R3 верифицировал код построчно
 next: спека/sprint-status → done; DEVLOG 43-close; CHECKPOINT 2 владельцу — STAFFY_GH_TOKEN → push ветки (5 коммитов: checkpoint+feat+fix R1+fix R2/R3+docs) → PR → CI (verify) → merge (merge_method=merge) → Epic 2 story 2-1 влита
-commit: TBD
+commit: 8864c05
 
 ---
 date: 2026-10-09
@@ -902,4 +902,4 @@ decisions:
 - source_id факта для operator-источника — ключ команды (не принципал): оператор может исправлять значения (новые версии того же ключа), точный повтор команды — replay; для channel_event — event_id (материал события неизменяем)
 - DROP cases.work_items.state миграцией 00002: версии — единственный носитель состояния; якорь без денормализации (чтение JOIN LATERAL максимальной версии)
 next: CHECKPOINT 1 владельцу — «одобряю» → спека и sprint-status синхронно → ready-for-dev → Dev (step-03: bootstrap в foreground; домен+миграция+команды+фасады+транспорт+WCC+тесты; регресс 2-1 зелёный обязателен)
-commit: TBD
+commit: 8864c05
