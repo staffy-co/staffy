@@ -1013,3 +1013,75 @@ func TestCaseContourContractIsHonest(t *testing.T) {
 		}
 	}
 }
+
+// TestVerificationContractIsHonest asserts the Story 2.3 surface: the four
+// command paths carry the principal boundary and the idempotency key; the
+// verification request has NO field for a secret; the WorkOutcome command
+// enum covers the four new commands; the CaseView carries the assurance,
+// binding and duplicate sections.
+func TestVerificationContractIsHonest(t *testing.T) {
+        content, err := os.ReadFile("staffy.yaml")
+        if err != nil {
+                t.Fatal(err)
+        }
+        var document map[string]any
+        if err := yaml.Unmarshal(content, &document); err != nil {
+                t.Fatal(err)
+        }
+        paths := mapping(t, document, "paths")
+        for _, path := range []string{
+                "/v1/tenants/{tenant_id}/cases/{case_id}/verifications",
+                "/v1/tenants/{tenant_id}/cases/{case_id}/bindings",
+                "/v1/tenants/{tenant_id}/cases/{case_id}/bindings/{binding_id}/unlink",
+                "/v1/tenants/{tenant_id}/cases/{case_id}/duplicates/{candidate_id}/resolution",
+        } {
+                post := mapping(t, mapping(t, paths, path), "post")
+                if required, _ := post["x-staffy-principal-required"].(bool); !required {
+                        t.Errorf("%s: the principal boundary is not documented", path)
+                }
+                parameters, _ := post["parameters"].([]any)
+                hasKey := false
+                for _, parameter := range parameters {
+                        item, _ := parameter.(map[string]any)
+                        if item == nil {
+                                continue
+                        }
+                        if ref, _ := item["$ref"].(string); ref == "#/components/parameters/IdempotencyKey" {
+                                hasKey = true
+                        }
+                        if name, _ := item["name"].(string); name == "Idempotency-Key" {
+                                hasKey = true
+                        }
+                }
+                if !hasKey {
+                        t.Errorf("%s: the Idempotency-Key parameter is missing", path)
+                }
+        }
+        schemas := mapping(t, mapping(t, document, "components"), "schemas")
+        verification := mapping(t, schemas, "StartVerificationRequest")
+        properties := mapping(t, verification, "properties")
+        for _, secret := range []string{"code", "secret", "password", "otp", "pin"} {
+                if _, ok := properties[secret]; ok {
+                        t.Errorf("the verification request must not carry the secret field %q", secret)
+                }
+        }
+        outcome := mapping(t, schemas, "WorkOutcome")
+        command := mapping(t, outcome, "properties")["command"].(map[string]any)
+        enum, _ := command["enum"].([]any)
+        covered := map[string]bool{}
+        for _, value := range enum {
+                covered[value.(string)] = true
+        }
+        for _, name := range []string{"start_verification", "bind_channel", "unlink_channel", "resolve_duplicate"} {
+                if !covered[name] {
+                        t.Errorf("the command enum misses %s", name)
+                }
+        }
+        caseView := mapping(t, schemas, "CaseView")
+        viewProperties := mapping(t, caseView, "properties")
+        for _, section := range []string{"assurance", "bindings", "duplicates"} {
+                if _, ok := viewProperties[section]; !ok {
+                        t.Errorf("the CaseView misses the %s section", section)
+                }
+        }
+}

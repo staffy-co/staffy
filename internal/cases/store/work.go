@@ -366,6 +366,26 @@ func factKeyLockKey(tenantID, caseID id.UUID, materialKey string) string {
 	return "cases.fact.v1:" + tenantID.String() + ":" + caseID.String() + ":" + materialKey
 }
 
+func caseLockKey(tenantID, caseID id.UUID) string {
+	return "case:" + tenantID.String() + ":" + caseID.String()
+}
+
+func conversationLockKey(tenantID, conversationID id.UUID) string {
+	return "conversation:" + tenantID.String() + ":" + conversationID.String()
+}
+
+func bindingLockKey(tenantID, bindingID id.UUID) string {
+	return "binding:" + tenantID.String() + ":" + bindingID.String()
+}
+
+func candidateLockKey(tenantID, candidateID id.UUID) string {
+	return "candidate:" + tenantID.String() + ":" + candidateID.String()
+}
+
+func tokenLockKey(tenantID id.UUID, token string) string {
+	return "token:" + tenantID.String() + ":" + token
+}
+
 func factIDLockKey(tenantID, factID id.UUID) string {
 	return "cases.fact.v1:" + tenantID.String() + ":" + factID.String()
 }
@@ -413,6 +433,24 @@ func (s *Postgres) ExecuteWorkCommand(ctx context.Context, p casesPort.WorkComma
 		if p.FactID.Valid() {
 			lockKeys = append(lockKeys, factIDLockKey(tenantID, p.FactID))
 		}
+		if p.IdentifierToken != "" {
+			// The identifier token lock: the match query and the candidate
+			// inserts of the tokenization serialize per token — the match
+			// set is the lock-visible truth (a concurrent writer of the
+			// same token in another case either committed before this
+			// query or creates the reverse candidate after it).
+			lockKeys = append(lockKeys, tokenLockKey(tenantID, p.IdentifierToken))
+		}
+	case "start_verification":
+		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID))
+	case "bind_channel":
+		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID), caseLockKey(tenantID, p.BoundCaseID),
+			conversationLockKey(tenantID, p.ConversationID), conversationLockKey(tenantID, p.BoundConversationID))
+	case "unlink_channel":
+		lockKeys = append(lockKeys, bindingLockKey(tenantID, p.BindingID), caseLockKey(tenantID, p.CaseID))
+	case "resolve_duplicate":
+		lockKeys = append(lockKeys, candidateLockKey(tenantID, p.CandidateID), caseLockKey(tenantID, p.CaseID),
+			conversationLockKey(tenantID, p.ConversationID), conversationLockKey(tenantID, p.BoundConversationID))
 	case "confirm_fact_version", "rescope_fact":
 		lockKeys = append(lockKeys, factIDLockKey(tenantID, p.FactID))
 		if p.MaterialKey != "" {
@@ -449,6 +487,14 @@ func (s *Postgres) ExecuteWorkCommand(ctx context.Context, p casesPort.WorkComma
 		err = s.execConfirmFact(ctx, tx, tenantID, p, now)
 	case "rescope_fact":
 		err = s.execRescopeFact(ctx, tx, tenantID, p, now)
+	case "start_verification":
+		err = s.execStartVerification(ctx, tx, tenantID, p, now)
+	case "bind_channel":
+		err = s.execBindChannel(ctx, tx, tenantID, p, now)
+	case "unlink_channel":
+		err = s.execUnlinkChannel(ctx, tx, tenantID, p, now)
+	case "resolve_duplicate":
+		err = s.execResolveDuplicate(ctx, tx, tenantID, p, now)
 	default:
 		err = fmt.Errorf("неизвестная команда %s", p.Command)
 	}
@@ -774,6 +820,14 @@ func (s *Postgres) execRecordFact(ctx context.Context, tx pgx.Tx, tenantID id.UU
 		p.MaterialKey, p.Value, p.ValueDigest, p.SourceType, p.SourceID, p.Channel, p.Actor,
 		p.ObservedAt, p.ReceivedAt, now); err != nil {
 		return mapWorkInsertError(p.Command, err)
+	}
+	// The Story 2.3 tokenization: the identifier token of the dictionary
+	// keys lands with the fact (the same transaction), the exact matches
+	// become the duplicate candidates of the human review.
+	if p.IdentifierToken != "" {
+		if err := execIdentifierToken(ctx, tx, tenantID, p, now, s); err != nil {
+			return err
+		}
 	}
 	return nil
 }

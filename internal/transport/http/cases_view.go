@@ -125,6 +125,135 @@ type caseDetailPageView struct {
 	ConversationOpts []workOption
 	EventOptions     []workOption
 	Flash            string
+	// The Story 2.3 sections: the assurance panel, the bindings and the
+	// duplicate cards.
+	Assurance           assurancePanelView
+	HasBindings         bool
+	BindingRows         []bindingRowView
+	HasDuplicates       bool
+	DuplicateCards      []duplicateCardView
+	VerificationOpts    []workOption
+	KindOptions         []workOption
+	MethodOptions       []workOption
+	ProviderCodeOpts    []workOption
+	IdentifierKindsText string
+}
+
+// assurancePanelView is the assurance section of the case page: the derived
+// state text, the records table, the allowed methods and the step-up
+// notice.
+type assurancePanelView struct {
+	IdentityText     string
+	IdentityMethod   string
+	IdentitySubject  string
+	IdentityExpires  string
+	AuthorityText    string
+	AuthorityScope   string
+	AuthorityExpires string
+	StepUp           bool
+	StepUpText       string
+	HasRecords       bool
+	Records          []verificationRecordRow
+	AllowedMethods   string
+	FallbackOptions  []string
+}
+
+// verificationRecordRow is one verification record row of the panel.
+type verificationRecordRow struct {
+	VerificationID string
+	Kind           string
+	Method         string
+	OutcomeText    string
+	Level          string
+	Subject        string
+	Evidence       string
+	IssuedAt       string
+	ExpiresAt      string
+}
+
+// bindingRowView is one binding row of the case page.
+type bindingRowView struct {
+	BindingID        string
+	Method           string
+	Purpose          string
+	OnBehalf         bool
+	Subject          string
+	TargetCaseNo     string
+	BoundCaseNo      string
+	CreatedAt        string
+	Active           bool
+	ReversalReason   string
+	ReversalAt       string
+	ConfirmationText string
+	CanUnlink        bool
+}
+
+// duplicateCardView is one duplicate candidate card of the case page: the
+// masked minimal material only.
+type duplicateCardView struct {
+	CandidateID    string
+	NewCaseNo      string
+	ExistingCaseNo string
+	MaterialKey    string
+	MaskedValue    string
+	MatchReason    string
+	RuleConfidence string
+	Resolved       bool
+	DecisionText   string
+	ResolutionNote string
+	ReviewText     string
+}
+
+// assuranceLevelText renders the honest level text of the panel.
+func assuranceLevelText(level string) string {
+	switch level {
+	case casesDomain.AssuranceNone:
+		return "не проверена"
+	case casesDomain.AssuranceBasic:
+		return "basic (проверка знанием)"
+	case casesDomain.AssuranceVerified:
+		return "verified (подтверждена)"
+	}
+	return level
+}
+
+// verificationOutcomeText renders the canonical outcome text.
+func verificationOutcomeText(outcome string) string {
+	switch outcome {
+	case casesDomain.VerificationPassed:
+		return "пройдена"
+	case casesDomain.VerificationFailed:
+		return "не пройдена"
+	case casesDomain.VerificationExpired:
+		return "истекла"
+	case casesDomain.VerificationCancelled:
+		return "отменена"
+	case casesDomain.VerificationAmbiguous:
+		return "неоднозначна"
+	}
+	return outcome
+}
+
+// bindingMethodText renders the binding method text.
+func bindingMethodText(method string) string {
+	switch method {
+	case casesDomain.BindingMethodConsentHandoff:
+		return "согласие клиента (consent_handoff)"
+	case casesDomain.BindingMethodDuplicateReview:
+		return "решение ревьюера дубля (duplicate_review)"
+	}
+	return method
+}
+
+// duplicateDecisionText renders the resolution decision text.
+func duplicateDecisionText(decision string) string {
+	switch decision {
+	case casesDomain.DuplicateDecisionSameClient:
+		return "тот же клиент — связаны"
+	case casesDomain.DuplicateDecisionSeparate:
+		return "разные клиенты — раздельны"
+	}
+	return decision
 }
 
 // workOption is one select option of the WCC forms.
@@ -227,6 +356,27 @@ func prepareCaseView(view casesAPI.CaseView, facts casesAPI.FactsView, flash str
 			Text:  "№" + strconv.FormatInt(conversation.ConversationNo, 10) + " (" + conversation.Provider + ")",
 		})
 	}
+	// The Story 2.3 form dictionaries: the kinds, the methods and the
+	// provider codes of the synthetic contour (the fixed domain
+	// dictionaries, never invented options).
+	out.KindOptions = []workOption{
+		{Value: casesDomain.VerificationKindIdentity, Text: "Личность (identity)"},
+		{Value: casesDomain.VerificationKindAuthority, Text: "Полномочия (authority)"},
+	}
+	out.MethodOptions = []workOption{
+		{Value: casesDomain.MethodKnowledgeCheck, Text: "Проверка знанием (knowledge_check, basic)"},
+		{Value: casesDomain.MethodKnownNumberCallback, Text: "Перезвон на известный номер (known_number_callback, verified)"},
+		{Value: casesDomain.MethodKnownAddressReply, Text: "Ответ с известного адреса (known_address_reply, verified)"},
+		{Value: casesDomain.MethodMandateNote, Text: "Основание полномочий (mandate_note, verified)"},
+	}
+	out.ProviderCodeOpts = []workOption{
+		{Value: casesDomain.ProviderCodeOK, Text: "ok — проверка пройдена"},
+		{Value: casesDomain.ProviderCodeNoMatch, Text: "no_match — не совпало"},
+		{Value: casesDomain.ProviderCodeExpired, Text: "expired — истек материал"},
+		{Value: casesDomain.ProviderCodeCancelled, Text: "cancelled — отменена"},
+		{Value: casesDomain.ProviderCodeUnclear, Text: "unclear — неоднозначно"},
+	}
+	out.IdentifierKindsText = strings.Join(casesDomain.IdentifierKinds, ", ")
 	for _, event := range view.Timeline {
 		if event.State == "accepted" {
 			out.EventOptions = append(out.EventOptions, workOption{
@@ -235,7 +385,85 @@ func prepareCaseView(view casesAPI.CaseView, facts casesAPI.FactsView, flash str
 			})
 		}
 	}
+	// The Story 2.3 sections: the assurance panel, the binding rows and
+	// the duplicate cards (the masked minimal material). The form options
+	// of the verification commands come from the same dictionaries the
+	// domain declares.
+	out.Assurance = assurancePanelView{
+		IdentityText:     assuranceLevelText(view.Assurance.State.IdentityLevel),
+		IdentityMethod:   view.Assurance.State.IdentityMethod,
+		IdentitySubject:  view.Assurance.State.IdentitySubject,
+		IdentityExpires:  formatTime(view.Assurance.State.IdentityExpiresAt),
+		AuthorityText:    assuranceLevelText(view.Assurance.State.AuthorityLevel),
+		AuthorityScope:   view.Assurance.State.AuthorityScope,
+		AuthorityExpires: formatTime(view.Assurance.State.AuthorityExpiresAt),
+		StepUp:           view.Assurance.State.StepUp,
+		StepUpText:       view.Assurance.StepUpText,
+		HasRecords:       len(view.Assurance.Records) > 0,
+		Records:          make([]verificationRecordRow, 0, len(view.Assurance.Records)),
+		AllowedMethods:   strings.Join(view.Assurance.AllowedMethods, ", "),
+		FallbackOptions:  view.Assurance.FallbackOptions,
+	}
+	for _, record := range view.Assurance.Records {
+		evidence := "нота: " + record.Note
+		if record.EvidenceEventID.Valid() {
+			evidence = "событие " + record.EvidenceEventID.String()
+		}
+		out.Assurance.Records = append(out.Assurance.Records, verificationRecordRow{
+			VerificationID: record.VerificationID.String(),
+			Kind:           record.Kind, Method: record.Method,
+			OutcomeText: verificationOutcomeText(record.Outcome), Level: record.AssuranceLevel,
+			Subject: record.SubjectHandle, Evidence: evidence,
+			IssuedAt: formatTime(record.IssuedAt), ExpiresAt: formatTime(record.ExpiresAt),
+		})
+	}
+	out.HasBindings = len(view.Bindings) > 0
+	out.BindingRows = make([]bindingRowView, 0, len(view.Bindings))
+	for _, binding := range view.Bindings {
+		row := bindingRowView{
+			BindingID:        binding.Binding.BindingID.String(),
+			Method:           bindingMethodText(binding.Binding.Method),
+			Purpose:          binding.Binding.Purpose,
+			OnBehalf:         binding.Binding.OnBehalf,
+			Subject:          binding.Binding.SubjectHandle,
+			TargetCaseNo:     strconv.FormatInt(binding.TargetCaseNo, 10),
+			BoundCaseNo:      strconv.FormatInt(binding.BoundCaseNo, 10),
+			CreatedAt:        formatTime(binding.Binding.CreatedAt),
+			Active:           binding.Reversal == nil,
+			ConfirmationText: binding.ConfirmationText,
+			CanUnlink:        view.CanManageWork && binding.Reversal == nil,
+		}
+		if binding.Reversal != nil {
+			row.ReversalReason = binding.Reversal.Reason
+			row.ReversalAt = formatTime(binding.Reversal.CreatedAt)
+		}
+		out.BindingRows = append(out.BindingRows, row)
+	}
+	out.HasDuplicates = len(view.Duplicates) > 0
+	out.DuplicateCards = make([]duplicateCardView, 0, len(view.Duplicates))
+	for _, card := range view.Duplicates {
+		row := duplicateCardView{
+			CandidateID:    card.Candidate.CandidateID.String(),
+			NewCaseNo:      strconv.FormatInt(card.NewCaseNo, 10),
+			ExistingCaseNo: strconv.FormatInt(card.ExistingCaseNo, 10),
+			MaterialKey:    card.Candidate.MaterialKey,
+			MaskedValue:    card.MaskedValue,
+			MatchReason:    card.Candidate.MatchReason,
+			RuleConfidence: card.Candidate.RuleConfidence,
+			ReviewText:     casesDomain.DuplicateReviewText,
+		}
+		if card.Resolution != nil {
+			row.Resolved = true
+			row.DecisionText = duplicateDecisionText(card.Resolution.Decision)
+			row.ResolutionNote = card.Resolution.Note
+		}
+		out.DuplicateCards = append(out.DuplicateCards, row)
+	}
 	for _, conversation := range view.Conversations {
+		stateText := "Активна"
+		if conversation.CaseID != view.Case.CaseID {
+			stateText = "Связанный канал (связан с этим кейсом)"
+		}
 		out.Conversations = append(out.Conversations, caseConversationRow{
 			ConversationID:    conversation.ConversationID.String(),
 			ConversationNo:    strconv.FormatInt(conversation.ConversationNo, 10),
@@ -244,7 +472,7 @@ func prepareCaseView(view casesAPI.CaseView, facts casesAPI.FactsView, flash str
 			OwnerID:           conversation.ResponseOwnerID.String(),
 			OwnerEpoch:        strconv.FormatInt(conversation.ResponseOwnerEpoch, 10),
 			WritableSurface:   conversation.WritableSurface,
-			StateText:         "Активна",
+			StateText:         stateText,
 			CreatedAt:         formatTime(conversation.CreatedAt),
 		})
 	}

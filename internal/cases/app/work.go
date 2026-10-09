@@ -682,6 +682,24 @@ func (s *Service) RecordFact(ctx context.Context, command casesAPI.RecordFactCom
 	if err != nil {
 		return casesAPI.WorkOutcome{}, rule("record_fact", err)
 	}
+	// The Story 2.3 tokenization: a fact whose material key is an
+	// identifier of the dictionary and whose value is a STRING tokenizes
+	// into the keyed HMAC token (the match material of the duplicate
+	// candidates). A non-string value or a normalization refusal records
+	// the fact as an ordinary 2-2 fact — the tokenization is an overlay,
+	// never a blocker (the honest dictionary boundary).
+	identifierToken := ""
+	if kind := casesDomain.IdentifierKind(materialKey); kind != "" {
+		if raw, ok := casesDomain.IdentifierStringValue(value); ok {
+			if normalized, normalizeErr := casesDomain.NormalizeIdentifier(kind, raw); normalizeErr == nil {
+				key, keyErr := s.repository.ReadIdentifierKey(ctx, scope, command.Now)
+				if keyErr != nil {
+					return casesAPI.WorkOutcome{}, keyErr
+				}
+				identifierToken = casesDomain.IdentifierToken(key, kind, normalized)
+			}
+		}
+	}
 	if err := rule("record_fact", casesDomain.GuardReason(command.Reason)); err != nil {
 		return casesAPI.WorkOutcome{}, err
 	}
@@ -793,7 +811,8 @@ func (s *Service) RecordFact(ctx context.Context, command casesAPI.RecordFactCom
 		Value: value, ValueDigest: valueDigest, SourceType: command.SourceType, SourceID: sourceID,
 		Channel: channel, ObservedAt: observedAt.UTC().Truncate(time.Microsecond),
 		ReceivedAt: receivedAt.UTC().Truncate(time.Microsecond), Reason: command.Reason,
-		Outcome: outcomeJSON, Now: command.Now.UTC().Truncate(time.Microsecond),
+		IdentifierToken: identifierToken,
+		Outcome:         outcomeJSON, Now: command.Now.UTC().Truncate(time.Microsecond),
 	}); err != nil {
 		// A raced material write resolves with ONE fresh lookup — never a
 		// recursion: the same case replays the original version with the

@@ -7,6 +7,7 @@ import (
 
 	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
 	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
+	casesPort "github.com/artemiosu/staffy/internal/cases/port"
 	"github.com/artemiosu/staffy/internal/identity/domain"
 	"github.com/artemiosu/staffy/internal/platform/id"
 )
@@ -54,6 +55,17 @@ type casesFixture struct {
 	commandHashes   map[string]string
 	commandOutcomes map[string]casesAPI.WorkOutcome
 
+	// The Story 2.3 verification material: the records, the bindings with
+	// the reversals, the identifier tokens with the per-tenant HMAC key,
+	// the duplicate candidates with the resolutions.
+	verifications    []casesDomain.VerificationRecord
+	bindings         []casesDomain.ChannelBinding
+	reversals        []casesDomain.BindingReversal
+	identifierKey    []byte
+	identifierTokens map[string]map[id.UUID]string // token → case → material key
+	candidates       []casesDomain.DuplicateCandidate
+	resolutions      []casesDomain.DuplicateResolution
+
 	caseNo, conversationNo int64
 	eventSeq               int
 	workSeq, exceptionSeq  int
@@ -96,6 +108,8 @@ func newCasesFixture() *casesFixture {
 		factConfirms:    map[id.UUID][]casesDomain.FactConfirmation{},
 		commandHashes:   map[string]string{},
 		commandOutcomes: map[string]casesAPI.WorkOutcome{},
+		// The Story 2.3 material:
+		identifierTokens: map[string]map[id.UUID]string{},
 	}
 }
 
@@ -229,7 +243,7 @@ func (f *casesFixture) accept(envelope casesDomain.Envelope, command casesAPI.In
 			EmployeeID: outcome.EmployeeID, ConnectionID: envelope.ConnectionID, Provider: envelope.Provider,
 			ProviderSessionID: envelope.ProviderSessionID, ResponseOwnerID: outcome.OwnerID,
 			ResponseOwnerEpoch: casesDomain.ResponseOwnerEpochFirst, WritableSurface: casesDomain.WritableSurfaceInbox,
-			State: casesDomain.ConversationStateActive, CreatedAt: now,
+			State: casesDomain.ConversationStateActive, Modality: envelope.Modality, CreatedAt: now,
 		})
 		f.material[caseID] = material
 		initialWorkItemID = id.MustParse("01994f64-6c00-7000-8000-" + digit12(int(9000+f.caseNo)))
@@ -375,15 +389,131 @@ func (f *casesFixture) CaseView(_ context.Context, _ domain.Principal, tenant, c
 			workItems = append(workItems, current)
 		}
 	}
+	// The Story 2.3 unified view: the conversations of the case plus the
+	// actively bound conversations (the append-only links without a
+	// reversal) with their timeline events in the one received_at order.
+	conversations := append([]casesDomain.Conversation(nil), material.conversations...)
+	timeline := append([]casesDomain.TimelineEvent(nil), material.timeline...)
+	for _, binding := range casesDomain.ActiveBindings(f.bindings, f.reversals) {
+		if binding.CaseID != caseID {
+			continue
+		}
+		boundMaterial := f.material[binding.BoundCaseID]
+		if boundMaterial == nil {
+			continue
+		}
+		for _, conversation := range boundMaterial.conversations {
+			if conversation.ConversationID == binding.BoundConversationID {
+				conversations = append(conversations, conversation)
+			}
+		}
+		for _, event := range boundMaterial.timeline {
+			if eventBelongsToConversation(f, binding.BoundConversationID, event.EventID) {
+				timeline = append(timeline, event)
+			}
+		}
+	}
+	// The Story 2.3 sections: the assurance derivation, the bindings, the
+	// duplicate cards (the masked minimal material).
+	records := f.verificationsOf(caseID)
+	modality := ""
+	if len(conversations) > 0 {
+		modality = conversations[0].Modality
+	}
+	bindingCards := []casesPort.BindingCard{}
+	for _, binding := range f.bindings {
+		if binding.CaseID != caseID && binding.BoundCaseID != caseID {
+			continue
+		}
+		card := casesPort.BindingCard{Binding: binding, ConfirmationText: casesDomain.BindingClientConfirmation(binding.Method)}
+		if reversal := casesDomain.ReversalOf(f.reversals, binding.BindingID); reversal != nil {
+			card.Reversal = reversal
+		}
+		bindingCards = append(bindingCards, card)
+	}
+	duplicateCards := []casesPort.DuplicateCard{}
+	for _, candidate := range f.candidates {
+		if candidate.CaseIDNew != caseID && candidate.CaseIDExisting != caseID {
+			continue
+		}
+		card := casesPort.DuplicateCard{Candidate: candidate}
+		if material := f.material[candidate.CaseIDNew]; material != nil {
+			card.NewCaseNo = material.cases.CaseNo
+		}
+		if material := f.material[candidate.CaseIDExisting]; material != nil {
+			card.ExistingCaseNo = material.cases.CaseNo
+		}
+		card.MaskedValue = f.maskedIdentifierValueOf(candidate)
+		if decision := casesDomain.ResolvedDecision(f.resolutions, candidate.CandidateID); decision != "" {
+			for _, resolution := range f.resolutions {
+				if resolution.CandidateID == candidate.CandidateID {
+					card.Resolution = &resolution
+					break
+				}
+			}
+		}
+		duplicateCards = append(duplicateCards, card)
+	}
 	return casesAPI.CaseView{
-		TenantID: tenant, Case: material.cases, Conversations: material.conversations,
-		Timeline: material.timeline, WorkItems: workItems,
+		TenantID: tenant, Case: material.cases, Conversations: conversations,
+		Timeline: timeline, WorkItems: workItems,
 		Exceptions:    f.exceptionsOf(caseID),
 		UntriagedText: "Запрос ещё не классифицирован.", NoAutoReplyText: "Автоответ клиенту не отправляется.",
 		CanViewPayload: true, CanViewFacts: true, CanManageWork: true, ViewScope: casesAPI.CaseScopeView,
 		TaxonomyTypes:    append([]string(nil), fixtureJourneys...),
 		CriticalEntities: append([]string(nil), fixtureCriticalEntities...),
+		Assurance: casesAPI.AssuranceView{
+			State:           casesDomain.DeriveAssuranceState(records, timeNow()),
+			Records:         records,
+			AllowedMethods:  casesDomain.MethodsOfModality(modality),
+			FallbackOptions: casesDomain.VerificationFallbackOptions,
+			StepUpText:      casesDomain.StepUpText,
+		},
+		Bindings: bindingCards, Duplicates: duplicateCards,
 	}, nil
+}
+
+// eventBelongsToConversation reports whether one timeline event of the
+// fixture material belongs to one conversation (the event map of the
+// fixture: the accepted events carry the conversation reference).
+func eventBelongsToConversation(f *casesFixture, conversationID, eventID id.UUID) bool {
+	for _, event := range f.events {
+		if event.EventID == eventID && event.ConversationID == conversationID {
+			return true
+		}
+	}
+	return false
+}
+
+// maskedIdentifierValueOf masks the identifier value of one candidate: the
+// fact of the NEW case with the candidate's material key (the value itself
+// stays in the fact — the card carries the mask only).
+func (f *casesFixture) maskedIdentifierValueOf(candidate casesDomain.DuplicateCandidate) string {
+	anchorID, found := f.factAnchors[candidate.CaseIDNew.String()+"|"+candidate.MaterialKey]
+	if !found {
+		return ""
+	}
+	versions := f.factVersions[anchorID]
+	if len(versions) == 0 {
+		return ""
+	}
+	raw, ok := casesDomain.IdentifierStringValue(versions[len(versions)-1].Value)
+	if !ok {
+		return ""
+	}
+	normalized, err := casesDomain.NormalizeIdentifier(candidate.MaterialKey, raw)
+	if err != nil {
+		return ""
+	}
+	return casesDomain.MaskIdentifier(normalized)
+}
+
+// timeNow is the fixture clock: the same fixed moment the fixture server
+// stamps the commands with (plus the minute margin of the flow) — the
+// assurance derivations of the page read the SAME world the commands
+// wrote, never the wall clock of the host.
+func timeNow() time.Time {
+	return time.Date(2026, 9, 16, 12, 30, 0, 0, time.UTC)
 }
 
 func (f *casesFixture) exceptionsOf(caseID id.UUID) []casesDomain.OperationalException {

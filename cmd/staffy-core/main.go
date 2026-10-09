@@ -15,6 +15,7 @@ import (
 
         "github.com/artemiosu/staffy/internal/adapters/authdev"
         "github.com/artemiosu/staffy/internal/adapters/ingresssyn"
+        "github.com/artemiosu/staffy/internal/adapters/verificationsyn"
         casesApp "github.com/artemiosu/staffy/internal/cases/app"
         casesStore "github.com/artemiosu/staffy/internal/cases/store"
         connectorApp "github.com/artemiosu/staffy/internal/connector/app"
@@ -123,11 +124,12 @@ func run(logger *slog.Logger) error {
         // fail-closed — AG-4), the operator Cases/Timeline surface and the
         // sealed payload reads. The ingress scope is derived from the
         // verified connection, never from a user principal.
-        casesService := casesApp.New(casesStore.NewPostgres(pool), identityService, ingresssyn.New(connectorService), clock, ids).
+        casesService := casesApp.New(casesStore.NewPostgres(pool).WithIDs(ids), identityService, ingresssyn.New(connectorService), clock, ids).
                 WithRouteFacts(employeeService).
                 WithConnectionFacts(connectorService).
                 WithMembers(identityService).
-                WithPackTaxonomy(employeeService)
+                WithPackTaxonomy(employeeService).
+                WithIdentityVerifier(verificationsyn.New())
         transport.BindCases(casesService)
         server := &http.Server{
                 Addr:              listenAddress,

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
 	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
 	casesPort "github.com/artemiosu/staffy/internal/cases/port"
 	"github.com/artemiosu/staffy/internal/platform/id"
@@ -19,7 +20,10 @@ import (
 // RLS; the admission write is one transaction over the advisory lock of
 // the material identity; the reads canonicalize timestamps to UTC at the
 // boundary (the R2/N1 lesson of 1-14).
-type Postgres struct{ pool *pgxpool.Pool }
+type Postgres struct {
+	pool *pgxpool.Pool
+	ids  casesAPI.IDGenerator
+}
 
 func NewPostgres(pool *pgxpool.Pool) *Postgres { return &Postgres{pool: pool} }
 
@@ -533,9 +537,27 @@ func readCaseTx(ctx context.Context, tx pgx.Tx, tenantID, caseID id.UUID) (cases
 	}
 	detail.Case.CreatedAt = detail.Case.CreatedAt.UTC()
 
+	// The unified view of Story 2.3: the conversations of the case PLUS the
+	// conversations actively bound into it (the append-only bindings without
+	// a reversal). A bound conversation keeps its own case id — the honest
+	// FK truth — the view consumer labels the linked channel; the modality
+	// comes from the pre-case session of the conversation (the method
+	// eligibility dictionary of the verifications).
 	conversations, err := tx.Query(ctx, `
-                select conversation_id, case_id, conversation_no, employee_id, connection_id, provider, provider_session_id, response_owner_id, response_owner_epoch, writable_surface, state, created_at
-                from cases.conversations where tenant_id=$1 and case_id=$2 order by conversation_no`, tenantID, caseID)
+                select c.conversation_id, c.case_id, c.conversation_no, c.employee_id, c.connection_id, c.provider, c.provider_session_id, c.response_owner_id, c.response_owner_epoch, c.writable_surface, c.state, c.created_at, coalesce(s.modality, '')
+                from cases.conversations c
+                left join lateral (
+                        select modality from cases.pre_case_sessions p
+                        where p.tenant_id = c.tenant_id and p.connection_id = c.connection_id
+                          and p.provider = c.provider and p.provider_session_id = c.provider_session_id
+                        limit 1
+                ) s on true
+                where c.tenant_id=$1 and (c.case_id=$2 or c.conversation_id in (
+                        select b.bound_conversation_id from cases.channel_bindings b
+                        where b.tenant_id=$1 and b.case_id=$2
+                          and not exists (select 1 from cases.binding_reversals r
+                                          where r.tenant_id = b.tenant_id and r.binding_id = b.binding_id)))
+                order by c.conversation_no`, tenantID, caseID)
 	if err != nil {
 		return casesDomain.CaseDetail{}, err
 	}
@@ -546,7 +568,7 @@ func readCaseTx(ctx context.Context, tx pgx.Tx, tenantID, caseID id.UUID) (cases
 		if err = conversations.Scan(&conversation.ConversationID, &conversation.CaseID, &conversation.ConversationNo,
 			&conversation.EmployeeID, &conversation.ConnectionID, &conversation.Provider, &conversation.ProviderSessionID,
 			&conversation.ResponseOwnerID, &conversation.ResponseOwnerEpoch, &conversation.WritableSurface,
-			&conversation.State, &conversation.CreatedAt); err != nil {
+			&conversation.State, &conversation.CreatedAt, &conversation.Modality); err != nil {
 			return casesDomain.CaseDetail{}, err
 		}
 		conversation.TenantID = tenantID
@@ -557,9 +579,18 @@ func readCaseTx(ctx context.Context, tx pgx.Tx, tenantID, caseID id.UUID) (cases
 		return casesDomain.CaseDetail{}, err
 	}
 
+	// The unified timeline: the events of the case and the actively bound
+	// conversations in the one received_at order (the merge-order
+	// precedent of 2-2).
 	events, err := tx.Query(ctx, `
                 select event_id, channel, modality, direction, provider, provider_event_id, state, provider_timestamp, received_at, payload_digest, correlation_id
-                from cases.channel_events where tenant_id=$1 and case_id=$2 order by received_at, event_id`, tenantID, caseID)
+                from cases.channel_events e
+                where e.tenant_id=$1 and (e.case_id=$2 or e.conversation_id in (
+                        select b.bound_conversation_id from cases.channel_bindings b
+                        where b.tenant_id=$1 and b.case_id=$2
+                          and not exists (select 1 from cases.binding_reversals r
+                                          where r.tenant_id = b.tenant_id and r.binding_id = b.binding_id)))
+                order by e.received_at, e.event_id`, tenantID, caseID)
 	if err != nil {
 		return casesDomain.CaseDetail{}, err
 	}

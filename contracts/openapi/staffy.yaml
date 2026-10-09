@@ -2230,6 +2230,100 @@ paths:
         '403': { $ref: '#/components/responses/Problem' }
         '404': { $ref: '#/components/responses/Problem' }
         '409': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/cases/{case_id}/verifications:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+    post:
+      operationId: startVerification
+      summary: 'Запись проверки личности/полномочий (provider-код → канонический исход; секрета нет как поля)'
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StartVerificationRequest' }
+      responses:
+        '201': { description: Каноническая запись проверки записана, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/cases/{case_id}/bindings:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+    post:
+      operationId: bindChannel
+      summary: 'Связывание канала (гейт: identity ≥ verified; on_behalf → полномочия со скоупом)'
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BindChannelRequest' }
+      responses:
+        '201': { description: Append-only связь записана, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/cases/{case_id}/bindings/{binding_id}/unlink:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - $ref: '#/components/parameters/BindingID'
+    post:
+      operationId: unlinkChannel
+      summary: 'Отмена связи (append-only реверсия; история не трогается)'
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UnlinkChannelRequest' }
+      responses:
+        '201': { description: Реверсия записана, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/cases/{case_id}/duplicates/{candidate_id}/resolution:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - $ref: '#/components/parameters/CandidateID'
+    post:
+      operationId: resolveDuplicate
+      summary: 'Решение дубля (same_client → binding duplicate_review той же транзакцией; авто-merge нет)'
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ResolveDuplicateRequest' }
+      responses:
+        '201': { description: Решение (и связь) записаны, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
   /v1/tenants/{tenant_id}/cases/{case_id}/facts/{fact_id}/rescope:
     parameters:
       - $ref: '#/components/parameters/TenantID'
@@ -2283,6 +2377,16 @@ components:
       schema: { type: string, format: uuid }
     FactID:
       name: fact_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    BindingID:
+      name: binding_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    CandidateID:
+      name: candidate_id
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -3876,6 +3980,107 @@ components:
         view_scope: { type: string }
         taxonomy_types: { type: array, items: { type: string }, description: 'Journeys закреплённого пака (словарь типов)' }
         critical_entities: { type: array, items: { type: string }, description: 'CriticalEntities закреплённого пака (словарь материальных ключей — подсказки форм фактов)' }
+        assurance: { $ref: '#/components/schemas/AssuranceView' }
+        bindings: { type: array, items: { $ref: '#/components/schemas/BindingCard' } }
+        duplicates: { type: array, items: { $ref: '#/components/schemas/DuplicateCard' } }
+    AssuranceView:
+      type: object
+      required: [state, records, allowed_methods, fallback_options, step_up_text]
+      description: 'Производная секция доверия: личность/полномочия раздельно, окно порога, разрешённые методы канала'
+      properties:
+        state:
+          type: object
+          required: [StepUp, StepUpFailures]
+          properties:
+            IdentityLevel: { type: string, enum: [none, basic, verified] }
+            IdentityMethod: { type: string }
+            IdentitySubject: { type: string }
+            IdentityExpiresAt: { type: string, format: date-time }
+            AuthorityLevel: { type: string, enum: [none, verified] }
+            AuthorityScope: { type: string }
+            AuthorityExpiresAt: { type: string, format: date-time }
+            StepUp: { type: boolean }
+            StepUpFailures: { type: integer }
+        records: { type: array, items: { $ref: '#/components/schemas/VerificationRecord' } }
+        allowed_methods: { type: array, items: { type: string } }
+        fallback_options: { type: array, items: { type: string } }
+        step_up_text: { type: string }
+    VerificationRecord:
+      type: object
+      required: [verification_id, kind, method, outcome, assurance_level, subject_handle, issued_at, expires_at]
+      description: 'Append-only запись проверки: канонический исход, уровень, участник, evidence, оба времени; поля для секрета не существует'
+      properties:
+        verification_id: { type: string, format: uuid }
+        kind: { type: string, enum: [identity, authority] }
+        method: { type: string, enum: [knowledge_check, known_number_callback, known_address_reply, mandate_note] }
+        outcome: { type: string, enum: [passed, failed, expired, cancelled, ambiguous] }
+        assurance_level: { type: string, enum: [none, basic, verified] }
+        subject_handle: { type: string }
+        evidence_event_id: { type: string, format: uuid }
+        note: { type: string }
+        authority_scope: { type: string }
+        issued_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
+    BindingCard:
+      type: object
+      required: [Binding, ConfirmationText]
+      description: 'Связь каналов: append-only строка + реверсия (активность — anti-join)'
+      properties:
+        Binding:
+          type: object
+          required: [binding_id, case_id, conversation_id, bound_case_id, bound_conversation_id, method, on_behalf, subject_handle, actor_id, created_at]
+          properties:
+            binding_id: { type: string, format: uuid }
+            case_id: { type: string, format: uuid }
+            conversation_id: { type: string, format: uuid }
+            bound_case_id: { type: string, format: uuid }
+            bound_conversation_id: { type: string, format: uuid }
+            method: { type: string, enum: [consent_handoff, duplicate_review] }
+            purpose: { type: string }
+            on_behalf: { type: boolean }
+            subject_handle: { type: string }
+            evidence_event_id: { type: string, format: uuid }
+            note: { type: string }
+            actor_id: { type: string, format: uuid }
+            created_at: { type: string, format: date-time }
+        Reversal:
+          type: object
+          properties:
+            reversal_id: { type: string, format: uuid }
+            reason: { type: string }
+            actor_id: { type: string, format: uuid }
+            created_at: { type: string, format: date-time }
+        TargetCaseNo: { type: integer }
+        BoundCaseNo: { type: integer }
+        ConfirmationText: { type: string, description: 'Детерминированный текст клиенту без внутренних идентификаторов' }
+    DuplicateCard:
+      type: object
+      required: [Candidate]
+      description: 'Минимальный материал ревью дубля: маска значения, номера кейсов, причина; защищённое содержимое не входит'
+      properties:
+        Candidate:
+          type: object
+          required: [candidate_id, case_id_new, case_id_existing, token, material_key, match_reason, rule_confidence, created_at]
+          properties:
+            candidate_id: { type: string, format: uuid }
+            case_id_new: { type: string, format: uuid }
+            case_id_existing: { type: string, format: uuid }
+            token: { type: string, description: 'Keyed-HMAC токен (значение не хранится)' }
+            material_key: { type: string }
+            match_reason: { type: string, enum: [exact_identifier] }
+            rule_confidence: { type: string, enum: [high] }
+            created_at: { type: string, format: date-time }
+        NewCaseNo: { type: integer }
+        ExistingCaseNo: { type: integer }
+        MaskedValue: { type: string, description: 'Последние 2 символа нормализованного значения' }
+        Resolution:
+          type: object
+          properties:
+            resolution_id: { type: string, format: uuid }
+            decision: { type: string, enum: [same_client, separate] }
+            note: { type: string }
+            actor_id: { type: string, format: uuid }
+            created_at: { type: string, format: date-time }
     CaseRecord:
       type: object
       required: [tenant_id, case_id, case_no, employee_id, state, created_at]
@@ -3925,7 +4130,7 @@ components:
       required: [command, replay]
       description: 'Материальный исход команды: сохранён и повторяется идемпотентным ключом'
       properties:
-        command: { type: string, enum: [create_work_item, classify_work_item, transition_work_item, split_work_item, merge_work_items, link_event, dispute_work_item, record_fact, confirm_fact_version, rescope_fact] }
+        command: { type: string, enum: [create_work_item, classify_work_item, transition_work_item, split_work_item, merge_work_items, link_event, dispute_work_item, record_fact, confirm_fact_version, rescope_fact, start_verification, bind_channel, unlink_channel, resolve_duplicate] }
         replay: { type: boolean }
         work_item_id: { type: string, format: uuid }
         version: { type: integer }
@@ -3940,6 +4145,57 @@ components:
         fact_version: { type: integer }
         fact_status: { type: string, enum: [confirmed, conflicting, unverified] }
         exception_id: { type: string, format: uuid }
+        verification_id: { type: string, format: uuid }
+        verification_kind: { type: string, enum: [identity, authority] }
+        verification_outcome: { type: string, enum: [passed, failed, expired, cancelled, ambiguous] }
+        assurance_level: { type: string, enum: [none, basic, verified] }
+        binding_id: { type: string, format: uuid }
+        duplicate_candidate_id: { type: string, format: uuid }
+        duplicate_decision: { type: string, enum: [same_client, separate] }
+        confirmation_text: { type: string }
+    StartVerificationRequest:
+      type: object
+      required: [conversation_id, kind, method, provider_code, subject_handle]
+      additionalProperties: false
+      properties:
+        conversation_id: { type: string, format: uuid }
+        kind: { type: string, enum: [identity, authority] }
+        method: { type: string, enum: [knowledge_check, known_number_callback, known_address_reply, mandate_note] }
+        provider_code: { type: string, enum: [ok, no_match, expired, cancelled, unclear], description: 'Наблюдаемый код контура; домен преобразует в канонический исход' }
+        subject_handle: { type: string, maxLength: 64 }
+        authority_scope: { type: string, maxLength: 200, description: 'Только для kind=authority' }
+        evidence_event_id: { type: string, format: uuid }
+        note: { type: string, maxLength: 200, description: 'Слова наблюдения; чистый цифровой код отклоняется' }
+    BindChannelRequest:
+      type: object
+      required: [conversation_id, bound_case_id, bound_conversation_id, method, subject_handle]
+      additionalProperties: false
+      properties:
+        conversation_id: { type: string, format: uuid }
+        bound_case_id: { type: string, format: uuid }
+        bound_conversation_id: { type: string, format: uuid }
+        method: { type: string, enum: [consent_handoff, duplicate_review] }
+        purpose: { type: string, maxLength: 200 }
+        on_behalf: { type: boolean }
+        subject_handle: { type: string, maxLength: 64 }
+        evidence_event_id: { type: string, format: uuid }
+        note: { type: string, maxLength: 200 }
+    UnlinkChannelRequest:
+      type: object
+      required: [reason]
+      additionalProperties: false
+      properties:
+        reason: { type: string, maxLength: 200 }
+    ResolveDuplicateRequest:
+      type: object
+      required: [decision, note, conversation_id, bound_conversation_id]
+      additionalProperties: false
+      properties:
+        decision: { type: string, enum: [same_client, separate] }
+        note: { type: string, maxLength: 200, description: 'Обоснование ревьюера' }
+        conversation_id: { type: string, format: uuid }
+        bound_conversation_id: { type: string, format: uuid }
+        subject_handle: { type: string, maxLength: 64 }
     CreateWorkItemRequest:
       type: object
       required: [conversation_id, type, title]

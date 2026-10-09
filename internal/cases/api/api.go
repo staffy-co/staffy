@@ -5,6 +5,7 @@ import (
 	"time"
 
 	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
+	casesPort "github.com/artemiosu/staffy/internal/cases/port"
 	"github.com/artemiosu/staffy/internal/identity/domain"
 	"github.com/artemiosu/staffy/internal/platform/id"
 )
@@ -104,6 +105,12 @@ type CaseView struct {
 	// the pack, never a hardcoded list). Empty mirrors TaxonomyTypes — the
 	// form degrades to the generic placeholder, honestly.
 	CriticalEntities []string `json:"critical_entities"`
+	// The Story 2.3 sections: the derived assurance state with the records
+	// and the allowed methods, the channel bindings (with the reversals)
+	// and the duplicate candidate cards (the masked minimal material).
+	Assurance  AssuranceView             `json:"assurance"`
+	Bindings   []casesPort.BindingCard   `json:"bindings"`
+	Duplicates []casesPort.DuplicateCard `json:"duplicates"`
 }
 
 // PayloadView is the sealed payload read under review/audit: the digest,
@@ -132,6 +139,7 @@ type Service interface {
 	ReadPayload(context.Context, domain.Principal, id.UUID, id.UUID, id.UUID) (PayloadView, error)
 	DrainOutbox(context.Context, domain.Principal, id.UUID) (DrainResult, error)
 	WorkService
+	VerificationService
 }
 
 // Clock and IDs follow the module conventions.
@@ -299,6 +307,17 @@ type WorkOutcome struct {
 	FactVersion int64     `json:"fact_version,omitempty"`
 	FactStatus  string    `json:"fact_status,omitempty"`
 	ExceptionID id.UUID   `json:"exception_id,omitempty"`
+	// The Story 2.3 material: the verification, binding and duplicate
+	// identifiers with the canonical outcome, the assurance level, the
+	// resolution decision and the client confirmation text.
+	VerificationID       id.UUID `json:"verification_id,omitempty"`
+	VerificationKind     string  `json:"verification_kind,omitempty"`
+	VerificationOutcome  string  `json:"verification_outcome,omitempty"`
+	AssuranceLevel       string  `json:"assurance_level,omitempty"`
+	BindingID            id.UUID `json:"binding_id,omitempty"`
+	DuplicateCandidateID id.UUID `json:"duplicate_candidate_id,omitempty"`
+	DuplicateDecision    string  `json:"duplicate_decision,omitempty"`
+	ConfirmationText     string  `json:"confirmation_text,omitempty"`
 }
 
 // FactView is one fact of the facts view: the anchor, the derived status,
@@ -337,4 +356,108 @@ type WorkService interface {
 	ConfirmFactVersion(context.Context, ConfirmFactVersionCommand) (WorkOutcome, error)
 	RescopeFact(context.Context, RescopeFactCommand) (WorkOutcome, error)
 	FactsView(context.Context, domain.Principal, id.UUID, id.UUID) (FactsView, error)
+}
+
+// ---------------------------------------------------------------------------
+// Story 2.3: the four verification commands and the surface projections
+// ---------------------------------------------------------------------------
+
+// StartVerificationCommand records one verification of the case participant:
+// the kind, the method, the provider-observed code (the domain maps it into
+// the canonical outcome — the provider spelling never lands in a record),
+// the declared subject handle, the evidence (an accepted event of the case
+// or a note — never a bare code) and the authority scope (the authority
+// kind only). There is NO field for a one-time code, a password or a
+// secret: the command surface itself refuses to carry one.
+type StartVerificationCommand struct {
+	Actor           domain.Principal
+	TenantID        id.UUID
+	CaseID          id.UUID
+	ConversationID  id.UUID
+	Kind            string
+	Method          string
+	ProviderCode    string
+	SubjectHandle   string
+	AuthorityScope  string
+	EvidenceEventID id.UUID
+	Note            string
+	IdempotencyKey  string
+	Now             time.Time
+}
+
+// BindChannelCommand links one conversation (the new channel session, born
+// with its own case) into an existing conversation and case: the consent
+// handoff requires the verified identity (and the authority with its scope
+// when the binding is on behalf), the purpose and the evidence of the
+// client's agreement.
+type BindChannelCommand struct {
+	Actor               domain.Principal
+	TenantID            id.UUID
+	CaseID              id.UUID
+	ConversationID      id.UUID
+	BoundCaseID         id.UUID
+	BoundConversationID id.UUID
+	Method              string
+	Purpose             string
+	OnBehalf            bool
+	SubjectHandle       string
+	EvidenceEventID     id.UUID
+	Note                string
+	IdempotencyKey      string
+	Now                 time.Time
+}
+
+// UnlinkChannelCommand reverses one binding: the append-only reversal keeps
+// the whole history (the events, the access records), the derived views
+// recompute for the subsequent operations.
+type UnlinkChannelCommand struct {
+	Actor          domain.Principal
+	TenantID       id.UUID
+	CaseID         id.UUID
+	BindingID      id.UUID
+	Reason         string
+	IdempotencyKey string
+	Now            time.Time
+}
+
+// ResolveDuplicateCommand decides one duplicate candidate: the same-client
+// decision creates the duplicate-review binding atomically (the resolution
+// and the link are one transaction); the separate decision keeps the two
+// requests apart. The note is the reviewer's recorded basis.
+type ResolveDuplicateCommand struct {
+	Actor               domain.Principal
+	TenantID            id.UUID
+	CaseID              id.UUID
+	CandidateID         id.UUID
+	Decision            string
+	Note                string
+	ConversationID      id.UUID
+	BoundConversationID id.UUID
+	SubjectHandle       string
+	IdempotencyKey      string
+	Now                 time.Time
+}
+
+// AssuranceView is the assurance section of the case view: the derived
+// state (identity/authority separately, the step-up flag), the records with
+// the canonical outcomes, the allowed methods of the conversation modality
+// (the honest step-up list of the refusal) and the fixed fallback options
+// dictionary. The absence of a record is the honest none — it never becomes
+// a confirmed identity.
+type AssuranceView struct {
+	State           casesDomain.AssuranceState       `json:"state"`
+	Records         []casesDomain.VerificationRecord `json:"records"`
+	AllowedMethods  []string                         `json:"allowed_methods"`
+	FallbackOptions []string                         `json:"fallback_options"`
+	StepUpText      string                           `json:"step_up_text"`
+}
+
+// VerificationService is the command surface of Story 2.3 (all four
+// commands are idempotent by the tenant-scoped key; the binding gate and
+// the step-up threshold are the honest protected steps of the slice).
+type VerificationService interface {
+	StartVerification(context.Context, StartVerificationCommand) (WorkOutcome, error)
+	BindChannel(context.Context, BindChannelCommand) (WorkOutcome, error)
+	UnlinkChannel(context.Context, UnlinkChannelCommand) (WorkOutcome, error)
+	ResolveDuplicate(context.Context, ResolveDuplicateCommand) (WorkOutcome, error)
 }
