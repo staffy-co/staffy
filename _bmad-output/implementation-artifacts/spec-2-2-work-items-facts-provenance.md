@@ -2,7 +2,7 @@
 title: 'Story 2.2 — Work Items, факты и provenance внутри Case (первый срез)'
 type: 'feature'
 created: '2026-10-09'
-status: 'ready-for-dev'
+status: 'review'
 route: 'dispatch'
 baseline_commit: '5a8362f4cde9f677928c9da1e0d5248d44b04985'
 context:
@@ -61,11 +61,11 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `internal/cases/domain` — WI-версии, лестница состояний, taxonomy, факты/provenance/конфликты/подтверждения; юнит-тесты.
-- [ ] `migrations/cases/00002_work_items_facts.sql` — таблицы, RLS, гранты INSERT/SELECT, UNIQUE идемпотентности, DROP state.
-- [ ] `internal/cases/{port,app,store,api}` + `employee/api` (PackID/PackVersion/PackJourneys) + расширение IngestEvent.
-- [ ] `internal/transport/http` + OpenAPI + Work Control Card + privacy-классы.
-- [ ] `tests/integration/cases_work_test.go`, unit-набор, `tests/journeys/` — все строки матрицы, гонки, доступность.
+- [x] `internal/cases/domain` — WI-версии, лестница состояний, taxonomy, факты/provenance/конфликты/подтверждения; юнит-тесты.
+- [x] `migrations/cases/00002_work_items_facts.sql` — таблицы, RLS, гранты INSERT/SELECT, UNIQUE идемпотентности, DROP state.
+- [x] `internal/cases/{port,app,store,api}` + `employee/api` (PackID/PackVersion/PackJourneys) + расширение IngestEvent.
+- [x] `internal/transport/http` + OpenAPI + Work Control Card + privacy-классы.
+- [x] `tests/integration/cases_work_test.go`, unit-набор, `tests/journeys/` — все строки матрицы, гонки, доступность.
 
 **Acceptance Criteria:**
 - Given начальный WI untriaged, when оператор классифицирует, then тип из taxonomy пина, название, состояние и версия с actor/причиной/временем; исходное событие связано; переклассификация — новая версия, история не переписывается.
@@ -96,6 +96,7 @@ context:
 
 - 2026-10-09, review loop 0: создана спека первого среза Story 2.2 (SM) по решению владельца «приступай» (CHECKPOINT 2 закрытия 2-1). Статус `backlog` до CHECKPOINT 1 — одобрения владельцем; после одобрения спека и sprint-status.yaml одновременно переходят в `ready-for-dev`. Демо-путь и честные границы — в Intent.
 - 2026-10-09, CHECKPOINT 1: спека одобрена владельцем без правок («одобряю», чат 2026-10-09). Замороженные секции (Intent / Boundaries & Constraints / I/O & Edge-Case Matrix) не изменялись. Спека и sprint-status.yaml одновременно переведены в `ready-for-dev`; далее — Dev (step-03).
+- 2026-10-09, review loop 0 (dev): первый срез реализован полностью — домен cases/work (лестница состояний, словари, taxonomy-пин, факты с полным provenance, конфликт-деривация, подтверждения к точной версии, guards), миграция 00002 (work_item_versions/event_links/facts/fact_versions/fact_confirmations/command_records, RLS+FORCE, гранты INSERT/SELECT, UNIQUE материальной идемпотентности, DROP work_items.state, пин пака на cases), port/app/store/api (10 идемпотентных команд с optimistic concurrency, чтения WCC/FactsView), employee фасад PackID/PackVersion/PackJourneys, расширение IngestEvent (пин+version 1+линк первого события, той же транзакцией), транспорт (машинный JSON-контракт + операторские формы PRG) + OpenAPI + Work Control Card 320px + privacy-классы 20→(case-operations/case-content расширены, command_records в idempotency-records); архитектурное разрешение напряжения: якоря сериализуются advisory-локами в детерминированном порядке (row FOR UPDATE требует UPDATE-привилегию, отсутствующую у append-only грантов — прецедент AcceptEvent); полный регресс зелёный (build/vet/unit 23/интеграция ×2 TZ (7 новых cases_work-тестов)/journeys 19/19 с новым WCC-чейном/контракт/diff); спека → review.
 
 ## Design Notes
 

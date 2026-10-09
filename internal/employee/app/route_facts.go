@@ -7,6 +7,7 @@ import (
 
 	"github.com/artemiosu/staffy/internal/employee/api"
 	"github.com/artemiosu/staffy/internal/employee/domain"
+	"github.com/artemiosu/staffy/internal/employee/packs"
 	employeePort "github.com/artemiosu/staffy/internal/employee/port"
 	entitlementDomain "github.com/artemiosu/staffy/internal/entitlement/domain"
 	"github.com/artemiosu/staffy/internal/platform/id"
@@ -130,14 +131,41 @@ func (s *Service) routeCandidate(ctx context.Context, repository employeePort.Ro
 	if profile.Version != admission.ProfileVersion {
 		return api.RouteCandidate{}, false, fmt.Errorf("запечатленная версия профиля %d сотрудника %s не читается: найдена версия %d", admission.ProfileVersion, admission.EmployeeID, profile.Version)
 	}
+	// The Domain Pack of the sealed configuration version: the taxonomy
+	// source the case contour pins onto the case row at ingest. An honest
+	// absent pack ref stays empty — the case contour refuses classification
+	// with the honest "taxonomy unknown" text.
+	packID, packVersion := "", ""
+	if content.Config.Refs.Pack.Status == domain.RefPresent {
+		packID, packVersion = content.Config.Refs.Pack.ID, content.Config.Refs.Pack.Version
+	}
 	return api.RouteCandidate{
 		EmployeeID:     admission.EmployeeID,
 		DecisionNo:     admission.DecisionNo,
 		Stage:          admission.Stage,
 		ProfileVersion: admission.ProfileVersion,
+		PackID:         packID,
+		PackVersion:    packVersion,
 		Routes:         admission.Routes,
 		Coverage:       profile.Content.Coverage,
 	}, true, nil
+}
+
+// PackJourneys resolves the journeys dictionary of one Domain Pack version
+// (the Work Item type taxonomy of the case contour). The manifest catalog
+// is immutable in the binary: the same (id, version) always resolves the
+// same dictionary — there is no TOCTOU between the pin and the read. An
+// unknown pack version is an honest error, never an assumed empty
+// dictionary.
+func (s *Service) PackJourneys(packID, packVersion string) ([]string, error) {
+	if packID == "" || packVersion == "" {
+		return nil, fmt.Errorf("пак не закреплён: taxonomy неизвестна")
+	}
+	manifest, ok := packs.Get(packID, packVersion)
+	if !ok {
+		return nil, fmt.Errorf("закреплённый пак %s@%s не читается из каталога: манифест отсутствует", packID, packVersion)
+	}
+	return append([]string(nil), manifest.Journeys...), nil
 }
 
 // entitlementAdmissionWord relays the scope-based entitlement admission

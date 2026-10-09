@@ -96,7 +96,12 @@ type AcceptParams struct {
 	// payload is never pre-encoded with fabricated ones.
 	AcceptedPayload casesDomain.AcceptedEventPayload
 	AckPayload      []byte
-	Now             time.Time
+	// PackID/PackVersion are the Domain Pack pin of the admitting
+	// decision — the taxonomy the case row carries for its whole
+	// lifecycle (Story 2.2).
+	PackID      string
+	PackVersion string
+	Now         time.Time
 }
 
 // QuarantineParams is the quarantined-delivery write.
@@ -161,4 +166,124 @@ type Repository interface {
 	PendingOutbox(ctx context.Context, scope tenancy.Context, limit int) ([]casesDomain.OutboxEvent, error)
 	// RecordDelivery appends one delivery outcome.
 	RecordDelivery(ctx context.Context, scope tenancy.Context, delivery casesDomain.OutboxDelivery) error
+	// Story 2.2 — the work command surface:
+	// LookupCommand answers the idempotency question before any domain
+	// guard: the stored outcome replays an exact repeat, another request
+	// hash under the same key is an honest conflict (the 1-9 precedent).
+	LookupCommand(ctx context.Context, scope tenancy.Context, command, key string) (CommandLookup, error)
+	// ReadCasePin reads one case row: the pack pin and the existence
+	// (a missing case is an honest not-found).
+	ReadCasePin(ctx context.Context, scope tenancy.Context, caseID id.UUID) (casesDomain.Case, error)
+	// ReadWorkItemCurrents resolves the derived current views of the
+	// given work items (missing anchors are absent from the map).
+	ReadWorkItemCurrents(ctx context.Context, scope tenancy.Context, caseID id.UUID, ids []id.UUID) (map[id.UUID]casesDomain.WorkItemCurrent, error)
+	// ReadEventOfCase reads one accepted event of the case (the link and
+	// the evidence validation input).
+	ReadEventOfCase(ctx context.Context, scope tenancy.Context, caseID, eventID id.UUID) (casesDomain.ChannelEvent, error)
+	// ReadFactMaterial reads one fact with its versions and
+	// confirmations.
+	ReadFactMaterial(ctx context.Context, scope tenancy.Context, caseID, factID id.UUID) (FactMaterial, error)
+	// ReadFactMaterialByKey resolves the fact anchor of one material key
+	// of the case (an absent anchor returns the empty material).
+	ReadFactMaterialByKey(ctx context.Context, scope tenancy.Context, caseID id.UUID, materialKey string) (FactMaterial, error)
+	// ReadFactsOfCase reads every fact of the case with its versions and
+	// confirmations (the Work Control Card read).
+	ReadFactsOfCase(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]FactMaterial, error)
+	// LookupFactVersionBySource resolves the material idempotency tuple
+	// of a fact version (the source wrote the same material value
+	// already — the exact repeat replays, another value is a new
+	// version).
+	LookupFactVersionBySource(ctx context.Context, scope tenancy.Context, sourceType, sourceID, materialKey, valueDigest string) (casesDomain.FactVersion, bool, error)
+	// ExecuteWorkCommand runs one transactional work command: the
+	// advisory locks of every anchor in the deterministic order, the
+	// FOR UPDATE re-validation of the expected versions, the append-only
+	// inserts of the command material and the command record with the
+	// outcome JSON.
+	ExecuteWorkCommand(ctx context.Context, p WorkCommandParams) error
+}
+
+// ---------------------------------------------------------------------------
+// Story 2.2: the work command persistence surface
+// ---------------------------------------------------------------------------
+
+// PackTaxonomy resolves the journeys dictionary of one Domain Pack version
+// (the Work Item type taxonomy). The concrete employee service satisfies it
+// structurally (the manifest catalog is immutable in the binary: no TOCTOU
+// exists between the pin and the read).
+type PackTaxonomy interface {
+	PackJourneys(packID, packVersion string) ([]string, error)
+}
+
+// CommandLookup is the idempotency answer of one command key BEFORE any
+// domain guard: the stored request hash and the stored outcome JSON. The
+// same hash replays the stored outcome; another hash is an honest conflict.
+type CommandLookup struct {
+	Found       bool
+	RequestHash string
+	Outcome     []byte
+}
+
+// WorkTargetParams is one split target: the app-generated anchor id with
+// the type and the title.
+type WorkTargetParams struct {
+	WorkItemID id.UUID
+	Type       string
+	Title      string
+}
+
+// WorkSourceParams is one merge source with its own optimistic concurrency
+// expectation.
+type WorkSourceParams struct {
+	WorkItemID      id.UUID
+	ExpectedVersion int64
+}
+
+// WorkCommandParams is the material of one transactional work command: the
+// scope, the command name with the idempotency key and the request hash,
+// the anchor expectations and the command-specific material. The outcome
+// JSON is the material result the app computed (the store persists it with
+// the command record; the identifiers were generated before the
+// transaction, the anchor expectations are re-validated under the locks).
+type WorkCommandParams struct {
+	Scope           tenancy.Context
+	Command         string
+	Key             string
+	RequestHash     string
+	Actor           id.UUID
+	CaseID          id.UUID
+	WorkItemID      id.UUID
+	ConversationID  id.UUID
+	ExpectedVersion int64
+	Type            string
+	Title           string
+	ToState         string
+	Reason          string
+	Targets         []WorkTargetParams
+	Sources         []WorkSourceParams
+	EventID         id.UUID
+	FactID          id.UUID
+	TargetWorkItem  id.UUID
+	MaterialKey     string
+	Value           []byte
+	ValueDigest     string
+	SourceType      string
+	SourceID        string
+	Channel         string
+	ObservedAt      time.Time
+	ReceivedAt      time.Time
+	VersionNo       int64
+	ConfirmerType   string
+	EvidenceEventID id.UUID
+	Note            string
+	ExceptionID     id.UUID
+	Outcome         []byte
+	Now             time.Time
+}
+
+// FactMaterial is the full read of one fact: the anchor, the versions
+// ordered by the version number and the confirmations.
+type FactMaterial struct {
+	Anchor        casesDomain.FactAnchor
+	Versions      []casesDomain.FactVersion
+	Confirmations []casesDomain.FactConfirmation
 }

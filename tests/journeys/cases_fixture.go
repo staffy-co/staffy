@@ -39,12 +39,24 @@ type casesFixture struct {
 	owners     map[id.UUID]id.UUID              // conversation → owner
 	epoch      map[id.UUID]int64
 	surface    map[id.UUID]string
-	items      map[id.UUID][]casesDomain.WorkItem // case → work items
+	items      map[id.UUID][]casesDomain.WorkItem // case → work item anchors
 	exceptions []casesDomain.OperationalException
 	rejections []casesDomain.IngressRejection
 
+	// The Story 2.2 work material: the version ladders, the event links, the
+	// facts with their confirmations and the command records.
+	workAnchors     map[id.UUID]casesDomain.WorkItem
+	workVersions    map[id.UUID][]casesDomain.WorkItemVersion
+	workLinks       map[id.UUID][]id.UUID
+	factAnchors     map[string]id.UUID
+	factVersions    map[id.UUID][]casesDomain.FactVersion
+	factConfirms    map[id.UUID][]casesDomain.FactConfirmation
+	commandHashes   map[string]string
+	commandOutcomes map[string]casesAPI.WorkOutcome
+
 	caseNo, conversationNo int64
 	eventSeq               int
+	workSeq, exceptionSeq  int
 }
 
 type fixtureCaseMaterial struct {
@@ -75,6 +87,15 @@ func newCasesFixture() *casesFixture {
 		epoch:    map[id.UUID]int64{},
 		surface:  map[id.UUID]string{},
 		items:    map[id.UUID][]casesDomain.WorkItem{},
+		// The Story 2.2 work material:
+		workAnchors:     map[id.UUID]casesDomain.WorkItem{},
+		workVersions:    map[id.UUID][]casesDomain.WorkItemVersion{},
+		workLinks:       map[id.UUID][]id.UUID{},
+		factAnchors:     map[string]id.UUID{},
+		factVersions:    map[id.UUID][]casesDomain.FactVersion{},
+		factConfirms:    map[id.UUID][]casesDomain.FactConfirmation{},
+		commandHashes:   map[string]string{},
+		commandOutcomes: map[string]casesAPI.WorkOutcome{},
 	}
 }
 
@@ -195,12 +216,13 @@ func (f *casesFixture) accept(envelope casesDomain.Envelope, command casesAPI.In
 	}
 	caseID := id.UUID("")
 	caseNo := int64(0)
+	initialWorkItemID := id.UUID("")
 	if newCase {
 		caseID = id.MustParse("01994f64-6c00-7000-8000-" + digit12(int(5000+f.caseNo)))
 		caseNo = f.caseNo
 		material := &fixtureCaseMaterial{cases: casesDomain.Case{
 			TenantID: f.tenant, CaseID: caseID, CaseNo: caseNo, EmployeeID: outcome.EmployeeID,
-			State: casesDomain.CaseStateOpen, CreatedAt: now,
+			State: casesDomain.CaseStateOpen, PackID: fixturePackID, PackVersion: fixturePackVersion, CreatedAt: now,
 		}}
 		material.conversations = append(material.conversations, casesDomain.Conversation{
 			TenantID: f.tenant, CaseID: caseID, ConversationID: conversationID, ConversationNo: f.conversationNo,
@@ -210,10 +232,21 @@ func (f *casesFixture) accept(envelope casesDomain.Envelope, command casesAPI.In
 			State: casesDomain.ConversationStateActive, CreatedAt: now,
 		})
 		f.material[caseID] = material
+		initialWorkItemID = id.MustParse("01994f64-6c00-7000-8000-" + digit12(int(9000+f.caseNo)))
 		f.items[caseID] = append(f.items[caseID], casesDomain.WorkItem{
 			TenantID: f.tenant, CaseID: caseID, ConversationID: conversationID,
-			WorkItemID: id.MustParse("01994f64-6c00-7000-8000-" + digit12(int(9000+f.caseNo))),
-			State:      casesDomain.WorkItemStateUntriaged, CreatedAt: now,
+			WorkItemID: initialWorkItemID, CreatedAt: now,
+		})
+		// The version 1 of the initial work item (the honest untriaged state,
+		// the system actor) — the REAL derivation material of the WCC.
+		f.workAnchors[initialWorkItemID] = casesDomain.WorkItem{
+			TenantID: f.tenant, CaseID: caseID, ConversationID: conversationID,
+			WorkItemID: initialWorkItemID, CreatedAt: now,
+		}
+		f.workVersions[initialWorkItemID] = append(f.workVersions[initialWorkItemID], casesDomain.WorkItemVersion{
+			TenantID: f.tenant, CaseID: caseID, ConversationID: conversationID,
+			WorkItemID: initialWorkItemID, VersionNo: 1, Kind: casesDomain.VersionKindCreate,
+			State: casesDomain.WorkItemStateUntriaged, CreatedAt: now,
 		})
 	} else {
 		for candidateID, material := range f.material {
@@ -235,6 +268,12 @@ func (f *casesFixture) accept(envelope casesDomain.Envelope, command casesAPI.In
 	}
 	f.events[envelope.ProviderEventID] = &event
 	f.payloads[eventID] = envelope.Payload
+	// The link of the first event of a new conversation to the initial work
+	// item (the system link); a session continuation writes no new work item
+	// and no automatic link.
+	if newCase && initialWorkItemID.Valid() {
+		f.workLinks[initialWorkItemID] = append(f.workLinks[initialWorkItemID], eventID)
+	}
 	f.results[eventID] = casesDomain.IngestResult{
 		EventID: eventID, CaseID: caseID, ConversationID: conversationID, CaseNo: caseNo,
 		ConversationNo: f.conversationNoOf(conversationID), ResponseOwnerID: outcome.OwnerID,
@@ -317,7 +356,8 @@ func (f *casesFixture) CasesView(_ context.Context, _ domain.Principal, tenant i
 }
 
 // CaseView reads one case of the fixture material with the honest
-// statements of the slice.
+// statements of the slice, the DERIVED work item views (the version
+// ladders) and the pinned taxonomy of the Work Control Card.
 func (f *casesFixture) CaseView(_ context.Context, _ domain.Principal, tenant, caseID id.UUID) (casesAPI.CaseView, error) {
 	f.lock()
 	defer f.unlock()
@@ -328,12 +368,20 @@ func (f *casesFixture) CaseView(_ context.Context, _ domain.Principal, tenant, c
 	if material == nil {
 		return casesAPI.CaseView{}, casesDomain.ErrNotFound
 	}
+	// The derived work item views of the case (the ladder projection).
+	workItems := make([]casesDomain.WorkItemCurrent, 0, len(f.items[caseID]))
+	for _, anchor := range f.items[caseID] {
+		if current, known := f.workCurrentOf(anchor.WorkItemID); known {
+			workItems = append(workItems, current)
+		}
+	}
 	return casesAPI.CaseView{
 		TenantID: tenant, Case: material.cases, Conversations: material.conversations,
-		Timeline: material.timeline, WorkItems: f.items[caseID],
+		Timeline: material.timeline, WorkItems: workItems,
 		Exceptions:    f.exceptionsOf(caseID),
 		UntriagedText: "Запрос ещё не классифицирован.", NoAutoReplyText: "Автоответ клиенту не отправляется.",
-		CanViewPayload: true, ViewScope: casesAPI.CaseScopeView,
+		CanViewPayload: true, CanViewFacts: true, CanManageWork: true, ViewScope: casesAPI.CaseScopeView,
+		TaxonomyTypes: append([]string(nil), fixtureJourneys...),
 	}, nil
 }
 

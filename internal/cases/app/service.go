@@ -29,6 +29,7 @@ type Service struct {
 	routeFacts      casesPort.RouteFactsSource
 	connectionFacts casesPort.ConnectionFactsSource
 	members         casesPort.MembersSource
+	taxonomy        casesPort.PackTaxonomy
 	clock           casesAPI.Clock
 	ids             casesAPI.IDGenerator
 }
@@ -54,6 +55,14 @@ func (s *Service) WithConnectionFacts(source casesPort.ConnectionFactsSource) *S
 
 func (s *Service) WithMembers(source casesPort.MembersSource) *Service {
 	s.members = source
+	return s
+}
+
+// WithPackTaxonomy wires the pack taxonomy port (the employee facade over
+// the immutable manifest catalog). Without it the classification commands
+// honestly refuse — an assumed taxonomy is never "ok".
+func (s *Service) WithPackTaxonomy(source casesPort.PackTaxonomy) *Service {
+	s.taxonomy = source
 	return s
 }
 
@@ -227,7 +236,8 @@ func routeWords(routes employeeAPI.RouteFacts) casesDomain.RouteFacts {
 		}
 		candidates = append(candidates, casesDomain.RouteCandidate{
 			EmployeeID: candidate.EmployeeID, DecisionNo: candidate.DecisionNo, Stage: candidate.Stage,
-			ProfileVersion: candidate.ProfileVersion, Routes: words, Coverage: coverage,
+			ProfileVersion: candidate.ProfileVersion, PackID: candidate.PackID, PackVersion: candidate.PackVersion,
+			Routes: words, Coverage: coverage,
 		})
 	}
 	return casesDomain.RouteFacts{Candidates: candidates, Entitlement: casesDomain.EntitlementWord{
@@ -302,6 +312,7 @@ func (s *Service) accept(ctx context.Context, scope tenancy.Context, command cas
 		Scope: scope, Event: event, Payload: envelope.Payload, SealKey: sealKey,
 		Seal:       casesDomain.PayloadSeal(sealKey, envelope.Payload),
 		EmployeeID: outcome.EmployeeID, ResponseOwnerID: outcome.OwnerID,
+		PackID: outcome.PackID, PackVersion: outcome.PackVersion,
 		Session: casesDomain.PreCaseSession{
 			TenantID: scope.TenantID(), SessionID: sessionID, ConnectionID: envelope.ConnectionID,
 			Provider: envelope.Provider, ProviderSessionID: envelope.ProviderSessionID,
@@ -478,28 +489,43 @@ func acceptedView(result casesDomain.IngestResult, replay bool) *casesAPI.Ingest
 // Operator surface reads and the drain command
 // ---------------------------------------------------------------------------
 
+// viewRights is the honest authorization answer of the operator surface:
+// the payload/facts boundary (review or audit) and the work command
+// boundary (review).
+type viewRights struct {
+	Payload bool
+	Manage  bool
+}
+
 // viewScope authorizes the cases reads: review, configuration or audit see
 // the surface; other members get an honest refusal; non-members a plain
-// 404 (the tenant existence is never disclosed). The payload flag marks
-// the stricter review/audit boundary.
-func (s *Service) viewScope(ctx context.Context, actor domain.Principal, tenantID id.UUID) (tenancy.Context, bool, error) {
+// 404 (the tenant existence is never disclosed). The rights mark the
+// stricter review/audit boundary of the payload and the facts, and the
+// review-only boundary of the work commands.
+func (s *Service) viewScope(ctx context.Context, actor domain.Principal, tenantID id.UUID) (tenancy.Context, viewRights, error) {
 	if !actor.ID.Valid() || !tenantID.Valid() {
-		return tenancy.Context{}, false, domain.ErrNotFound
+		return tenancy.Context{}, viewRights{}, domain.ErrNotFound
 	}
 	scope, err := tenancy.New(actor.ID, tenantID)
 	if err != nil {
-		return tenancy.Context{}, false, err
+		return tenancy.Context{}, viewRights{}, err
 	}
-	payloadAllowed := false
+	rights := viewRights{}
 	memberWithoutScope := false
 	var infraFailure error
 	for _, required := range []domain.Scope{domain.Review, domain.Configuration, domain.Audit} {
 		err := s.identity.Authorize(ctx, actor, tenantID, required)
 		if err == nil {
+			// The payload/facts boundary is review or audit (a
+			// configuration-only member sees the metadata surface); the
+			// work command boundary is review only.
 			if required != domain.Configuration {
-				payloadAllowed = true
+				rights.Payload = true
 			}
-			return scope, payloadAllowed, nil
+			if required == domain.Review {
+				rights.Manage = true
+			}
+			return scope, rights, nil
 		}
 		if errors.Is(err, domain.ErrForbidden) {
 			memberWithoutScope = true
@@ -511,12 +537,12 @@ func (s *Service) viewScope(ctx context.Context, actor domain.Principal, tenantI
 		infraFailure = err
 	}
 	if infraFailure != nil {
-		return tenancy.Context{}, false, infraFailure
+		return tenancy.Context{}, viewRights{}, infraFailure
 	}
 	if memberWithoutScope {
-		return tenancy.Context{}, false, domain.ErrForbidden
+		return tenancy.Context{}, viewRights{}, domain.ErrForbidden
 	}
-	return tenancy.Context{}, false, domain.ErrNotFound
+	return tenancy.Context{}, viewRights{}, domain.ErrNotFound
 }
 
 // manageScope authorizes the drain command: the configuration scope.
@@ -561,7 +587,7 @@ func (s *Service) CasesView(ctx context.Context, actor domain.Principal, tenantI
 // and the related exceptions. The two honest statements of the slice are
 // part of the view contract.
 func (s *Service) CaseView(ctx context.Context, actor domain.Principal, tenantID, caseID id.UUID) (casesAPI.CaseView, error) {
-	scope, payloadAllowed, err := s.viewScope(ctx, actor, tenantID)
+	scope, rights, err := s.viewScope(ctx, actor, tenantID)
 	if err != nil {
 		return casesAPI.CaseView{}, err
 	}
@@ -569,12 +595,25 @@ func (s *Service) CaseView(ctx context.Context, actor domain.Principal, tenantID
 	if err != nil {
 		return casesAPI.CaseView{}, err
 	}
+	// The taxonomy of the pinned pack: the form dictionary of the Work
+	// Control Card. An unreadable pin degrades the forms to the text input —
+	// the read itself never fails on the taxonomy.
+	var taxonomy []string
+	if detail.Case.PackID != "" && s.taxonomy != nil {
+		if journeys, err := s.taxonomy.PackJourneys(detail.Case.PackID, detail.Case.PackVersion); err == nil {
+			taxonomy = journeys
+		}
+	}
+	if taxonomy == nil {
+		taxonomy = []string{}
+	}
 	return casesAPI.CaseView{
 		TenantID: tenantID, Case: detail.Case, Conversations: detail.Conversations,
 		Timeline: detail.Timeline, WorkItems: detail.WorkItems, Exceptions: detail.Exceptions,
 		UntriagedText:   "Запрос ещё не классифицирован.",
 		NoAutoReplyText: "Автоответ клиенту не отправляется.",
-		CanViewPayload:  payloadAllowed, ViewScope: casesAPI.CaseScopeView,
+		CanViewPayload:  rights.Payload, CanViewFacts: rights.Payload, CanManageWork: rights.Manage,
+		ViewScope: casesAPI.CaseScopeView, TaxonomyTypes: taxonomy,
 	}, nil
 }
 
@@ -582,11 +621,11 @@ func (s *Service) CaseView(ctx context.Context, actor domain.Principal, tenantID
 // review/audit boundary: the digest and the HMAC seal are verified at the
 // read boundary.
 func (s *Service) ReadPayload(ctx context.Context, actor domain.Principal, tenantID, caseID, eventID id.UUID) (casesAPI.PayloadView, error) {
-	scope, payloadAllowed, err := s.viewScope(ctx, actor, tenantID)
+	scope, rights, err := s.viewScope(ctx, actor, tenantID)
 	if err != nil {
 		return casesAPI.PayloadView{}, err
 	}
-	if !payloadAllowed {
+	if !rights.Payload {
 		return casesAPI.PayloadView{}, domain.ErrForbidden
 	}
 	sealed, err := s.repository.ReadPayload(ctx, scope, caseID, eventID)

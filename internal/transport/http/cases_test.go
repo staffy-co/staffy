@@ -58,7 +58,7 @@ func (f *fakeCases) DrainOutbox(context.Context, domain.Principal, id.UUID) (cas
 	return casesAPI.DrainResult{}, nil
 }
 
-func newCasesTestServer(t *testing.T, fake *fakeCases) *Server {
+func newCasesTestServer(t *testing.T, fake casesAPI.Service) *Server {
 	t.Helper()
 	identity := fakeIdentity{create: func(api.CreateTenantCommand) (api.CreateTenantResult, error) {
 		return api.CreateTenantResult{}, nil
@@ -321,5 +321,169 @@ func TestCasePayloadRequiresReviewOrAudit(t *testing.T) {
 		"/v1/tenants/01994f64-6c00-7000-8000-000000000011/cases/01994f64-6c00-7000-8000-00000000c0de/events/01994f64-6c00-7000-8000-00000000c0de/payload", nil))
 	if recorder.Code != http.StatusForbidden {
 		t.Fatalf("the payload is review/audit only, got %d", recorder.Code)
+	}
+}
+
+// The Story 2.2 command surface of the fake: every command carries an
+// optional outcome or error hook; the default is the honest zero outcome.
+func (f *fakeCases) CreateWorkItem(context.Context, casesAPI.CreateWorkItemCommand) (casesAPI.WorkOutcome, error) {
+	return casesAPI.WorkOutcome{Command: "create_work_item", Version: 1}, nil
+}
+
+func (f *fakeCases) ClassifyWorkItem(context.Context, casesAPI.ClassifyCommand) (casesAPI.WorkOutcome, error) {
+	return casesAPI.WorkOutcome{Command: "classify_work_item", Version: 2, State: "in_work"}, nil
+}
+
+func (f *fakeCases) TransitionWorkItem(context.Context, casesAPI.TransitionCommand) (casesAPI.WorkOutcome, error) {
+	return casesAPI.WorkOutcome{Command: "transition_work_item", Version: 3, State: "waiting"}, nil
+}
+
+func (f *fakeCases) SplitWorkItem(context.Context, casesAPI.SplitCommand) (casesAPI.WorkOutcome, error) {
+	return casesAPI.WorkOutcome{Command: "split_work_item", Version: 4, State: "split"}, nil
+}
+
+func (f *fakeCases) MergeWorkItems(context.Context, casesAPI.MergeCommand) (casesAPI.WorkOutcome, error) {
+	return casesAPI.WorkOutcome{Command: "merge_work_items", State: "merged"}, nil
+}
+
+func (f *fakeCases) LinkEvent(context.Context, casesAPI.LinkEventCommand) (casesAPI.WorkOutcome, error) {
+	return casesAPI.WorkOutcome{Command: "link_event"}, nil
+}
+
+func (f *fakeCases) DisputeWorkItem(context.Context, casesAPI.DisputeCommand) (casesAPI.WorkOutcome, error) {
+	return casesAPI.WorkOutcome{Command: "dispute_work_item"}, nil
+}
+
+func (f *fakeCases) RecordFact(context.Context, casesAPI.RecordFactCommand) (casesAPI.WorkOutcome, error) {
+	return casesAPI.WorkOutcome{Command: "record_fact", FactVersion: 1, FactStatus: "unverified"}, nil
+}
+
+func (f *fakeCases) ConfirmFactVersion(context.Context, casesAPI.ConfirmFactVersionCommand) (casesAPI.WorkOutcome, error) {
+	return casesAPI.WorkOutcome{Command: "confirm_fact_version", FactStatus: "confirmed"}, nil
+}
+
+func (f *fakeCases) RescopeFact(context.Context, casesAPI.RescopeFactCommand) (casesAPI.WorkOutcome, error) {
+	return casesAPI.WorkOutcome{Command: "rescope_fact", FactVersion: 2}, nil
+}
+
+func (f *fakeCases) FactsView(context.Context, domain.Principal, id.UUID, id.UUID) (casesAPI.FactsView, error) {
+	return casesAPI.FactsView{CanView: true, ViewScope: casesAPI.CaseScopePayload, Facts: []casesAPI.FactView{}}, nil
+}
+
+// ---------------------------------------------------------------------------
+// Story 2.2: the work command wire contract
+// ---------------------------------------------------------------------------
+
+type workErrorCases struct {
+	fakeCases
+	classify func(context.Context, casesAPI.ClassifyCommand) (casesAPI.WorkOutcome, error)
+	facts    func(context.Context, domain.Principal, id.UUID, id.UUID) (casesAPI.FactsView, error)
+}
+
+func (f *workErrorCases) ClassifyWorkItem(ctx context.Context, command casesAPI.ClassifyCommand) (casesAPI.WorkOutcome, error) {
+	if f.classify == nil {
+		return casesAPI.WorkOutcome{}, nil
+	}
+	return f.classify(ctx, command)
+}
+
+func (f *workErrorCases) FactsView(ctx context.Context, actor domain.Principal, tenant, caseID id.UUID) (casesAPI.FactsView, error) {
+	if f.facts == nil {
+		return casesAPI.FactsView{}, nil
+	}
+	return f.facts(ctx, actor, tenant, caseID)
+}
+
+const classifyPath = "/v1/tenants/01994f64-6c00-7000-8000-000000000011/cases/01994f64-6c00-7000-8000-00000000aa01/work-items/01994f64-6c00-7000-8000-00000000bb02/classify"
+
+const classifyBody = `{"expected_version":1,"type":"поиск детали","title":"Подбор детали на Civic","reason":"Клиент ищет деталь"}`
+
+func TestClassifyWorkItemWireShapeMatchesContract(t *testing.T) {
+	server := newCasesTestServer(t, &fakeCases{})
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, casesJSONRequest("POST", classifyPath, classifyBody))
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	var outcome casesAPI.WorkOutcome
+	if err := json.Unmarshal(recorder.Body.Bytes(), &outcome); err != nil {
+		t.Fatal(err)
+	}
+	if outcome.Command != "classify_work_item" || outcome.Version != 2 || outcome.State != "in_work" {
+		t.Fatalf("outcome = %+v", outcome)
+	}
+	if recorder.Header().Get("Content-Type") != "application/json" {
+		t.Fatalf("content type = %s", recorder.Header().Get("Content-Type"))
+	}
+}
+
+func TestWorkCommandRequiresIdempotencyKey(t *testing.T) {
+	server := newCasesTestServer(t, &fakeCases{})
+	request := casesJSONRequest("POST", classifyPath, classifyBody)
+	request.Header.Del("Idempotency-Key")
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d", recorder.Code)
+	}
+}
+
+func TestWorkCommandRejectsUnknownFields(t *testing.T) {
+	server := newCasesTestServer(t, &fakeCases{})
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, casesJSONRequest("POST", classifyPath, classifyBody+`,"surprise":1}`))
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestWorkCommandMapsHonestErrors(t *testing.T) {
+	cases := []struct {
+		name   string
+		err    error
+		status int
+	}{
+		{"rule refusal", casesDomain.WorkRuleError{Rule: "classify_work_item", Reason: "Тип не входит в словарь пака."}, http.StatusBadRequest},
+		{"stale version", casesDomain.ErrStaleVersion, http.StatusConflict},
+		{"key conflict", casesDomain.ErrCommandKeyConflict, http.StatusConflict},
+		{"not found", casesDomain.ErrNotFound, http.StatusNotFound},
+	}
+	for _, testCase := range cases {
+		fake := &workErrorCases{classify: func(context.Context, casesAPI.ClassifyCommand) (casesAPI.WorkOutcome, error) {
+			return casesAPI.WorkOutcome{}, testCase.err
+		}}
+		server := newCasesTestServer(t, fake)
+		recorder := httptest.NewRecorder()
+		server.Handler().ServeHTTP(recorder, casesJSONRequest("POST", classifyPath, classifyBody))
+		if recorder.Code != testCase.status {
+			t.Fatalf("%s: status = %d, body = %s", testCase.name, recorder.Code, recorder.Body.String())
+		}
+	}
+}
+
+func TestFactsViewWireShape(t *testing.T) {
+	factID := id.MustParse("01994f64-6c00-7000-8000-00000000ff01")
+	fake := &workErrorCases{facts: func(context.Context, domain.Principal, id.UUID, id.UUID) (casesAPI.FactsView, error) {
+		return casesAPI.FactsView{
+			CanView: true, ViewScope: casesAPI.CaseScopePayload,
+			Facts: []casesAPI.FactView{{
+				FactID: factID, MaterialKey: "автомобиль", Status: "conflicting",
+				NextAction: "Разрешите конфликт: подтвердите точную версию со ссылкой на источник.",
+			}},
+		}, nil
+	}}
+	server := newCasesTestServer(t, fake)
+	path := "/v1/tenants/01994f64-6c00-7000-8000-000000000011/cases/01994f64-6c00-7000-8000-00000000aa01/facts"
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, httptest.NewRequest("GET", path, nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	var view casesAPI.FactsView
+	if err := json.Unmarshal(recorder.Body.Bytes(), &view); err != nil {
+		t.Fatal(err)
+	}
+	if len(view.Facts) != 1 || view.Facts[0].MaterialKey != "автомобиль" || view.Facts[0].Status != "conflicting" {
+		t.Fatalf("facts = %+v", view.Facts)
 	}
 }

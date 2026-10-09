@@ -11,15 +11,20 @@ import (
 // ---------------------------------------------------------------------------
 
 // Case is the single unit of one customer contact: a stable business
-// number under the tenant, the serving employee of the acting decision and
-// the honest open state of this slice.
+// number under the tenant, the serving employee of the acting decision, the
+// honest open state of this slice and the pinned Domain Pack (id + version)
+// written by the ingest transaction from the acting decision — the taxonomy
+// of an open case never depends on the current admission (the existing
+// commitments continue).
 type Case struct {
-	TenantID   id.UUID
-	CaseID     id.UUID
-	CaseNo     int64
-	EmployeeID id.UUID
-	State      string
-	CreatedAt  time.Time
+	TenantID    id.UUID
+	CaseID      id.UUID
+	CaseNo      int64
+	EmployeeID  id.UUID
+	State       string
+	PackID      string
+	PackVersion string
+	CreatedAt   time.Time
 }
 
 // Conversation is one channel session inside a case: the stable business
@@ -42,14 +47,15 @@ type Conversation struct {
 	CreatedAt          time.Time
 }
 
-// WorkItem is the single untriaged work item of a new conversation: the
-// honest "запрос ещё не классифицирован" until Story 2-2.
+// WorkItem is the stable anchor of one intention inside a case: the
+// conversation it was born in and the creation time. The state, the type
+// and the title are NOT columns — they are derivations of the maximal
+// work_item_versions row (Story 2.2).
 type WorkItem struct {
 	TenantID       id.UUID
 	CaseID         id.UUID
 	ConversationID id.UUID
 	WorkItemID     id.UUID
-	State          string
 	CreatedAt      time.Time
 }
 
@@ -148,13 +154,13 @@ type CaseSummary struct {
 }
 
 // CaseDetail is the full read of one case: conversations with their owners
-// and surfaces, the timeline, the work items and the related operational
-// exceptions.
+// and surfaces, the timeline, the DERIVED work item views (the version
+// ladder projection) and the related operational exceptions.
 type CaseDetail struct {
 	Case          Case
 	Conversations []Conversation
 	Timeline      []TimelineEvent
-	WorkItems     []WorkItem
+	WorkItems     []WorkItemCurrent
 	Exceptions    []OperationalException
 }
 

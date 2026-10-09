@@ -14,10 +14,11 @@ import (
 	"github.com/artemiosu/staffy/internal/platform/id"
 )
 
-// BindCases mounts the case contour surface (Story 2.1): the machine
-// ingress contract (no user principal — the scope is derived from the
-// verified connection), the operator Cases/Timeline surfaces and the
-// sealed payload read under review/audit.
+// BindCases mounts the case contour surface: the machine ingress contract
+// (no user principal — the scope is derived from the verified connection),
+// the operator Cases/Timeline surfaces, the sealed payload read under
+// review/audit, and the Story 2.2 work command surface (the machine JSON
+// contract and the operator forms of the Work Control Card).
 func (s *Server) BindCases(service casesAPI.Service) {
 	s.cases = service
 	s.mux.HandleFunc("POST /v1/ingress/channel-events", s.ingressChannelEventAPI)
@@ -26,6 +27,29 @@ func (s *Server) BindCases(service casesAPI.Service) {
 	s.mux.HandleFunc("GET /v1/tenants/{tenant_id}/cases/{case_id}/events/{event_id}/payload", s.readCasePayloadAPI)
 	s.mux.HandleFunc("GET /app/tenants/{tenant_id}/cases", s.casesPage)
 	s.mux.HandleFunc("GET /app/tenants/{tenant_id}/cases/{case_id}", s.caseDetailPage)
+	// The work commands (Story 2.2) — the machine JSON contract:
+	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/work-items", s.createWorkItemAPI)
+	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/classify", s.classifyWorkItemAPI)
+	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/transition", s.transitionWorkItemAPI)
+	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/split", s.splitWorkItemAPI)
+	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/merge", s.mergeWorkItemAPI)
+	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/events", s.linkEventAPI)
+	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/dispute", s.disputeWorkItemAPI)
+	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/facts", s.recordFactAPI)
+	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/facts/{fact_id}/confirmations", s.confirmFactAPI)
+	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/facts/{fact_id}/rescope", s.rescopeFactAPI)
+	s.mux.HandleFunc("GET /v1/tenants/{tenant_id}/cases/{case_id}/facts", s.factsViewAPI)
+	// The operator forms of the Work Control Card (the PRG pattern):
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/work-items", s.createWorkItemForm)
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/classify", s.classifyWorkItemForm)
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/transition", s.transitionWorkItemForm)
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/split", s.splitWorkItemForm)
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/merge", s.mergeWorkItemForm)
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/events", s.linkEventForm)
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/dispute", s.disputeWorkItemForm)
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/facts", s.recordFactForm)
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/facts/{fact_id}/confirmations", s.confirmFactForm)
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/facts/{fact_id}/rescope", s.rescopeFactForm)
 }
 
 // ingressEnvelopeInput is the versioned canonical machine contract
@@ -302,9 +326,21 @@ func (s *Server) caseDetailPage(w http.ResponseWriter, r *http.Request) {
 		s.casesPageProblem(w, r, err)
 		return
 	}
+	// The facts of the Work Control Card follow the review/audit boundary:
+	// a configuration-scoped member sees the metadata surface without the
+	// values (the honest note instead of a failed page).
+	facts, err := s.cases.FactsView(r.Context(), actor, tenant, caseID)
+	if err != nil && !errors.Is(err, domain.ErrForbidden) {
+		s.casesPageProblem(w, r, err)
+		return
+	}
+	flash := flashError(r, tenant)
+	if flash != "" {
+		http.SetCookie(w, clearFlashCookie(tenant))
+	}
 	s.render(w, "case", map[string]any{
 		"TenantID": tenant,
-		"View":     prepareCaseView(view),
+		"View":     prepareCaseView(view, facts, flash),
 	})
 }
 

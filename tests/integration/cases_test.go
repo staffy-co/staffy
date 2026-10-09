@@ -65,7 +65,8 @@ func (w *casesWorld) buildCasesService(ids casesAPI.IDGenerator) *casesApp.Servi
 	return casesApp.New(casesStore.NewPostgres(runtimePool), w.identity, ingresssyn.New(w.connector), releaseClock, ids).
 		WithRouteFacts(w.employee).
 		WithConnectionFacts(w.connector).
-		WithMembers(w.identity)
+		WithMembers(w.identity).
+		WithPackTaxonomy(w.employee)
 }
 
 func (w *casesWorld) publishSynthetic(t *testing.T) {

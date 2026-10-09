@@ -114,11 +114,11 @@ var classRegistry = []ClassSpec{
 	{ID: ClassConnectionConfig, Title: "Конфигурации подключений", Tables: []string{"connector.connections", "connector.connection_versions"}},
 	{ID: ClassConnectionSecretSeal, Title: "Запечатанные секреты подключений", Tables: []string{"connector.secret_seals"}, Block: &AG4SecretStoreBlock},
 	{ID: ClassCapabilityEvidence, Title: "Доказательства capabilities", Tables: []string{"connector.capability_evidence"}, Block: &ImmutableEvidenceBlock},
-	{ID: ClassIdempotencyRecords, Title: "Идемпотентные записи команд", Tables: []string{"identity.idempotency_records", "employee.idempotency_records", "connector.idempotency_records"}},
+	{ID: ClassIdempotencyRecords, Title: "Идемпотентные записи команд", Tables: []string{"identity.idempotency_records", "employee.idempotency_records", "connector.idempotency_records", "cases.command_records"}},
 	{ID: ClassAuditTrail, Title: "Журналы аудита", Tables: []string{"identity.membership_audit", "employee.audit", "employee.knowledge_audit", "connector.audit"}, AuditMinTerm: true},
 	{ID: ClassOutboxEvents, Title: "События outbox", Tables: []string{"identity.outbox_events", "employee.outbox_events", "employee.knowledge_outbox", "connector.outbox_events", "cases.outbox_events"}},
-	{ID: ClassCaseOperations, Title: "Кейсы, события и метаданные обращений", Tables: []string{"cases.cases", "cases.conversations", "cases.work_items", "cases.channel_events", "cases.pre_case_sessions", "cases.ingress_rejections", "cases.operational_exceptions", "cases.outbox_deliveries"}},
-	{ID: ClassCaseContent, Title: "Запечатанные payload событий обращений", Tables: []string{"cases.channel_event_payloads"}},
+	{ID: ClassCaseOperations, Title: "Кейсы, события и метаданные обращений", Tables: []string{"cases.cases", "cases.conversations", "cases.work_items", "cases.work_item_versions", "cases.work_item_event_links", "cases.channel_events", "cases.pre_case_sessions", "cases.ingress_rejections", "cases.operational_exceptions", "cases.outbox_deliveries"}},
+	{ID: ClassCaseContent, Title: "Запечатанные payload событий и факты обращений", Tables: []string{"cases.channel_event_payloads", "cases.facts", "cases.fact_versions", "cases.fact_confirmations"}},
 }
 
 var classIndex = func() map[ArtifactClass]ClassSpec {
