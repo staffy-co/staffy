@@ -381,7 +381,8 @@ func (f *casesFixture) CaseView(_ context.Context, _ domain.Principal, tenant, c
 		Exceptions:    f.exceptionsOf(caseID),
 		UntriagedText: "Запрос ещё не классифицирован.", NoAutoReplyText: "Автоответ клиенту не отправляется.",
 		CanViewPayload: true, CanViewFacts: true, CanManageWork: true, ViewScope: casesAPI.CaseScopeView,
-		TaxonomyTypes: append([]string(nil), fixtureJourneys...),
+		TaxonomyTypes:    append([]string(nil), fixtureJourneys...),
+		CriticalEntities: append([]string(nil), fixtureCriticalEntities...),
 	}, nil
 }
 

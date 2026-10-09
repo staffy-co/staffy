@@ -430,8 +430,12 @@ func TestWorkCommandRequiresIdempotencyKey(t *testing.T) {
 
 func TestWorkCommandRejectsUnknownFields(t *testing.T) {
 	server := newCasesTestServer(t, &fakeCases{})
+	// The unknown field sits INSIDE the JSON object — the strict decode
+	// (DisallowUnknownFields) is the surface under test, not the trailing
+	// garbage the transport rejects on its own.
+	body := strings.TrimSuffix(classifyBody, "}") + `,"surprise":1}`
 	recorder := httptest.NewRecorder()
-	server.Handler().ServeHTTP(recorder, casesJSONRequest("POST", classifyPath, classifyBody+`,"surprise":1}`))
+	server.Handler().ServeHTTP(recorder, casesJSONRequest("POST", classifyPath, body))
 	if recorder.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
 	}

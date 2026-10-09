@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
@@ -115,6 +116,7 @@ type caseDetailPageView struct {
 	CanManageWork    bool
 	TaxonomyKnown    bool
 	TaxonomyTypes    []string
+	MaterialKeyHints string
 	WorkCards        []workCardView
 	HasFacts         bool
 	FactsAllowed     bool
@@ -163,6 +165,17 @@ type caseWorkItemRow struct {
 	CreatedAt  string
 }
 
+// materialKeyHints renders the material key hint of the fact form from the
+// CriticalEntities dictionary of the pinned pack (the frozen spec: the
+// hints come from the pack, never a hardcoded list); an unreadable or
+// empty pin degrades to the generic wording, honestly.
+func materialKeyHints(criticalEntities []string) string {
+	if len(criticalEntities) == 0 {
+		return "Материальный ключ сущности обращения (до 64 символов; словарь пака не закреплён)"
+	}
+	return "Материальный ключ (до 64 символов; словарь закреплённого пака: " + strings.Join(criticalEntities, ", ") + ")"
+}
+
 func prepareCaseView(view casesAPI.CaseView, facts casesAPI.FactsView, flash string) caseDetailPageView {
 	out := caseDetailPageView{
 		ScopeText:        casesScopeText(true),
@@ -185,6 +198,7 @@ func prepareCaseView(view casesAPI.CaseView, facts casesAPI.FactsView, flash str
 		CanManageWork:    view.CanManageWork,
 		TaxonomyKnown:    len(view.TaxonomyTypes) > 0,
 		TaxonomyTypes:    view.TaxonomyTypes,
+		MaterialKeyHints: materialKeyHints(view.CriticalEntities),
 		WorkCards:        prepareWorkCards(view, facts),
 		HasFacts:         len(facts.Facts) > 0,
 		FactsAllowed:     view.CanViewFacts,

@@ -212,6 +212,11 @@ type Repository interface {
 // exists between the pin and the read).
 type PackTaxonomy interface {
 	PackJourneys(packID, packVersion string) ([]string, error)
+	// PackCriticalEntities resolves the material key dictionary of the
+	// pinned pack — the fact form hints of the Work Control Card. The
+	// same immutability argument holds: the catalog resolves the same
+	// dictionary for the same (id, version), no TOCTOU exists.
+	PackCriticalEntities(packID, packVersion string) ([]string, error)
 }
 
 // CommandLookup is the idempotency answer of one command key BEFORE any
@@ -260,6 +265,12 @@ type WorkCommandParams struct {
 	Reason          string
 	Targets         []WorkTargetParams
 	Sources         []WorkSourceParams
+	// FactLocks is the merge fact plan: the ids of every fact whose
+	// CURRENT scope is one of the sources (the app read them before the
+	// transaction; the store re-reads under the locks — a fact cannot
+	// move INTO a source scope while the merge holds the source work
+	// locks, so the planned set is the executed set).
+	FactLocks       []id.UUID
 	EventID         id.UUID
 	FactID          id.UUID
 	TargetWorkItem  id.UUID

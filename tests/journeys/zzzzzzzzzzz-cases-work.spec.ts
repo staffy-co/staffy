@@ -68,6 +68,9 @@ test('cases-work: the Work Control Card chain at 320px — classify, facts, conf
     // JSON value, the channel_event source with the event id.
     await page.locator('details:has(summary:text-is("Записать факт"))').click();
     const factForm = page.locator('form[action$="/facts"]').first();
+    // The material key hint comes from the CriticalEntities dictionary of
+    // the PINNED pack (auto-parts), never a hardcoded list.
+    await expect(factForm.locator('label[for="fact-key"]')).toContainText('деталь, артикул, автомобиль');
     const workItemValue = await factForm.locator('select[name="work_item_id"] option').first().getAttribute('value');
     const eventValue = await factForm.locator('select[name="source_id"] option').first().getAttribute('value');
     await factForm.locator('select[name="work_item_id"]').selectOption(workItemValue);
@@ -82,6 +85,21 @@ test('cases-work: the Work Control Card chain at 320px — classify, facts, conf
     await factCard.locator("summary").first().click();
     await expect(factCard.locator('td code').first()).toContainText('Civic');
     await expect(factCard.getByText('phone').first()).toBeVisible();
+
+    // 4b. The honest error path of the form: an invalid JSON value is the
+    // rule refusal — the flash lands on the case page and TAKES THE FOCUS
+    // (the frozen UI clause: the focus is predictable after an error).
+    await page.locator('details:has(summary:text-is("Записать факт"))').click();
+    const errorForm = page.locator('form[action$="/facts"]').first();
+    await errorForm.locator('select[name="work_item_id"]').selectOption(workItemValue);
+    await errorForm.locator('input[name="material_key"]').fill('деталь');
+    await errorForm.locator('textarea[name="value"]').fill('not-a-json');
+    await errorForm.locator('select[name="source_type"]').selectOption('operator');
+    await errorForm.locator('select[name="source_id"]').selectOption('');
+    await errorForm.getByRole('button', { name: /Записать факт/ }).click();
+    await expect(page).toHaveURL(new RegExp(`${accepted.case_id}(\\?|$)`));
+    await expect(page.locator('#case-flash')).toBeVisible();
+    await expect(page.locator('#case-flash')).toBeFocused();
 
     // 5. The second event of the session brings another value: the field
     // conflicts, both versions with provenance stay visible.

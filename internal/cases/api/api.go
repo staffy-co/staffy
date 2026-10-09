@@ -99,6 +99,11 @@ type CaseView struct {
 	// empty when the pin has no readable pack (the honest pre-migration
 	// state — the classification forms fall back to the text input).
 	TaxonomyTypes []string `json:"taxonomy_types"`
+	// CriticalEntities is the material key dictionary of the pinned pack:
+	// the UI hint of the fact forms (the frozen spec: the hints come from
+	// the pack, never a hardcoded list). Empty mirrors TaxonomyTypes — the
+	// form degrades to the generic placeholder, honestly.
+	CriticalEntities []string `json:"critical_entities"`
 }
 
 // PayloadView is the sealed payload read under review/audit: the digest,

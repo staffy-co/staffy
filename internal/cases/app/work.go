@@ -104,6 +104,37 @@ func (s *Service) lookupCommand(ctx context.Context, scope tenancy.Context, comm
 	return outcome, true, nil
 }
 
+// executeWork runs one transactional work command and resolves the RACED
+// identical repeat inline: two concurrent byte-identical commands both
+// pass the pre-lookup; the unified anchor locks serialize them, the twin
+// commits first — the loser re-validates its expectations and fails
+// (the stale version or the command record pkey, depending on the
+// command's anchors). ONE fresh lookup by the command key decides the
+// class: the SAME request hash means the raced twin already answered this
+// exact material — its stored outcome replays; everything else stands as
+// the honest original signal (a different material under the key is the
+// key conflict, a different concurrent writer is the stale version). A
+// recursion is impossible: the losing path returns, never retries (the
+// 2-1 raced-событие precedent).
+func (s *Service) executeWork(ctx context.Context, scope tenancy.Context, p casesPort.WorkCommandParams) (casesAPI.WorkOutcome, bool, error) {
+	err := s.repository.ExecuteWorkCommand(ctx, p)
+	if err == nil {
+		return casesAPI.WorkOutcome{}, false, nil
+	}
+	if !errors.Is(err, casesDomain.ErrCommandKeyConflict) && !errors.Is(err, casesDomain.ErrStaleVersion) {
+		return casesAPI.WorkOutcome{}, false, err
+	}
+	if outcome, replay, lookupErr := s.lookupCommand(ctx, scope, p.Command, p.Key, p.RequestHash); replay || lookupErr != nil {
+		if lookupErr != nil {
+			return casesAPI.WorkOutcome{}, false, lookupErr
+		}
+		return outcome, true, nil
+	}
+	// No twin under this key with this material: the honest original
+	// signal stands (the key conflict or the stale version).
+	return casesAPI.WorkOutcome{}, false, err
+}
+
 // taxonomyOf resolves the journeys dictionary of the case's pinned pack.
 // A NULL pin is the honest pre-migration refusal ("taxonomy неизвестна");
 // an unpinnable pack is an honest error, never an assumed dictionary.
@@ -212,13 +243,15 @@ func (s *Service) CreateWorkItem(ctx context.Context, command casesAPI.CreateWor
 	if err != nil {
 		return casesAPI.WorkOutcome{}, err
 	}
-	if err := s.repository.ExecuteWorkCommand(ctx, casesPort.WorkCommandParams{
+	if stored, replay, err := s.executeWork(ctx, scope, casesPort.WorkCommandParams{
 		Scope: scope, Command: "create_work_item", Key: command.IdempotencyKey, RequestHash: hash,
 		Actor: command.Actor.ID, CaseID: command.CaseID, ConversationID: command.ConversationID,
 		Type: command.Type, Title: command.Title, Reason: command.Reason,
 		WorkItemID: workItemID, Outcome: outcomeJSON, Now: command.Now.UTC().Truncate(time.Microsecond),
 	}); err != nil {
 		return casesAPI.WorkOutcome{}, err
+	} else if replay {
+		return stored, nil
 	}
 	return outcome, nil
 }
@@ -277,13 +310,15 @@ func (s *Service) ClassifyWorkItem(ctx context.Context, command casesAPI.Classif
 	if err != nil {
 		return casesAPI.WorkOutcome{}, err
 	}
-	if err := s.repository.ExecuteWorkCommand(ctx, casesPort.WorkCommandParams{
+	if stored, replay, err := s.executeWork(ctx, scope, casesPort.WorkCommandParams{
 		Scope: scope, Command: "classify_work_item", Key: command.IdempotencyKey, RequestHash: hash,
 		Actor: command.Actor.ID, CaseID: command.CaseID, WorkItemID: command.WorkItemID,
 		ExpectedVersion: command.ExpectedVersion, Type: command.Type, Title: command.Title,
 		Reason: command.Reason, ToState: state, Outcome: outcomeJSON, Now: command.Now.UTC().Truncate(time.Microsecond),
 	}); err != nil {
 		return casesAPI.WorkOutcome{}, err
+	} else if replay {
+		return stored, nil
 	}
 	return outcome, nil
 }
@@ -327,13 +362,15 @@ func (s *Service) TransitionWorkItem(ctx context.Context, command casesAPI.Trans
 	if err != nil {
 		return casesAPI.WorkOutcome{}, err
 	}
-	if err := s.repository.ExecuteWorkCommand(ctx, casesPort.WorkCommandParams{
+	if stored, replay, err := s.executeWork(ctx, scope, casesPort.WorkCommandParams{
 		Scope: scope, Command: "transition_work_item", Key: command.IdempotencyKey, RequestHash: hash,
 		Actor: command.Actor.ID, CaseID: command.CaseID, WorkItemID: command.WorkItemID,
 		ExpectedVersion: command.ExpectedVersion, ToState: command.ToState, Reason: command.Reason,
 		Outcome: outcomeJSON, Now: command.Now.UTC().Truncate(time.Microsecond),
 	}); err != nil {
 		return casesAPI.WorkOutcome{}, err
+	} else if replay {
+		return stored, nil
 	}
 	return outcome, nil
 }
@@ -397,7 +434,7 @@ func (s *Service) SplitWorkItem(ctx context.Context, command casesAPI.SplitComma
 	if err != nil {
 		return casesAPI.WorkOutcome{}, err
 	}
-	if err := s.repository.ExecuteWorkCommand(ctx, casesPort.WorkCommandParams{
+	if stored, replay, err := s.executeWork(ctx, scope, casesPort.WorkCommandParams{
 		Scope: scope, Command: "split_work_item", Key: command.IdempotencyKey, RequestHash: hash,
 		Actor: command.Actor.ID, CaseID: command.CaseID, WorkItemID: command.WorkItemID,
 		ConversationID: current.ConversationID, ExpectedVersion: command.ExpectedVersion,
@@ -405,6 +442,8 @@ func (s *Service) SplitWorkItem(ctx context.Context, command casesAPI.SplitComma
 		Outcome: outcomeJSON, Now: command.Now.UTC().Truncate(time.Microsecond),
 	}); err != nil {
 		return casesAPI.WorkOutcome{}, err
+	} else if replay {
+		return stored, nil
 	}
 	return outcome, nil
 }
@@ -466,9 +505,29 @@ func (s *Service) MergeWorkItems(ctx context.Context, command casesAPI.MergeComm
 	// sources and the target) — the store re-validates under the locks.
 	sourceIDs := make([]id.UUID, 0, len(sources))
 	sourceParams := make([]casesPort.WorkSourceParams, 0, len(sources))
+	sourceSet := map[id.UUID]bool{}
 	for _, source := range sources {
 		sourceIDs = append(sourceIDs, source.WorkItemID)
 		sourceParams = append(sourceParams, casesPort.WorkSourceParams{WorkItemID: source.WorkItemID, ExpectedVersion: source.Version})
+		sourceSet[source.WorkItemID] = true
+	}
+	// The fact lock plan: every fact whose CURRENT scope is one of the
+	// sources is rescoped by the merge — both fact keys of each anchor go
+	// into the lock plan (the store re-reads under the locks; a fact cannot
+	// move INTO a source scope while the merge holds the source work
+	// locks, so the planned set is the executed set).
+	factLocks := make([]id.UUID, 0, 4)
+	factMaterials, err := s.repository.ReadFactsOfCase(ctx, scope, command.CaseID)
+	if err != nil {
+		return casesAPI.WorkOutcome{}, err
+	}
+	for _, material := range factMaterials {
+		if len(material.Versions) == 0 {
+			continue
+		}
+		if sourceSet[material.Versions[len(material.Versions)-1].WorkItemID] {
+			factLocks = append(factLocks, material.Anchor.FactID)
+		}
 	}
 	outcome := casesAPI.WorkOutcome{
 		Command: "merge_work_items", WorkItemID: command.WorkItemID, Version: target.Version,
@@ -478,14 +537,22 @@ func (s *Service) MergeWorkItems(ctx context.Context, command casesAPI.MergeComm
 	if err != nil {
 		return casesAPI.WorkOutcome{}, err
 	}
-	if err := s.repository.ExecuteWorkCommand(ctx, casesPort.WorkCommandParams{
+	if stored, replay, err := s.executeWork(ctx, scope, casesPort.WorkCommandParams{
 		Scope: scope, Command: "merge_work_items", Key: command.IdempotencyKey, RequestHash: hash,
 		Actor: command.Actor.ID, CaseID: command.CaseID, WorkItemID: command.WorkItemID,
 		ConversationID: target.ConversationID, ExpectedVersion: command.ExpectedVersion,
 		Sources: sourceParams, Reason: command.Reason, ToState: casesDomain.WorkItemStateMerged,
-		Outcome: outcomeJSON, Now: command.Now.UTC().Truncate(time.Microsecond),
+		FactLocks: factLocks, Outcome: outcomeJSON, Now: command.Now.UTC().Truncate(time.Microsecond),
 	}); err != nil {
+		// The merge rescoped-fact write is (operator, command key, material,
+		// digest): the material identity under another actor with the same
+		// key is the honest refusal, never a raw conflict.
+		if errors.Is(err, casesDomain.ErrFactMaterialExists) {
+			return casesAPI.WorkOutcome{}, rule("merge_work_items", fmt.Errorf("ключ команды уже записал это значение факта: ключ источника не переиспользуется между операторами"))
+		}
 		return casesAPI.WorkOutcome{}, err
+	} else if replay {
+		return stored, nil
 	}
 	return outcome, nil
 }
@@ -531,13 +598,15 @@ func (s *Service) LinkEvent(ctx context.Context, command casesAPI.LinkEventComma
 	if err != nil {
 		return casesAPI.WorkOutcome{}, err
 	}
-	if err := s.repository.ExecuteWorkCommand(ctx, casesPort.WorkCommandParams{
+	if stored, replay, err := s.executeWork(ctx, scope, casesPort.WorkCommandParams{
 		Scope: scope, Command: "link_event", Key: command.IdempotencyKey, RequestHash: hash,
 		Actor: command.Actor.ID, CaseID: command.CaseID, WorkItemID: command.WorkItemID,
 		ExpectedVersion: command.ExpectedVersion, EventID: command.EventID,
 		Outcome: outcomeJSON, Now: command.Now.UTC().Truncate(time.Microsecond),
 	}); err != nil {
 		return casesAPI.WorkOutcome{}, err
+	} else if replay {
+		return stored, nil
 	}
 	return outcome, nil
 }
@@ -581,13 +650,15 @@ func (s *Service) DisputeWorkItem(ctx context.Context, command casesAPI.DisputeC
 	if err != nil {
 		return casesAPI.WorkOutcome{}, err
 	}
-	if err := s.repository.ExecuteWorkCommand(ctx, casesPort.WorkCommandParams{
+	if stored, replay, err := s.executeWork(ctx, scope, casesPort.WorkCommandParams{
 		Scope: scope, Command: "dispute_work_item", Key: command.IdempotencyKey, RequestHash: hash,
 		Actor: command.Actor.ID, CaseID: command.CaseID, WorkItemID: command.WorkItemID,
 		ExpectedVersion: command.ExpectedVersion, Note: command.Note, ExceptionID: exceptionID,
 		Outcome: outcomeJSON, Now: command.Now.UTC().Truncate(time.Microsecond),
 	}); err != nil {
 		return casesAPI.WorkOutcome{}, err
+	} else if replay {
+		return stored, nil
 	}
 	return outcome, nil
 }
@@ -656,16 +727,11 @@ func (s *Service) RecordFact(ctx context.Context, command casesAPI.RecordFactCom
 	if err != nil {
 		return casesAPI.WorkOutcome{}, rule("record_fact", err)
 	}
-	current, err := s.currentOf(ctx, scope, command.CaseID, command.WorkItemID)
-	if err != nil {
-		return casesAPI.WorkOutcome{}, err
-	}
-	if err := rule("record_fact", casesDomain.GuardRecordFact(current, command.SourceType, sourceID)); err != nil {
-		return casesAPI.WorkOutcome{}, err
-	}
-	// The material idempotency tuple: an exact repeat replays the original
-	// version; the same tuple written into another case is an honest
-	// conflict (the command key/source reuse across cases).
+	// The material idempotency tuple BEFORE the scope guard: an exact
+	// repeat of the material replays the original version regardless of
+	// the CURRENT scope state (nothing is written — the terminal scope
+	// refusal applies to NEW material only); the same tuple written into
+	// another case is an honest conflict (the source reuse across cases).
 	existing, found, err := s.repository.LookupFactVersionBySource(ctx, scope, command.SourceType, sourceID, materialKey, valueDigest)
 	if err != nil {
 		return casesAPI.WorkOutcome{}, err
@@ -674,15 +740,22 @@ func (s *Service) RecordFact(ctx context.Context, command casesAPI.RecordFactCom
 		if existing.CaseID != command.CaseID {
 			return casesAPI.WorkOutcome{}, rule("record_fact", fmt.Errorf("источник уже записал это значение в другом обращении: ключ источника не переиспользуется между обращениями"))
 		}
-		material, err := s.repository.ReadFactMaterial(ctx, scope, command.CaseID, existing.FactID)
+		replayMaterial, err := s.repository.ReadFactMaterial(ctx, scope, command.CaseID, existing.FactID)
 		if err != nil {
 			return casesAPI.WorkOutcome{}, err
 		}
-		status, _ := casesDomain.DeriveFactStatus(material.Versions, material.Confirmations)
+		replayStatus, _ := casesDomain.DeriveFactStatus(replayMaterial.Versions, replayMaterial.Confirmations)
 		return casesAPI.WorkOutcome{
 			Command: "record_fact", Replay: true, FactID: existing.FactID, FactVersion: existing.VersionNo,
-			FactStatus: status, WorkItemID: existing.WorkItemID,
+			FactStatus: replayStatus, WorkItemID: existing.WorkItemID,
 		}, nil
+	}
+	current, err := s.currentOf(ctx, scope, command.CaseID, command.WorkItemID)
+	if err != nil {
+		return casesAPI.WorkOutcome{}, err
+	}
+	if err := rule("record_fact", casesDomain.GuardRecordFact(current, command.SourceType, sourceID)); err != nil {
+		return casesAPI.WorkOutcome{}, err
 	}
 	// The fact anchor: find-or-create by the material key.
 	factID, err := s.ids.New(command.Now)
@@ -713,7 +786,7 @@ func (s *Service) RecordFact(ctx context.Context, command casesAPI.RecordFactCom
 	if err != nil {
 		return casesAPI.WorkOutcome{}, err
 	}
-	err = s.repository.ExecuteWorkCommand(ctx, casesPort.WorkCommandParams{
+	if stored, replay, err := s.executeWork(ctx, scope, casesPort.WorkCommandParams{
 		Scope: scope, Command: "record_fact", Key: command.IdempotencyKey, RequestHash: hash,
 		Actor: command.Actor.ID, CaseID: command.CaseID, WorkItemID: command.WorkItemID,
 		ExpectedVersion: expectedVersions, FactID: factID, MaterialKey: materialKey,
@@ -721,25 +794,33 @@ func (s *Service) RecordFact(ctx context.Context, command casesAPI.RecordFactCom
 		Channel: channel, ObservedAt: observedAt.UTC().Truncate(time.Microsecond),
 		ReceivedAt: receivedAt.UTC().Truncate(time.Microsecond), Reason: command.Reason,
 		Outcome: outcomeJSON, Now: command.Now.UTC().Truncate(time.Microsecond),
-	})
-	if err != nil {
+	}); err != nil {
 		// A raced material write resolves with ONE fresh lookup — never a
-		// recursion: the same case replays the original version, another
-		// case is the honest cross-case conflict.
+		// recursion: the same case replays the original version with the
+		// honestly DERIVED status (the same derivation as the pre-lookup
+		// replay, never a hardcoded word), another case is the honest
+		// cross-case conflict.
 		if errors.Is(err, casesDomain.ErrFactMaterialExists) {
 			fresh, found, lookupErr := s.repository.LookupFactVersionBySource(ctx, scope, command.SourceType, sourceID, materialKey, valueDigest)
 			if lookupErr != nil {
 				return casesAPI.WorkOutcome{}, lookupErr
 			}
 			if found && fresh.CaseID == command.CaseID {
+				freshMaterial, materialErr := s.repository.ReadFactMaterial(ctx, scope, command.CaseID, fresh.FactID)
+				if materialErr != nil {
+					return casesAPI.WorkOutcome{}, materialErr
+				}
+				freshStatus, _ := casesDomain.DeriveFactStatus(freshMaterial.Versions, freshMaterial.Confirmations)
 				return casesAPI.WorkOutcome{
 					Command: "record_fact", Replay: true, FactID: fresh.FactID,
-					FactVersion: fresh.VersionNo, FactStatus: casesDomain.FactStatusUnverified, WorkItemID: fresh.WorkItemID,
+					FactVersion: fresh.VersionNo, FactStatus: freshStatus, WorkItemID: fresh.WorkItemID,
 				}, nil
 			}
 			return casesAPI.WorkOutcome{}, rule("record_fact", fmt.Errorf("источник уже записал это значение (возможно, в другом обращении): ключ источника не переиспользуется"))
 		}
 		return casesAPI.WorkOutcome{}, err
+	} else if replay {
+		return stored, nil
 	}
 	return outcome, nil
 }
@@ -806,14 +887,17 @@ func (s *Service) ConfirmFactVersion(ctx context.Context, command casesAPI.Confi
 	if err != nil {
 		return casesAPI.WorkOutcome{}, err
 	}
-	if err := s.repository.ExecuteWorkCommand(ctx, casesPort.WorkCommandParams{
+	if stored, replay, err := s.executeWork(ctx, scope, casesPort.WorkCommandParams{
 		Scope: scope, Command: "confirm_fact_version", Key: command.IdempotencyKey, RequestHash: hash,
 		Actor: command.Actor.ID, CaseID: command.CaseID, FactID: command.FactID,
+		MaterialKey:     material.Anchor.MaterialKey,
 		ExpectedVersion: int64(len(material.Versions)), VersionNo: command.VersionNo,
 		ConfirmerType: command.ConfirmerType, EvidenceEventID: command.EvidenceEventID, Note: command.Note,
 		ExceptionID: confirmationID, Outcome: outcomeJSON, Now: command.Now.UTC().Truncate(time.Microsecond),
 	}); err != nil {
 		return casesAPI.WorkOutcome{}, err
+	} else if replay {
+		return stored, nil
 	}
 	return outcome, nil
 }
@@ -872,7 +956,7 @@ func (s *Service) RescopeFact(ctx context.Context, command casesAPI.RescopeFactC
 	if err != nil {
 		return casesAPI.WorkOutcome{}, err
 	}
-	if err := s.repository.ExecuteWorkCommand(ctx, casesPort.WorkCommandParams{
+	if stored, replay, err := s.executeWork(ctx, scope, casesPort.WorkCommandParams{
 		Scope: scope, Command: "rescope_fact", Key: command.IdempotencyKey, RequestHash: hash,
 		Actor: command.Actor.ID, CaseID: command.CaseID, FactID: command.FactID,
 		TargetWorkItem: command.TargetWorkItem, ExpectedVersion: command.ExpectedVersion,
@@ -881,7 +965,16 @@ func (s *Service) RescopeFact(ctx context.Context, command casesAPI.RescopeFactC
 		Channel: "operator", ObservedAt: command.Now.UTC(), ReceivedAt: command.Now.UTC(),
 		Reason: command.Reason, Outcome: outcomeJSON, Now: command.Now.UTC().Truncate(time.Microsecond),
 	}); err != nil {
+		// The rescoped write is (operator, command key, material, digest):
+		// the material identity under the key of ANOTHER actor is the
+		// honest refusal (the same actor races resolve through the
+		// command record replay path, never this branch).
+		if errors.Is(err, casesDomain.ErrFactMaterialExists) {
+			return casesAPI.WorkOutcome{}, rule("rescope_fact", fmt.Errorf("ключ команды уже записал это значение факта: ключ источника не переиспользуется между операторами"))
+		}
 		return casesAPI.WorkOutcome{}, err
+	} else if replay {
+		return stored, nil
 	}
 	return outcome, nil
 }

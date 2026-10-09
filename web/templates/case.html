@@ -5,7 +5,7 @@
 <p><strong>{{.View.NoAutoReplyText}}</strong> Исходящие сообщения — последующие stories контура.</p>
 <p class="next-note">Сотрудник: <span class="digest-block">{{.View.EmployeeID}}</span>. Создано: {{.View.CreatedAt}}. Domain Pack: <span class="digest-block">{{.View.PackText}}</span>. Case ID: <span class="digest-block">{{.View.CaseID}}</span>.</p>
 <p class="next-note">Ваши полномочия на этой странице: {{.View.ScopeText}}.</p>
-{{if .View.Flash}}<p class="alert" role="alert">{{.View.Flash}}</p>{{end}}
+{{if .View.Flash}}<p class="alert" role="alert" tabindex="-1" id="case-flash">{{.View.Flash}}</p><script>addEventListener('DOMContentLoaded', () => document.getElementById('case-flash').focus());</script>{{end}}
 
 <h2>Work Control Card — рабочие элементы</h2>
 <p class="next-note">Версии — истина: каждая команда пишет новую версию; текущее состояние и тип — производные. Автоматической связи событий с элементами нет; факты не выбирают значение сами — только подтверждение человеком.</p>
@@ -154,7 +154,7 @@
 <form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/facts">
 <label for="fact-scope">Элемент-скоуп</label>
 <select id="fact-scope" name="work_item_id" required>{{range $.View.ActiveWIOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}</select>
-<label for="fact-key">Материальный ключ (до 64 символов, например: автомобиль, деталь, артикул)</label>
+<label for="fact-key">{{$.View.MaterialKeyHints}}</label>
 <input id="fact-key" name="material_key" type="text" required maxlength="64">
 <label for="fact-value">Значение — один JSON (до 2 КБ, например {"model":"Civic","year":2020})</label>
 <textarea id="fact-value" name="value" required rows="3"></textarea>

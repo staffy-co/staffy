@@ -36,6 +36,11 @@ const (
 // (the real manifest of auto-parts@1.0.0 — «поиск детали», «уточнение аналога»).
 var fixtureJourneys = []string{"поиск детали", "уточнение аналога"}
 
+// fixtureCriticalEntities is the material key dictionary of the same
+// manifest (the fact form hint comes from the pinned pack, never a
+// hardcoded list — «деталь, артикул, автомобиль» of auto-parts@1.0.0).
+var fixtureCriticalEntities = []string{"деталь", "артикул", "автомобиль"}
+
 // workCurrentOf derives the current view of one work item from the ladder
 // (the same derivation the store executes: the maximal version carries the
 // state; the type/title travel with the create/classify rows).

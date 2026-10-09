@@ -1,7 +1,10 @@
 package domain
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -307,6 +310,14 @@ func NormalizeMaterialKey(raw string) (string, error) {
 // UseNumber discipline as the ingress payload (the numeric precision is
 // material content; 1 and 1.0 are different values), the digest over the
 // canonical bytes, the 2 KiB dictionary bound.
+//
+// The jsonb number discipline: exponential literals (1e10) are legal JSON
+// but the PostgreSQL jsonb EXPANDS them into the digit form on storage —
+// the canonical bytes (the digest material) and the stored rendering
+// would diverge, and a dense exponential array would outrun the CHECK
+// backstop of the migration. The fact values of the slice accept the
+// digit-form numbers only; the operator rewrites 1e10 as 10000000000 (an
+// honest rule refusal, never a 500 on the CHECK).
 func FactValue(raw []byte) ([]byte, string, error) {
 	canonical, err := CanonicalPayload(raw)
 	if err != nil {
@@ -315,7 +326,51 @@ func FactValue(raw []byte) ([]byte, string, error) {
 	if len(canonical) > MaxFactValueBytes {
 		return nil, "", fmt.Errorf("значение факта длиннее %d байт канонического JSON", MaxFactValueBytes)
 	}
+	if err := assertJsonbStableNumbers(canonical); err != nil {
+		return nil, "", err
+	}
 	return canonical, PayloadDigest(canonical), nil
+}
+
+// jsonbNumberLiteral is the digit form of a JSON number — the only literal
+// whose jsonb rendering never expands: the PostgreSQL numeric preserves
+// every digit and the decimal scale, so the stored text matches the
+// canonical bytes (the -0 → 0 shrink is the single safe exception).
+var jsonbNumberLiteral = regexp.MustCompile(`^-?\d+(\.\d+)?$`)
+
+// assertJsonbStableNumbers walks the decoded canonical value and refuses
+// the exponential literals (and any other number spelling whose jsonb
+// rendering would diverge from the canonical bytes).
+func assertJsonbStableNumbers(canonical []byte) error {
+	var value any
+	decoder := json.NewDecoder(bytes.NewReader(canonical))
+	decoder.UseNumber()
+	if err := decoder.Decode(&value); err != nil {
+		return fmt.Errorf("значение факта должно быть одним JSON-значением: %w", err)
+	}
+	return walkJsonbStableNumbers(value)
+}
+
+func walkJsonbStableNumbers(value any) error {
+	switch typed := value.(type) {
+	case json.Number:
+		if !jsonbNumberLiteral.MatchString(typed.String()) {
+			return fmt.Errorf("число %s записано не в цифровой форме: значение факта не принимает экспоненциальную запись (перезапишите, например, 1e10 как 10000000000)", typed.String())
+		}
+	case []any:
+		for _, item := range typed {
+			if err := walkJsonbStableNumbers(item); err != nil {
+				return err
+			}
+		}
+	case map[string]any:
+		for _, item := range typed {
+			if err := walkJsonbStableNumbers(item); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // FactSourceChannel resolves the provenance channel: a channel_event

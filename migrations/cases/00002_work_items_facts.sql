@@ -84,7 +84,15 @@ CREATE TABLE cases.fact_versions (
  version_no bigint NOT NULL CHECK (version_no > 0),
  work_item_id uuid NOT NULL,
  material_key text NOT NULL CHECK (char_length(material_key) BETWEEN 1 AND 64),
- value jsonb NOT NULL CHECK (octet_length(value::text) BETWEEN 1 AND 2048),
+ -- The domain owns the value limit: 2048 CANONICAL bytes, and the domain
+ -- also refuses the exponential number literals (1e10 expands in jsonb).
+ -- The digit-form numbers never expand (the PostgreSQL numeric preserves
+ -- every digit and the decimal scale); the jsonb text rendering adds one
+ -- space after every ':' and ',' — up to ~50% on separator-dense arrays —
+ -- so the backstop here is 3072 text bytes: a domain-valid value always
+ -- fits, a domain-invalid one never reaches the table (the honest 23514
+ -- is a dead state, not a reachable 500).
+ value jsonb NOT NULL CHECK (octet_length(value::text) BETWEEN 1 AND 3072),
  value_digest char(64) NOT NULL CHECK (char_length(value_digest) = 64),
  source_type text NOT NULL CHECK (source_type IN ('channel_event','operator','connector','system')),
  source_id text NOT NULL CHECK (char_length(source_id) BETWEEN 1 AND 200),

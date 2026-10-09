@@ -148,3 +148,11 @@
 - source_spec: `spec-2-2-work-items-facts-provenance.md`
   summary: Work item версии и dispute имеют НЕСКОЛЬКО advisory-локов вместо row FOR UPDATE: SELECT FOR UPDATE требует привилегию UPDATE, которую append-only гранты (INSERT/SELECT) сознательно не выдают; якоря сериализуются advisory-локами в детерминированном порядке (прецедент AcceptEvent) — материальная безопасность идентична, но гранулярность ниже строковой.
   evidence: store/work.go ExecuteWorkCommand — lockKeys sorted + mapWorkInsertError; комментарий currentForUpdate фиксирует разрешение напряжения «FOR UPDATE якоря» против «грантов INSERT/SELECT только»; спека Boundaries требует оба — конфликт разрешён в пользу append-only (суть дисциплины).
+
+- source_spec: `spec-2-2-work-items-facts-provenance.md`
+  summary: N+1 чтения производных представлений: ReadWorkItemCurrents — запрос JOIN LATERAL на каждый WI, ReadFactsOfCase — два запроса на каждый факт (якорь + версии). Для среза допустимо (кейс стартует с 1-2 элементами), с возрастом кейса чтение деградирует линейно; пакетные чтения одной CASE WHEN-проецией — оптимизация будущих stories с бенчмарком.
+  evidence: review R1 m10 (Task 25-r1); store/work.go ReadWorkItemCurrents/ReadFactsOfCase; интеграционные тесты не измеряют план чтения.
+
+- source_spec: `spec-2-2-work-items-facts-provenance.md`
+  summary: Coverage локов после фиксов R1: унифицированная пара факт-ключей (material key + fact id) закрывает все пути записи фактов (record/confirm/rescope/merge — факты источника в плане локов merge), record_fact дополнительно держит work-лок скоупа с терминальной проверкой под локом; ОСТАЮЩИЙСЯ класс — три+ одновременных писателя одного факта, где merge ре-скоупит факт, спланированный ДО чужой записи (merge не держит факт-локи фактов, появившихся после планирования) — закрыт backstop-маппингом fact_versions_pkey → ErrStaleVersion (честный 409-stale, никогда сырой 500). Полная защита от этого класса = case-уровневый advisory-лок на merge (сериализация всех команд кейса) — отложена до реальных нагрузочных сценариев.
+  evidence: review R1 M1/M2 (Task 25-r1) + фиксы; store/work.go lock-план и mapWorkInsertError; конкурентные интеграционные тесты TestRacedFactWritersSerializeOnTheUnifiedFactLocks/TestMergeConcurrentRecordNeverLeaksRawConflicts; this-запись честности.

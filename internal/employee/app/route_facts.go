@@ -168,6 +168,21 @@ func (s *Service) PackJourneys(packID, packVersion string) ([]string, error) {
 	return append([]string(nil), manifest.Journeys...), nil
 }
 
+// PackCriticalEntities resolves the material key dictionary of one Domain
+// Pack version (the fact form hints of the Work Control Card). The same
+// immutability guarantees as PackJourneys; an unknown pack version is an
+// honest error, never an assumed hint list.
+func (s *Service) PackCriticalEntities(packID, packVersion string) ([]string, error) {
+	if packID == "" || packVersion == "" {
+		return nil, fmt.Errorf("пак не закреплён: словарь материальных ключей неизвестен")
+	}
+	manifest, ok := packs.Get(packID, packVersion)
+	if !ok {
+		return nil, fmt.Errorf("закреплённый пак %s@%s не читается из каталога: манифест отсутствует", packID, packVersion)
+	}
+	return append([]string(nil), manifest.CriticalEntities...), nil
+}
+
 // entitlementAdmissionWord relays the scope-based entitlement admission
 // state. Without the port the facade honestly refuses.
 func (s *Service) entitlementAdmissionWord(ctx context.Context, scope tenancy.Context) (api.RouteEntitlementWord, error) {

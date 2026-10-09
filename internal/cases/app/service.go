@@ -512,20 +512,24 @@ func (s *Service) viewScope(ctx context.Context, actor domain.Principal, tenantI
 	}
 	rights := viewRights{}
 	memberWithoutScope := false
+	anyScope := false
 	var infraFailure error
 	for _, required := range []domain.Scope{domain.Review, domain.Configuration, domain.Audit} {
 		err := s.identity.Authorize(ctx, actor, tenantID, required)
 		if err == nil {
-			// The payload/facts boundary is review or audit (a
-			// configuration-only member sees the metadata surface); the
-			// work command boundary is review only.
-			if required != domain.Configuration {
+			// The rights accumulate over EVERY scope of the member (the
+			// first match does not decide): the payload/facts boundary is
+			// review or audit — a configuration+audit member sees the
+			// values even though configuration alone shows the metadata
+			// surface; the work command boundary is review only.
+			anyScope = true
+			if required == domain.Review || required == domain.Audit {
 				rights.Payload = true
 			}
 			if required == domain.Review {
 				rights.Manage = true
 			}
-			return scope, rights, nil
+			continue
 		}
 		if errors.Is(err, domain.ErrForbidden) {
 			memberWithoutScope = true
@@ -535,6 +539,12 @@ func (s *Service) viewScope(ctx context.Context, actor domain.Principal, tenantI
 			continue
 		}
 		infraFailure = err
+	}
+	// A member with at least one scope keeps the view (a configuration-only
+	// member sees the metadata surface — the honest refusal of the payload
+	// comes from the empty rights, not from the scope).
+	if anyScope {
+		return scope, rights, nil
 	}
 	if infraFailure != nil {
 		return tenancy.Context{}, viewRights{}, infraFailure
@@ -607,13 +617,26 @@ func (s *Service) CaseView(ctx context.Context, actor domain.Principal, tenantID
 	if taxonomy == nil {
 		taxonomy = []string{}
 	}
+	// The material key hints of the same pin: the CriticalEntities
+	// dictionary of the pack (the fact form hint comes from the pinned
+	// pack, never a hardcoded list); an unreadable pin degrades to the
+	// generic placeholder, honestly.
+	var criticalEntities []string
+	if detail.Case.PackID != "" && s.taxonomy != nil {
+		if entities, err := s.taxonomy.PackCriticalEntities(detail.Case.PackID, detail.Case.PackVersion); err == nil {
+			criticalEntities = entities
+		}
+	}
+	if criticalEntities == nil {
+		criticalEntities = []string{}
+	}
 	return casesAPI.CaseView{
 		TenantID: tenantID, Case: detail.Case, Conversations: detail.Conversations,
 		Timeline: detail.Timeline, WorkItems: detail.WorkItems, Exceptions: detail.Exceptions,
 		UntriagedText:   "Запрос ещё не классифицирован.",
 		NoAutoReplyText: "Автоответ клиенту не отправляется.",
 		CanViewPayload:  rights.Payload, CanViewFacts: rights.Payload, CanManageWork: rights.Manage,
-		ViewScope: casesAPI.CaseScopeView, TaxonomyTypes: taxonomy,
+		ViewScope: casesAPI.CaseScopeView, TaxonomyTypes: taxonomy, CriticalEntities: criticalEntities,
 	}, nil
 }
 

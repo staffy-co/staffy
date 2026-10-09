@@ -7,11 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
 	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
+	identityAPI "github.com/artemiosu/staffy/internal/identity/api"
 	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
 	"github.com/artemiosu/staffy/internal/platform/id"
 )
@@ -635,6 +637,41 @@ func TestWorkCommandsAuthorizationAndPrivacy(t *testing.T) {
 		t.Fatalf("expected the facts boundary refusal, got %v", err)
 	}
 
+	// A configuration+audit member: the audit scope ADDS the payload/facts
+	// boundary on top of the configuration one (the viewScope accumulates
+	// the rights of EVERY scope — the first match does not decide; the
+	// work commands stay review-only). The role matrix needs both roles:
+	// the Configurator carries the configuration scope, the ExpertQA the
+	// audit one.
+	configAuditCorrelation := id.MustParse("01994f64-6c00-7000-8000-000000004145")
+	_, configAuditToken, err := w.identity.InviteMember(ctx, identityAPI.MembershipCommand{
+		Actor: w.owner, TenantID: w.tenant, Email: "cases-config-audit-414@example.org",
+		Roles:  []identityDomain.Role{identityDomain.Configurator, identityDomain.ExpertQA},
+		Scopes: []identityDomain.Scope{identityDomain.Configuration, identityDomain.Audit}, CorrelationID: configAuditCorrelation,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	configAudit := identityDomain.Principal{ID: id.MustParse("01994f64-6c00-7000-8000-000000041425"), VerifiedEmail: "cases-config-audit-414@example.org"}
+	if _, err = w.identity.AcceptInvitation(ctx, configAudit, configAuditToken, configAuditCorrelation); err != nil {
+		t.Fatal(err)
+	}
+	facts, err := w.cases.FactsView(ctx, configAudit, w.tenant, caseID)
+	if err != nil {
+		t.Fatalf("the configuration+audit member sees the fact values: %v", err)
+	}
+	if len(facts.Facts) != 0 {
+		t.Fatalf("the case has no facts yet, got %+v", facts.Facts)
+	}
+	if _, err := w.cases.RecordFact(ctx, casesAPI.RecordFactCommand{
+		Actor: configAudit, TenantID: w.tenant, CaseID: caseID, WorkItemID: workItemID,
+		MaterialKey: "деталь", Value: []byte(`"clip"`),
+		SourceType: casesDomain.FactSourceOperator, SourceID: "auth-audit-fact-1",
+		IdempotencyKey: "auth-audit-fact-1", Now: casesClock.Now(),
+	}); !errors.Is(err, identityDomain.ErrForbidden) {
+		t.Fatalf("the work command boundary stays review-only, got %v", err)
+	}
+
 	// A member of another tenant: the plain 404 (no tenant disclosure).
 	other := inviteMember(t, w.identity, w.owner, w.tenant, "cases-foreign-414@example.org", "expert_qa",
 		[]identityDomain.Scope{identityDomain.Review}, "000000004142", "000000041422")
@@ -763,3 +800,428 @@ func TestClassifyRefusesThePreMigrationCaseWithoutPin(t *testing.T) {
 }
 
 var _ = time.Now
+
+// ---------------------------------------------------------------------------
+// The concurrency battery of the R1 fixes: the raced classes the sequential
+// tests cannot see. Every assertion is interleaving-independent — the honest
+// signal set is fixed, the net effect on the version ladders is fixed; the
+// winner is not.
+// ---------------------------------------------------------------------------
+
+// conversationOf answers the first conversation id of the case (the
+// CreateWorkItem target surface of the concurrency battery).
+func conversationOf(t *testing.T, w *casesWorld, caseID id.UUID) id.UUID {
+	t.Helper()
+	detail, err := w.cases.CaseView(context.Background(), w.workActor(), w.tenant, caseID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(detail.Conversations) == 0 {
+		t.Fatal("expected at least one conversation of the accepted case")
+	}
+	return detail.Conversations[0].ConversationID
+}
+
+// isHonestWorkSignal fails unless the error is one of the honest answers of
+// the work surface: a rule refusal, the stale version, the key conflict or
+// the material conflict (a raw 23505/500 — the M1 class — fails loudly).
+func isHonestWorkSignal(t *testing.T, err error, context string) {
+	t.Helper()
+	if err == nil {
+		return
+	}
+	if errors.Is(err, casesDomain.ErrStaleVersion) || errors.Is(err, casesDomain.ErrCommandKeyConflict) || errors.Is(err, casesDomain.ErrFactMaterialExists) {
+		return
+	}
+	var ruleErr casesDomain.WorkRuleError
+	if errors.As(err, &ruleErr) {
+		return
+	}
+	t.Fatalf("%s: unexpected non-honest error class (the raw conflict leak of the M1 review class): %v", context, err)
+}
+
+// TestRacedIdenticalCommandsReplayTheStoredOutcome covers the M3 class: two
+// concurrent byte-identical commands both pass the pre-lookup; the anchor
+// locks serialize them, the twin commits first, the loser re-validates and
+// fails (stale or the command record pkey) — the inline key resolution
+// replays the stored outcome: the client of a double click sees two equal
+// answers, the net effect is exactly one version.
+func TestRacedIdenticalCommandsReplayTheStoredOutcome(t *testing.T) {
+	w := newCasesWorld(t, 517)
+	// The race needs the thread-safe real generator (the 2-1 precedent).
+	w.cases = w.buildCasesService(&employeeIDs{})
+	ctx := context.Background()
+	caseID, workItemID := w.acceptedCase(t, "evt-raced-key-1", "sess-raced-key-1", `{"call":"inbound-call","from":"+79000000048"}`)
+	command := casesAPI.RecordFactCommand{
+		Actor: w.workActor(), TenantID: w.tenant, CaseID: caseID, WorkItemID: workItemID,
+		MaterialKey: "автомобиль", Value: []byte(`{"model":"Civic"}`),
+		SourceType: casesDomain.FactSourceOperator, SourceID: "raced-key-source-1",
+		Reason: "Одновременный двойной клик", IdempotencyKey: "raced-key-1", Now: casesClock.Now(),
+	}
+	results := make([]casesAPI.WorkOutcome, 2)
+	errs := make([]error, 2)
+	start := make(chan struct{})
+	var group sync.WaitGroup
+	for index := range results {
+		group.Add(1)
+		go func(i int) {
+			defer group.Done()
+			<-start
+			results[i], errs[i] = w.cases.RecordFact(ctx, command)
+		}(index)
+	}
+	close(start)
+	group.Wait()
+	for index, err := range errs {
+		if err != nil {
+			t.Fatalf("raced twin %d: the identical repeat must resolve honestly, got %v", index, err)
+		}
+	}
+	if results[0].FactID != results[1].FactID || results[0].FactVersion != results[1].FactVersion {
+		t.Fatalf("the raced twins must answer the identical material, got %+v and %+v", results[0], results[1])
+	}
+	applied := 0
+	for _, result := range results {
+		if !result.Replay {
+			applied++
+		}
+	}
+	if applied != 1 {
+		t.Fatalf("exactly one twin applies, the other replays; applied=%d", applied)
+	}
+	facts, err := w.cases.FactsView(ctx, w.workActor(), w.tenant, caseID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(facts.Facts) != 1 || len(facts.Facts[0].Versions) != 1 {
+		t.Fatalf("expected exactly one fact with one version after the raced twins, got %+v", facts.Facts)
+	}
+}
+
+// TestRacedFactWritersSerializeOnTheUnifiedFactLocks covers the M1 class: a
+// record of a NEW value of one fact and a rescope of the same fact race —
+// the unified fact key pair (the material key AND the fact id of BOTH
+// commands) serializes them; one applies, the other answers the honest
+// stale signal; the version ladder grows by exactly one step and never
+// leaks a raw 23505 (the deterministic 500 of the review probe).
+func TestRacedFactWritersSerializeOnTheUnifiedFactLocks(t *testing.T) {
+	w := newCasesWorld(t, 518)
+	// The race needs the thread-safe real generator (the 2-1 precedent).
+	w.cases = w.buildCasesService(&employeeIDs{})
+	ctx := context.Background()
+	caseID, workItemID := w.acceptedCase(t, "evt-raced-fact-1", "sess-raced-fact-1", `{"call":"inbound-call","from":"+79000000049"}`)
+	classifyInput := w.workBaseInput(caseID, workItemID, 1)
+	classifyInput.Reason, classifyInput.IdempotencyKey = "Классификация", "raced-fact-classify-1"
+	if _, err := w.cases.ClassifyWorkItem(ctx, casesAPI.ClassifyCommand{
+		WorkCommandInput: classifyInput, Type: "поиск детали", Title: "Гонка писателей факта",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	firstEventID := eventIDOf(t, w, caseID, "evt-raced-fact-1")
+	record := casesAPI.RecordFactCommand{
+		Actor: w.workActor(), TenantID: w.tenant, CaseID: caseID, WorkItemID: workItemID,
+		MaterialKey: "автомобиль", Value: []byte(`{"model":"Civic"}`),
+		SourceType: casesDomain.FactSourceChannelEvent, SourceID: firstEventID.String(),
+		Reason: "Первая версия", IdempotencyKey: "raced-fact-1", Now: casesClock.Now(),
+	}
+	first, err := w.cases.RecordFact(ctx, record)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The second work item: the rescope target.
+	detail, err := w.cases.CaseView(ctx, w.workActor(), w.tenant, caseID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	created, err := w.cases.CreateWorkItem(ctx, casesAPI.CreateWorkItemCommand{
+		Actor: w.workActor(), TenantID: w.tenant, CaseID: caseID,
+		ConversationID: detail.Conversations[0].ConversationID,
+		Type:           "уточнение аналога", Title: "Цель переноса",
+		Reason: "Второй элемент для переноса", IdempotencyKey: "raced-fact-create-1", Now: casesClock.Now(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The racing pair: the rescope of the existing fact and the record of a
+	// NEW value under the same material key (a different command key and a
+	// different source — no idempotency shortcut between them).
+	rescope := casesAPI.RescopeFactCommand{
+		Actor: w.workActor(), TenantID: w.tenant, CaseID: caseID, FactID: first.FactID,
+		TargetWorkItem: created.WorkItemID, ExpectedVersion: 1,
+		Reason: "Одновременный перенос", IdempotencyKey: "raced-rescope-1", Now: casesClock.Now(),
+	}
+	newValue := record
+	newValue.Value = []byte(`{"model":"Civic","year":2020}`)
+	newValue.SourceType = casesDomain.FactSourceOperator
+	newValue.SourceID = "raced-fact-second-source-1"
+	newValue.IdempotencyKey = "raced-record-2"
+	newValue.Reason = "Одновременное новое значение"
+	type commandResult struct {
+		outcome casesAPI.WorkOutcome
+		err     error
+	}
+	results := make(chan commandResult, 2)
+	start := make(chan struct{})
+	var group sync.WaitGroup
+	run := func(call func() (casesAPI.WorkOutcome, error)) {
+		group.Add(1)
+		go func() {
+			defer group.Done()
+			<-start
+			outcome, err := call()
+			results <- commandResult{outcome, err}
+		}()
+	}
+	run(func() (casesAPI.WorkOutcome, error) { return w.cases.RescopeFact(ctx, rescope) })
+	run(func() (casesAPI.WorkOutcome, error) { return w.cases.RecordFact(ctx, newValue) })
+	close(start)
+	group.Wait()
+	close(results)
+	for result := range results {
+		isHonestWorkSignal(t, result.err, "the raced fact writer")
+	}
+	facts, err := w.cases.FactsView(ctx, w.workActor(), w.tenant, caseID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(facts.Facts) != 1 {
+		t.Fatalf("one fact anchor carries the raced writers, got %d", len(facts.Facts))
+	}
+	// The honest interleavings: BOTH commands re-plan their expectation at
+	// entry — if the twin committed before the entry read, the ladder is
+	// 1+2 steps (both applied, contiguous); if both read the same height,
+	// the loser under the unified locks answers the stale signal (1 step).
+	// Never a raw conflict, never a broken ladder.
+	versions := facts.Facts[0].Versions
+	if len(versions) < 2 || len(versions) > 3 {
+		t.Fatalf("the ladder grows by one or two contiguous steps over the raced pair, got %d", len(versions))
+	}
+	for index, version := range versions {
+		if version.VersionNo != int64(index+1) {
+			t.Fatalf("the version numbers stay contiguous, got %+v", versions)
+		}
+	}
+	if len(versions) == 3 && versions[2].ValueDigest == versions[1].ValueDigest {
+		t.Fatalf("the third step must be the new value, not a rescope echo, got %+v", versions)
+	}
+}
+
+// TestRecordFactRefusesTheTerminalWorkItemUnderTheLock covers the M2 class
+// and the m4 letter of the material idempotency: a terminal scope refuses
+// the NEW fact material honestly (the guard runs under the work lock — the
+// re-check cannot be skipped by a concurrent transition), while the exact
+// repeat of the material recorded while the item was active replays the
+// original version (a repeat writes nothing, the terminal scope refusal
+// applies to new material only).
+func TestRecordFactRefusesTheTerminalWorkItemUnderTheLock(t *testing.T) {
+	w := newCasesWorld(t, 519)
+	ctx := context.Background()
+	caseID, workItemID := w.acceptedCase(t, "evt-terminal-1", "sess-terminal-1", `{"call":"inbound-call","from":"+79000000050"}`)
+	classifyInput := w.workBaseInput(caseID, workItemID, 1)
+	classifyInput.Reason, classifyInput.IdempotencyKey = "Классификация", "terminal-classify-1"
+	if _, err := w.cases.ClassifyWorkItem(ctx, casesAPI.ClassifyCommand{
+		WorkCommandInput: classifyInput, Type: "поиск детали", Title: "Терминальный скоуп",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	firstEventID := eventIDOf(t, w, caseID, "evt-terminal-1")
+	recorded := casesAPI.RecordFactCommand{
+		Actor: w.workActor(), TenantID: w.tenant, CaseID: caseID, WorkItemID: workItemID,
+		MaterialKey: "автомобиль", Value: []byte(`{"model":"Civic"}`),
+		SourceType: casesDomain.FactSourceChannelEvent, SourceID: firstEventID.String(),
+		Reason: "Материал при активном элементе", IdempotencyKey: "terminal-fact-1", Now: casesClock.Now(),
+	}
+	first, err := w.cases.RecordFact(ctx, recorded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	transitionInput := w.workBaseInput(caseID, workItemID, 2)
+	transitionInput.Reason, transitionInput.IdempotencyKey = "Завершение", "terminal-transition-1"
+	if _, err := w.cases.TransitionWorkItem(ctx, casesAPI.TransitionCommand{
+		WorkCommandInput: transitionInput, ToState: "resolved",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	// The NEW material on the terminal scope: the honest rule refusal.
+	newMaterial := recorded
+	newMaterial.MaterialKey = "деталь"
+	newMaterial.Value = []byte(`{"part":"brake-pads"}`)
+	newMaterial.IdempotencyKey = "terminal-fact-2"
+	newMaterial.Reason = "Новое значение на завершённом элементе"
+	_, err = w.cases.RecordFact(ctx, newMaterial)
+	assertRuleError(t, err, "факт нельзя записать в скоуп элемента в состоянии resolved")
+	// The EXACT material repeat: the replay of the original version (the
+	// m4 letter — the terminal refusal never blocks a repeat that writes
+	// nothing).
+	repeat := recorded
+	repeat.IdempotencyKey = "terminal-fact-3"
+	repeat.Reason = "Точный повтор на завершённом элементе"
+	replayed, err := w.cases.RecordFact(ctx, repeat)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !replayed.Replay || replayed.FactID != first.FactID || replayed.FactVersion != 1 {
+		t.Fatalf("expected the material replay on the terminal scope, got %+v", replayed)
+	}
+	facts, err := w.cases.FactsView(ctx, w.workActor(), w.tenant, caseID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(facts.Facts) != 1 || len(facts.Facts[0].Versions) != 1 {
+		t.Fatalf("no new versions after the terminal refusals and the replay, got %+v", facts.Facts)
+	}
+}
+
+// TestMergeConcurrentRecordNeverLeaksRawConflicts covers the merge lock
+// plan: a merge of one source and a concurrent record of a NEW fact onto
+// that source race — the merge holds the source work lock (the record
+// scope fence), the planned fact set covers the pre-read facts; whichever
+// order the DB picks, both commands answer the honest signal set and the
+// ladders stay contiguous (never a raw 23505 — the M1 probe of the
+// review).
+func TestMergeConcurrentRecordNeverLeaksRawConflicts(t *testing.T) {
+	w := newCasesWorld(t, 520)
+	// The race needs the thread-safe real generator (the 2-1 precedent).
+	w.cases = w.buildCasesService(&employeeIDs{})
+	ctx := context.Background()
+	caseID, workItemID := w.acceptedCase(t, "evt-merge-race-1", "sess-merge-race-1", `{"call":"inbound-call","from":"+79000000051"}`)
+	classifyInput := w.workBaseInput(caseID, workItemID, 1)
+	classifyInput.Reason, classifyInput.IdempotencyKey = "Классификация", "merge-race-classify-1"
+	if _, err := w.cases.ClassifyWorkItem(ctx, casesAPI.ClassifyCommand{
+		WorkCommandInput: classifyInput, Type: "поиск детали", Title: "Источник объединения",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	firstEventID := eventIDOf(t, w, caseID, "evt-merge-race-1")
+	recorded := casesAPI.RecordFactCommand{
+		Actor: w.workActor(), TenantID: w.tenant, CaseID: caseID, WorkItemID: workItemID,
+		MaterialKey: "автомобиль", Value: []byte(`{"model":"Civic"}`),
+		SourceType: casesDomain.FactSourceChannelEvent, SourceID: firstEventID.String(),
+		Reason: "Факт до гонки", IdempotencyKey: "merge-race-fact-1", Now: casesClock.Now(),
+	}
+	if _, err := w.cases.RecordFact(ctx, recorded); err != nil {
+		t.Fatal(err)
+	}
+	created, err := w.cases.CreateWorkItem(ctx, casesAPI.CreateWorkItemCommand{
+		Actor: w.workActor(), TenantID: w.tenant, CaseID: caseID,
+		ConversationID: conversationOf(t, w, caseID),
+		Type:           "уточнение аналога", Title: "Цель объединения",
+		Reason: "Элемент-цель объединения", IdempotencyKey: "merge-race-create-1", Now: casesClock.Now(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	mergeInput := w.workBaseInput(caseID, created.WorkItemID, 1)
+	mergeInput.Reason, mergeInput.IdempotencyKey = "Одновременное объединение", "merge-race-merge-1"
+	merge := casesAPI.MergeCommand{
+		WorkCommandInput: mergeInput,
+		Sources:          []casesAPI.MergeSourceInput{{WorkItemID: workItemID, ExpectedVersion: 2}},
+	}
+	concurrent := recorded
+	concurrent.MaterialKey = "деталь"
+	concurrent.Value = []byte(`{"part":"brake-pads"}`)
+	concurrent.SourceType = casesDomain.FactSourceOperator
+	concurrent.SourceID = "merge-race-second-source-1"
+	concurrent.IdempotencyKey = "merge-race-fact-2"
+	concurrent.Reason = "Факт во время гонки"
+	type commandResult struct {
+		err error
+	}
+	results := make(chan commandResult, 2)
+	start := make(chan struct{})
+	var group sync.WaitGroup
+	call := func(work func() error) {
+		group.Add(1)
+		go func() {
+			defer group.Done()
+			<-start
+			results <- commandResult{work()}
+		}()
+	}
+	call(func() error {
+		_, err := w.cases.MergeWorkItems(ctx, merge)
+		return err
+	})
+	call(func() error {
+		_, err := w.cases.RecordFact(ctx, concurrent)
+		return err
+	})
+	close(start)
+	group.Wait()
+	close(results)
+	for result := range results {
+		isHonestWorkSignal(t, result.err, "the merge race")
+	}
+	facts, err := w.cases.FactsView(ctx, w.workActor(), w.tenant, caseID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The honest interleavings: the merge won — the concurrent record hits
+	// the terminal scope guard (one fact, the pre-read one); the record
+	// won — the merge re-reads under the locks and rescopes BOTH facts
+	// (two facts). Never a raw conflict, never a broken ladder.
+	if len(facts.Facts) < 1 || len(facts.Facts) > 2 {
+		t.Fatalf("the pre-read fact always exists; the concurrent one does when the record won, got %d", len(facts.Facts))
+	}
+	for _, fact := range facts.Facts {
+		for index, version := range fact.Versions {
+			if version.VersionNo != int64(index+1) {
+				t.Fatalf("the ladder of %s stays contiguous, got %+v", fact.MaterialKey, fact.Versions)
+			}
+		}
+	}
+	// The source is terminal after the merge (the raced record either
+	// applied before the merge or was refused by the terminal guard).
+	detail, err := w.cases.CaseView(ctx, w.workActor(), w.tenant, caseID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range detail.WorkItems {
+		if item.WorkItemID == workItemID && !item.Terminal {
+			t.Fatalf("the merge source must be terminal after the merge, got %+v", item)
+		}
+	}
+}
+
+// TestRecordFactRefusesTheExponentialArrayHonestly covers the R2 N1 class:
+// a dense exponential array fits the 2048 CANONICAL byte bound but the
+// jsonb storage expands every literal into the digit form (1e10 becomes
+// 10000000000) — the value would outrun the CHECK backstop of the
+// migration. The domain refuses the exponential spelling BEFORE the
+// storage: the operator sees the honest rule refusal, never a raw 23514
+// surfaced as a 500.
+func TestRecordFactRefusesTheExponentialArrayHonestly(t *testing.T) {
+	w := newCasesWorld(t, 521)
+	ctx := context.Background()
+	caseID, workItemID := w.acceptedCase(t, "evt-exp-1", "sess-exp-1", `{"call":"inbound-call","from":"+79000000052"}`)
+	// 409 exponential literals: 2046 canonical bytes (domain-valid by the
+	// size bound alone), ~5300 text bytes in the jsonb rendering.
+	exponential := []byte(`[` + strings.TrimSuffix(strings.Repeat("1e10,", 409), ",") + `]`)
+	if len(exponential) > 2048 {
+		t.Fatalf("the probe material must fit the canonical bound, got %d bytes", len(exponential))
+	}
+	dense := casesAPI.RecordFactCommand{
+		Actor: w.workActor(), TenantID: w.tenant, CaseID: caseID, WorkItemID: workItemID,
+		MaterialKey: "автомобиль", Value: exponential,
+		SourceType: casesDomain.FactSourceOperator, SourceID: "exp-source-1",
+		Reason: "Экспоненциальная запись", IdempotencyKey: "exp-fact-1", Now: casesClock.Now(),
+	}
+	_, err := w.cases.RecordFact(ctx, dense)
+	assertRuleError(t, err, "экспоненциальную запись")
+	// The digit form of the same material is accepted and stored: the
+	// jsonb rendering never expands it.
+	digit := dense
+	digit.Value = []byte(`[` + strings.TrimSuffix(strings.Repeat("10000000000,", 20), ",") + `]`)
+	digit.IdempotencyKey = "exp-fact-2"
+	digit.Reason = "Цифровая запись"
+	if _, err := w.cases.RecordFact(ctx, digit); err != nil {
+		t.Fatal(err)
+	}
+	facts, err := w.cases.FactsView(ctx, w.workActor(), w.tenant, caseID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(facts.Facts) != 1 || len(facts.Facts[0].Versions) != 1 {
+		t.Fatalf("the digit form is the only stored version, got %+v", facts.Facts)
+	}
+}

@@ -3875,6 +3875,7 @@ components:
         can_manage_work: { type: boolean, description: 'Команды рабочих элементов — только review' }
         view_scope: { type: string }
         taxonomy_types: { type: array, items: { type: string }, description: 'Journeys закреплённого пака (словарь типов)' }
+        critical_entities: { type: array, items: { type: string }, description: 'CriticalEntities закреплённого пака (словарь материальных ключей — подсказки форм фактов)' }
     CaseRecord:
       type: object
       required: [tenant_id, case_id, case_no, employee_id, state, created_at]

@@ -255,3 +255,27 @@ func TestGuardReasonBoundsTheHistoryWhy(t *testing.T) {
 }
 
 var _ = time.Now
+
+// TestFactValueRefusesExponentialNumbers covers the jsonb number
+// discipline: exponential literals (1e10) are legal JSON but the jsonb
+// storage expands them into the digit form — the canonical bytes and the
+// stored rendering would diverge, and a dense exponential array would
+// outrun the CHECK backstop. The digit form is the only accepted literal;
+// the refusal is the honest rule error, never a 500 on the CHECK.
+func TestFactValueRefusesExponentialNumbers(t *testing.T) {
+	for _, raw := range []string{"1e10", "1E10", "1.5e-3", "[1e10,2]", `{"count":1e10}`} {
+		if _, _, err := FactValue([]byte(raw)); err == nil {
+			t.Fatalf("the exponential literal %q must be refused", raw)
+		}
+	}
+	for _, raw := range []string{"10000000000", "-12.5", "[10000000000,2]", `{"count":10000000000}`, "0.000"} {
+		if _, _, err := FactValue([]byte(raw)); err != nil {
+			t.Fatalf("the digit form %q must be accepted: %v", raw, err)
+		}
+	}
+	// The strings are never numbers: an 'e' inside a string value is
+	// ordinary material.
+	if value, _, err := FactValue([]byte(`{"model":"1e10"}`)); err != nil || string(value) != `{"model":"1e10"}` {
+		t.Fatalf("the string material is untouched: %q err=%v", value, err)
+	}
+}

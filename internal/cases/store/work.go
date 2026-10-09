@@ -385,6 +385,14 @@ func (s *Postgres) ExecuteWorkCommand(ctx context.Context, p casesPort.WorkComma
 	now := p.Now.UTC().Truncate(time.Microsecond)
 	tenantID := p.Scope.TenantID()
 	// The lock plan: every anchor of the command, in the sorted order.
+	// The fact anchors are locked by BOTH keys — the material key of the
+	// case (the find-or-create identity) and the fact id (the version
+	// ladder): the record path enters by the material key, the confirm
+	// and rescope paths by the fact id, and the merge rescopes the planned
+	// fact set — one unified key pair per fact serializes every writer of
+	// the ladder (the record scope carries the work lock of its work
+	// item, so a merge holding the source work locks fences every fact
+	// that could enter its rescope set).
 	lockKeys := []string{}
 	switch p.Command {
 	case "create_work_item":
@@ -396,10 +404,20 @@ func (s *Postgres) ExecuteWorkCommand(ctx context.Context, p casesPort.WorkComma
 		for _, source := range p.Sources {
 			lockKeys = append(lockKeys, workLockKey(tenantID, source.WorkItemID))
 		}
+		for _, factID := range p.FactLocks {
+			lockKeys = append(lockKeys, factIDLockKey(tenantID, factID))
+		}
 	case "record_fact":
+		lockKeys = append(lockKeys, workLockKey(tenantID, p.WorkItemID))
 		lockKeys = append(lockKeys, factKeyLockKey(tenantID, p.CaseID, p.MaterialKey))
+		if p.FactID.Valid() {
+			lockKeys = append(lockKeys, factIDLockKey(tenantID, p.FactID))
+		}
 	case "confirm_fact_version", "rescope_fact":
 		lockKeys = append(lockKeys, factIDLockKey(tenantID, p.FactID))
+		if p.MaterialKey != "" {
+			lockKeys = append(lockKeys, factKeyLockKey(tenantID, p.CaseID, p.MaterialKey))
+		}
 		if p.Command == "rescope_fact" {
 			lockKeys = append(lockKeys, workLockKey(tenantID, p.TargetWorkItem))
 		}
@@ -725,11 +743,16 @@ func (s *Postgres) execDispute(ctx context.Context, tx pgx.Tx, tenantID id.UUID,
 
 // execRecordFact find-or-creates the fact anchor by the material key and
 // writes the version with the full provenance (the expected version is the
-// current ladder height of the fact; the scope work item is the existence
-// sanity under the lock).
+// current ladder height of the fact; the scope work item is re-validated
+// under the work lock — a terminal scope refuses the write honestly, the
+// guard is not trusted outside the transaction).
 func (s *Postgres) execRecordFact(ctx context.Context, tx pgx.Tx, tenantID id.UUID, p casesPort.WorkCommandParams, now time.Time) error {
-	if _, err := currentForUpdate(ctx, tx, tenantID, p.CaseID, p.WorkItemID, -1); err != nil {
+	current, err := currentForUpdate(ctx, tx, tenantID, p.CaseID, p.WorkItemID, -1)
+	if err != nil {
 		return err
+	}
+	if current.Terminal {
+		return casesDomain.WorkRuleError{Rule: "record_fact", Reason: fmt.Sprintf("факт нельзя записать в скоуп элемента в состоянии %s", current.State)}
 	}
 	factID, versions, err := factAnchorForUpdate(ctx, tx, tenantID, p.CaseID, p.MaterialKey, p.FactID)
 	if err != nil {
@@ -821,9 +844,9 @@ func (s *Postgres) execRescopeFact(ctx context.Context, tx pgx.Tx, tenantID id.U
 	if versions != p.ExpectedVersion {
 		return casesDomain.ErrStaleVersion
 	}
-	return insertFactVersion(ctx, tx, tenantID, p.CaseID, p.FactID, p.TargetWorkItem, versions+1,
+	return mapWorkInsertError(p.Command, insertFactVersion(ctx, tx, tenantID, p.CaseID, p.FactID, p.TargetWorkItem, versions+1,
 		p.MaterialKey, p.Value, p.ValueDigest, p.SourceType, p.SourceID, p.Channel, p.Actor,
-		p.ObservedAt, p.ReceivedAt, now)
+		p.ObservedAt, p.ReceivedAt, now))
 }
 
 // factAnchorForUpdate resolves (and locks) the fact anchor by the material
@@ -858,9 +881,11 @@ func insertFactVersion(ctx context.Context, tx pgx.Tx, tenantID, caseID, factID,
 }
 
 // mapWorkInsertError names the honest conflicts of a raced command insert:
-// the fact material idempotency (a raced identical write), the link
-// uniqueness (the event is already linked) and the command record key (a
-// raced identical command). Raw 23505s never surface as internal errors.
+// the fact version ladder (a raced version number), the fact material
+// idempotency (a raced identical write), the link uniqueness (the event is
+// already linked) and the command record key (a raced identical command).
+// Every 23505 of the work surface maps to a named signal; an unmapped one
+// surfaces as the error itself (and fails the tests, not the operators).
 func mapWorkInsertError(command string, err error) error {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.SQLState() == "23505" {
@@ -871,6 +896,11 @@ func mapWorkInsertError(command string, err error) error {
 			return casesDomain.WorkRuleError{Rule: command, Reason: "Событие уже связано с этим рабочим элементом: повторная связь не создаётся."}
 		case pgErr.ConstraintName == "command_records_pkey":
 			return casesDomain.ErrCommandKeyConflict
+		case pgErr.ConstraintName == "fact_versions_pkey":
+			// The version ladder moved under a writer the lock plan
+			// could not cover — the honest raced signal (the operator
+			// retries against the fresh material), never a raw error.
+			return casesDomain.ErrStaleVersion
 		case pgErr.ConstraintName == "facts_case_material":
 			// The anchor exists (a raced find-or-create): the retry resolves
 			// against the existing anchor — the honest stale signal.
