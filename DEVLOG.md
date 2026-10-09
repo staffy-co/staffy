@@ -1012,3 +1012,23 @@ decisions:
 - Итог review-цикла 2-2 подтверждён CI независимо: 3 Major R1 + N1/N2 Major R2 закрыты, полный регресс зелёный в обеих таймзонах — локально (main, R2, R3) и в CI (×3)
 next: Epic 2 продолжается — story 2-3 «Проверка личности и безопасное связывание каналов» (backlog; первый шаг — SM-спека первого среза → CHECKPOINT 1 владельцу). Осталось 14/16 stories
 commit: c89312f
+---
+date: 2026-10-09
+task: 45-sm
+role: main (Super Z)
+story: 2-3
+summary: SM-спека первого среза story 2-3 «Проверка личности и безопасное связывание каналов» написана и закоммичена на ветке; окружение поднято bootstrap'ом после сброса (Go 1.27.1, PG 54329, build/vet/unit зелёные)
+done:
+- Сессия восстановлена по git+DEVLOG+worklog (Task 26: 2-2 влита, next: 2-3); git-факт: main=82db159 синхронен с origin, дерево чистое; окружение было сброшено (Go/PG отсутствовали) → bootstrap: Go 1.27.1, PG 16.4:54329, миграции+интеграция ok, build/vet/unit ok
+- Входы SM прочитаны: epics §2.3 (FR-11, 12 AC-блоков), PRD FR-11, ARCHITECTURE-SPINE (AD-9 «один логический Conversation в Case», AD-10 «append-only + supersedes; сырые хэши телефонов/VIN запрещены — keyed HMAC», AD-11 «pre-case session linked/promoted после identity resolution», OQ-16 «no cross-case Customer Profile»), спеки 2-1/2-2, deferred-work (12 долгов: ключевые для 2-3 — автосвязь событий→человек связывает, authority rules→архитектура)
+- Дизайн первого среза: (1) verification records + производная assurance (identity/authority раздельно, provider→canonical словарь, сроки по методу, threshold ≥3 failed в 1ч → step_up_required + исключение identity_step_up, секретов нет как полей); (2) гейт связывания — единственный защищённый шаг среза (identity ≥ verified; on_behalf → authority со scope и сроком; отказ перечисляет методы канала, публичный путь не блокируется); (3) binding — append-only связь разговоров (Y→X/кейс A) + binding_reversals anti-join (отмена без переписывания истории, ingest 2-1 НЕ меняется ни строкой — регресс неприкосновенен); (4) duplicate candidates по keyed-HMAC токенам идентификаторов фактов (словарь phone|email|order_number, нормализация, маска в ревью, решение same_client → binding через duplicate_review, авто-merge нет как класса)
+- Спека: _bmad-output/implementation-artifacts/spec-2-3-identity-verification-channel-binding.md (103 строки, формат 2-2: frozen Intent/Boundaries/I-O-матрица 19 строк, Code Map, Tasks, honest deferred: P1-P6→2-6, реальные верификаторы→AG-4, AI-дубли→нет, Customer Profile→OQ-16, доставка подтверждения в канал→исходящие, ротация HMAC-ключа→deferred-work)
+- Ветка codex/story-2-3-identity-verification создана, спека-коммит 144c03d [skip ci] (маркер допустим: docs-коммит до CI-фазы ветки; head-коммит перед PR будет без маркера — урок 2-2)
+decisions:
+- Связывание — связь таблицей, НЕ перенос FK: разговор Y всегда принадлежит кейсу B (append-only гранты запрещают UPDATE conversations.case_id); единство переживается производной вьюхой кейса A (JOIN активных binding, события по received_at) — «пересчёт после unlink» = пересчёт производной, история не трогается
+- Дубликат-ревью и consent-связывание — ЕДИНАЯ механика binding (методы duplicate_review|consent_handoff): решение ревьюера same_client создаёт binding той же транзакцией (атомарность «решение+связь»)
+- Токен идентификатора = HMAC-SHA256(ключ тенанта, kind:нормализованное) — AD-10 запрещает сырые хэши телефонов/VIN; ключ INSERT-only при первом ударе, ротация отложена в deferred-work
+- Оператор — инструмент проверки в срезе (issuer): синтетический адаптер verificationsyn валидирует eligibility и пропускает provider-код наблюдения; реальные верификаторы (AG-4) подставят код без изменения домена
+next: CHECKPOINT 1 владельцу — одобрение спеки первого среза 2-3 (после «одобряю»: спека+sprint-status → ready-for-dev, Dev step-03); токен для push не выдан этой сессии — оба коммита локальны
+unpushed: 2
+commit: TBD
