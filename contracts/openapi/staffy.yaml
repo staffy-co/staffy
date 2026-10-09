@@ -4072,7 +4072,9 @@ components:
             created_at: { type: string, format: date-time }
         NewCaseNo: { type: integer }
         ExistingCaseNo: { type: integer }
-        MaskedValue: { type: string, description: 'Последние 2 символа нормализованного значения' }
+        MaskedValue: { type: string, description: 'Последние 2 символа нормализованного значения СОВПАВШЕЙ версии (поздняя перезапись факта не сдвигает маску)' }
+        Channel: { type: string, description: 'Канал первого принятого события нового обращения (материал ревью «какой канал»)' }
+        IsNewSide: { type: boolean, description: 'Страница — новая сторона кандидата (форма решения живёт здесь)' }
         Resolution:
           type: object
           properties:
@@ -4174,7 +4176,7 @@ components:
         conversation_id: { type: string, format: uuid }
         bound_case_id: { type: string, format: uuid }
         bound_conversation_id: { type: string, format: uuid }
-        method: { type: string, enum: [consent_handoff, duplicate_review] }
+        method: { type: string, enum: [consent_handoff], description: 'duplicate_review рождается только решением ревью дубля (resolve_duplicate)' }
         purpose: { type: string, maxLength: 200 }
         on_behalf: { type: boolean }
         subject_handle: { type: string, maxLength: 64 }

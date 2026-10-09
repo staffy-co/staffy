@@ -17,6 +17,10 @@ var (
 	// ErrEventRaced marks the defensive backstop of the material insert
 	// (the advisory lock already serializes the normal path).
 	ErrEventRaced = errors.New("cases: event raced")
+	// ErrActiveBinding marks the race loser of the channel binding: the
+	// conversation already carries an ACTIVE link — the honest 409 of the
+	// concurrent binding attempts (never a plain rule refusal).
+	ErrActiveBinding = errors.New("cases: active binding exists")
 	// ErrIdempotencyKeyConflict marks a delivery reusing an idempotency
 	// key that an accepted event of another provider event id already
 	// holds: the honest outcome is a quarantine with an operational

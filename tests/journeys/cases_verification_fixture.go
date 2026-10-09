@@ -157,18 +157,16 @@ func (f *casesFixture) BindChannel(_ context.Context, command casesAPI.BindChann
 	if _, known := f.conversationOf(command.BoundCaseID, command.BoundConversationID); !known {
 		return casesAPI.WorkOutcome{}, casesDomain.ErrNotFound
 	}
-	if command.Method == casesDomain.BindingMethodConsentHandoff {
-		state := casesDomain.DeriveAssuranceState(f.verificationsOf(command.CaseID), command.Now)
-		if state.StepUp {
-			return casesAPI.WorkOutcome{}, fixtureWorkRule("bind_channel", fmt.Errorf("%s", casesDomain.StepUpText))
-		}
-		if !state.BindingAllowed(command.OnBehalf) {
-			return casesAPI.WorkOutcome{}, fixtureWorkRule("bind_channel", fmt.Errorf("%s", casesDomain.BindingGateText(command.OnBehalf)))
-		}
+	// The step-up covers every binding method; the identity gate stays the
+	// consent material (the mirror of the store discipline).
+	if state := casesDomain.DeriveAssuranceState(f.verificationsOf(command.CaseID), command.Now); state.StepUp {
+		return casesAPI.WorkOutcome{}, fixtureWorkRule("bind_channel", fmt.Errorf("%s", casesDomain.StepUpText))
+	} else if command.Method == casesDomain.BindingMethodConsentHandoff && !state.BindingAllowed(command.OnBehalf) {
+		return casesAPI.WorkOutcome{}, fixtureWorkRule("bind_channel", fmt.Errorf("%s", casesDomain.BindingGateText(command.OnBehalf)))
 	}
 	for _, binding := range f.bindings {
 		if binding.BoundConversationID == command.BoundConversationID && casesDomain.ReversalOf(f.reversals, binding.BindingID) == nil {
-			return casesAPI.WorkOutcome{}, fixtureWorkRule("bind_channel", fmt.Errorf("у разговора уже есть активная связь"))
+			return casesAPI.WorkOutcome{}, casesDomain.ErrActiveBinding
 		}
 	}
 	bindingID := f.nextVerificationID()

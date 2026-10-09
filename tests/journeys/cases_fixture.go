@@ -439,10 +439,14 @@ func (f *casesFixture) CaseView(_ context.Context, _ domain.Principal, tenant, c
 		card := casesPort.DuplicateCard{Candidate: candidate}
 		if material := f.material[candidate.CaseIDNew]; material != nil {
 			card.NewCaseNo = material.cases.CaseNo
+			if len(material.timeline) > 0 {
+				card.Channel = material.timeline[0].Channel
+			}
 		}
 		if material := f.material[candidate.CaseIDExisting]; material != nil {
 			card.ExistingCaseNo = material.cases.CaseNo
 		}
+		card.IsNewSide = candidate.CaseIDNew == caseID
 		card.MaskedValue = f.maskedIdentifierValueOf(candidate)
 		if decision := casesDomain.ResolvedDecision(f.resolutions, candidate.CandidateID); decision != "" {
 			for _, resolution := range f.resolutions {
@@ -494,18 +498,25 @@ func (f *casesFixture) maskedIdentifierValueOf(candidate casesDomain.DuplicateCa
 		return ""
 	}
 	versions := f.factVersions[anchorID]
-	if len(versions) == 0 {
+	if len(versions) == 0 || f.identifierKey == nil {
 		return ""
 	}
-	raw, ok := casesDomain.IdentifierStringValue(versions[len(versions)-1].Value)
-	if !ok {
-		return ""
+	// The mask of the version WHOSE TOKEN matched (a later rewrite does not
+	// shift the mask — the mirror of the store discipline).
+	for _, version := range versions {
+		raw, ok := casesDomain.IdentifierStringValue(version.Value)
+		if !ok {
+			continue
+		}
+		normalized, err := casesDomain.NormalizeIdentifier(candidate.MaterialKey, raw)
+		if err != nil {
+			continue
+		}
+		if casesDomain.IdentifierToken(f.identifierKey, candidate.MaterialKey, normalized) == candidate.Token {
+			return casesDomain.MaskIdentifier(normalized)
+		}
 	}
-	normalized, err := casesDomain.NormalizeIdentifier(candidate.MaterialKey, raw)
-	if err != nil {
-		return ""
-	}
-	return casesDomain.MaskIdentifier(normalized)
+	return ""
 }
 
 // timeNow is the fixture clock: the same fixed moment the fixture server

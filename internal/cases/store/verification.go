@@ -208,14 +208,15 @@ func (s *Postgres) ReadDuplicatesOfCase(ctx context.Context, scope tenancy.Conte
 		return nil, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
-	cards, err := readDuplicatesOfCaseTx(ctx, tx, scope.TenantID(), caseID)
+	cards, err := readDuplicatesOfCaseTx(ctx, tx, scope, time.Now().UTC(), caseID)
 	if err != nil {
 		return nil, err
 	}
 	return cards, tx.Commit(ctx)
 }
 
-func readDuplicatesOfCaseTx(ctx context.Context, tx pgx.Tx, tenantID, caseID id.UUID) ([]casesPort.DuplicateCard, error) {
+func readDuplicatesOfCaseTx(ctx context.Context, tx pgx.Tx, scope tenancy.Context, now time.Time, caseID id.UUID) ([]casesPort.DuplicateCard, error) {
+	tenantID := scope.TenantID()
 	rows, err := tx.Query(ctx, `
 		select d.candidate_id, d.case_id_new, d.case_id_existing, d.token, d.material_key, d.match_reason, d.rule_confidence, d.created_at,
 		       nc.case_no, ec.case_no
@@ -248,29 +249,66 @@ func readDuplicatesOfCaseTx(ctx context.Context, tx pgx.Tx, tenantID, caseID id.
 		return nil, err
 	}
 	// The masked value: the LAST TWO runes of the normalized identifier of
-	// the fact that created the token (the new case's fact). The value
-	// itself stays in the fact (the review right of the ordinary surfaces);
-	// the card carries the mask only.
+	// THE VERSION WHOSE TOKEN MATCHED the candidate (the value that created
+	// the match — a later rewrite of the fact does not shift the mask). The
+	// value itself stays in the fact (the review right of the ordinary
+	// surfaces); the card carries the mask only. The channel of the card is
+	// the channel of the first accepted event of the new case (the honest
+	// "which channel" of the review material).
+	// The identifier key is read ONCE before the version cursors (pgx
+	// refuses the nested queries of an open rows cursor on one connection).
+	// The read path is READ-ONLY: the key exists by the tokenization time —
+	// an absent key degrades the mask honestly (never an insert in a read).
+	identifierKey, keyErr := readIdentifierKeyReadOnly(ctx, tx, tenantID)
+	if keyErr != nil {
+		return nil, keyErr
+	}
 	for i := range pending {
-		var value []byte
-		err := tx.QueryRow(ctx, `
+		rows, versionsErr := tx.Query(ctx, `
 			select fv.value from cases.facts f
 			join lateral (
 				select value from cases.fact_versions
 				where tenant_id = f.tenant_id and fact_id = f.fact_id
-				order by version_no desc limit 1
+				order by version_no
 			) fv on true
 			where f.tenant_id=$1 and f.case_id=$2 and f.material_key=$3`,
-			tenantID, pending[i].card.Candidate.CaseIDNew, pending[i].card.Candidate.MaterialKey).Scan(&value)
-		if err == nil {
-			if raw, ok := casesDomain.IdentifierStringValue(value); ok {
-				if normalized, normalizeErr := casesDomain.NormalizeIdentifier(pending[i].card.Candidate.MaterialKey, raw); normalizeErr == nil {
-					pending[i].card.MaskedValue = casesDomain.MaskIdentifier(normalized)
+			tenantID, pending[i].card.Candidate.CaseIDNew, pending[i].card.Candidate.MaterialKey)
+		if versionsErr != nil {
+			return nil, versionsErr
+		}
+		for rows.Next() {
+			var value []byte
+			if err = rows.Scan(&value); err != nil {
+				rows.Close()
+				return nil, err
+			}
+			if identifierKey != nil {
+				if raw, ok := casesDomain.IdentifierStringValue(value); ok {
+					if normalized, normalizeErr := casesDomain.NormalizeIdentifier(pending[i].card.Candidate.MaterialKey, raw); normalizeErr == nil {
+						if casesDomain.IdentifierToken(identifierKey, pending[i].card.Candidate.MaterialKey, normalized) == pending[i].card.Candidate.Token {
+							pending[i].card.MaskedValue = casesDomain.MaskIdentifier(normalized)
+						}
+					}
 				}
 			}
-		} else if !errors.Is(err, pgx.ErrNoRows) {
+		}
+		if err = rows.Err(); err != nil {
+			rows.Close()
 			return nil, err
 		}
+		rows.Close()
+		var channel *string
+		if err = tx.QueryRow(ctx, `
+			select channel from cases.channel_events e
+			where e.tenant_id=$1 and e.case_id=$2 and e.state='accepted'
+			order by e.received_at, e.event_id limit 1`,
+			tenantID, pending[i].card.Candidate.CaseIDNew).Scan(&channel); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return nil, err
+		}
+		if channel != nil {
+			pending[i].card.Channel = *channel
+		}
+
 		var resolution casesDomain.DuplicateResolution
 		var note string
 		err = tx.QueryRow(ctx, `
@@ -286,6 +324,7 @@ func readDuplicatesOfCaseTx(ctx context.Context, tx pgx.Tx, tenantID, caseID id.
 		} else if !errors.Is(err, pgx.ErrNoRows) {
 			return nil, err
 		}
+		pending[i].card.IsNewSide = pending[i].card.Candidate.CaseIDNew == caseID
 		cards = append(cards, pending[i].card)
 	}
 	return cards, nil
@@ -306,6 +345,17 @@ func (s *Postgres) ReadIdentifierKey(ctx context.Context, scope tenancy.Context,
 		return nil, err
 	}
 	return key, tx.Commit(ctx)
+}
+
+// readIdentifierKeyReadOnly reads the per-tenant identifier key without
+// creation (the read-only transactions of the views).
+func readIdentifierKeyReadOnly(ctx context.Context, tx pgx.Tx, tenantID id.UUID) ([]byte, error) {
+	var stored []byte
+	err := tx.QueryRow(ctx, `select key from cases.identifier_hmac_keys where tenant_id=$1`, tenantID).Scan(&stored)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil // the honest degrade: no key, no mask
+	}
+	return stored, err
 }
 
 func readIdentifierKeyTx(ctx context.Context, tx pgx.Tx, scope tenancy.Context, now time.Time) ([]byte, error) {
@@ -333,9 +383,9 @@ func mapVerificationInsertError(command string, err error) error {
 		switch {
 		case pgErr.ConstraintName == "command_records_pkey":
 			return casesDomain.ErrCommandKeyConflict
-		case pgErr.ConstraintName == "binding_reversals_binding_key":
+		case pgErr.ConstraintName == "binding_reversals_tenant_id_binding_id_key":
 			return casesDomain.ErrCommandKeyConflict
-		case pgErr.ConstraintName == "duplicate_resolutions_candidate_key":
+		case pgErr.ConstraintName == "duplicate_resolutions_tenant_id_candidate_id_key":
 			return casesDomain.ErrCommandKeyConflict
 		}
 	}
@@ -426,18 +476,16 @@ func (s *Postgres) execBindChannel(ctx context.Context, tx pgx.Tx, tenantID id.U
 	if err := assertNoActiveBinding(ctx, tx, tenantID, p.BoundConversationID); err != nil {
 		return err
 	}
-	if p.Method == casesDomain.BindingMethodConsentHandoff {
-		records, err := readVerificationRecordsTx(ctx, tx, tenantID, p.CaseID)
-		if err != nil {
-			return err
-		}
-		state := casesDomain.DeriveAssuranceState(records, now)
-		if state.StepUp {
-			return casesDomain.WorkRuleError{Rule: p.Command, Reason: casesDomain.StepUpText}
-		}
-		if !state.BindingAllowed(p.OnBehalf) {
-			return casesDomain.WorkRuleError{Rule: p.Command, Reason: casesDomain.BindingGateText(p.OnBehalf)}
-		}
+	// The step-up re-validation covers EVERY binding method (the threshold
+	// window suspends the linking steps as a class — AC-10); the identity
+	// gate stays the consent-handoff material (the duplicate review carries
+	// the reviewer's decision as its own check).
+	if records, recordsErr := readVerificationRecordsTx(ctx, tx, tenantID, p.CaseID); recordsErr != nil {
+		return recordsErr
+	} else if state := casesDomain.DeriveAssuranceState(records, now); state.StepUp {
+		return casesDomain.WorkRuleError{Rule: p.Command, Reason: casesDomain.StepUpText}
+	} else if p.Method == casesDomain.BindingMethodConsentHandoff && !state.BindingAllowed(p.OnBehalf) {
+		return casesDomain.WorkRuleError{Rule: p.Command, Reason: casesDomain.BindingGateText(p.OnBehalf)}
 	}
 	if p.EvidenceEventID.Valid() {
 		var eventState string
@@ -515,7 +563,7 @@ func assertNoActiveBinding(ctx context.Context, tx pgx.Tx, tenantID id.UUID, con
 		return err
 	}
 	if count > 0 {
-		return casesDomain.WorkRuleError{Rule: "bind_channel", Reason: "у разговора уже есть активная связь: отмените её прежде чем связывать снова"}
+		return casesDomain.ErrActiveBinding
 	}
 	return nil
 }

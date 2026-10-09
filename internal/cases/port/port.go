@@ -380,7 +380,15 @@ type DuplicateCard struct {
 	NewCaseNo      int64
 	ExistingCaseNo int64
 	MaskedValue    string
-	Resolution     *casesDomain.DuplicateResolution
+	// Channel is the channel of the first accepted event of the new case
+	// (the review material "which channel" — the card never carries the
+	// protected content).
+	Channel string
+	// IsNewSide reports whether the read case is the NEW side of the
+	// candidate (the resolution form lives there — the command's case
+	// discipline).
+	IsNewSide  bool
+	Resolution *casesDomain.DuplicateResolution
 }
 
 // BindingCard is one binding of the case view: the binding row, its

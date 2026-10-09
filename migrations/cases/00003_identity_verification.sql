@@ -176,6 +176,21 @@ ALTER TABLE cases.command_records ADD CONSTRAINT command_records_command_check C
 ALTER TABLE cases.operational_exceptions DROP CONSTRAINT operational_exceptions_kind_check;
 ALTER TABLE cases.operational_exceptions ADD CONSTRAINT operational_exceptions_kind_check CHECK (kind IN ('digest_conflict','ambiguous_employee','idempotency_key_conflict','work_item_dispute','identity_step_up'));
 
+ALTER TABLE cases.verification_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cases.verification_records FORCE ROW LEVEL SECURITY;
+ALTER TABLE cases.channel_bindings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cases.channel_bindings FORCE ROW LEVEL SECURITY;
+ALTER TABLE cases.binding_reversals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cases.binding_reversals FORCE ROW LEVEL SECURITY;
+ALTER TABLE cases.identifier_hmac_keys ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cases.identifier_hmac_keys FORCE ROW LEVEL SECURITY;
+ALTER TABLE cases.identifier_tokens ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cases.identifier_tokens FORCE ROW LEVEL SECURITY;
+ALTER TABLE cases.duplicate_candidates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cases.duplicate_candidates FORCE ROW LEVEL SECURITY;
+ALTER TABLE cases.duplicate_resolutions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cases.duplicate_resolutions FORCE ROW LEVEL SECURITY;
+
 CREATE POLICY verification_records_scope ON cases.verification_records USING (tenant_id = NULLIF(current_setting('staffy.tenant_id',true),'')::uuid) WITH CHECK (tenant_id = NULLIF(current_setting('staffy.tenant_id',true),'')::uuid);
 CREATE POLICY channel_bindings_scope ON cases.channel_bindings USING (tenant_id = NULLIF(current_setting('staffy.tenant_id',true),'')::uuid) WITH CHECK (tenant_id = NULLIF(current_setting('staffy.tenant_id',true),'')::uuid);
 CREATE POLICY binding_reversals_scope ON cases.binding_reversals USING (tenant_id = NULLIF(current_setting('staffy.tenant_id',true),'')::uuid) WITH CHECK (tenant_id = NULLIF(current_setting('staffy.tenant_id',true),'')::uuid);

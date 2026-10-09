@@ -700,8 +700,8 @@ func TestConcurrentBindingsSerialize(t *testing.T) {
 	failures := 0
 	for _, err := range results {
 		if err != nil {
-			var rule casesDomain.WorkRuleError
-			if errors.As(err, &rule) && strings.Contains(rule.Reason, "активная связь") {
+			// The race loser: the honest 409 of the active binding sentinel.
+			if errors.Is(err, casesDomain.ErrActiveBinding) {
 				failures++
 				continue
 			}
@@ -757,5 +757,162 @@ func TestVerificationRecordsCarryNoSecrets(t *testing.T) {
 	// replaced it): the record fields are the domain ones only.
 	if record.Outcome == casesDomain.ProviderCodeOK {
 		t.Fatalf("the provider spelling must never land in the record")
+	}
+}
+
+// TestBindChannelRefusesDuplicateReviewMethod covers the R1 M2 fix: the
+// duplicate_review binding is born ONLY by the resolution of the human
+// review — a direct BindChannel with that method is the honest refusal
+// (the provenance of the reviewer's decision is never counterfeited).
+func TestBindChannelRefusesDuplicateReviewMethod(t *testing.T) {
+	w := newCasesWorld(t, 568)
+	ctx := context.Background()
+	caseID, _ := w.acceptedCase(t, "evt-verify-80", "sess-verify-80", `{"call":"inbound-call","from":"+79000000080"}`)
+	conversationID := w.conversationFirst(t, caseID)
+	otherCase, _ := w.acceptedCase(t, "evt-verify-81", "sess-verify-81", `{"call":"inbound-call","from":"+79000000081"}`)
+	otherConversation := w.conversationFirst(t, otherCase)
+	_, err := w.cases.BindChannel(ctx, casesAPI.BindChannelCommand{
+		Actor: w.workActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+		BoundCaseID: otherCase, BoundConversationID: otherConversation,
+		Method: casesDomain.BindingMethodDuplicateReview, SubjectHandle: "кто-то",
+		IdempotencyKey: "bind-dup-1", Now: verificationNow,
+	})
+	assertRuleError(t, err, "duplicate_review")
+}
+
+// TestVerificationCommandKeyConflicts covers the R1 m9 gap: the same
+// idempotency key with ANOTHER material is the honest conflict for every
+// new command (never a silent second execution).
+func TestVerificationCommandKeyConflicts(t *testing.T) {
+	w := newCasesWorld(t, 569)
+	ctx := context.Background()
+	caseID, _ := w.acceptedCase(t, "evt-verify-90", "sess-verify-90", `{"call":"inbound-call","from":"+79000000090"}`)
+	conversationID := w.conversationFirst(t, caseID)
+	otherCase, _ := w.acceptedCase(t, "evt-verify-91", "sess-verify-91", `{"call":"inbound-call","from":"+79000000091"}`)
+	otherConversation := w.conversationFirst(t, otherCase)
+
+	// start_verification: the first command passes, the same key with
+	// another subject conflicts.
+	base := w.verificationCommand(caseID, conversationID, "keyconflict-verify-1", verificationNow)
+	base.Kind, base.Method, base.ProviderCode = casesDomain.VerificationKindIdentity, casesDomain.MethodKnowledgeCheck, casesDomain.ProviderCodeOK
+	base.SubjectHandle, base.Note = "позвонивший", "клиент назвал детали"
+	if _, err := w.cases.StartVerification(ctx, base); err != nil {
+		t.Fatal(err)
+	}
+	other := base
+	other.SubjectHandle = "другой участник"
+	if _, err := w.cases.StartVerification(ctx, other); !errors.Is(err, casesDomain.ErrCommandKeyConflict) {
+		t.Fatalf("expected the key conflict of start_verification, got %v", err)
+	}
+
+	// bind_channel: the identity gate material first.
+	identity := w.verificationCommand(caseID, conversationID, "keyconflict-verify-2", verificationNow)
+	identity.Kind, identity.Method, identity.ProviderCode = casesDomain.VerificationKindIdentity, casesDomain.MethodKnownNumberCallback, casesDomain.ProviderCodeOK
+	identity.SubjectHandle, identity.Note = "позвонивший", "перезвонили, подтвердил"
+	if _, err := w.cases.StartVerification(ctx, identity); err != nil {
+		t.Fatal(err)
+	}
+	bind := casesAPI.BindChannelCommand{
+		Actor: w.workActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+		BoundCaseID: otherCase, BoundConversationID: otherConversation,
+		Method: casesDomain.BindingMethodConsentHandoff, Purpose: "продолжение",
+		SubjectHandle: "позвонивший", Note: "согласие",
+		IdempotencyKey: "keyconflict-bind-1", Now: verificationNow,
+	}
+	if _, err := w.cases.BindChannel(ctx, bind); err != nil {
+		t.Fatal(err)
+	}
+	otherBind := bind
+	otherBind.Purpose = "другая цель"
+	if _, err := w.cases.BindChannel(ctx, otherBind); !errors.Is(err, casesDomain.ErrCommandKeyConflict) {
+		t.Fatalf("expected the key conflict of bind_channel, got %v", err)
+	}
+
+	// unlink_channel: the reversal of the fresh binding, then the same key
+	// with another reason conflicts.
+	detail, err := w.cases.CaseView(ctx, w.workActor(), w.tenant, caseID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bindingID := detail.Bindings[0].Binding.BindingID
+	unlink := casesAPI.UnlinkChannelCommand{
+		Actor: w.workActor(), TenantID: w.tenant, CaseID: caseID, BindingID: bindingID,
+		Reason: "ошибка", IdempotencyKey: "keyconflict-unlink-1", Now: verificationNow,
+	}
+	if _, err := w.cases.UnlinkChannel(ctx, unlink); err != nil {
+		t.Fatal(err)
+	}
+	otherUnlink := unlink
+	otherUnlink.Reason = "другая причина"
+	if _, err := w.cases.UnlinkChannel(ctx, otherUnlink); !errors.Is(err, casesDomain.ErrCommandKeyConflict) {
+		t.Fatalf("expected the key conflict of unlink_channel, got %v", err)
+	}
+
+	// resolve_duplicate: the candidate material first (the phone facts of
+	// two cases), then the same key with another decision conflicts.
+	recordPhone := func(caseID, workItemID id.UUID, key string) {
+		if _, err := w.cases.RecordFact(ctx, casesAPI.RecordFactCommand{
+			Actor: w.workActor(), TenantID: w.tenant, CaseID: caseID, WorkItemID: workItemID,
+			MaterialKey: "phone", Value: []byte(`"+7 (912) 345-67-89"`),
+			SourceType: casesDomain.FactSourceOperator, SourceID: key,
+			IdempotencyKey: key, Now: verificationNow,
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	caseA, workItemA := w.acceptedCase(t, "evt-verify-92", "sess-verify-92", `{"call":"inbound-call","from":"+79000000092"}`)
+	caseB, workItemB := w.acceptedCase(t, "evt-verify-93", "sess-verify-93", `{"call":"inbound-call","from":"+79000000092"}`)
+	recordPhone(caseA, workItemA, "keyconflict-phone-a")
+	recordPhone(caseB, workItemB, "keyconflict-phone-b")
+	detail, err = w.cases.CaseView(ctx, w.workActor(), w.tenant, caseB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(detail.Duplicates) != 1 {
+		t.Fatalf("expected the candidate, got %d", len(detail.Duplicates))
+	}
+	resolve := casesAPI.ResolveDuplicateCommand{
+		Actor: w.workActor(), TenantID: w.tenant, CaseID: caseB, CandidateID: detail.Duplicates[0].Candidate.CandidateID,
+		Decision: casesDomain.DuplicateDecisionSeparate, Note: "разные услуги",
+		ConversationID: w.conversationFirst(t, caseA), BoundConversationID: w.conversationFirst(t, caseB),
+		IdempotencyKey: "keyconflict-resolve-1", Now: verificationNow,
+	}
+	if _, err := w.cases.ResolveDuplicate(ctx, resolve); err != nil {
+		t.Fatal(err)
+	}
+	otherResolve := resolve
+	otherResolve.Note = "другое обоснование"
+	if _, err := w.cases.ResolveDuplicate(ctx, otherResolve); !errors.Is(err, casesDomain.ErrCommandKeyConflict) {
+		t.Fatalf("expected the key conflict of resolve_duplicate, got %v", err)
+	}
+}
+
+// TestVerificationTablesRLSForced covers the R1 M1 fix: all seven new
+// tables carry ENABLE and FORCE ROW LEVEL SECURITY (the live probe of the
+// migration — the second boundary after the server authorization).
+func TestVerificationTablesRLSForced(t *testing.T) {
+	rows, err := adminPool.Query(context.Background(), `
+		select c.relname, c.relrowsecurity, c.relforcerowsecurity
+		from pg_class c join pg_namespace n on n.oid = c.relnamespace
+		where n.nspname = 'cases' and c.relname in
+		('verification_records','channel_bindings','binding_reversals','identifier_tokens','identifier_hmac_keys','duplicate_candidates','duplicate_resolutions')`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	seen := map[string][2]bool{}
+	for rows.Next() {
+		var name string
+		var rls, force bool
+		if err = rows.Scan(&name, &rls, &force); err != nil {
+			t.Fatal(err)
+		}
+		seen[name] = [2]bool{rls, force}
+	}
+	for _, table := range []string{"verification_records", "channel_bindings", "binding_reversals", "identifier_tokens", "identifier_hmac_keys", "duplicate_candidates", "duplicate_resolutions"} {
+		flags, ok := seen[table]
+		if !ok || !flags[0] || !flags[1] {
+			t.Fatalf("table %s must carry ENABLE and FORCE ROW LEVEL SECURITY, got %+v", table, flags)
+		}
 	}
 }

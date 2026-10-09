@@ -175,6 +175,8 @@ func workProblem(w http.ResponseWriter, r *http.Request, server *Server, err err
 		server.problem(w, r, http.StatusConflict, "stale_version", "Материал изменился: сверьте текущую версию и повторите команду.", false, nil)
 	case errors.Is(err, casesDomain.ErrCommandKeyConflict):
 		server.problem(w, r, http.StatusConflict, "command_key_conflict", "Идемпотентный ключ уже использован другой командой: исход не воспроизводится для другого материала.", false, nil)
+	case errors.Is(err, casesDomain.ErrActiveBinding):
+		server.problem(w, r, http.StatusConflict, "active_binding", "У разговора уже есть активная связь: отмените её прежде чем связывать снова.", false, nil)
 	case errors.Is(err, casesDomain.ErrNotFound), errors.Is(err, domain.ErrNotFound):
 		server.problem(w, r, http.StatusNotFound, "not_found", "Обращение, элемент или факт не найдены.", false, nil)
 	case errors.Is(err, domain.ErrForbidden):
@@ -624,6 +626,8 @@ func workFormError(w http.ResponseWriter, r *http.Request, tenant, caseID id.UUI
 		message = "Материал изменился: страница показывает актуальное состояние — сверьте версию и повторите."
 	case errors.Is(err, casesDomain.ErrCommandKeyConflict):
 		message = "Ключ команды уже использован другим материалом: команда не выполнена."
+	case errors.Is(err, casesDomain.ErrActiveBinding):
+		message = "У разговора уже есть активная связь: отмените её прежде чем связывать снова."
 	case errors.Is(err, casesDomain.ErrNotFound), errors.Is(err, domain.ErrNotFound):
 		message = "Обращение, элемент или факт не найдены."
 	case errors.Is(err, domain.ErrForbidden):

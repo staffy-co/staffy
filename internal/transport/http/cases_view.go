@@ -196,12 +196,24 @@ type duplicateCardView struct {
 	ExistingCaseNo string
 	MaterialKey    string
 	MaskedValue    string
+	Channel        string
+	IsNewSide      bool
 	MatchReason    string
 	RuleConfidence string
 	Resolved       bool
 	DecisionText   string
 	ResolutionNote string
 	ReviewText     string
+}
+
+// externalCaseNo renders the case number of the binding sides: the number
+// of the OTHER case is honestly absent in this view (zero degrades to
+// «внешний», never to a wrong «№0»).
+func externalCaseNo(caseNo int64) string {
+	if caseNo == 0 {
+		return "внешний"
+	}
+	return strconv.FormatInt(caseNo, 10)
 }
 
 // assuranceLevelText renders the honest level text of the panel.
@@ -426,8 +438,8 @@ func prepareCaseView(view casesAPI.CaseView, facts casesAPI.FactsView, flash str
 			Purpose:          binding.Binding.Purpose,
 			OnBehalf:         binding.Binding.OnBehalf,
 			Subject:          binding.Binding.SubjectHandle,
-			TargetCaseNo:     strconv.FormatInt(binding.TargetCaseNo, 10),
-			BoundCaseNo:      strconv.FormatInt(binding.BoundCaseNo, 10),
+			TargetCaseNo:     externalCaseNo(binding.TargetCaseNo),
+			BoundCaseNo:      externalCaseNo(binding.BoundCaseNo),
 			CreatedAt:        formatTime(binding.Binding.CreatedAt),
 			Active:           binding.Reversal == nil,
 			ConfirmationText: binding.ConfirmationText,
@@ -448,6 +460,8 @@ func prepareCaseView(view casesAPI.CaseView, facts casesAPI.FactsView, flash str
 			ExistingCaseNo: strconv.FormatInt(card.ExistingCaseNo, 10),
 			MaterialKey:    card.Candidate.MaterialKey,
 			MaskedValue:    card.MaskedValue,
+			Channel:        card.Channel,
+			IsNewSide:      card.IsNewSide,
 			MatchReason:    card.Candidate.MatchReason,
 			RuleConfidence: card.Candidate.RuleConfidence,
 			ReviewText:     casesDomain.DuplicateReviewText,

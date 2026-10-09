@@ -97,11 +97,16 @@ func ActiveBindings(bindings []ChannelBinding, reversals []BindingReversal) []Ch
 
 // GuardBindChannel validates the command material of the consent handoff:
 // the method dictionary, the bounded purpose, the subject handle and the
-// evidence requirement. The duplicate review path validates through its own
-// resolution command (the purpose is the decision itself).
+// evidence requirement. The duplicate_review method NEVER enters through
+// this command — the resolution of the duplicate review is its only
+// producer (the reviewer's decision with the note is the basis; a direct
+// binding without a resolution would counterfeit that provenance).
 func GuardBindChannel(method, purpose, subjectHandle string) error {
 	if !inDictionary(BindingMethods, method) {
 		return fmt.Errorf("метод связывания %s не входит в словарь (%s)", method, joinQuoted(BindingMethods))
+	}
+	if method == BindingMethodDuplicateReview {
+		return fmt.Errorf("связь duplicate_review создаётся только решением ревью дубля (командой resolve_duplicate с обоснованием)")
 	}
 	if utf8.RuneCountInString(purpose) > MaxPurposeRunes {
 		return fmt.Errorf("цель связывания длиннее %d символов", MaxPurposeRunes)
