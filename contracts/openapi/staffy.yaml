@@ -4377,7 +4377,7 @@ components:
         reason: { type: string, maxLength: 200, minLength: 1 }
     SendClientReplyRequest:
       type: object
-      required: [conversation_id, content]
+      required: [conversation_id, expected_epoch, content]
       additionalProperties: false
       properties:
         conversation_id: { type: string, format: uuid, description: 'Диалог кейса либо активно связанный (governing-кейс)' }

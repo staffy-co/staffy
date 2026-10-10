@@ -245,11 +245,20 @@ func resolutionOf(resolutions []TransferResolution, requestID id.UUID) *Transfer
 	return nil
 }
 
-// PendingTransfer resolves the latest request without a resolution: the
-// assigned handoff ask of the case. The expiry is the caller's clock word
-// — a request past its deadline is reported separately (timed out) so the
-// takers see the honest takeable state.
-func PendingTransfer(requests []TransferRequest, resolutions []TransferResolution, now time.Time) *TransferRequest {
+// PendingTransfer resolves the latest unresolved request the ownership
+// has not moved past: the assigned handoff ask of the case. The ask is
+// void when it was created STRICTLY BEFORE the current term — an
+// acknowledged transfer, a take or a reassign already changed the
+// ownership, so the ask targeted a gone state and must never keep the
+// case takeable or misreport the health word (the R1 zombie lesson). An
+// ask at the term's own timestamp was made against that term (the store
+// commands are strictly later than the ask by the deadline math; the
+// deterministic clocks of the fixtures share the instant).
+func PendingTransfer(terms []OwnershipTerm, requests []TransferRequest, resolutions []TransferResolution, now time.Time) *TransferRequest {
+	watermark := time.Time{}
+	if current := CurrentOwnership(terms); current != nil {
+		watermark = current.CreatedAt
+	}
 	var pending *TransferRequest
 	for i := range requests {
 		if resolutionOf(resolutions, requests[i].RequestID) != nil {
@@ -258,6 +267,22 @@ func PendingTransfer(requests []TransferRequest, resolutions []TransferResolutio
 		if pending == nil || requests[i].CreatedAt.After(pending.CreatedAt) {
 			pending = &requests[i]
 		}
+	}
+	if pending == nil || pending.CreatedAt.Before(watermark) {
+		return nil
+	}
+	return pending
+}
+
+// ActiveTransferRequest resolves the LIVE assigned ask: the latest
+// unresolved request still inside its deadline. An expired unresolved
+// request is voided by the derivation — it never blocks the new asks (the
+// honest «повторный запрос — новая строка» word of the matrix); a request
+// the ownership already moved past is void for every word.
+func ActiveTransferRequest(terms []OwnershipTerm, requests []TransferRequest, resolutions []TransferResolution, now time.Time) *TransferRequest {
+	pending := PendingTransfer(terms, requests, resolutions, now)
+	if pending == nil || !now.Before(pending.DeadlineAt) {
+		return nil
 	}
 	return pending
 }
@@ -270,7 +295,7 @@ func PendingTransfer(requests []TransferRequest, resolutions []TransferResolutio
 func DeriveOwnershipState(terms []OwnershipTerm, requests []TransferRequest, resolutions []TransferResolution, ownerActive bool, now time.Time) OwnershipState {
 	state := OwnershipState{OwnerActive: ownerActive, Health: OwnershipHealthStable}
 	state.Current = CurrentOwnership(terms)
-	if pending := PendingTransfer(requests, resolutions, now); pending != nil {
+	if pending := PendingTransfer(terms, requests, resolutions, now); pending != nil {
 		state.Pending = pending
 		state.PendingTimedOut = !now.Before(pending.DeadlineAt)
 	}
@@ -290,7 +315,10 @@ func DeriveOwnershipState(terms []OwnershipTerm, requests []TransferRequest, res
 // Takeable reports whether the take is allowed in this state: the deadline
 // of the assigned request expired without a decision, or the owner is
 // unavailable. A healthy ownership is never takeable — the honest refusal
-// names the transfer path (AC-9).
+// names the transfer path (AC-9). The take itself voids the expired ask
+// with the cancel resolution of the same transaction, and every earlier
+// unresolved ask is void by the term watermark — after a successful take
+// the ownership is healthy and never takeable again.
 func (s OwnershipState) Takeable() bool {
 	if s.Current == nil {
 		return false

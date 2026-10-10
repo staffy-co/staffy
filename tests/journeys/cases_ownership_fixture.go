@@ -96,6 +96,17 @@ func (f *casesFixture) TakeOwnership(_ context.Context, command casesAPI.TakeOwn
 	if !state.Takeable() {
 		return casesAPI.WorkOutcome{}, fixtureWorkRule("take_ownership", fmt.Errorf("%s", casesDomain.HealthyTakeText))
 	}
+	// The take voids the unresolved ask with the cancel resolution of the
+	// same flow (the store mirror): after the transition the ownership is
+	// healthy — the zombie expired ask never keeps the case takeable.
+	if pending := casesDomain.PendingTransfer(f.ownershipTerms[command.CaseID], f.transferRequests[command.CaseID], f.transferResolutions, command.Now); pending != nil {
+		resolutionID := f.fixtureOwnershipID()
+		f.transferResolutions = append(f.transferResolutions, casesDomain.TransferResolution{
+			TenantID: f.tenant, ResolutionID: resolutionID, RequestID: pending.RequestID,
+			Kind: casesDomain.TransferResolutionCancelled, ActorID: command.Actor.ID,
+			Reason: "погашено взятием владения (дедлайн истёк или владелец недоступен)", CreatedAt: command.Now,
+		})
+	}
 	termID := f.fixtureOwnershipID()
 	f.fixtureAppendTerm(command.CaseID, casesDomain.OwnershipTerm{
 		TenantID: f.tenant, CaseID: command.CaseID, TermID: termID,
@@ -153,7 +164,7 @@ func (f *casesFixture) RequestTransfer(_ context.Context, command casesAPI.Reque
 	if coverage.AckDeadlineMinutes < 1 {
 		return casesAPI.WorkOutcome{}, fixtureWorkRule("request_transfer", fmt.Errorf("%s", casesDomain.CoverageUnavailableText))
 	}
-	if state.Pending != nil {
+	if ask := casesDomain.ActiveTransferRequest(f.ownershipTerms[command.CaseID], f.transferRequests[command.CaseID], f.transferResolutions, command.Now); ask != nil {
 		return casesAPI.WorkOutcome{}, fixtureWorkRule("request_transfer", fmt.Errorf("%s", casesDomain.PendingTransferText))
 	}
 	requestID := f.fixtureOwnershipID()
@@ -313,12 +324,13 @@ func (f *casesFixture) SendClientReply(_ context.Context, command casesAPI.SendC
 	outcome, fresh, err := f.workCommandFlow("send_client_reply", command.IdempotencyKey, struct {
 		Case         string `json:"case"`
 		Conversation string `json:"conversation"`
+		Expected     int64  `json:"expected_epoch"`
 		Content      string `json:"content"`
-	}{command.CaseID.String(), command.ConversationID.String(), command.Content})
+	}{command.CaseID.String(), command.ConversationID.String(), command.ExpectedEpoch, command.Content})
 	if err != nil || !fresh {
 		return outcome, err
 	}
-	if err := fixtureWorkRule("send_client_reply", casesDomain.GuardReplyContent(command.Content)); err != nil {
+	if err := fixtureWorkRule("send_client_reply", casesDomain.GuardSendClientReply(command.ExpectedEpoch, command.Content)); err != nil {
 		return casesAPI.WorkOutcome{}, err
 	}
 	// The governing case of the target conversation: the case it is
@@ -362,6 +374,9 @@ func (f *casesFixture) SendClientReply(_ context.Context, command casesAPI.SendC
 	}
 	if state.Current.OwnerRef != command.Actor.ID {
 		return casesAPI.WorkOutcome{}, casesDomain.ReplyGateError{OwnerKind: state.Current.OwnerKind, OwnerName: ownerName, CurrentEpoch: state.Current.Epoch, Reason: casesDomain.NotOwnerText}
+	}
+	if command.ExpectedEpoch != state.Current.Epoch {
+		return casesAPI.WorkOutcome{}, casesDomain.ErrStaleVersion
 	}
 	replyID := f.fixtureOwnershipID()
 	channel := "phone"

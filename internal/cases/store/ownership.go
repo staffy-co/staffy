@@ -23,11 +23,11 @@ import (
 // the creation).
 func readOwnershipMaterialTx(ctx context.Context, tx pgx.Tx, tenantID, caseID id.UUID) ([]casesDomain.OwnershipTerm, []casesDomain.TransferRequest, []casesDomain.TransferResolution, error) {
 	rows, err := tx.Query(ctx, `
-		select term_id, case_id, epoch, owner_kind, owner_ref, writable_surface, origin,
-		       previous_owner_kind, previous_owner_ref, actor_id, reason, transfer_request_id,
-		       requested_at, acknowledged_at, created_at
-		from cases.ownership_terms
-		where tenant_id=$1 and case_id=$2 order by epoch`, tenantID, caseID)
+                select term_id, case_id, epoch, owner_kind, owner_ref, writable_surface, origin,
+                       previous_owner_kind, previous_owner_ref, actor_id, reason, transfer_request_id,
+                       requested_at, acknowledged_at, created_at
+                from cases.ownership_terms
+                where tenant_id=$1 and case_id=$2 order by epoch`, tenantID, caseID)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -70,10 +70,10 @@ func readOwnershipMaterialTx(ctx context.Context, tx pgx.Tx, tenantID, caseID id
 	}
 
 	rows, err = tx.Query(ctx, `
-		select request_id, case_id, request_no, from_owner_kind, from_owner_ref, to_owner_kind, to_owner_ref,
-		       writable_surface, reason, requested_by, deadline_at, created_at
-		from cases.transfer_requests
-		where tenant_id=$1 and case_id=$2 order by created_at, request_id`, tenantID, caseID)
+                select request_id, case_id, request_no, from_owner_kind, from_owner_ref, to_owner_kind, to_owner_ref,
+                       writable_surface, reason, requested_by, deadline_at, created_at
+                from cases.transfer_requests
+                where tenant_id=$1 and case_id=$2 order by created_at, request_id`, tenantID, caseID)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -98,9 +98,9 @@ func readOwnershipMaterialTx(ctx context.Context, tx pgx.Tx, tenantID, caseID id
 	resolutions := []casesDomain.TransferResolution{}
 	if len(requests) > 0 {
 		rows, err = tx.Query(ctx, `
-			select resolution_id, request_id, kind, actor_id, resulting_epoch, reason, created_at
-			from cases.transfer_resolutions
-			where tenant_id=$1 order by created_at, resolution_id`, tenantID)
+                        select resolution_id, request_id, kind, actor_id, resulting_epoch, reason, created_at
+                        from cases.transfer_resolutions
+                        where tenant_id=$1 order by created_at, resolution_id`, tenantID)
 		if err != nil {
 			return nil, nil, nil, err
 		}
@@ -153,9 +153,9 @@ func (s *Postgres) ReadConversationByID(ctx context.Context, scope tenancy.Conte
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	conversation, err := scanConversation(tx.QueryRow(ctx, `
-		select tenant_id, case_id, conversation_id, conversation_no, employee_id, connection_id,
-		       provider, provider_session_id, response_owner_id, response_owner_epoch, writable_surface, state, created_at
-		from cases.conversations where tenant_id=$1 and conversation_id=$2`,
+                select tenant_id, case_id, conversation_id, conversation_no, employee_id, connection_id,
+                       provider, provider_session_id, response_owner_id, response_owner_epoch, writable_surface, state, created_at
+                from cases.conversations where tenant_id=$1 and conversation_id=$2`,
 		scope.TenantID(), conversationID))
 	if err != nil {
 		return casesDomain.Conversation{}, err
@@ -189,12 +189,12 @@ func (s *Postgres) ReadClientReplies(ctx context.Context, scope tenancy.Context,
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	rows, err := tx.Query(ctx, `
-		select r.reply_id, r.case_id, r.conversation_id, r.owner_kind, r.owner_ref, r.epoch, r.writable_surface,
-		       r.connection_id, r.provider, r.channel, r.direction, r.employee_id, r.decision_no, r.profile_version,
-		       r.content, r.actor_id, r.created_at, o.kind, o.created_at
-		from cases.client_replies r
-		left join cases.client_reply_outcomes o on o.tenant_id = r.tenant_id and o.reply_id = r.reply_id
-		where r.tenant_id=$1 and r.case_id=$2 order by r.created_at, r.reply_id`,
+                select r.reply_id, r.case_id, r.conversation_id, r.owner_kind, r.owner_ref, r.epoch, r.writable_surface,
+                       r.connection_id, r.provider, r.channel, r.direction, r.employee_id, r.decision_no, r.profile_version,
+                       r.content, r.actor_id, r.created_at, o.kind, o.created_at
+                from cases.client_replies r
+                left join cases.client_reply_outcomes o on o.tenant_id = r.tenant_id and o.reply_id = r.reply_id
+                where r.tenant_id=$1 and r.case_id=$2 order by r.created_at, r.reply_id`,
 		scope.TenantID(), caseID)
 	if err != nil {
 		return nil, err
@@ -235,14 +235,14 @@ func (s *Postgres) PendingClientReplies(ctx context.Context, scope tenancy.Conte
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	rows, err := tx.Query(ctx, `
-		select reply_id, case_id, conversation_id, owner_kind, owner_ref, epoch, writable_surface,
-		       connection_id, provider, channel, direction, employee_id, decision_no, profile_version,
-		       actor_id, created_at
-		from cases.client_replies r
-		where r.tenant_id=$1 and not exists (
-			select 1 from cases.client_reply_outcomes o
-			where o.tenant_id = r.tenant_id and o.reply_id = r.reply_id)
-		order by r.created_at, r.reply_id limit $2`, scope.TenantID(), limit)
+                select reply_id, case_id, conversation_id, owner_kind, owner_ref, epoch, writable_surface,
+                       connection_id, provider, channel, direction, employee_id, decision_no, profile_version,
+                       actor_id, created_at
+                from cases.client_replies r
+                where r.tenant_id=$1 and not exists (
+                        select 1 from cases.client_reply_outcomes o
+                        where o.tenant_id = r.tenant_id and o.reply_id = r.reply_id)
+                order by r.created_at, r.reply_id limit $2`, scope.TenantID(), limit)
 	if err != nil {
 		return nil, err
 	}
@@ -312,8 +312,8 @@ func (s *Postgres) ResolveReplyDrain(ctx context.Context, p casesPort.ReplyDrain
 	// The append-only outcome: the UNIQUE (tenant, reply) is the material
 	// idempotency — a raced or repeated drain writes nothing new.
 	outcome, err := tx.Exec(ctx, `
-		insert into cases.client_reply_outcomes (tenant_id, outcome_id, reply_id, kind, created_at)
-		values ($1,$2,$3,$4,$5) on conflict (tenant_id, reply_id) do nothing`,
+                insert into cases.client_reply_outcomes (tenant_id, outcome_id, reply_id, kind, created_at)
+                values ($1,$2,$3,$4,$5) on conflict (tenant_id, reply_id) do nothing`,
 		tenantID, p.OutcomeID, p.Reply.ReplyID, kind, now)
 	if err != nil {
 		return "", false, mapOwnershipInsertError(err)
@@ -331,8 +331,8 @@ func (s *Postgres) ResolveReplyDrain(ctx context.Context, p casesPort.ReplyDrain
 			return "", false, err
 		}
 		if _, err = tx.Exec(ctx, `
-			insert into cases.outbox_events (tenant_id,event_id,event_type,schema_version,aggregate_id,source_connection_id,correlation_id,occurred_at,payload,dedup_key,created_at)
-			values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+                        insert into cases.outbox_events (tenant_id,event_id,event_type,schema_version,aggregate_id,source_connection_id,correlation_id,occurred_at,payload,dedup_key,created_at)
+                        values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
 			tenantID, p.OutboxEventID, casesDomain.OutboxEventClientReplyDispatched, casesDomain.OutboxEventClientReplyDispatchedV1,
 			p.Reply.CaseID, p.Reply.ConnectionID, p.ExceptionID, now, payload,
 			casesDomain.DedupKeyClientReplyDispatched(p.Reply.ReplyID), now); err != nil {
@@ -345,8 +345,8 @@ func (s *Postgres) ResolveReplyDrain(ctx context.Context, p casesPort.ReplyDrain
 	// subject, forever.
 	if state.Pending != nil && state.PendingTimedOut {
 		if _, err = tx.Exec(ctx, `
-			insert into cases.operational_exceptions (tenant_id, exception_id, kind, summary, correlation_id, event_id, original_event_id, case_id, conversation_id, created_at)
-			values ($1,$2,$3,$4,$5,NULL,NULL,$6,$7,$8) on conflict (tenant_id, correlation_id) where kind = 'ownership_attention' do nothing`,
+                        insert into cases.operational_exceptions (tenant_id, exception_id, kind, summary, correlation_id, event_id, original_event_id, case_id, conversation_id, created_at)
+                        values ($1,$2,$3,$4,$5,NULL,NULL,$6,$7,$8) on conflict (tenant_id, correlation_id) where kind = 'ownership_attention' do nothing`,
 			tenantID, p.ExceptionID, casesDomain.ExceptionOwnershipAttention, casesDomain.OwnershipAttentionSummary,
 			state.Pending.RequestID, p.Reply.CaseID, p.Reply.ConversationID, now); err != nil {
 			return "", false, mapOwnershipInsertError(err)
@@ -354,8 +354,8 @@ func (s *Postgres) ResolveReplyDrain(ctx context.Context, p casesPort.ReplyDrain
 	}
 	if state.Health == casesDomain.OwnershipHealthReassignment && current != nil {
 		if _, err = tx.Exec(ctx, `
-			insert into cases.operational_exceptions (tenant_id, exception_id, kind, summary, correlation_id, event_id, original_event_id, case_id, conversation_id, created_at)
-			values ($1,$2,$3,$4,$5,NULL,NULL,$6,$7,$8) on conflict (tenant_id, correlation_id) where kind = 'ownership_attention' do nothing`,
+                        insert into cases.operational_exceptions (tenant_id, exception_id, kind, summary, correlation_id, event_id, original_event_id, case_id, conversation_id, created_at)
+                        values ($1,$2,$3,$4,$5,NULL,NULL,$6,$7,$8) on conflict (tenant_id, correlation_id) where kind = 'ownership_attention' do nothing`,
 			tenantID, p.ExceptionID, casesDomain.ExceptionOwnershipAttention, casesDomain.OwnershipAttentionSummary,
 			current.TermID, p.Reply.CaseID, p.Reply.ConversationID, now); err != nil {
 			return "", false, mapOwnershipInsertError(err)
@@ -416,6 +416,19 @@ func (s *Postgres) execTakeOwnership(ctx context.Context, tx pgx.Tx, tenantID id
 	if !state.Takeable() {
 		return casesDomain.WorkRuleError{Rule: p.Command, Reason: casesDomain.HealthyTakeText}
 	}
+	// The take voids the unresolved ask with the cancel resolution of the
+	// SAME transaction (the reassign precedent): after the transition the
+	// ownership is healthy — the zombie expired request never keeps the
+	// case takeable and never misrepresents the health word.
+	if pending := casesDomain.PendingTransfer(terms, requests, resolutions, now); pending != nil {
+		if _, err := tx.Exec(ctx, `
+                        insert into cases.transfer_resolutions (tenant_id, resolution_id, request_id, kind, actor_id, resulting_epoch, reason, created_at)
+                        values ($1,$2,$3,$4,$5,NULL,$6,$7)`,
+			tenantID, p.TransferResolutionID, pending.RequestID, casesDomain.TransferResolutionCancelled, p.Actor,
+			"погашено взятием владения (дедлайн истёк или владелец недоступен)", now); err != nil {
+			return mapOwnershipInsertError(err)
+		}
+	}
 	return insertOwnershipTerm(ctx, tx, tenantID, p, casesDomain.OwnershipTerm{
 		TenantID: tenantID, CaseID: p.CaseID, TermID: p.VerificationID,
 		Epoch: current.Epoch + 1, OwnerKind: p.OwnerKind, OwnerRef: p.OwnerRef,
@@ -441,18 +454,18 @@ func (s *Postgres) execRequestTransfer(ctx context.Context, tx pgx.Tx, tenantID 
 	if current.Epoch != p.ExpectedVersion {
 		return casesDomain.ErrStaleVersion
 	}
-	if casesDomain.PendingTransfer(requests, resolutions, now) != nil {
+	if casesDomain.ActiveTransferRequest(terms, requests, resolutions, now) != nil {
 		return casesDomain.WorkRuleError{Rule: p.Command, Reason: casesDomain.PendingTransferText}
 	}
 	var requestNo int64
 	if err = tx.QueryRow(ctx, `
-		select coalesce(max(request_no),0)+1 from cases.transfer_requests where tenant_id=$1 and case_id=$2`,
+                select coalesce(max(request_no),0)+1 from cases.transfer_requests where tenant_id=$1 and case_id=$2`,
 		tenantID, p.CaseID).Scan(&requestNo); err != nil {
 		return err
 	}
 	if _, err = tx.Exec(ctx, `
-		insert into cases.transfer_requests (tenant_id, case_id, request_id, request_no, from_owner_kind, from_owner_ref, to_owner_kind, to_owner_ref, writable_surface, reason, requested_by, deadline_at, created_at)
-		values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+                insert into cases.transfer_requests (tenant_id, case_id, request_id, request_no, from_owner_kind, from_owner_ref, to_owner_kind, to_owner_ref, writable_surface, reason, requested_by, deadline_at, created_at)
+                values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
 		tenantID, p.CaseID, p.TransferRequestID, requestNo, current.OwnerKind, current.OwnerRef,
 		p.OwnerKind, p.OwnerRef, p.WritableSurface, p.Reason, p.Actor, p.DeadlineAt, now); err != nil {
 		return mapOwnershipInsertError(err)
@@ -495,8 +508,8 @@ func (s *Postgres) execResolveTransfer(ctx context.Context, tx pgx.Tx, tenantID 
 			return casesDomain.WorkRuleError{Rule: p.Command, Reason: casesDomain.RequestExpiredText}
 		}
 		if _, err = tx.Exec(ctx, `
-			insert into cases.transfer_resolutions (tenant_id, resolution_id, request_id, kind, actor_id, resulting_epoch, reason, created_at)
-			values ($1,$2,$3,$4,$5,$6,$7,$8)`,
+                        insert into cases.transfer_resolutions (tenant_id, resolution_id, request_id, kind, actor_id, resulting_epoch, reason, created_at)
+                        values ($1,$2,$3,$4,$5,$6,$7,$8)`,
 			tenantID, p.TransferResolutionID, request.RequestID, p.Decision, p.Actor, current.Epoch+1, nilText(p.Reason), now); err != nil {
 			return mapOwnershipInsertError(err)
 		}
@@ -510,8 +523,8 @@ func (s *Postgres) execResolveTransfer(ctx context.Context, tx pgx.Tx, tenantID 
 		}, now)
 	}
 	if _, err = tx.Exec(ctx, `
-		insert into cases.transfer_resolutions (tenant_id, resolution_id, request_id, kind, actor_id, resulting_epoch, reason, created_at)
-		values ($1,$2,$3,$4,$5,NULL,$6,$7)`,
+                insert into cases.transfer_resolutions (tenant_id, resolution_id, request_id, kind, actor_id, resulting_epoch, reason, created_at)
+                values ($1,$2,$3,$4,$5,NULL,$6,$7)`,
 		tenantID, p.TransferResolutionID, request.RequestID, p.Decision, p.Actor, nilText(p.Reason), now); err != nil {
 		return mapOwnershipInsertError(err)
 	}
@@ -535,11 +548,12 @@ func (s *Postgres) execReassignOwnership(ctx context.Context, tx pgx.Tx, tenantI
 		return casesDomain.ErrStaleVersion
 	}
 	// The pending request void: the cancel resolution of the same
-	// transaction (the supervision path decides).
-	if pending := casesDomain.PendingTransfer(requests, resolutions, now); pending != nil {
+	// transaction (the supervision path decides). Earlier unresolved
+	// asks are void by the term watermark of the same transaction.
+	if pending := casesDomain.PendingTransfer(terms, requests, resolutions, now); pending != nil {
 		if _, err = tx.Exec(ctx, `
-			insert into cases.transfer_resolutions (tenant_id, resolution_id, request_id, kind, actor_id, resulting_epoch, reason, created_at)
-			values ($1,$2,$3,$4,$5,NULL,$6,$7)`,
+                        insert into cases.transfer_resolutions (tenant_id, resolution_id, request_id, kind, actor_id, resulting_epoch, reason, created_at)
+                        values ($1,$2,$3,$4,$5,NULL,$6,$7)`,
 			tenantID, p.TransferResolutionID, pending.RequestID, casesDomain.TransferResolutionCancelled, p.Actor,
 			"отменено переназначением надзора", now); err != nil {
 			return mapOwnershipInsertError(err)
@@ -565,9 +579,9 @@ func (s *Postgres) execSendClientReply(ctx context.Context, tx pgx.Tx, tenantID 
 	// actively bound INTO (the 2-3 derivation — the binding target), or
 	// its own case when no active binding exists (re-read under the lock).
 	conversation, err := scanConversation(tx.QueryRow(ctx, `
-		select tenant_id, case_id, conversation_id, conversation_no, employee_id, connection_id,
-		       provider, provider_session_id, response_owner_id, response_owner_epoch, writable_surface, state, created_at
-		from cases.conversations where tenant_id=$1 and conversation_id=$2`,
+                select tenant_id, case_id, conversation_id, conversation_no, employee_id, connection_id,
+                       provider, provider_session_id, response_owner_id, response_owner_epoch, writable_surface, state, created_at
+                from cases.conversations where tenant_id=$1 and conversation_id=$2`,
 		tenantID, p.ConversationID))
 	if err != nil {
 		return err
@@ -613,9 +627,9 @@ func (s *Postgres) execSendClientReply(ctx context.Context, tx pgx.Tx, tenantID 
 	// direction of its latest accepted event (the honest live route).
 	channel, direction := p.RouteChannel, p.RouteDirection
 	if err = tx.QueryRow(ctx, `
-		select channel, direction from cases.channel_events
-		where tenant_id=$1 and conversation_id=$2 and state='accepted'
-		order by received_at desc limit 1`, tenantID, p.ConversationID).Scan(&channel, &direction); err != nil {
+                select channel, direction from cases.channel_events
+                where tenant_id=$1 and conversation_id=$2 and state='accepted'
+                order by received_at desc limit 1`, tenantID, p.ConversationID).Scan(&channel, &direction); err != nil {
 		if !errors.Is(err, pgx.ErrNoRows) {
 			return err
 		}
@@ -625,8 +639,8 @@ func (s *Postgres) execSendClientReply(ctx context.Context, tx pgx.Tx, tenantID 
 		channel, direction = p.RouteChannel, p.RouteDirection
 	}
 	if _, err = tx.Exec(ctx, `
-		insert into cases.client_replies (tenant_id, case_id, conversation_id, reply_id, owner_kind, owner_ref, epoch, writable_surface, connection_id, provider, channel, direction, employee_id, decision_no, profile_version, content, actor_id, created_at)
-		values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
+                insert into cases.client_replies (tenant_id, case_id, conversation_id, reply_id, owner_kind, owner_ref, epoch, writable_surface, connection_id, provider, channel, direction, employee_id, decision_no, profile_version, content, actor_id, created_at)
+                values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
 		tenantID, p.CaseID, p.ConversationID, p.ReplyID, current.OwnerKind, current.OwnerRef,
 		current.Epoch, current.WritableSurface, conversation.ConnectionID, conversation.Provider,
 		channel, "outbound", p.LineageEmployeeID, p.LineageDecisionNo, p.LineageProfileVersion,
@@ -644,8 +658,8 @@ func (s *Postgres) execSendClientReply(ctx context.Context, tx pgx.Tx, tenantID 
 		return err
 	}
 	if _, err = tx.Exec(ctx, `
-		insert into cases.outbox_events (tenant_id,event_id,event_type,schema_version,aggregate_id,source_connection_id,correlation_id,occurred_at,payload,dedup_key,created_at)
-		values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+                insert into cases.outbox_events (tenant_id,event_id,event_type,schema_version,aggregate_id,source_connection_id,correlation_id,occurred_at,payload,dedup_key,created_at)
+                values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
 		tenantID, p.OutboxEventID, casesDomain.OutboxEventClientReplyPrepared, casesDomain.OutboxEventClientReplyPreparedV1,
 		p.CaseID, conversation.ConnectionID, p.ReplyID, now, payload,
 		casesDomain.DedupKeyClientReplyPrepared(p.ReplyID), now); err != nil {
@@ -662,8 +676,8 @@ func (s *Postgres) execSendClientReply(ctx context.Context, tx pgx.Tx, tenantID 
 func insertOwnershipTerm(ctx context.Context, tx pgx.Tx, tenantID id.UUID, p casesPort.WorkCommandParams, term casesDomain.OwnershipTerm, now time.Time) error {
 	var sourceConnection id.UUID
 	if err := tx.QueryRow(ctx, `
-		select connection_id from cases.conversations
-		where tenant_id=$1 and case_id=$2 order by conversation_no limit 1`,
+                select connection_id from cases.conversations
+                where tenant_id=$1 and case_id=$2 order by conversation_no limit 1`,
 		tenantID, term.CaseID).Scan(&sourceConnection); err != nil {
 		return err
 	}
@@ -675,8 +689,8 @@ func insertOwnershipTerm(ctx context.Context, tx pgx.Tx, tenantID id.UUID, p cas
 		acknowledgedAt = &term.AcknowledgedAt
 	}
 	if _, err := tx.Exec(ctx, `
-		insert into cases.ownership_terms (tenant_id, case_id, term_id, epoch, owner_kind, owner_ref, writable_surface, origin, previous_owner_kind, previous_owner_ref, actor_id, reason, transfer_request_id, requested_at, acknowledged_at, created_at)
-		values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
+                insert into cases.ownership_terms (tenant_id, case_id, term_id, epoch, owner_kind, owner_ref, writable_surface, origin, previous_owner_kind, previous_owner_ref, actor_id, reason, transfer_request_id, requested_at, acknowledged_at, created_at)
+                values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
 		tenantID, term.CaseID, term.TermID, term.Epoch, term.OwnerKind, term.OwnerRef,
 		term.WritableSurface, term.Origin, nilText(term.PreviousOwnerKind), nilID(term.PreviousOwnerRef),
 		term.ActorID, nilText(term.Reason), nilID(term.TransferRequestID), requestedAt, acknowledgedAt, now); err != nil {
@@ -691,8 +705,8 @@ func insertOwnershipTerm(ctx context.Context, tx pgx.Tx, tenantID id.UUID, p cas
 		return err
 	}
 	if _, err = tx.Exec(ctx, `
-		insert into cases.outbox_events (tenant_id,event_id,event_type,schema_version,aggregate_id,source_connection_id,correlation_id,occurred_at,payload,dedup_key,created_at)
-		values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+                insert into cases.outbox_events (tenant_id,event_id,event_type,schema_version,aggregate_id,source_connection_id,correlation_id,occurred_at,payload,dedup_key,created_at)
+                values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
 		tenantID, p.OutboxEventID, casesDomain.OutboxEventOwnershipChanged, casesDomain.OutboxEventOwnershipChangedV1,
 		term.CaseID, sourceConnection, term.TermID, now, payload,
 		casesDomain.DedupKeyOwnershipChanged(term.TermID), now); err != nil {

@@ -130,6 +130,8 @@
 </form></details>
 <details class="connector-connect"><summary>Ответить клиенту (единственный исходящий путь — серверный гейт)</summary>
 <form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/client-replies">
+<label for="reply-epoch">Текущая версия владения (epoch)</label>
+<input id="reply-epoch" name="expected_epoch" type="number" min="1" required value="{{.View.Ownership.CurrentEpoch}}">
 <label for="reply-conversation">Диалог ответа</label>
 <select id="reply-conversation" name="conversation_id" required>{{range $.View.ConversationOpts}}<option value="{{.Value}}">{{.Text}}</option>{{end}}</select>
 <label for="reply-content">Текст ответа клиенту (до 2000 символов)</label>

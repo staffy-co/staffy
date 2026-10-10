@@ -93,6 +93,7 @@ type SendClientReplyCommand struct {
 	TenantID       id.UUID
 	CaseID         id.UUID
 	ConversationID id.UUID
+	ExpectedEpoch  int64
 	Content        string
 	IdempotencyKey string
 	Now            time.Time

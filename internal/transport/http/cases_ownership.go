@@ -260,9 +260,17 @@ func (s *Server) sendClientReplyAPI(w http.ResponseWriter, r *http.Request) {
 		s.problem(w, r, http.StatusBadRequest, "invalid_request", "Поле conversation_id должно быть UUID.", false, nil)
 		return
 	}
+	// The CAS expectation is part of the machine contract (the OpenAPI
+	// required word): the absent field is an honest 400 — the command
+	// never silently degrades to a server-only CAS.
+	if input.ExpectedEpoch == nil {
+		s.problem(w, r, http.StatusBadRequest, "invalid_request", "Поле expected_epoch обязательно: сверьте текущую версию владения.", false, nil)
+		return
+	}
 	outcome, err := s.cases.SendClientReply(r.Context(), casesAPI.SendClientReplyCommand{
 		Actor: actor, TenantID: tenant, CaseID: caseID, ConversationID: conversationID,
-		Content: stringOrEmpty(input.Content), IdempotencyKey: key, Now: s.clock.Now().UTC(),
+		ExpectedEpoch: *input.ExpectedEpoch,
+		Content:       stringOrEmpty(input.Content), IdempotencyKey: key, Now: s.clock.Now().UTC(),
 	})
 	if err != nil {
 		ownershipProblem(w, r, s, err)
@@ -455,10 +463,16 @@ func (s *Server) sendClientReplyForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	content := r.FormValue("content")
+	expected, err := formInt64(r, "expected_epoch")
+	if err != nil {
+		ownershipFormError(w, r, tenant, caseID, casesDomain.WorkRuleError{Rule: "form", Reason: "Сверьте текущую версию владения (epoch)."})
+		return
+	}
 	_, err = s.cases.SendClientReply(r.Context(), casesAPI.SendClientReplyCommand{
 		Actor: actor, TenantID: tenant, CaseID: caseID, ConversationID: conversationID,
+		ExpectedEpoch:  expected,
 		Content:        content,
-		IdempotencyKey: formCommandKey("send-client-reply", actor.ID.String(), caseID.String(), conversationID.String(), content),
+		IdempotencyKey: formCommandKey("send-client-reply", actor.ID.String(), caseID.String(), conversationID.String(), strconv.FormatInt(expected, 10), content),
 		Now:            s.clock.Now().UTC(),
 	})
 	if err != nil {

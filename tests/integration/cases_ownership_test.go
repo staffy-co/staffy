@@ -109,11 +109,12 @@ func TestReplyGateAndOwnerReply(t *testing.T) {
 	ctx := context.Background()
 	caseID, _ := w.acceptedCase(t, "evt-reply-1", "sess-reply-1", `{"call":"inbound-call","from":"+79000000062"}`)
 	conversationID := w.conversationFirst(t, caseID)
+	replyEpoch := int64(1)
 
 	// The non-owner (the backup member) gets the machine-readable gate
 	// refusal: the owner kind, the name, the epoch, the permitted path.
 	_, err := w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
-		Actor: w.backupActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+		Actor: w.backupActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID, ExpectedEpoch: replyEpoch,
 		Content: "посторонний текст", IdempotencyKey: "reply-gate-1", Now: ownershipNow,
 	})
 	var gate casesDomain.ReplyGateError
@@ -130,7 +131,7 @@ func TestReplyGateAndOwnerReply(t *testing.T) {
 	// The current owner writes the prepared reply: the full snapshot with
 	// the route and the lineage of the acting decision.
 	outcome, err := w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
-		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID, ExpectedEpoch: replyEpoch,
 		Content: "Добрый день! Ваше обращение принято в работу.", IdempotencyKey: "reply-owner-1", Now: ownershipNow,
 	})
 	if err != nil {
@@ -153,7 +154,7 @@ func TestReplyGateAndOwnerReply(t *testing.T) {
 
 	// The exact repeat replays the original outcome.
 	replay, err := w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
-		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID, ExpectedEpoch: replyEpoch,
 		Content: "Добрый день! Ваше обращение принято в работу.", IdempotencyKey: "reply-owner-1", Now: ownershipNow,
 	})
 	if err != nil {
@@ -165,7 +166,7 @@ func TestReplyGateAndOwnerReply(t *testing.T) {
 
 	// The bounded content: the empty and the oversized words refuse.
 	_, err = w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
-		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID, ExpectedEpoch: replyEpoch,
 		Content: strings.Repeat("а", 2001), IdempotencyKey: "reply-long-1", Now: ownershipNow,
 	})
 	assertRuleError(t, err, "длиннее")
@@ -211,6 +212,7 @@ func TestTransferLifecycleAcknowledgeDecline(t *testing.T) {
 	ctx := context.Background()
 	caseID, _ := w.acceptedCase(t, "evt-transfer-1", "sess-transfer-1", `{"call":"inbound-call","from":"+79000000063"}`)
 	conversationID := w.conversationFirst(t, caseID)
+	replyEpoch := int64(1)
 
 	// The backup member cannot request the transfer (not the owner, no
 	// configuration scope).
@@ -246,7 +248,7 @@ func TestTransferLifecycleAcknowledgeDecline(t *testing.T) {
 		t.Fatalf("expected the coverage deadline (+15 minutes), got %v", ownership.State.Pending.DeadlineAt)
 	}
 	if _, err = w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
-		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID, ExpectedEpoch: replyEpoch,
 		Content: "ответ до передачи", IdempotencyKey: "tr-reply-1", Now: ownershipNow,
 	}); err != nil {
 		t.Fatalf("the pending request never blocks the current owner: %v", err)
@@ -294,12 +296,25 @@ func TestTransferLifecycleAcknowledgeDecline(t *testing.T) {
 	// The old owner loses the reply right immediately: the gate names the
 	// NEW owner (AC-10).
 	_, err = w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
-		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID, ExpectedEpoch: replyEpoch,
 		Content: "ответ прежнего владельца", IdempotencyKey: "tr-reply-2", Now: ownershipNow,
 	})
 	var gate casesDomain.ReplyGateError
 	if !errors.As(err, &gate) || gate.OwnerName == "" || gate.CurrentEpoch != 2 {
 		t.Fatalf("expected the new-owner gate refusal, got %v", err)
+	}
+
+	// The CAS row of the reply: the NEW owner replying with the STALE
+	// expectation (the pre-acknowledge epoch) gets the honest version
+	// conflict — the material stayed consistent, the command is not
+	// silently merged.
+	_, err = w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
+		Actor: w.backupActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+		ExpectedEpoch: replyEpoch, Content: "ответ с устаревшей версией",
+		IdempotencyKey: "tr-reply-cas-1", Now: ownershipNow,
+	})
+	if !errors.Is(err, casesDomain.ErrStaleVersion) {
+		t.Fatalf("expected the stale version of the new owner reply, got %v", err)
 	}
 
 	// The decline path: the new request declined — the ownership stays.
@@ -347,6 +362,7 @@ func TestTransferDeadlineAttentionAndTake(t *testing.T) {
 	ctx := context.Background()
 	caseID, _ := w.acceptedCase(t, "evt-deadline-1", "sess-deadline-1", `{"call":"inbound-call","from":"+79000000064"}`)
 	conversationID := w.conversationFirst(t, caseID)
+	replyEpoch := int64(1)
 
 	// The owner requests the transfer and prepares a reply.
 	request, err := w.cases.RequestTransfer(ctx, casesAPI.RequestTransferCommand{
@@ -359,7 +375,7 @@ func TestTransferDeadlineAttentionAndTake(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err = w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
-		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID, ExpectedEpoch: replyEpoch,
 		Content: "свежий ответ", IdempotencyKey: "dl-reply-1", Now: ownershipNow,
 	}); err != nil {
 		t.Fatal(err)
@@ -412,7 +428,37 @@ func TestTransferDeadlineAttentionAndTake(t *testing.T) {
 		t.Fatalf("expected the dispatched derivation, got %+v", ownership.Replies[0])
 	}
 
-	// The take after the expiry: the backup takes the ownership.
+	// The M1 matrix rows (the R1 lesson): the EXPIRED unresolved ask is
+	// voided by the derivation — it never blocks the new request.
+	renewed, err := w.cases.RequestTransfer(ctx, casesAPI.RequestTransferCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ExpectedEpoch: 1,
+		ToOwnerKind: casesDomain.OwnerKindHuman, ToOwnerRef: w.backup,
+		WritableSurface: casesDomain.WritableSurfaceInbox, Reason: "новый запрос после истечения",
+		IdempotencyKey: "dl-request-2", Now: late,
+	})
+	if err != nil {
+		t.Fatalf("the expired ask must not block the new request: %v", err)
+	}
+	// The renewed live ask keeps the honest pending discipline.
+	if _, err = w.cases.RequestTransfer(ctx, casesAPI.RequestTransferCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ExpectedEpoch: 1,
+		ToOwnerKind: casesDomain.OwnerKindHuman, ToOwnerRef: w.backup,
+		WritableSurface: casesDomain.WritableSurfaceInbox, Reason: "второй живой запрос",
+		IdempotencyKey: "dl-request-3", Now: late,
+	}); err == nil || !strings.Contains(err.Error(), "уже назначен") {
+		t.Fatalf("expected the live-ask refusal of the second request, got %v", err)
+	}
+	// The renewed ask is cancelled (the target path) so the take rows run
+	// on the expired word alone.
+	if _, err = w.cases.ResolveTransfer(ctx, casesAPI.ResolveTransferCommand{
+		Actor: w.backupActor(), TenantID: w.tenant, CaseID: caseID, RequestID: renewed.TransferRequestID,
+		Decision: casesDomain.TransferResolutionCancelled, IdempotencyKey: "dl-cancel-1", Now: late,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// The take after the expiry: the backup takes the ownership (the ask
+	// is voided by the cancel resolution of the same transaction).
 	taken, err := w.cases.TakeOwnership(ctx, casesAPI.TakeOwnershipCommand{
 		Actor: w.backupActor(), TenantID: w.tenant, CaseID: caseID, ExpectedEpoch: 1,
 		Reason: "дедлайн истёк, забираю", IdempotencyKey: "dl-take-1", Now: late,
@@ -422,6 +468,20 @@ func TestTransferDeadlineAttentionAndTake(t *testing.T) {
 	}
 	if taken.Epoch != 2 {
 		t.Fatalf("expected the epoch 2 take, got %+v", taken)
+	}
+	// The ownership after the take is HEALTHY: the zombie expired ask is
+	// gone — the health word never misrepresents the fresh ownership.
+	ownership = w.ownershipState(t, caseID)
+	if ownership.State.Health != casesDomain.OwnershipHealthStable || ownership.State.Pending != nil {
+		t.Fatalf("expected the stable ownership after the take (the ask voided), got %+v", ownership.State)
+	}
+	// The second take over the now-healthy ownership is honestly refused —
+	// the expired ask never keeps the case takeable.
+	if _, err = w.cases.TakeOwnership(ctx, casesAPI.TakeOwnershipCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ExpectedEpoch: 2,
+		Reason: "второй take здорового владения", IdempotencyKey: "dl-take-3", Now: late,
+	}); err == nil || !strings.Contains(err.Error(), "Владение здорово") {
+		t.Fatalf("expected the healthy-ownership take refusal, got %v", err)
 	}
 	// The term backstop: the replay of the take with the same material
 	// replays; another take with the same expected epoch is stale.
@@ -439,12 +499,133 @@ func TestTransferDeadlineAttentionAndTake(t *testing.T) {
 	if !errors.Is(err, casesDomain.ErrStaleVersion) {
 		t.Fatalf("expected the stale version of the second take, got %v", err)
 	}
+}
 
-	// The stale reply: the ownership moved after the preparation. The old
-	// owner prepares a reply first (epoch 1 — wait: the ownership is at
-	// epoch 2 now; the stale reply needs a reply prepared BEFORE the
-	// transition. A new command now refuses (not the owner) — the stale
-	// path is covered by the next test with the moving window.
+// TestTransferSupersessionVoidByOwnershipChange covers the zombie chain of
+// the R1 Major class: an EXPIRED unresolved ask that the ownership already
+// moved past (an acknowledged renewal, a take over a double expiry) is
+// void for every word — the health never misreports the fresh ownership
+// and the case never stays takeable while the owner is healthy.
+func TestTransferSupersessionVoidByOwnershipChange(t *testing.T) {
+	w := newCasesWorld(t, 651)
+	ctx := context.Background()
+	caseID, _ := w.acceptedCase(t, "evt-supers-1", "sess-supers-1", `{"call":"inbound-call","from":"+79000000066"}`)
+	conversationID := w.conversationFirst(t, caseID)
+
+	// The owner asks to hand off; the ask expires without a decision.
+	first, err := w.cases.RequestTransfer(ctx, casesAPI.RequestTransferCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ExpectedEpoch: 1,
+		ToOwnerKind: casesDomain.OwnerKindHuman, ToOwnerRef: w.backup,
+		WritableSurface: casesDomain.WritableSurfaceInbox, Reason: "первый запрос",
+		IdempotencyKey: "sup-request-1", Now: ownershipNow,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	late := ownershipNow.Add(16 * time.Minute)
+
+	// The renewal is allowed (the expired ask never blocks the new ask)…
+	renewed, err := w.cases.RequestTransfer(ctx, casesAPI.RequestTransferCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ExpectedEpoch: 1,
+		ToOwnerKind: casesDomain.OwnerKindHuman, ToOwnerRef: w.backup,
+		WritableSurface: casesDomain.WritableSurfaceInbox, Reason: "повторный запрос",
+		IdempotencyKey: "sup-request-2", Now: late,
+	})
+	if err != nil {
+		t.Fatalf("the expired ask must not block the renewal: %v", err)
+	}
+	// …and the target acknowledges it: the ownership moves (epoch 2).
+	if _, err = w.cases.ResolveTransfer(ctx, casesAPI.ResolveTransferCommand{
+		Actor: w.backupActor(), TenantID: w.tenant, CaseID: caseID, RequestID: renewed.TransferRequestID,
+		Decision: casesDomain.TransferResolutionAcknowledged, IdempotencyKey: "sup-ack-1", Now: late,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// The zombie check: the FIRST ask stays unresolved and expired, but
+	// the term watermark voids it — the ownership is healthy, the pending
+	// word is empty, the case is NOT takeable.
+	ownership := w.ownershipState(t, caseID)
+	if ownership.State.Health != casesDomain.OwnershipHealthStable || ownership.State.Pending != nil {
+		t.Fatalf("the acknowledged renewal voids the older expired ask, got %+v", ownership.State)
+	}
+	if _, err = w.cases.TakeOwnership(ctx, casesAPI.TakeOwnershipCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ExpectedEpoch: 2,
+		Reason: "take поверх здорового владения", IdempotencyKey: "sup-take-1", Now: late,
+	}); err == nil || !strings.Contains(err.Error(), "Владение здорово") {
+		t.Fatalf("expected the healthy-ownership take refusal (the zombie never keeps the case takeable), got %v", err)
+	}
+	// The new owner writes through the healthy ownership (the CAS of the
+	// fresh epoch).
+	if _, err = w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
+		Actor: w.backupActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+		ExpectedEpoch: 2, Content: "ответ нового владельца", IdempotencyKey: "sup-reply-1", Now: late,
+	}); err != nil {
+		t.Fatalf("the new owner replies through the healthy ownership: %v", err)
+	}
+
+	// The late acknowledge of the ZOMBIE ask (expired, superseded by the
+	// acknowledged renewal) refuses honestly — no second transition.
+	_, err = w.cases.ResolveTransfer(ctx, casesAPI.ResolveTransferCommand{
+		Actor: w.backupActor(), TenantID: w.tenant, CaseID: caseID, RequestID: first.TransferRequestID,
+		Decision: casesDomain.TransferResolutionAcknowledged, IdempotencyKey: "sup-ack-late-1", Now: late,
+	})
+	assertRuleError(t, err, "истёк")
+}
+
+// TestTransferDoubleExpiryTakeVoidsEveryZombie covers the multi-zombie
+// chain: the renewed asks expire one after another, the take voids the
+// latest with the cancel resolution, the term watermark voids the rest —
+// after the take the ownership is healthy and the second take is refused.
+func TestTransferDoubleExpiryTakeVoidsEveryZombie(t *testing.T) {
+	w := newCasesWorld(t, 652)
+	ctx := context.Background()
+	caseID, _ := w.acceptedCase(t, "evt-supers-2", "sess-supers-2", `{"call":"inbound-call","from":"+79000000067"}`)
+
+	// The first ask expires; the renewal is allowed and expires too.
+	if _, err := w.cases.RequestTransfer(ctx, casesAPI.RequestTransferCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ExpectedEpoch: 1,
+		ToOwnerKind: casesDomain.OwnerKindHuman, ToOwnerRef: w.backup,
+		WritableSurface: casesDomain.WritableSurfaceInbox, Reason: "первый запрос",
+		IdempotencyKey: "sup2-request-1", Now: ownershipNow,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	late := ownershipNow.Add(16 * time.Minute)
+	if _, err := w.cases.RequestTransfer(ctx, casesAPI.RequestTransferCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ExpectedEpoch: 1,
+		ToOwnerKind: casesDomain.OwnerKindHuman, ToOwnerRef: w.backup,
+		WritableSurface: casesDomain.WritableSurfaceInbox, Reason: "повторный запрос",
+		IdempotencyKey: "sup2-request-2", Now: late,
+	}); err != nil {
+		t.Fatalf("the expired ask must not block the renewal: %v", err)
+	}
+	late = ownershipNow.Add(32 * time.Minute)
+
+	// The take over the double expiry: the latest ask is voided by the
+	// cancel resolution, the earlier one by the term watermark.
+	taken, err := w.cases.TakeOwnership(ctx, casesAPI.TakeOwnershipCommand{
+		Actor: w.backupActor(), TenantID: w.tenant, CaseID: caseID, ExpectedEpoch: 1,
+		Reason: "двойное истечение, забираю", IdempotencyKey: "sup2-take-1", Now: late,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if taken.Epoch != 2 {
+		t.Fatalf("expected the epoch 2 take, got %+v", taken)
+	}
+	ownership := w.ownershipState(t, caseID)
+	if ownership.State.Health != casesDomain.OwnershipHealthStable || ownership.State.Pending != nil {
+		t.Fatalf("the take voids every zombie ask — the healthy ownership, got %+v", ownership.State)
+	}
+	// The second take over the fresh ownership is refused: the zombie
+	// asks never keep the case takeable.
+	if _, err = w.cases.TakeOwnership(ctx, casesAPI.TakeOwnershipCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ExpectedEpoch: 2,
+		Reason: "второй take", IdempotencyKey: "sup2-take-2", Now: late,
+	}); err == nil || !strings.Contains(err.Error(), "Владение здорово") {
+		t.Fatalf("expected the healthy-ownership take refusal, got %v", err)
+	}
 }
 
 // TestStaleReplyBlocksAndNeedsReview covers the execute-time
@@ -456,10 +637,11 @@ func TestStaleReplyBlocksAndNeedsReview(t *testing.T) {
 	ctx := context.Background()
 	caseID, _ := w.acceptedCase(t, "evt-stale-1", "sess-stale-1", `{"call":"inbound-call","from":"+79000000065"}`)
 	conversationID := w.conversationFirst(t, caseID)
+	replyEpoch := int64(1)
 
 	// The owner prepares the reply.
 	if _, err := w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
-		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID, ExpectedEpoch: replyEpoch,
 		Content: "ответ, который устареет", IdempotencyKey: "stale-reply-1", Now: ownershipNow,
 	}); err != nil {
 		t.Fatal(err)
@@ -501,11 +683,12 @@ func TestReassignmentRequiredAndSupervision(t *testing.T) {
 	ctx := context.Background()
 	caseID, _ := w.acceptedCase(t, "evt-reassign-1", "sess-reassign-1", `{"call":"inbound-call","from":"+79000000066"}`)
 	conversationID := w.conversationFirst(t, caseID)
+	replyEpoch := int64(1)
 
 	// The owner prepares a reply, then transfers the ownership to the
 	// backup and the backup gets revoked (the honest unavailability).
 	if _, err := w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
-		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID, ExpectedEpoch: replyEpoch,
 		Content: "ответ перед уходом", IdempotencyKey: "reassign-reply-1", Now: ownershipNow,
 	}); err != nil {
 		t.Fatal(err)
@@ -564,7 +747,7 @@ func TestReassignmentRequiredAndSupervision(t *testing.T) {
 
 	// The outgoing writes block honestly (the gate word).
 	_, err = w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
-		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID, ExpectedEpoch: replyEpoch,
 		Content: "владелец ушёл", IdempotencyKey: "reassign-reply-2", Now: ownershipNow,
 	})
 	var gate casesDomain.ReplyGateError
@@ -736,7 +919,7 @@ func TestGoverningCaseOfBoundConversation(t *testing.T) {
 	var gate casesDomain.ReplyGateError
 	_, err = w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
 		Actor: w.backupActor(), TenantID: w.tenant, CaseID: caseB, ConversationID: conversationB,
-		Content: "ответ владельца B через связанный канал", IdempotencyKey: "gov-reply-b-1", Now: ownershipNow,
+		ExpectedEpoch: 2, Content: "ответ владельца B через связанный канал", IdempotencyKey: "gov-reply-b-1", Now: ownershipNow,
 	})
 	if !errors.As(err, &gate) {
 		t.Fatalf("expected the governing-case gate refusal, got %v", err)
@@ -751,7 +934,7 @@ func TestGoverningCaseOfBoundConversation(t *testing.T) {
 	// The owner of A writes through Y (the governing case): allowed.
 	if _, err = w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
 		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseA, ConversationID: conversationB,
-		Content: "ответ владельца A через связанный канал", IdempotencyKey: "gov-reply-a-1", Now: ownershipNow,
+		ExpectedEpoch: 1, Content: "ответ владельца A через связанный канал", IdempotencyKey: "gov-reply-a-1", Now: ownershipNow,
 	}); err != nil {
 		t.Fatalf("the governing owner answers through the bound conversation: %v", err)
 	}
@@ -765,7 +948,7 @@ func TestGoverningCaseOfBoundConversation(t *testing.T) {
 	}
 	_, err = w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
 		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseA, ConversationID: conversationB,
-		Content: "после отмены связи", IdempotencyKey: "gov-reply-a-2", Now: ownershipNow,
+		ExpectedEpoch: 1, Content: "после отмены связи", IdempotencyKey: "gov-reply-a-2", Now: ownershipNow,
 	})
 	var unlinkGate casesDomain.ReplyGateError
 	if !errors.As(err, &unlinkGate) || !strings.Contains(unlinkGate.Reason, "управляется другим обращением") {
@@ -775,7 +958,7 @@ func TestGoverningCaseOfBoundConversation(t *testing.T) {
 	// And the B-side answer works again.
 	if _, err = w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
 		Actor: w.backupActor(), TenantID: w.tenant, CaseID: caseB, ConversationID: conversationB,
-		Content: "владелец B снова отвечает", IdempotencyKey: "gov-reply-b-2", Now: ownershipNow,
+		ExpectedEpoch: 2, Content: "владелец B снова отвечает", IdempotencyKey: "gov-reply-b-2", Now: ownershipNow,
 	}); err != nil {
 		t.Fatalf("the B owner answers after the unlink: %v", err)
 	}
@@ -858,9 +1041,9 @@ func TestOwnershipTablesRLSForced(t *testing.T) {
 	}
 	ctx := context.Background()
 	rows, err := runtimePool.Query(ctx, `
-		select relname, relrowsecurity, relforcerowsecurity from pg_class
-		where relnamespace = 'cases'::regnamespace
-		  and relname in ('ownership_terms','transfer_requests','transfer_resolutions','client_replies','client_reply_outcomes')`)
+                select relname, relrowsecurity, relforcerowsecurity from pg_class
+                where relnamespace = 'cases'::regnamespace
+                  and relname in ('ownership_terms','transfer_requests','transfer_resolutions','client_replies','client_reply_outcomes')`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -898,10 +1081,10 @@ func TestOwnershipGrantsAppendOnly(t *testing.T) {
 	for _, table := range []string{"ownership_terms", "transfer_requests", "transfer_resolutions", "client_replies", "client_reply_outcomes"} {
 		var canInsert, canSelect, canUpdate, canDelete bool
 		err := runtimePool.QueryRow(ctx, fmt.Sprintf(`
-			select has_table_privilege('staffy_app', 'cases.%s', 'INSERT'),
-			       has_table_privilege('staffy_app', 'cases.%s', 'SELECT'),
-			       has_table_privilege('staffy_app', 'cases.%s', 'UPDATE'),
-			       has_table_privilege('staffy_app', 'cases.%s', 'DELETE')`, table, table, table, table)).
+                        select has_table_privilege('staffy_app', 'cases.%s', 'INSERT'),
+                               has_table_privilege('staffy_app', 'cases.%s', 'SELECT'),
+                               has_table_privilege('staffy_app', 'cases.%s', 'UPDATE'),
+                               has_table_privilege('staffy_app', 'cases.%s', 'DELETE')`, table, table, table, table)).
 			Scan(&canInsert, &canSelect, &canUpdate, &canDelete)
 		if err != nil {
 			t.Fatal(err)

@@ -14,6 +14,7 @@ import (
 	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
 	"github.com/artemiosu/staffy/internal/identity/api"
 	"github.com/artemiosu/staffy/internal/identity/domain"
+	"github.com/artemiosu/staffy/internal/platform/httpx"
 	"github.com/artemiosu/staffy/internal/platform/id"
 )
 
@@ -529,4 +530,85 @@ func (f *fakeCases) UnlinkChannel(context.Context, casesAPI.UnlinkChannelCommand
 
 func (f *fakeCases) ResolveDuplicate(context.Context, casesAPI.ResolveDuplicateCommand) (casesAPI.WorkOutcome, error) {
 	return casesAPI.WorkOutcome{}, casesDomain.WorkRuleError{Rule: "resolve_duplicate", Reason: "контур проверки не сконфигурирован в фикстуре"}
+}
+
+// ---------------------------------------------------------------------------
+// The Story 2.4 ownership wire contract.
+// ---------------------------------------------------------------------------
+
+const clientReplyPath = "/v1/tenants/01994f64-6c00-7000-8000-000000000011/cases/01994f64-6c00-7000-8000-00000000aa01/client-replies"
+
+type ownershipErrorCases struct {
+	fakeCases
+	reply func(context.Context, casesAPI.SendClientReplyCommand) (casesAPI.WorkOutcome, error)
+}
+
+func (f *ownershipErrorCases) SendClientReply(ctx context.Context, command casesAPI.SendClientReplyCommand) (casesAPI.WorkOutcome, error) {
+	if f.reply == nil {
+		return casesAPI.WorkOutcome{}, nil
+	}
+	return f.reply(ctx, command)
+}
+
+func TestSendClientReplyRequiresExpectedEpoch(t *testing.T) {
+	server := newCasesTestServer(t, &fakeCases{})
+	// The OpenAPI contract declares expected_epoch required: the machine
+	// path never silently degrades to a server-only CAS.
+	body := `{"conversation_id":"01994f64-6c00-7000-8000-00000000cc01","content":"Добрый день!"}`
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, casesJSONRequest("POST", clientReplyPath, body))
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), "expected_epoch") {
+		t.Fatalf("the refusal names the required field, body = %s", recorder.Body.String())
+	}
+}
+
+func TestSendClientReplyPassesExpectedEpoch(t *testing.T) {
+	var seen int64
+	fake := &ownershipErrorCases{reply: func(_ context.Context, command casesAPI.SendClientReplyCommand) (casesAPI.WorkOutcome, error) {
+		seen = command.ExpectedEpoch
+		return casesAPI.WorkOutcome{}, nil
+	}}
+	server := newCasesTestServer(t, fake)
+	body := `{"conversation_id":"01994f64-6c00-7000-8000-00000000cc01","expected_epoch":3,"content":"Добрый день!"}`
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, casesJSONRequest("POST", clientReplyPath, body))
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	if seen != 3 {
+		t.Fatalf("the command carries the CAS expectation, got %d", seen)
+	}
+}
+
+func TestReplyGateWireShapeMatchesContract(t *testing.T) {
+	gate := casesDomain.ReplyGateError{
+		OwnerKind: "human", OwnerName: "Оператор Один", CurrentEpoch: 2,
+		Reason: "Отвечать клиенту может только текущий владелец.",
+	}
+	fake := &ownershipErrorCases{reply: func(context.Context, casesAPI.SendClientReplyCommand) (casesAPI.WorkOutcome, error) {
+		return casesAPI.WorkOutcome{}, gate
+	}}
+	server := newCasesTestServer(t, fake)
+	body := `{"conversation_id":"01994f64-6c00-7000-8000-00000000cc01","expected_epoch":2,"content":"посторонний текст"}`
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, casesJSONRequest("POST", clientReplyPath, body))
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	var problem httpx.Problem
+	if err := json.Unmarshal(recorder.Body.Bytes(), &problem); err != nil {
+		t.Fatal(err)
+	}
+	if problem.Code != "reply_gate" {
+		t.Fatalf("code = %s, body = %s", problem.Code, recorder.Body.String())
+	}
+	if problem.FieldErrors["current_owner_kind"] != "human" ||
+		problem.FieldErrors["current_owner_name"] != "Оператор Один" ||
+		problem.FieldErrors["current_epoch"] != "2" ||
+		!strings.Contains(problem.FieldErrors["permitted_path"], "request_transfer") {
+		t.Fatalf("the gate refusal carries the owner and the permitted path, fields = %+v", problem.FieldErrors)
+	}
 }

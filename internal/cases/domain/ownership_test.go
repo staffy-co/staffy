@@ -269,11 +269,93 @@ func TestPendingTransferPicksLatestOpenRequest(t *testing.T) {
 	_, _, _, now := ownershipBase()
 	first := TransferRequest{RequestID: id.MustParse("00000000-0000-7000-8000-0000000000e1"), CreatedAt: now.Add(-2 * time.Hour)}
 	second := TransferRequest{RequestID: id.MustParse("00000000-0000-7000-8000-0000000000e2"), CreatedAt: now.Add(-time.Hour)}
-	if pending := PendingTransfer([]TransferRequest{first, second}, nil, now); pending == nil || pending.RequestID != second.RequestID {
+	if pending := PendingTransfer(nil, []TransferRequest{first, second}, nil, now); pending == nil || pending.RequestID != second.RequestID {
 		t.Fatalf("the latest open request wins, got %+v", pending)
 	}
 	resolved := TransferResolution{RequestID: second.RequestID, Kind: TransferResolutionCancelled}
-	if pending := PendingTransfer([]TransferRequest{first, second}, []TransferResolution{resolved}, now); pending == nil || pending.RequestID != first.RequestID {
+	if pending := PendingTransfer(nil, []TransferRequest{first, second}, []TransferResolution{resolved}, now); pending == nil || pending.RequestID != first.RequestID {
 		t.Fatalf("the resolved request leaves the older open one, got %+v", pending)
+	}
+}
+
+func TestPendingTransferVoidByOwnershipWatermark(t *testing.T) {
+	terms, _, _, now := ownershipBase()
+	// The zombie chain of the R1 lesson: the first ask expired, a renewed
+	// ask was acknowledged — the new term moved the ownership past the
+	// older unresolved request, so it is void for every word (the health
+	// stays stable, the case never stays takeable).
+	expired := TransferRequest{
+		RequestID: id.MustParse("00000000-0000-7000-8000-0000000000e1"), CaseID: terms[0].CaseID,
+		RequestNo: 1, FromOwnerKind: OwnerKindHuman, FromOwnerRef: terms[0].OwnerRef,
+		ToOwnerKind: OwnerKindHuman, ToOwnerRef: id.MustParse("00000000-0000-7000-8000-0000000000d2"),
+		WritableSurface: WritableSurfaceInbox, Reason: "отпуск",
+		DeadlineAt: now.Add(-time.Minute), CreatedAt: now.Add(-30 * time.Minute),
+	}
+	renewed := TransferRequest{
+		RequestID: id.MustParse("00000000-0000-7000-8000-0000000000e2"), CaseID: terms[0].CaseID,
+		RequestNo: 2, FromOwnerKind: OwnerKindHuman, FromOwnerRef: terms[0].OwnerRef,
+		ToOwnerKind: OwnerKindHuman, ToOwnerRef: id.MustParse("00000000-0000-7000-8000-0000000000d2"),
+		WritableSurface: WritableSurfaceInbox, Reason: "повторный запрос",
+		DeadlineAt: now.Add(15 * time.Minute), CreatedAt: now.Add(-time.Minute),
+	}
+	acknowledged := TransferResolution{
+		RequestID: renewed.RequestID, Kind: TransferResolutionAcknowledged, ResultingEpoch: 2,
+	}
+	material := append([]OwnershipTerm(nil), terms...)
+	material = append(material, OwnershipTerm{
+		TenantID: terms[0].TenantID, CaseID: terms[0].CaseID,
+		TermID: id.MustParse("00000000-0000-7000-8000-0000000000c2"),
+		Epoch:  2, OwnerKind: OwnerKindHuman,
+		OwnerRef: renewed.ToOwnerRef, WritableSurface: WritableSurfaceInbox,
+		Origin:            OwnershipOriginTransferAcknowledge,
+		PreviousOwnerKind: OwnerKindHuman, PreviousOwnerRef: terms[0].OwnerRef,
+		CreatedAt: now,
+	})
+	state := DeriveOwnershipState(material, []TransferRequest{expired, renewed}, []TransferResolution{acknowledged}, true, now)
+	if state.Health != OwnershipHealthStable || state.Pending != nil || state.Takeable() {
+		t.Fatalf("the acknowledged renewal voids the older expired ask — the healthy ownership, got %+v", state)
+	}
+	if pending := PendingTransfer(material, []TransferRequest{expired, renewed}, []TransferResolution{acknowledged}, now); pending != nil {
+		t.Fatalf("the ask the ownership moved past is void, got %+v", pending)
+	}
+
+	// The double expiry: the renewed ask expires too — the latest open
+	// ask stays the honest timed-out word (the take right) while no term
+	// has moved past it.
+	twoExpired := renewed
+	twoExpired.DeadlineAt = now.Add(-30 * time.Second)
+	state = DeriveOwnershipState(terms, []TransferRequest{expired, twoExpired}, nil, true, now)
+	if state.Health != OwnershipHealthTransferTimedOut || state.Pending == nil || state.Pending.RequestID != twoExpired.RequestID {
+		t.Fatalf("the latest expired ask carries the timed-out word, got %+v", state)
+	}
+	if !state.Takeable() {
+		t.Fatal("the expired ask without a decision opens the take")
+	}
+
+	// The renewed ask declined (no ownership change): the older expired
+	// ask keeps the honest timed-out word — the take right persists.
+	declined := TransferResolution{RequestID: renewed.RequestID, Kind: TransferResolutionDeclined}
+	state = DeriveOwnershipState(terms, []TransferRequest{expired, renewed}, []TransferResolution{declined}, true, now)
+	if state.Health != OwnershipHealthTransferTimedOut || state.Pending == nil || state.Pending.RequestID != expired.RequestID {
+		t.Fatalf("the declined renewal leaves the expired ask the take right, got %+v", state)
+	}
+
+	// The expired ask never blocks the new ask (ActiveTransferRequest),
+	// the live one does.
+	if ask := ActiveTransferRequest(terms, []TransferRequest{expired}, nil, now); ask != nil {
+		t.Fatalf("the expired ask is void for the new-ask gate, got %+v", ask)
+	}
+	live := expired
+	live.DeadlineAt = now.Add(15 * time.Minute)
+	if ask := ActiveTransferRequest(terms, []TransferRequest{live}, nil, now); ask == nil {
+		t.Fatal("the live ask keeps the one-ask discipline")
+	}
+
+	// The ask at the term's OWN timestamp was made against that term (the
+	// deterministic fixture clocks share the instant) — never void.
+	sameInstant := live
+	sameInstant.CreatedAt = terms[0].CreatedAt
+	if ask := ActiveTransferRequest(terms, []TransferRequest{sameInstant}, nil, now); ask == nil {
+		t.Fatal("the ask of the term's own instant stays the live ask")
 	}
 }

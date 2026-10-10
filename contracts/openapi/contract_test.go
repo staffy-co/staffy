@@ -1166,6 +1166,26 @@ func TestOwnershipContractIsHonest(t *testing.T) {
         if _, ok := replyContent["maxLength"]; !ok {
                 t.Errorf("content must carry maxLength 2000 (the bounded operator words)")
         }
+        // The CAS expectation is the live contract word: the field is
+        // required (the machine path never silently degrades to a
+        // server-only CAS) and bounded below by 1.
+        replyRequired, _ := reply["required"].([]any)
+        requiredExpectedEpoch := false
+        for _, value := range replyRequired {
+                if text, _ := value.(string); text == "expected_epoch" {
+                        requiredExpectedEpoch = true
+                }
+        }
+        if !requiredExpectedEpoch {
+                t.Errorf("SendClientReplyRequest must require expected_epoch (the live CAS word)")
+        }
+        replyEpoch, _ := replyProperties["expected_epoch"].(map[string]any)
+        if replyEpoch == nil {
+                t.Fatal("SendClientReplyRequest.expected_epoch is missing")
+        }
+        if minimum, _ := replyEpoch["minimum"].(int); minimum != 1 {
+                t.Errorf("expected_epoch must carry minimum 1, got %v", replyEpoch["minimum"])
+        }
         for _, secret := range []string{"secret", "code", "otp", "password"} {
                 if _, ok := replyProperties[secret]; ok {
                         t.Errorf("the reply request must not carry the secret field %q", secret)

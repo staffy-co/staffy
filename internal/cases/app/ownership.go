@@ -223,6 +223,10 @@ func (s *Service) TakeOwnership(ctx context.Context, command casesAPI.TakeOwners
 	if err != nil {
 		return casesAPI.WorkOutcome{}, err
 	}
+	resolutionID, err := s.ids.New(command.Now)
+	if err != nil {
+		return casesAPI.WorkOutcome{}, err
+	}
 	outboxEventID, err := s.ids.New(command.Now)
 	if err != nil {
 		return casesAPI.WorkOutcome{}, err
@@ -239,7 +243,8 @@ func (s *Service) TakeOwnership(ctx context.Context, command casesAPI.TakeOwners
 		Actor: command.Actor.ID, CaseID: command.CaseID, ExpectedVersion: command.ExpectedEpoch,
 		OwnerKind: casesDomain.OwnerKindHuman, OwnerRef: command.Actor.ID,
 		WritableSurface: casesDomain.WritableSurfaceInbox, Reason: command.Reason,
-		VerificationID: termID, OutboxEventID: outboxEventID, OwnerActiveWord: ownerActive,
+		VerificationID: termID, TransferResolutionID: resolutionID,
+		OutboxEventID: outboxEventID, OwnerActiveWord: ownerActive,
 		Outcome: outcomeJSON, Now: command.Now.UTC().Truncate(time.Microsecond),
 	}); err != nil {
 		return casesAPI.WorkOutcome{}, err
@@ -279,14 +284,20 @@ func (s *Service) RequestTransfer(ctx context.Context, command casesAPI.RequestT
 		return outcome, err
 	}
 	// The case material: the original conversation drives the coverage
-	// re-read; the terms drive the current owner word.
+	// re-read; the terms drive the current owner word; the requests with
+	// the resolutions drive the live-ask discipline (an EXPIRED
+	// unresolved request is voided by the derivation — it never blocks
+	// the new ask; the store re-validates under the case lock).
 	conversation, err := s.caseConnection(ctx, scope, command.CaseID)
 	if err != nil {
 		return casesAPI.WorkOutcome{}, err
 	}
-	terms, _, _, err := s.repository.ReadOwnershipMaterial(ctx, scope, command.CaseID)
+	terms, requests, resolutions, err := s.repository.ReadOwnershipMaterial(ctx, scope, command.CaseID)
 	if err != nil {
 		return casesAPI.WorkOutcome{}, err
+	}
+	if ask := casesDomain.ActiveTransferRequest(terms, requests, resolutions, command.Now); ask != nil {
+		return casesAPI.WorkOutcome{}, rule("request_transfer", fmt.Errorf("%s", casesDomain.PendingTransferText))
 	}
 	members, err := s.memberIndex(ctx, scope)
 	if err != nil {
@@ -576,7 +587,7 @@ func (s *Service) SendClientReply(ctx context.Context, command casesAPI.SendClie
 	if outcome, replay, err := s.lookupCommand(ctx, scope, "send_client_reply", command.IdempotencyKey, hash); replay || err != nil {
 		return outcome, err
 	}
-	if err := rule("send_client_reply", casesDomain.GuardReplyContent(command.Content)); err != nil {
+	if err := rule("send_client_reply", casesDomain.GuardSendClientReply(command.ExpectedEpoch, command.Content)); err != nil {
 		return casesAPI.WorkOutcome{}, err
 	}
 	// The governing case of the target conversation: the case it is
@@ -638,6 +649,13 @@ func (s *Service) SendClientReply(ctx context.Context, command casesAPI.SendClie
 			OwnerKind: current.OwnerKind, OwnerName: ownerName, CurrentEpoch: current.Epoch,
 			Reason: casesDomain.NotOwnerText,
 		}
+	}
+	// The CAS expectation of the reply — AFTER the gate words: the
+	// non-owner always learns the CURRENT owner first (AC-3/AC-10); the
+	// owner with the stale expectation gets the honest version conflict
+	// (the store re-validates under the case lock).
+	if command.ExpectedEpoch != current.Epoch {
+		return casesAPI.WorkOutcome{}, casesDomain.ErrStaleVersion
 	}
 	// The route snapshot and the lineage word of the acting decision.
 	conversationOfCase, err := s.caseConnection(ctx, scope, command.CaseID)
