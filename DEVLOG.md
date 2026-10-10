@@ -1283,3 +1283,16 @@ decisions:
 next: CHECKPOINT 1 — одобрение владельцем спеки 2-5 (предъявлена в чате с выжимкой); после одобрения: перевод спеки+sprint-status в ready-for-dev, DEVLOG 48-checkpoint-1, батч-пуш (нужен свежий токен), затем Dev
 unpushed: 2 (1 ветка + 1 main docs)
 commit: 180afe1
+---
+date: 2026-10-10
+task: 48-checkpoint-1
+role: main (Super Z)
+story: 2-5
+summary: CHECKPOINT 1 закрыт — владелец одобрил спеку первого среза 2-5 «Conversation mode и обязательное AI-раскрытие» без правок («одобряю», чат 2026-10-10); спека и sprint-status одновременно → ready-for-dev
+done:
+- Одобрение зафиксировано в Spec Change Log спеки (замороженные секции Intent/Boundaries/Matrix не изменялись — фриз соблюдён, только status+Change Log, прецедент 89c24bc)
+- Спека 2-5 status: ready-for-dev; sprint-status.yaml 2-5: ready-for-dev (синхронный переход, прецедент 2-2/2-3/2-4)
+- Коммит CHECKPOINT 1 на ветке codex/story-2-5-conversation-mode-ai-disclosure: b053a12 [skip ci] (маркер лёгок: feat/closure-коммиты будут без маркера — урок 2-2/2-4)
+- Push по-прежнему отложен: токен предыдущей выдачи отозван (401 в 48-sm); unpushed = 3 (2 ветка: 180afe1+b053a12, 1 main docs: c94a9e5) — батч-пуш по свежем токене при CHECKPOINT 2
+next: Dev (step-03) — реализация первого среза 2-5 по спеке: domain mode.go (словарь/лестница/Policy v1/гейты), миграция 00005 (3 таблицы + 4 команды), wiring port/app/store/api (reply_class в send_client_reply, ingest +1 INSERT initial-терм), transport/OpenAPI/панели, интеграционные тесты + journeys; затем review R1 свежим контекстом
+commit: c94a9e5
