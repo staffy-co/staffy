@@ -2,7 +2,7 @@
 title: 'Story 2.4 — Единственный response-owner и записывающий inbox (первый срез)'
 type: 'feature'
 created: '2026-10-10'
-status: 'ready-for-dev'
+status: 'done'
 route: 'dispatch'
 baseline_commit: 'ade1d5c433885d9b31d12ee095d606dfdab06e8d'
 context:
@@ -60,11 +60,11 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `internal/cases/domain` — словари владения, термины, производные, гейты, CAS-семантика; юнит-тесты.
-- [ ] `migrations/cases/00004_response_owner.sql` — 5 таблиц, RLS, гранты, уникальности, расширения словарей команд/исключений.
-- [ ] `internal/cases/{port,app,store,api}` — 5 команд + drain + OwnershipView + initial-термин ingest.
-- [ ] `internal/transport/http` + OpenAPI + Response Owner Control + исходящие в таймлайне + privacy-классы.
-- [ ] `tests/integration/cases_ownership_test.go`, unit-набор, `tests/journeys/` — все строки матрицы, гонки, доступность.
+- [x] `internal/cases/domain` — словари владения, термины, производные, гейты, CAS-семантика; юнит-тесты.
+- [x] `migrations/cases/00004_response_owner.sql` — 5 таблиц, RLS, гранты, уникальности, расширения словарей команд/исключений.
+- [x] `internal/cases/{port,app,store,api}` — 5 команд + drain + OwnershipView + initial-термин ingest.
+- [x] `internal/transport/http` + OpenAPI + Response Owner Control + исходящие в таймлайне + privacy-классы.
+- [x] `tests/integration/cases_ownership_test.go`, unit-набор, `tests/journeys/` — все строки матрицы, гонки, доступность.
 
 **Acceptance Criteria:**
 - Given новое обращение на допущенном маршруте, when создаётся Conversation, then атомарно назначаются предусмотренный Operating Profile человеческий либо Staffy principal (initial-термин, epoch 1, одна writable surface); очередь, отдел и неподтверждённый кандидат владельцем не считаются; отсутствие допустимого первоначального владельца блокирует admission маршрута (существующий отказ 2-1).
@@ -94,6 +94,7 @@ context:
 
 ## Spec Change Log
 
+- 2026-10-10, review loop 3: R3 (субагент, финальный вердикт, живая проба на живом сторе поверх полного независимого регресса) — PASS. Major R1 закрыт классом (водяной знак + ActiveTransferRequest + take-резолюция; зомби невозможны ни в одной цепочке), m1 живой CAS на трёх поверхностях (код+провод+проба), m-r2-1 закрыт 39e5683 и проверен живой пробой на эпохе нового владельца (глубже коммитнутого ассерта), m2 честно отложен с трассировкой; R1/R2-зелёное не размыто (RLS/гранты/гонки/гейты, обе TZ, интеграция 115/115, journeys 21/21); спека замораживалась честно (фриз = только status/Change Log/Execution); Execution-чекбоксы отмечены, статус → done. Замечания-однострочники вне среза: флэйк TestProfileWriteAuditAndGrants (1-13, tie-breaker порядка аудита) и gofmt-долг contract_test.go (унаследован до ветки).
 - 2026-10-10, review loop 2: R2 (субагент, живые пробы в /tmp-копии ×7: зомби-ack/двойное истечение/decline-сохраняет-take, CAS-провод 400/403×4 поля/409/201 + порядок гейт-раньше-CAS, гонки request×2/take×2, RLS ×5 + слепота, равный-момент границы) — PASS: Major закрыт подлинно, m1 живой CAS на трёх поверхностях, m2 честно отложен, R1-зелёное не размыто, шум дельта 70/70 строк ровно. Minor m-r2-1: хэш идемпотентности send_client_reply в app-слое не включал expected_epoch (расхождение с фикстурой/формой/peer-командами; направление безопасное — replay истинного материала вместо честного ErrCommandKeyConflict) — закрыт: Expected в requestHash + интеграционный ассерт конфликта ключа при разном epoch (прецедент-урок 2-3 «фикстура обязана зеркалить стор» — теперь и хэш). Замороженные секции не правились.
 - 2026-10-10, review loop 1: R1 (субагент, живые пробы) — FAIL узко. Major «истёкший запрос не гасится»: (A) новые request_transfer навсегда заблокированы после истечения с нечестным текстом «дождитесь дедлайна»; (B) после истечения+take кейс перманентно забираем повторными take при живом владельце; (K) health карточки после take = transfer_timed_out — свежее владение искажено. Фиксы: домен — водяной знак терма (неразрешённый запрос, созданный строго раньше текущего терма, — void для каждого слова; запрос в момент терма — запрос этого терма: детерминированные часы фикстур делят мгновение, стор-команды строго позже по математике дедлайнов), ActiveTransferRequest (живой ask ≠ истёкший — для гейта новых запросов), take гасит pending cancelled-резолюцией той же транзакции (прецедент reassign). Минор m1 «мёртвое поле expected_epoch» закрыт: живой CAS на трёх поверхностях (гард GuardSendClientReply + сверка в app ПОСЛЕ gate-слов — не-владелец сначала узнаёт текущего владельца; стор под локом кейса; форма required со значением; OpenAPI required+minimum 1; JSON-путь честно требует поле 400-м, wire-тесты обеих поверхностей). Минор m2 «TOCTOU-снапшоты ownerActive/routeAdmitted вне case-лока» → deferred-work с трассировкой (окно закрывается execute-time revalidation drain-а на стороне доставки; полное закрытие = перечитка фактов внутри транзакции кейса — перекрёстная зависимость модулей). Замороженные секции не правились.
 - 2026-10-10, CHECKPOINT 1: спека одобрена владельцем без правок («одобряю», чат 2026-10-10). Замороженные секции (Intent / Boundaries & Constraints / I/O & Edge-Case Matrix) не изменялись. Спека и sprint-status.yaml одновременно переведены в `ready-for-dev`; далее — Dev (step-03).
