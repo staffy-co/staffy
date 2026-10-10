@@ -26,6 +26,11 @@ import (
 // repeat); the exit is the supervised lowering path; the disclosure gate
 // of the sales and the protected replies is the server-side truth.
 
+// ModeWriteScopeText is the honest refusal of the audit-only member on
+// the write surface of the mode commands (the frozen Boundaries word:
+// propose/record/event — участники с review).
+const ModeWriteScopeText = "Команды режима требуют полномочия review или configuration: участники только с audit не пишут лестницу режимов и раскрытия."
+
 // modeConversation resolves and validates the conversation of a mode
 // command: it must be the case's OWN conversation (the conversation born
 // with the case — the unified dialog anchor; the bound conversations of
@@ -61,9 +66,16 @@ func (s *Service) modeWorkItem(ctx context.Context, scope tenancy.Context, caseI
 // transaction. The signal of a turn event answers an accepted event of
 // the case; the expected mode version is the CAS word of the ladder.
 func (s *Service) ProposeMode(ctx context.Context, command casesAPI.ProposeModeCommand) (casesAPI.WorkOutcome, error) {
-	scope, _, err := s.ownershipScope(ctx, command.Actor, command.TenantID)
+	// The mode commands need the WRITE scope of the slice — review or
+	// configuration (the frozen Boundaries word: «propose/record/event —
+	// участники с review»); an audit-only member reads the case surface
+	// but never writes the ladder (the R1 Major fix).
+	scope, rights, err := s.ownershipScope(ctx, command.Actor, command.TenantID)
 	if err != nil {
 		return casesAPI.WorkOutcome{}, err
+	}
+	if !rights.Review && !rights.Configuration {
+		return casesAPI.WorkOutcome{}, rule("propose_mode", fmt.Errorf("%s", ModeWriteScopeText))
 	}
 	if err := rule("propose_mode", casesDomain.GuardProposeModeMaterial(command.Scope, command.Mode, command.Reason, command.WorkItemID)); err != nil {
 		return casesAPI.WorkOutcome{}, err
@@ -262,9 +274,14 @@ func (s *Service) ExitMode(ctx context.Context, command casesAPI.ExitModeCommand
 // delivery event and the disclosure_recorded outbox record of the same
 // transaction; the send observation makes it act for the channel.
 func (s *Service) RecordDisclosure(ctx context.Context, command casesAPI.RecordDisclosureCommand) (casesAPI.WorkOutcome, error) {
-	scope, _, err := s.ownershipScope(ctx, command.Actor, command.TenantID)
+	// The write scope of the mode surface (review or configuration — the
+	// R1 Major fix: audit-only members never write the disclosures).
+	scope, rights, err := s.ownershipScope(ctx, command.Actor, command.TenantID)
 	if err != nil {
 		return casesAPI.WorkOutcome{}, err
+	}
+	if !rights.Review && !rights.Configuration {
+		return casesAPI.WorkOutcome{}, rule("record_disclosure", fmt.Errorf("%s", ModeWriteScopeText))
 	}
 	if err := rule("record_disclosure", casesDomain.GuardDisclosureChannel(command.Channel)); err != nil {
 		return casesAPI.WorkOutcome{}, err
@@ -350,9 +367,14 @@ func (s *Service) RecordDisclosure(ctx context.Context, command casesAPI.RecordD
 // interruption that voids the acting disclosure. One event — one kind;
 // the last event (the maximal per-record number) is the record's status.
 func (s *Service) RecordDisclosureEvent(ctx context.Context, command casesAPI.RecordDisclosureEventCommand) (casesAPI.WorkOutcome, error) {
-	scope, _, err := s.ownershipScope(ctx, command.Actor, command.TenantID)
+	// The write scope of the mode surface (review or configuration — the
+	// R1 Major fix: audit-only members never write the delivery events).
+	scope, rights, err := s.ownershipScope(ctx, command.Actor, command.TenantID)
 	if err != nil {
 		return casesAPI.WorkOutcome{}, err
+	}
+	if !rights.Review && !rights.Configuration {
+		return casesAPI.WorkOutcome{}, rule("record_disclosure_event", fmt.Errorf("%s", ModeWriteScopeText))
 	}
 	if err := rule("record_disclosure_event", casesDomain.GuardDeliveryKind(command.Kind)); err != nil {
 		return casesAPI.WorkOutcome{}, err
@@ -428,8 +450,10 @@ func activeSignal(active *casesDomain.ModeTerm) string {
 // modeView assembles the mode section of the case view: the active
 // conversation mode with its honest words, the ladder, the term history,
 // the Work Item contexts, the forbidden action words of the current state
-// and the disclosure records with their delivery statuses. The reads
-// degrade honestly — an unreadable section never fails the case view.
+// and the disclosure records with their delivery statuses. The mode
+// material is the metadata surface of the same view scope: an unreadable
+// read fails the case view honestly (fail-closed — never a silently
+// empty mode section).
 func (s *Service) modeView(ctx context.Context, scope tenancy.Context, detail casesDomain.CaseDetail) (casesAPI.ModeView, error) {
 	terms, err := s.repository.ReadModeMaterial(ctx, scope, detail.Case.CaseID)
 	if err != nil {

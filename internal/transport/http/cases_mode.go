@@ -73,7 +73,10 @@ func modeProblem(w http.ResponseWriter, r *http.Request, server *Server, err err
 		})
 	case errors.As(err, &modeGate):
 		server.problem(w, r, http.StatusForbidden, "reply_mode_gate", modeGate.Reason, false, map[string]string{
-			"effective_mode": modeGate.EffectiveMode,
+			"active_mode":    modeGate.EffectiveMode,
+			"reason":         modeGate.ModeReason,
+			"signal_source":  modeGate.SignalSource,
+			"rule_version":   modeGate.RuleVersion,
 			"permitted_path": casesDomain.PermittedPathExit,
 		})
 	case errors.As(err, &disclosureGate):

@@ -573,7 +573,16 @@ func GuardReplyClassAgainstMode(class string, effective *ModeTerm) error {
 	if effective != nil && effective.Mode == ModeSales {
 		return nil
 	}
-	return ReplyModeError{EffectiveMode: EffectiveWorkModeWord(effective)}
+	refusal := ReplyModeError{EffectiveMode: EffectiveWorkModeWord(effective)}
+	if effective != nil {
+		refusal.ModeReason = effective.Reason
+		refusal.SignalSource = effective.SignalSource
+		refusal.RuleVersion = effective.RuleVersion
+	}
+	if refusal.RuleVersion == "" {
+		refusal.RuleVersion = ModePolicyVersion
+	}
+	return refusal
 }
 
 // GuardDisclosureText validates the bounded disclosure text: the exact
@@ -626,12 +635,16 @@ const OutboundBasisNotEvidencedText = "Исходящий партнёрский
 // ---------------------------------------------------------------------------
 
 // ReplyModeError is the machine-readable refusal of the reply mode gate:
-// the effective mode word of the Work Item the reply belongs to. The
-// problem contract carries the mode words as fields; the richer current
-// term words (the reason, the signal source, the rule version and the
-// permitted path) come from the caller's material — the shape stays fixed.
+// the effective mode word of the Work Item the reply belongs to WITH the
+// honest words of the term that governs it (the reason, the signal source
+// and the rule version — the Approach(4) snapshot: active_mode, reason,
+// signal_source, rule_version, permitted_path). The permitted path word
+// is fixed (exit_mode).
 type ReplyModeError struct {
 	EffectiveMode string
+	ModeReason    string
+	SignalSource  string
+	RuleVersion   string
 	Reason        string
 }
 

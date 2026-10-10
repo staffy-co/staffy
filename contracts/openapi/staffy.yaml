@@ -2413,7 +2413,7 @@ paths:
         '200': { description: Повтор идемпотентного ключа, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
         '400': { $ref: '#/components/responses/Problem' }
         '401': { $ref: '#/components/responses/Problem' }
-        '403': { description: 'Отказ гейта (машинно читаем: current_owner_kind, current_owner_name, current_epoch, permitted_path; гейт режима: effective_mode, permitted_path=exit_mode; гейт раскрытия: channel, permitted_path=record_disclosure)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '403': { description: 'Отказ гейта (машинно читаем: current_owner_kind, current_owner_name, current_epoch, permitted_path; гейт режима: active_mode, reason, signal_source, rule_version, permitted_path=exit_mode; гейт раскрытия: channel, permitted_path=record_disclosure)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
         '404': { $ref: '#/components/responses/Problem' }
         '409': { $ref: '#/components/responses/Problem' }
   /v1/tenants/{tenant_id}/cases/{case_id}/mode/proposals:

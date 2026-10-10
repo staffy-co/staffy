@@ -809,3 +809,198 @@ func TestModeProposeGuardsRacesAndIsolation(t *testing.T) {
 		t.Fatalf("expected the honest not-found of the foreign tenant, got %v", err)
 	}
 }
+
+// TestModeTablesRLSForced asserts the append-only discipline of the mode
+// surface at the database level: RLS + FORCE on all three tables (the
+// ownership precedent).
+func TestModeTablesRLSForced(t *testing.T) {
+	if runtimePool == nil {
+		t.Skip("no runtime pool")
+	}
+	ctx := context.Background()
+	rows, err := runtimePool.Query(ctx, `
+                select relname, relrowsecurity, relforcerowsecurity from pg_class
+                where relnamespace = 'cases'::regnamespace
+                  and relname in ('mode_terms','disclosure_records','disclosure_delivery_events')`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	seen := map[string][2]bool{}
+	for rows.Next() {
+		var name string
+		var rls, force bool
+		if err = rows.Scan(&name, &rls, &force); err != nil {
+			t.Fatal(err)
+		}
+		seen[name] = [2]bool{rls, force}
+	}
+	if err = rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if len(seen) != 3 {
+		t.Fatalf("expected the three mode tables, got %d", len(seen))
+	}
+	for name, flags := range seen {
+		if !flags[0] || !flags[1] {
+			t.Fatalf("the table %s must carry RLS + FORCE, got %v", name, flags)
+		}
+	}
+}
+
+// TestModeGrantsAppendOnly asserts the grant discipline: the mode tables
+// carry INSERT/SELECT for staffy_app and no UPDATE or DELETE (the
+// append-only ladder and disclosure history).
+func TestModeGrantsAppendOnly(t *testing.T) {
+	if runtimePool == nil {
+		t.Skip("no runtime pool")
+	}
+	ctx := context.Background()
+	for _, table := range []string{"mode_terms", "disclosure_records", "disclosure_delivery_events"} {
+		for _, grant := range []string{"INSERT", "SELECT", "UPDATE", "DELETE", "TRUNCATE"} {
+			var allowed bool
+			if err := runtimePool.QueryRow(ctx, `select has_table_privilege('staffy_app', $1, $2)`, "cases."+table, grant).Scan(&allowed); err != nil {
+				t.Fatal(err)
+			}
+			if (grant == "INSERT" || grant == "SELECT") != allowed {
+				t.Fatalf("%s on cases.%s: allowed=%v, want %v", grant, table, allowed, grant == "INSERT" || grant == "SELECT")
+			}
+		}
+	}
+}
+
+// TestModeCommandsRefuseAuditOnlyMember covers the R1 Major fix: the mode
+// write surface needs the review or the configuration scope — an
+// audit-only member reads the case view but never writes the ladder, the
+// disclosures or the delivery events (the frozen Boundaries word:
+// «propose/record/event — участники с review»).
+func TestModeCommandsRefuseAuditOnlyMember(t *testing.T) {
+	w := newCasesWorld(t, 736)
+	ctx := context.Background()
+	caseID, _ := w.acceptedCase(t, "evt-mode-audit-1", "sess-mode-audit-1", `{"call":"inbound-call","from":"+79000000070"}`)
+	conversationID := w.conversationFirst(t, caseID)
+	// The member ids avoid the world suffixes (the owner is seed*10+1, the
+	// backup is seed*10+8): seed*10+6/9 stay free.
+	auditor := inviteMember(t, w.identity, w.readinessActor(true), w.tenant, "mode-auditor-736@example.org", "expert_qa", []identityDomain.Scope{identityDomain.Audit}, "000000007366", "000000007369")
+	auditOnly := actorPrincipal{principalID: auditor.ID, stepUp: true}.principal()
+
+	_, err := w.cases.ProposeMode(ctx, casesAPI.ProposeModeCommand{
+		Actor: auditOnly, TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+		Mode: casesDomain.ModeSales, Scope: casesDomain.ModeScopeConversation, ExpectedModeVersion: 1,
+		Reason: "аудитор предлагает", SignalSource: casesDomain.ModeSignalOperator,
+		IdempotencyKey: "mode-audit-propose-1", Now: ownershipNow,
+	})
+	assertRuleError(t, err, "review или configuration")
+
+	_, err = w.cases.RecordDisclosure(ctx, casesAPI.RecordDisclosureCommand{
+		Actor: auditOnly, TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+		Channel: "phone", Text: "Я цифровой сотрудник компании.",
+		IdempotencyKey: "mode-audit-disclosure-1", Now: ownershipNow,
+	})
+	assertRuleError(t, err, "review или configuration")
+
+	_, err = w.cases.RecordDisclosureEvent(ctx, casesAPI.RecordDisclosureEventCommand{
+		Actor: auditOnly, TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+		DisclosureID: id.MustParse("01994f64-6c00-7000-8000-0000000000e1"), Kind: casesDomain.DeliverySent,
+		IdempotencyKey: "mode-audit-event-1", Now: ownershipNow,
+	})
+	assertRuleError(t, err, "review или configuration")
+
+	// Nothing landed: the ladder and the disclosure surface stay clean.
+	view := w.modeView(t, caseID)
+	if len(view.Terms) != 1 || len(view.Disclosures) != 0 {
+		t.Fatalf("the audit-only member writes nothing, got %d terms and %d disclosures", len(view.Terms), len(view.Disclosures))
+	}
+}
+
+// TestModeBasisDisputeRaisesPrivacyNoContact covers the matrix row 14
+// (FR-15): the client disputes the contact basis in a turn — the operator
+// fixes the signal (the turn reference) — the deterministic policy raises
+// privacy_no_contact — the sales replies stop immediately; the refusal
+// text is never a marketing word.
+func TestModeBasisDisputeRaisesPrivacyNoContact(t *testing.T) {
+	w := newCasesWorld(t, 737)
+	ctx := context.Background()
+	caseID, _ := w.acceptedCase(t, "evt-mode-privacy-1", "sess-mode-privacy-1", `{"call":"inbound-call","from":"+79000000071"}`)
+	conversationID := w.conversationFirst(t, caseID)
+
+	// The sales classification and the acting disclosure open the sales
+	// path first (the dispute stops it afterwards — the honest «до» word).
+	w.proposeMode(t, casesAPI.ProposeModeCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+		Mode: casesDomain.ModeSales, Scope: casesDomain.ModeScopeConversation, ExpectedModeVersion: 1,
+		Reason: "классификация", SignalSource: casesDomain.ModeSignalOperator,
+		IdempotencyKey: "mode-privacy-sales-1", Now: ownershipNow,
+	})
+	disclosure, err := w.cases.RecordDisclosure(ctx, casesAPI.RecordDisclosureCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+		Channel: "phone", Text: "Я цифровой сотрудник компании.",
+		IdempotencyKey: "mode-privacy-disclosure-1", Now: ownershipNow,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = w.cases.RecordDisclosureEvent(ctx, casesAPI.RecordDisclosureEventCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+		DisclosureID: disclosure.DisclosureID, Kind: casesDomain.DeliverySent,
+		IdempotencyKey: "mode-privacy-sent-1", Now: ownershipNow,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	open, err := w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+		ExpectedEpoch: 1, ReplyClass: casesDomain.ReplyClassSales,
+		Content: "Предлагаю деталь", IdempotencyKey: "mode-privacy-open-1", Now: ownershipNow,
+	})
+	if err != nil || open.ReplyState != "prepared" {
+		t.Fatalf("expected the sales reply to pass before the dispute, got %+v %v", open, err)
+	}
+
+	// The client disputes the contact basis in a turn: the operator fixes
+	// the signal with the turn reference — the policy raises
+	// privacy_no_contact (the sales path stops immediately, FR-15).
+	disputeTurn := w.modeTurnEvent(t, caseID, "sess-mode-privacy-1", "evt-mode-privacy-turn-1", `{"say":"я не давал согласия на звонки"}`)
+	raise := w.proposeMode(t, casesAPI.ProposeModeCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+		Mode: casesDomain.ModePrivacyNoContact, Scope: casesDomain.ModeScopeConversation, ExpectedModeVersion: 2,
+		Reason: "клиент оспаривает основание контакта", SignalSource: casesDomain.ModeSignalTurnEvent, TurnRef: disputeTurn,
+		IdempotencyKey: "mode-privacy-raise-1", Now: ownershipNow,
+	})
+	if raise.ModeVersion != 3 {
+		t.Fatalf("expected the version 3 privacy term, got %+v", raise)
+	}
+	view := w.modeView(t, caseID)
+	if view.Active.Mode != casesDomain.ModePrivacyNoContact || view.Active.TurnRef != disputeTurn {
+		t.Fatalf("expected the privacy_no_contact active word with the turn snapshot, got %+v", view.Active)
+	}
+
+	// The sales reply stops immediately: the machine-readable mode refusal
+	// with the privacy word (the refusal text is never a marketing word).
+	_, err = w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+		ExpectedEpoch: 1, ReplyClass: casesDomain.ReplyClassSales,
+		Content: "Всё же предлагаем вам", IdempotencyKey: "mode-privacy-blocked-1", Now: ownershipNow,
+	})
+	var modeGate casesDomain.ReplyModeError
+	if !errors.As(err, &modeGate) || modeGate.EffectiveMode != casesDomain.ModePrivacyNoContact {
+		t.Fatalf("expected the privacy_no_contact refusal, got %v", err)
+	}
+	if strings.Contains(modeGate.Reason, "предлагаем") || strings.Contains(modeGate.Reason, "скидк") {
+		t.Fatalf("the refusal text is never a marketing word, got %q", modeGate.Reason)
+	}
+
+	// The protected request refusal branch of the disclosure gate (the
+	// fresh case without any disclosure: the protected class demands the
+	// acting disclosure BEFORE the request of the protected data — AC-1).
+	otherCase, _ := w.acceptedCase(t, "evt-mode-privacy-2", "sess-mode-privacy-2", `{"call":"inbound-call","from":"+79000000072"}`)
+	otherConversation := w.conversationFirst(t, otherCase)
+	_, err = w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: otherCase, ConversationID: otherConversation,
+		ExpectedEpoch: 1, ReplyClass: casesDomain.ReplyClassProtectedRequest,
+		Content: "Подтвердите номер карты", IdempotencyKey: "mode-privacy-protected-1", Now: ownershipNow,
+	})
+	var disclosureGate casesDomain.ReplyDisclosureError
+	if !errors.As(err, &disclosureGate) {
+		t.Fatalf("expected the disclosure gate refusal of the protected class, got %v", err)
+	}
+}
