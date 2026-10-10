@@ -220,14 +220,18 @@ func (s *Service) ExitMode(ctx context.Context, command casesAPI.ExitModeCommand
 		return casesAPI.WorkOutcome{}, err
 	}
 	// The authority ladder: the current ownership word decides the owner
-	// side; the configuration scope decides the supervision side. The
-	// safety mode is the supervision word ONLY (AC-9).
+	// side — the owner WITH the review scope (the frozen Boundaries letter
+	// «остальные — текущий владелец с review либо configuration»: a
+	// supervision reassignment may hand the ownership to an audit-only
+	// member, but that owner never exits anything — the R2 Minor fix);
+	// the configuration scope decides the supervision side. The safety
+	// mode is the supervision word ONLY (AC-9).
 	ownershipTerms, _, _, err := s.repository.ReadOwnershipMaterial(ctx, scope, command.CaseID)
 	if err != nil {
 		return casesAPI.WorkOutcome{}, err
 	}
 	current := casesDomain.CurrentOwnership(ownershipTerms)
-	isOwner := current != nil && current.OwnerKind == casesDomain.OwnerKindHuman && current.OwnerRef == command.Actor.ID
+	isOwner := current != nil && current.OwnerKind == casesDomain.OwnerKindHuman && current.OwnerRef == command.Actor.ID && rights.Review
 	if !casesDomain.ExitAuthorityAllowed(casesDomain.EffectiveWorkModeWord(active), isOwner, rights.Configuration) {
 		return casesAPI.WorkOutcome{}, rule("exit_mode", fmt.Errorf("%s", casesDomain.ModeExitAuthorityText))
 	}

@@ -1004,3 +1004,61 @@ func TestModeBasisDisputeRaisesPrivacyNoContact(t *testing.T) {
 		t.Fatalf("expected the disclosure gate refusal of the protected class, got %v", err)
 	}
 }
+
+// TestModeAuditOnlyOwnerCannotExit covers the R2 Minor fix: a supervision
+// reassignment may hand the ownership to an audit-only member (the
+// reassign target is any active member), but that owner never exits any
+// mode — the frozen Boundaries letter requires the review scope on the
+// owner side of the authority ladder.
+func TestModeAuditOnlyOwnerCannotExit(t *testing.T) {
+	w := newCasesWorld(t, 738)
+	ctx := context.Background()
+	caseID, _ := w.acceptedCase(t, "evt-mode-audit-owner-1", "sess-mode-audit-owner-1", `{"call":"inbound-call","from":"+79000000073"}`)
+	conversationID := w.conversationFirst(t, caseID)
+
+	// The sales classification: a non-safety mode exists to exit.
+	w.proposeMode(t, casesAPI.ProposeModeCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+		Mode: casesDomain.ModeSales, Scope: casesDomain.ModeScopeConversation, ExpectedModeVersion: 1,
+		Reason: "классификация", SignalSource: casesDomain.ModeSignalOperator,
+		IdempotencyKey: "mode-audit-owner-sales-1", Now: ownershipNow,
+	})
+
+	// The supervision reassignment (the configuration path of 2-4) hands
+	// the ownership to the audit-only member.
+	auditor := inviteMember(t, w.identity, w.readinessActor(true), w.tenant, "mode-audit-owner-738@example.org", "expert_qa", []identityDomain.Scope{identityDomain.Audit}, "000000007386", "000000007389")
+	auditOwner := actorPrincipal{principalID: auditor.ID, stepUp: true}.principal()
+	_, err := w.cases.ReassignOwnership(ctx, casesAPI.ReassignOwnershipCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ExpectedEpoch: 1,
+		ToOwnerKind: casesDomain.OwnerKindHuman, ToOwnerRef: auditor.ID,
+		WritableSurface: casesDomain.WritableSurfaceInbox, Reason: "надзор передаёт аудитору",
+		IdempotencyKey: "mode-audit-owner-reassign-1", Now: ownershipNow,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// The audit-only owner never exits anything: the honest refusal names
+	// the authority ladder (the review word of the owner side).
+	_, err = w.cases.ExitMode(ctx, casesAPI.ExitModeCommand{
+		Actor: auditOwner, TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+		Mode: casesDomain.ModeUnclassified, ExpectedModeVersion: 2, Reason: "аудитор-владелец хочет выйти",
+		IdempotencyKey: "mode-audit-owner-exit-1", Now: ownershipNow,
+	})
+	assertRuleError(t, err, "полномочия")
+
+	// The mode mode commands stay refused for the audit-only owner too
+	// (the write scope never follows the ownership alone).
+	_, err = w.cases.ProposeMode(ctx, casesAPI.ProposeModeCommand{
+		Actor: auditOwner, TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+		Mode: casesDomain.ModeClaim, Scope: casesDomain.ModeScopeConversation, ExpectedModeVersion: 2,
+		Reason: "аудитор-владелец предлагает", SignalSource: casesDomain.ModeSignalOperator,
+		IdempotencyKey: "mode-audit-owner-propose-1", Now: ownershipNow,
+	})
+	assertRuleError(t, err, "review или configuration")
+
+	// Nothing landed: the ladder stays at the sales term.
+	if view := w.modeView(t, caseID); len(view.Terms) != 2 {
+		t.Fatalf("the audit-only owner writes nothing to the ladder, got %d terms", len(view.Terms))
+	}
+}
