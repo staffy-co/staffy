@@ -1242,3 +1242,24 @@ decisions:
 next: CHECKPOINT 2 владельцу — свежий GitHub-токен (старый отозван, Task 32) → батч-пуш (6 ветка + 3 main docs) → PR через GitHub API → CI verify → merge → DEVLOG 47-merge; далее Epic 2: story 2-5 conversation mode и обязательное AI-раскрытие
 unpushed: 9 (6 ветка + 3 main docs)
 commit: 438ab03
+---
+date: 2026-10-10
+task: 47-merge
+role: main (Super Z)
+story: 2-4
+summary: Story 2-4 влита в main — PR #19, merge-коммит e4fae54; CI зелёный тремя полными прогонами (push/PR/main); Epic 2: 4/16 stories done — контур получил единственного response-owner (append-only термины владения с CAS-epoch, водяной знак терма), transfer lifecycle с дедлайном human coverage и acknowledge, серверный гейт клиентской записи send_client_reply, execute-time revalidation drain и health-производные reassignment_required
+done:
+- Токен выдан владельцем в чате (CHECKPOINT 2, продолжение сессии): применён только inline env при каждом вызове (STAFFY_GH_TOKEN=... bash <script>) — на диск не попадал; шелл рециклится между вызовами, паттерн-стандарт 46-merge соблюдён вторым CHECKPOINT подряд
+- Push батчем (push_batch_2_4.sh, прецедент push_batch_2_3.sh): main ade1d5c..a325069 (3 docs-коммита DEVLOG 47-sm..47-close; [skip ci] легитимен — docs прямо на main) + ветка codex/story-2-4-response-owner-inbox bb419f4..438ab03 (6 story-коммитов: SM-спека, CHECKPOINT 1, feat, fix R1, fix R2-минор, docs-done; первая публикация ветки, -u tracking)
+- Head 438ab03 без [skip ci] — подтверждено живьём: CI стартовал мгновенно на оба события (push + pull_request); проактивная дисциплина 47-close сработала, amend не понадобился, история не переписывалась, ветка опубликована байт-в-байт (438ab03 == HEAD, отревьюенный R3)
+- PR #19 создан через GitHub API (create_pr_2_4.sh, токен только из env, прецедент PR #18): https://github.com/artemiosu/staffy/pull/19 — состав среза (миграция 00004, домен водяного знака, 5 идемпотентных команд + drain, ingest initial-термин, outbox ×3 события, evidence-гейт поверхности, Response Owner Control), review R1/R2/R3, честные границы, регресс, ссылка на спеку
+- CI: три полных прогона, все success — push-run 38040252164 и pull_request-run 38040286533 (head 438ab03), main-run 38040468479 (head e4fae54)
+- Merge через API (merge_pr_2_4.sh: merge_method=merge, sha-pinned 438ab03ea78f2e64efb9c3fee8164542b8f26ffe, прецедент PR #13..#18): merge-коммит e4fae54f80728e031c8455073354273ec046e660; локальный main синхронизирован ff-only (a325069..e4fae54: 30 файлов, +6506/−50); оверлап файлов main/ветки пуст (main-сторона трогала только DEVLOG.md) — конфликтов не было
+- Ноты 47-close точны (в отличие от 46-close): «unpushed: 9 (6 ветка + 3 main docs)» — подтверждено живьём; «closure-коммит без [skip ci]» — подтверждён; корректировок канона не требуется
+- Локальный Go/PG-регресс в этой фазе не запускался (не нужен): дерево не менялось с R3 (полный suite зелёный ×2 TZ на 438ab03), CI ×3 прогнал тот же контент независимо — amend/перезаписи не было, дерево байт-в-байт
+decisions:
+- Прецедент CHECKPOINT 2 воспроизведён без отклонений: скрипты push_batch/create_pr/ci_poll+eval/merge_pr 2_4 — точные адаптации 2_3 (HEAD_PREFIX 438ab03, STATE ci_poll_2_4_runs.json); main-run опрошен тем же ci_poll_2_4.sh через env-override (POLL_BRANCH=main, HEAD_PREFIX=e4fae54, NEED=1) — отдельный скрипт не понадобился
+- Токен-дисциплина env-only per-invocation — подтверждённый рабочий стандарт (второй story подряд, ноль инцидентов)
+- Итог review-цикла 2-4 подтверждён CI независимо: Major R1 (зомби-запросы) закрыт классом водяного знака, m1 живой CAS на трёх поверхностях, m-r2-1 хэш идемпотентности с expected_epoch — регресс зелёный локально (×2 TZ, R1/R2/R3) и в CI (×3)
+next: Epic 2 продолжается — story 2-5 «Conversation mode и обязательное AI-раскрытие» (backlog; первый шаг — SM-спека первого среза → CHECKPOINT 1 владельцу). Осталось 12/16 stories
+commit: e4fae54
