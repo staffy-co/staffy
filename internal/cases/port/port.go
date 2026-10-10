@@ -96,6 +96,10 @@ type AcceptParams struct {
 	// payload is never pre-encoded with fabricated ones.
 	AcceptedPayload casesDomain.AcceptedEventPayload
 	AckPayload      []byte
+	// TermID is the identifier of the initial ownership term the
+	// SAME transaction writes (Story 2.4: epoch 1, the owner from the
+	// human coverage, the inbox surface, the ingest_initial origin).
+	TermID id.UUID
 	// PackID/PackVersion are the Domain Pack pin of the admitting
 	// decision — the taxonomy the case row carries for its whole
 	// lifecycle (Story 2.2).
@@ -218,6 +222,26 @@ type Repository interface {
 	// HMAC key of the identifier tokens. INSERT-only: the creation race
 	// resolves by ON CONFLICT DO NOTHING + re-read.
 	ReadIdentifierKey(ctx context.Context, scope tenancy.Context, now time.Time) ([]byte, error)
+	// Story 2.4 — the ownership surface:
+	// ReadOwnershipMaterial reads the terms, the transfer requests and
+	// the resolutions of one case (the derivation input).
+	ReadOwnershipMaterial(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]casesDomain.OwnershipTerm, []casesDomain.TransferRequest, []casesDomain.TransferResolution, error)
+	// ReadConversationByID reads one conversation by its identifier
+	// regardless of the case (the governing-case resolution input).
+	ReadConversationByID(ctx context.Context, scope tenancy.Context, conversationID id.UUID) (casesDomain.Conversation, error)
+	// ReadClientReplies reads the outgoing replies of the case with
+	// their outcome states (the case view material).
+	ReadClientReplies(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]ReplyCard, error)
+	// PendingClientReplies returns the prepared replies (no outcome
+	// row) of the tenant bounded by the limit — the drain input.
+	PendingClientReplies(ctx context.Context, scope tenancy.Context, limit int) ([]casesDomain.ClientReply, error)
+	// ResolveReplyDrain re-validates one prepared reply under the case
+	// advisory lock and writes the append-only outcome with the outbox
+	// record (fresh — dispatched; stale — stale_needs_review; the
+	// re-observed attention subject raises the exception once). The
+	// material UNIQUE (tenant, reply) makes the drain idempotent: a
+	// repeated run finds the reply decided and writes nothing.
+	ResolveReplyDrain(ctx context.Context, p ReplyDrainParams) (string, bool, error)
 }
 
 // ---------------------------------------------------------------------------
@@ -327,6 +351,64 @@ type WorkCommandParams struct {
 	IdentifierToken     string
 	Purpose             string
 	OnBehalf            bool
+	// The Story 2.4 material (the command-specific fields of the five
+	// ownership commands and the client reply drain).
+	OwnerKind             string
+	OwnerRef              id.UUID
+	WritableSurface       string
+	TransferRequestID     id.UUID
+	TransferResolutionID  id.UUID
+	DeadlineAt            time.Time
+	ReplyID               id.UUID
+	ReplyContent          string
+	RouteConnectionID     id.UUID
+	RouteChannel          string
+	RouteDirection        string
+	LineageEmployeeID     id.UUID
+	LineageDecisionNo     int64
+	LineageProfileVersion int64
+	OutboxEventID         id.UUID
+	// OwnerActiveWord is the app-side member snapshot word of the
+	// command: the current owner resolves to an active member (the
+	// honest snapshot read before the transaction; the ownership
+	// state itself re-validates under the case lock).
+	OwnerActiveWord bool
+}
+
+// ---------------------------------------------------------------------------
+// Story 2.4: the ownership persistence surface
+// ---------------------------------------------------------------------------
+
+// ReplyDrainParams is the material of one execute-time revalidation of the
+// drain: the prepared reply, the app-side facts read at the drain start
+// (the owner activity word of the member facts and the route admission
+// word of the route facts — honest snapshots), the generated ids and the
+// clock. The store re-validates the ownership state under the case
+// advisory lock and writes the append-only outcome.
+type ReplyDrainParams struct {
+	Scope         tenancy.Context
+	Reply         casesDomain.ClientReply
+	OutcomeID     id.UUID
+	OutboxEventID id.UUID
+	ExceptionID   id.UUID
+	OwnerActive   bool
+	RouteAdmitted bool
+	Now           time.Time
+}
+
+// ReplyCard is one outgoing reply row of the case view: the reply with its
+// derived state (the outcome kind, empty while prepared).
+type ReplyCard struct {
+	Reply       casesDomain.ClientReply
+	OutcomeKind string
+	OutcomeAt   time.Time
+}
+
+// OwnerMember is one active member option of the transfer forms: the
+// principal id with the honest name (the email of the membership).
+type OwnerMember struct {
+	PrincipalID id.UUID
+	Name        string
 }
 
 // FactMaterial is the full read of one fact: the anchor, the versions

@@ -137,6 +137,8 @@ type caseDetailPageView struct {
 	MethodOptions       []workOption
 	ProviderCodeOpts    []workOption
 	IdentifierKindsText string
+	// The Story 2.4 section: the Response Owner Control panel.
+	Ownership ownershipPanelView
 }
 
 // assurancePanelView is the assurance section of the case page: the derived
@@ -204,6 +206,67 @@ type duplicateCardView struct {
 	DecisionText   string
 	ResolutionNote string
 	ReviewText     string
+}
+
+// ownershipPanelView is the Response Owner Control section of the case
+// page: the current owner with the honest name, the epoch, the surface,
+// the transfer state (the target, the deadline, the remaining minutes),
+// the health word, the backup owner and the safe reassignment path; the
+// term history and the outgoing replies with their states.
+type ownershipPanelView struct {
+	OwnerText        string
+	OwnerName        string
+	Epoch            string
+	SurfaceText      string
+	HealthText       string
+	HealthClass      string
+	HasPending       bool
+	PendingTarget    string
+	PendingDeadline  string
+	PendingRemaining string
+	PendingRequestID string
+	PendingTimedOut  bool
+	BackupOwnerText  string
+	AckDeadlineText  string
+	PrimaryAction    string
+	Takeable         bool
+	CanTake          bool
+	CanRequest       bool
+	CanReassign      bool
+	CanReply         bool
+	CurrentEpoch     string
+	HasTerms         bool
+	TermRows         []ownershipTermRow
+	HasReplies       bool
+	ReplyRows        []replyRowView
+	MemberOptions    []workOption
+}
+
+// ownershipTermRow is one term row of the ownership history.
+type ownershipTermRow struct {
+	TermID     string
+	Epoch      string
+	OwnerText  string
+	OriginText string
+	Surface    string
+	Reason     string
+	ActorID    string
+	CreatedAt  string
+}
+
+// replyRowView is one outgoing reply row of the case timeline: the state
+// is the honest derivation (prepared — waiting the drain; dispatched —
+// the synthetic contour record; stale_needs_review — blocked).
+type replyRowView struct {
+	ReplyID   string
+	Channel   string
+	Content   string
+	StateText string
+	State     string
+	CreatedAt string
+	OutcomeAt string
+	Epoch     string
+	OwnerText string
 }
 
 // externalCaseNo renders the case number of the binding sides: the number
@@ -473,6 +536,11 @@ func prepareCaseView(view casesAPI.CaseView, facts casesAPI.FactsView, flash str
 		}
 		out.DuplicateCards = append(out.DuplicateCards, row)
 	}
+	// The Story 2.4 section: the Response Owner Control panel — the
+	// derivation words, the history, the outgoing replies and the member
+	// options of the transfer forms.
+	out.Ownership = prepareOwnershipPanel(view)
+
 	for _, conversation := range view.Conversations {
 		stateText := "Активна"
 		if conversation.CaseID != view.Case.CaseID {
@@ -754,4 +822,175 @@ func prepareWorkCards(view casesAPI.CaseView, facts casesAPI.FactsView) []workCa
 		cards = append(cards, card)
 	}
 	return cards
+}
+
+// prepareOwnershipPanel flattens the ownership section into the template
+// projection: every row rendered as text — accessible without color,
+// assigned and acknowledged never confusable, the primary action matching
+// the current state.
+func prepareOwnershipPanel(view casesAPI.CaseView) ownershipPanelView {
+	ownership := view.Ownership
+	state := ownership.State
+	panel := ownershipPanelView{
+		OwnerName:     ownership.OwnerName,
+		CurrentEpoch:  strconv.FormatInt(0, 10),
+		HasTerms:      len(ownership.Terms) > 0,
+		TermRows:      make([]ownershipTermRow, 0, len(ownership.Terms)),
+		HasReplies:    len(ownership.Replies) > 0,
+		ReplyRows:     make([]replyRowView, 0, len(ownership.Replies)),
+		MemberOptions: make([]workOption, 0, len(ownership.Members)),
+		CanTake:       view.CanManageWork,
+		CanRequest:    view.CanManageWork,
+		CanReassign:   view.CanManageWork,
+		CanReply:      view.CanManageWork,
+	}
+	if state.Current != nil {
+		panel.Epoch = strconv.FormatInt(state.Current.Epoch, 10)
+		panel.CurrentEpoch = panel.Epoch
+		panel.SurfaceText = surfaceText(state.Current.WritableSurface)
+		if state.Current.OwnerKind == casesDomain.OwnerKindStaffy {
+			panel.OwnerText = "цифровой сотрудник"
+		} else {
+			panel.OwnerText = "участник " + ownership.OwnerName
+		}
+	}
+	panel.HealthText = ownershipHealthText(state.Health)
+	panel.HealthClass = "next-note"
+	if state.Health != casesDomain.OwnershipHealthStable {
+		panel.HealthClass = "alert"
+	}
+	if state.Pending != nil {
+		panel.HasPending = true
+		panel.PendingTarget = ownership.PendingTargetName
+		panel.PendingDeadline = formatTime(state.Pending.DeadlineAt)
+		panel.PendingRequestID = state.Pending.RequestID.String()
+		remaining := state.Pending.DeadlineAt.Sub(timeNowHTTP()).Minutes()
+		if state.PendingTimedOut {
+			panel.PendingTimedOut = true
+			panel.PendingRemaining = "дедлайн истёк — запрос погашен"
+		} else if remaining >= 0 {
+			panel.PendingRemaining = strconv.FormatInt(int64(remaining), 10) + " мин. до дедлайна"
+		}
+	}
+	if state.BackupOwnerID != (id.UUID("")) {
+		panel.BackupOwnerText = state.BackupOwnerID.String()
+	}
+	if state.AckDeadlineMinutes > 0 {
+		panel.AckDeadlineText = strconv.FormatInt(state.AckDeadlineMinutes, 10) + " мин."
+	}
+	panel.Takeable = state.Takeable()
+	panel.PrimaryAction = ownershipPrimaryAction(state, view.CanManageWork)
+	for _, term := range ownership.Terms {
+		row := ownershipTermRow{
+			TermID:     term.TermID.String(),
+			Epoch:      strconv.FormatInt(term.Epoch, 10),
+			Surface:    surfaceText(term.WritableSurface),
+			OriginText: ownershipOriginText(term.Origin),
+			Reason:     term.Reason,
+			ActorID:    term.ActorID.String(),
+			CreatedAt:  formatTime(term.CreatedAt),
+		}
+		if term.OwnerKind == casesDomain.OwnerKindStaffy {
+			row.OwnerText = "цифровой сотрудник"
+		} else {
+			row.OwnerText = "участник " + term.OwnerRef.String()
+		}
+		panel.TermRows = append(panel.TermRows, row)
+	}
+	for _, card := range ownership.Replies {
+		row := replyRowView{
+			ReplyID:   card.Reply.ReplyID.String(),
+			Channel:   card.Reply.Channel,
+			Content:   card.Reply.Content,
+			Epoch:     strconv.FormatInt(card.Reply.Epoch, 10),
+			CreatedAt: formatTime(card.Reply.CreatedAt),
+			State:     card.OutcomeKind,
+			StateText: replyStateText(card.OutcomeKind),
+			OwnerText: card.Reply.OwnerRef.String(),
+		}
+		if card.OutcomeKind != "" {
+			row.OutcomeAt = formatTime(card.OutcomeAt)
+		}
+		panel.ReplyRows = append(panel.ReplyRows, row)
+	}
+	for _, member := range ownership.Members {
+		panel.MemberOptions = append(panel.MemberOptions, workOption{
+			Value: member.PrincipalID.String(),
+			Text:  member.Name + " (" + member.PrincipalID.String() + ")",
+		})
+	}
+	return panel
+}
+
+// ownershipHealthText renders the health word (assigned and acknowledged
+// are never confusable — AC-12).
+func ownershipHealthText(health string) string {
+	switch health {
+	case casesDomain.OwnershipHealthTransferPending:
+		return "Передача назначена, ждёт подтверждения: текущий владелец продолжает отвечать."
+	case casesDomain.OwnershipHealthTransferTimedOut:
+		return "Дедлайн подтверждения истёк без решения: запрос погашен, владение можно забрать (take)."
+	case casesDomain.OwnershipHealthReassignment:
+		return "Владелец недоступен: новые исходящие заблокированы до безопасного переназначения."
+	}
+	return "Владение стабильно."
+}
+
+// ownershipOriginText renders the term origin word.
+func ownershipOriginText(origin string) string {
+	switch origin {
+	case casesDomain.OwnershipOriginIngestInitial:
+		return "первоначальное назначение (ingest)"
+	case casesDomain.OwnershipOriginTake:
+		return "забрано (take)"
+	case casesDomain.OwnershipOriginTransferAcknowledge:
+		return "подтверждённая передача"
+	case casesDomain.OwnershipOriginReassign:
+		return "переназначение надзора"
+	}
+	return origin
+}
+
+// surfaceText renders the writable surface word.
+func surfaceText(surface string) string {
+	if surface == casesDomain.WritableSurfaceExternalInbox {
+		return "внешний Inbox (по доказательству)"
+	}
+	return "Staffy inbox"
+}
+
+// replyStateText renders the reply state word.
+func replyStateText(state string) string {
+	switch state {
+	case casesDomain.ReplyOutcomeDispatched:
+		return "отправлено (запись контура; реальная доставка — исходящие)"
+	case casesDomain.ReplyOutcomeStaleNeedsReview:
+		return "устарело — требуется решение человека (payload не пересылается)"
+	}
+	return "подготовлено (ждёт execute-time проверки)"
+}
+
+// ownershipPrimaryAction resolves the primary action of the panel: the
+// owner answers or transfers; the target acknowledges or declines; a
+// bystander requests the transfer.
+func ownershipPrimaryAction(state casesDomain.OwnershipState, canManage bool) string {
+	if !canManage {
+		return "Только просмотр: команды владения требуют полномочия review."
+	}
+	if state.Health == casesDomain.OwnershipHealthReassignment {
+		return "Переназначение: забрать (take) резервному владельцу или переназначить (надзор)."
+	}
+	if state.Pending != nil && !state.PendingTimedOut {
+		return "Действие цели запроса: принять или отклонить передачу."
+	}
+	if state.PendingTimedOut {
+		return "Дедлайн истёк: забрать владение (take) или отменить запрос автору."
+	}
+	return "Владелец: ответить клиенту или передать владение."
+}
+
+// timeNowHTTP is the page clock word (the transport does not carry a
+// per-request clock — the remaining minutes render from the view time).
+func timeNowHTTP() time.Time {
+	return time.Now().UTC()
 }

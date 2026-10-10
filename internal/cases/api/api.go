@@ -111,6 +111,10 @@ type CaseView struct {
 	Assurance  AssuranceView             `json:"assurance"`
 	Bindings   []casesPort.BindingCard   `json:"bindings"`
 	Duplicates []casesPort.DuplicateCard `json:"duplicates"`
+	// The Story 2.4 section: the derived ownership state with the
+	// history, the outgoing replies and the member options of the
+	// transfer forms.
+	Ownership OwnershipView `json:"ownership"`
 }
 
 // PayloadView is the sealed payload read under review/audit: the digest,
@@ -140,6 +144,7 @@ type Service interface {
 	DrainOutbox(context.Context, domain.Principal, id.UUID) (DrainResult, error)
 	WorkService
 	VerificationService
+	OwnershipService
 }
 
 // Clock and IDs follow the module conventions.
@@ -318,6 +323,19 @@ type WorkOutcome struct {
 	DuplicateCandidateID id.UUID `json:"duplicate_candidate_id,omitempty"`
 	DuplicateDecision    string  `json:"duplicate_decision,omitempty"`
 	ConfirmationText     string  `json:"confirmation_text,omitempty"`
+	// The Story 2.4 material: the epoch of the ownership transition,
+	// the transfer request, the reply and its outcome, and the honest
+	// gate refusal of the client reply (the current owner, the epoch
+	// and the permitted path — the UI shows it directly).
+	Epoch             int64   `json:"epoch,omitempty"`
+	TransferRequestID id.UUID `json:"transfer_request_id,omitempty"`
+	TransferDecision  string  `json:"transfer_decision,omitempty"`
+	ReplyID           id.UUID `json:"reply_id,omitempty"`
+	ReplyState        string  `json:"reply_state,omitempty"`
+	GateOwnerKind     string  `json:"gate_owner_kind,omitempty"`
+	GateOwnerName     string  `json:"gate_owner_name,omitempty"`
+	GateCurrentEpoch  int64   `json:"gate_current_epoch,omitempty"`
+	GatePermittedPath string  `json:"gate_permitted_path,omitempty"`
 }
 
 // FactView is one fact of the facts view: the anchor, the derived status,

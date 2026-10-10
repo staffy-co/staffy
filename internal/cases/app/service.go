@@ -233,7 +233,10 @@ func routeWords(routes employeeAPI.RouteFacts) casesDomain.RouteFacts {
 		}
 		coverage := make([]casesDomain.CoverageWord, 0, len(candidate.Coverage))
 		for _, row := range candidate.Coverage {
-			coverage = append(coverage, casesDomain.CoverageWord{Channel: row.Route.Channel, Direction: row.Route.Direction, ResponseOwnerID: row.ResponseOwnerID})
+			coverage = append(coverage, casesDomain.CoverageWord{
+				Channel: row.Route.Channel, Direction: row.Route.Direction, ResponseOwnerID: row.ResponseOwnerID,
+				BackupOwnerID: row.BackupOwnerID, AckDeadlineMinutes: row.AckDeadlineMinutes,
+			})
 		}
 		candidates = append(candidates, casesDomain.RouteCandidate{
 			EmployeeID: candidate.EmployeeID, DecisionNo: candidate.DecisionNo, Stage: candidate.Stage,
@@ -276,6 +279,13 @@ func (s *Service) accept(ctx context.Context, scope tenancy.Context, command cas
 	if err != nil {
 		return casesAPI.IngestOutcome{}, err
 	}
+	// The initial ownership term of the new case (Story 2.4): the
+	// same transaction writes it with the owner from the human
+	// coverage of the admitting decision.
+	termID, err := s.ids.New(now)
+	if err != nil {
+		return casesAPI.IngestOutcome{}, err
+	}
 	sealKey, err := casesDomain.NewSealKey()
 	if err != nil {
 		return casesAPI.IngestOutcome{}, err
@@ -313,7 +323,7 @@ func (s *Service) accept(ctx context.Context, scope tenancy.Context, command cas
 		Scope: scope, Event: event, Payload: envelope.Payload, SealKey: sealKey,
 		Seal:       casesDomain.PayloadSeal(sealKey, envelope.Payload),
 		EmployeeID: outcome.EmployeeID, ResponseOwnerID: outcome.OwnerID,
-		PackID: outcome.PackID, PackVersion: outcome.PackVersion,
+		PackID: outcome.PackID, PackVersion: outcome.PackVersion, TermID: termID,
 		Session: casesDomain.PreCaseSession{
 			TenantID: scope.TenantID(), SessionID: sessionID, ConnectionID: envelope.ConnectionID,
 			Provider: envelope.Provider, ProviderSessionID: envelope.ProviderSessionID,
@@ -662,6 +672,15 @@ func (s *Service) CaseView(ctx context.Context, actor domain.Principal, tenantID
 	if len(detail.Conversations) > 0 {
 		modality = detail.Conversations[0].Modality
 	}
+	// The Story 2.4 section: the ownership derivation with the honest
+	// owner word, the term history, the outgoing replies and the member
+	// options of the transfer forms. The reads degrade honestly — an
+	// unreadable section never fails the case view (the ownership material
+	// is the metadata surface of the same view scope).
+	ownership, err := s.ownershipView(ctx, scope, detail)
+	if err != nil {
+		return casesAPI.CaseView{}, err
+	}
 	return casesAPI.CaseView{
 		TenantID: tenantID, Case: detail.Case, Conversations: detail.Conversations,
 		Timeline: detail.Timeline, WorkItems: detail.WorkItems, Exceptions: detail.Exceptions,
@@ -678,6 +697,7 @@ func (s *Service) CaseView(ctx context.Context, actor domain.Principal, tenantID
 		},
 		Bindings:   cards,
 		Duplicates: duplicates,
+		Ownership:  ownership,
 	}, nil
 }
 

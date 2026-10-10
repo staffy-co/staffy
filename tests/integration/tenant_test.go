@@ -224,6 +224,13 @@ func TestMain(m *testing.M) {
         if _, err = adminPool.Exec(ctx, strings.Split(string(casesVerificationMigration), "-- +goose Down")[0]); err != nil {
                 panic(err)
         }
+        casesOwnerMigration, err := os.ReadFile("../../migrations/cases/00004_response_owner.sql")
+        if err != nil {
+                panic(err)
+        }
+        if _, err = adminPool.Exec(ctx, strings.Split(string(casesOwnerMigration), "-- +goose Down")[0]); err != nil {
+                panic(err)
+        }
         if _, err = adminPool.Exec(ctx, "alter role staffy_app login password 'staffy-runtime-test'"); err != nil {
                 panic(err)
         }
