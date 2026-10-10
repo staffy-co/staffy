@@ -66,6 +66,17 @@ type casesFixture struct {
 	candidates       []casesDomain.DuplicateCandidate
 	resolutions      []casesDomain.DuplicateResolution
 
+	// The Story 2.4 ownership material: the append-only terms, the transfer
+	// requests with the resolutions, the client replies with their
+	// outcomes. The derivations (the current term, the pending request,
+	// the health, the reply state) are the REAL domain functions.
+	ownershipTerms      map[id.UUID][]casesDomain.OwnershipTerm
+	transferRequests    map[id.UUID][]casesDomain.TransferRequest
+	transferResolutions []casesDomain.TransferResolution
+	replies             map[id.UUID][]casesDomain.ClientReply
+	replyOutcomes       map[id.UUID]casesDomain.ClientReplyOutcome
+	ownershipSeq        int
+
 	caseNo, conversationNo int64
 	eventSeq               int
 	workSeq, exceptionSeq  int
@@ -88,7 +99,8 @@ func newCasesFixture() *casesFixture {
 			{Channel: "phone", Direction: "inbound", State: casesDomain.RouteWordAdmitted},
 		},
 		coverage: []casesDomain.CoverageWord{
-			{Channel: "phone", Direction: "inbound", ResponseOwnerID: owner},
+			{Channel: "phone", Direction: "inbound", ResponseOwnerID: owner,
+				BackupOwnerID: secondOperatorID, AckDeadlineMinutes: 120},
 		},
 		events:   map[string]*casesDomain.ChannelEvent{},
 		payloads: map[id.UUID][]byte{},
@@ -110,6 +122,11 @@ func newCasesFixture() *casesFixture {
 		commandOutcomes: map[string]casesAPI.WorkOutcome{},
 		// The Story 2.3 material:
 		identifierTokens: map[string]map[id.UUID]string{},
+		// The Story 2.4 material:
+		ownershipTerms:   map[id.UUID][]casesDomain.OwnershipTerm{},
+		transferRequests: map[id.UUID][]casesDomain.TransferRequest{},
+		replies:          map[id.UUID][]casesDomain.ClientReply{},
+		replyOutcomes:    map[id.UUID]casesDomain.ClientReplyOutcome{},
 	}
 }
 
@@ -246,6 +263,18 @@ func (f *casesFixture) accept(envelope casesDomain.Envelope, command casesAPI.In
 			State: casesDomain.ConversationStateActive, Modality: envelope.Modality, CreatedAt: now,
 		})
 		f.material[caseID] = material
+		// The initial ownership term (Story 2.4): epoch 1, the owner
+		// from the human coverage, the inbox surface, the
+		// ingest_initial origin — the same in-memory transaction of
+		// the fixture accept.
+		f.ownershipSeq++
+		f.ownershipTerms[caseID] = append(f.ownershipTerms[caseID], casesDomain.OwnershipTerm{
+			TenantID: f.tenant, CaseID: caseID,
+			TermID: id.MustParse("01994f64-6c00-7000-8000-" + digit12(int(20000+f.ownershipSeq))),
+			Epoch:  1, OwnerKind: casesDomain.OwnerKindHuman, OwnerRef: outcome.OwnerID,
+			WritableSurface: casesDomain.WritableSurfaceInbox, Origin: casesDomain.OwnershipOriginIngestInitial,
+			ActorID: outcome.OwnerID, CreatedAt: now,
+		})
 		initialWorkItemID = id.MustParse("01994f64-6c00-7000-8000-" + digit12(int(9000+f.caseNo)))
 		f.items[caseID] = append(f.items[caseID], casesDomain.WorkItem{
 			TenantID: f.tenant, CaseID: caseID, ConversationID: conversationID,
@@ -474,6 +503,9 @@ func (f *casesFixture) CaseView(_ context.Context, _ domain.Principal, tenant, c
 			StepUpText:      casesDomain.StepUpText,
 		},
 		Bindings: bindingCards, Duplicates: duplicateCards,
+		// The Story 2.4 section: the ownership derivation over the REAL
+		// domain functions.
+		Ownership: f.fixtureOwnershipView(caseID),
 	}, nil
 }
 

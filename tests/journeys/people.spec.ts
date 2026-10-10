@@ -5,7 +5,7 @@ test('owner can navigate people at 320px and sees honest step-up recovery', asyn
   await page.goto('/app/tenants/01994f64-6c00-7000-8000-000000000002');
   await page.getByRole('link', { name: 'Участники' }).click();
   await expect(page.getByRole('heading', { name: 'Участники' })).toBeVisible();
-  await expect(page.getByText('Статус: active')).toBeVisible();
+  await expect(page.getByText('Статус: active').first()).toBeVisible();
   await expect(page.getByText('Пока провайдер недоступен, эти назначения будут отклонены.')).toBeVisible();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBe(0);

@@ -54,6 +54,125 @@
 {{end}}
 </section>
 
+<h2>Response Owner Control — владение обращением</h2>
+<p class="next-note">Владение — append-only история: текущий владелец, surface и epoch — производные чтения; смена владельца — только командой с подтверждением; серверный гейт клиентской записи — истина, скрытие кнопки — только UX.</p>
+<section class="panel" aria-label="Владение обращением">
+<p>Текущий владелец: <strong>{{.View.Ownership.OwnerText}}{{if .View.Ownership.OwnerName}}{{if ne .View.Ownership.OwnerText (printf "участник %s" .View.Ownership.OwnerName)}} ({{.View.Ownership.OwnerName}}){{end}}{{end}}</strong>. Epoch: <strong>{{.View.Ownership.Epoch}}</strong>. Записывающая поверхность: <strong>{{.View.Ownership.SurfaceText}}</strong>.</p>
+<p class="{{.View.Ownership.HealthClass}}" {{if ne .View.Ownership.HealthText "Владение стабильно."}}role="alert" tabindex="-1" id="ownership-health"{{end}}>{{.View.Ownership.HealthText}}{{if and .View.Ownership.HasPending (not .View.Ownership.PendingTimedOut)}} Цель: <strong>{{.View.Ownership.PendingTarget}}</strong>. Дедлайн: {{.View.Ownership.PendingDeadline}} ({{.View.Ownership.PendingRemaining}}).{{end}}{{if .View.Ownership.PendingTimedOut}} Запрос погашен производной времени.{{end}}</p>
+{{if .View.Ownership.BackupOwnerText}}<p class="next-note">Резервный владелец (human coverage): <span class="digest-block">{{.View.Ownership.BackupOwnerText}}</span>. Дедлайн подтверждения покрытия: {{.View.Ownership.AckDeadlineText}}.</p>{{end}}
+<p class="next-note">{{.View.Ownership.PrimaryAction}}</p>
+{{if .View.Ownership.HasPending}}
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Запрос передачи">
+<table class="datamap-table">
+<caption>Запрос передачи: цель, дедлайн, remaining — назначено (assigned) ≠ подтверждено (acknowledged)</caption>
+<thead><tr><th scope="col">Запрос</th><th scope="col">Цель</th><th scope="col">Дедлайн</th><th scope="col">Осталось</th><th scope="col">Состояние</th></tr></thead>
+<tbody><tr><th scope="row"><span class="digest-block">{{.View.Ownership.PendingRequestID}}</span></th><td>{{.View.Ownership.PendingTarget}}</td><td>{{.View.Ownership.PendingDeadline}}</td><td>{{.View.Ownership.PendingRemaining}}</td><td>{{if .View.Ownership.PendingTimedOut}}истёк без решения{{else}}назначен, ждёт подтверждения{{end}}</td></tr></tbody>
+</table>
+</div>
+{{end}}
+{{if .View.CanManageWork}}
+{{if .View.Ownership.Takeable}}
+<details class="connector-connect"><summary>Забрать владение (take — дедлайн истёк или владелец недоступен)</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/ownership/take">
+<label for="take-epoch">Текущая версия владения (epoch)</label>
+<input id="take-epoch" name="expected_epoch" type="number" min="1" required value="{{.View.Ownership.CurrentEpoch}}">
+<label for="take-reason">Причина (до 200 символов)</label>
+<input id="take-reason" name="reason" type="text" maxlength="200">
+<button class="primary" type="submit">Забрать владение</button>
+</form></details>
+{{end}}
+<details class="connector-connect"><summary>Запросить передачу (дедлайн — из human coverage)</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/ownership/transfer-requests">
+<label for="transfer-epoch">Текущая версия владения (epoch)</label>
+<input id="transfer-epoch" name="expected_epoch" type="number" min="1" required value="{{.View.Ownership.CurrentEpoch}}">
+<label for="transfer-target">Цель передачи</label>
+<select id="transfer-target" name="to_owner_ref" required>{{range $.View.Ownership.MemberOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}</select>
+<label for="transfer-surface">Записывающая поверхность цели</label>
+<select id="transfer-surface" name="writable_surface" required>
+<option value="inbox">Staffy inbox (проверенная минимальная)</option>
+<option value="external_inbox">Внешний Inbox (требует действующее доказательство)</option>
+</select>
+<label for="transfer-reason">Причина (обязательна, до 200 символов)</label>
+<input id="transfer-reason" name="reason" type="text" required maxlength="200">
+<button class="primary" type="submit">Запросить передачу</button>
+</form>
+<p class="next-note">Внешний Inbox выбирается только по действующему доказательству capability — название продукта доказательством не является.</p>
+</details>
+{{if .View.Ownership.HasPending}}
+<details class="connector-connect"><summary>Решить запрос передачи (подтвердить / отклонить / отменить)</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/ownership/transfer-requests/{{.View.Ownership.PendingRequestID}}/resolution">
+<label for="resolve-decision">Решение</label>
+<select id="resolve-decision" name="decision" required>
+<option value="acknowledged">Подтвердить (принять владение)</option>
+<option value="declined">Отклонить</option>
+<option value="cancelled">Отменить (автор запроса)</option>
+</select>
+<label for="resolve-reason">Причина (до 200 символов)</label>
+<input id="resolve-reason" name="reason" type="text" maxlength="200">
+<button class="primary" type="submit">Записать решение</button>
+</form>
+<p class="next-note">Подтвердить может только цель запроса; опоздавший ответ после дедлайна отклоняется честно.</p>
+</details>
+{{end}}
+<details class="connector-connect"><summary>Переназначить напрямую (путь надзора — configuration)</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/ownership/reassign">
+<label for="reassign-epoch">Текущая версия владения (epoch)</label>
+<input id="reassign-epoch" name="expected_epoch" type="number" min="1" required value="{{.View.Ownership.CurrentEpoch}}">
+<label for="reassign-target">Новый владелец</label>
+<select id="reassign-target" name="to_owner_ref" required>{{range $.View.Ownership.MemberOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}</select>
+<label for="reassign-surface">Записывающая поверхность</label>
+<select id="reassign-surface" name="writable_surface" required>
+<option value="inbox">Staffy inbox (проверенная минимальная)</option>
+</select>
+<label for="reassign-reason">Причина (обязательна, до 200 символов)</label>
+<input id="reassign-reason" name="reason" type="text" required maxlength="200">
+<button class="primary" type="submit">Переназначить владение</button>
+</form></details>
+<details class="connector-connect"><summary>Ответить клиенту (единственный исходящий путь — серверный гейт)</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/client-replies">
+<label for="reply-conversation">Диалог ответа</label>
+<select id="reply-conversation" name="conversation_id" required>{{range $.View.ConversationOpts}}<option value="{{.Value}}">{{.Text}}</option>{{end}}</select>
+<label for="reply-content">Текст ответа клиенту (до 2000 символов)</label>
+<textarea id="reply-content" name="content" required rows="3" maxlength="2000"></textarea>
+<button class="primary" type="submit">Подготовить ответ клиенту</button>
+</form>
+<p class="next-note">Отправить может только текущий владелец-человек: сервер отклонит попытку постороннего с именем текущего владельца и способом запросить передачу. Реальная доставка в канал — исходящие диалоги (отложено).</p>
+</details>
+{{end}}
+</section>
+
+<h2>История владения</h2>
+<p class="next-note">Append-only термины: epoch монотонно растёт; каждый переход хранит прежнего и нового владельца, автора, причину и время; редактирования истории не существует.</p>
+{{if .View.Ownership.HasTerms}}
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="История владения">
+<table class="datamap-table">
+<caption>Термины владения: epoch, владелец, поверхность, происхождение, причина, автор, время</caption>
+<thead><tr><th scope="col">Epoch</th><th scope="col">Владелец</th><th scope="col">Поверхность</th><th scope="col">Происхождение</th><th scope="col">Причина</th><th scope="col">Автор</th><th scope="col">Время</th></tr></thead>
+<tbody>
+{{range .View.Ownership.TermRows}}<tr><th scope="row">{{.Epoch}}</th><td>{{.OwnerText}}</td><td>{{.Surface}}</td><td>{{.OriginText}}</td><td>{{.Reason}}</td><td><span class="digest-block">{{.ActorID}}</span></td><td>{{.CreatedAt}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+{{else}}
+<p role="status">Истории владения нет (до-миграционные данные).</p>
+{{end}}
+
+<h2>Исходящие ответы клиенту</h2>
+<p class="next-note">Единственный клиентский исходящий путь среза: подготовленный ответ проходит execute-time проверку drain-а; устаревший payload не пересылается новому владельцу автоматически.</p>
+{{if .View.Ownership.HasReplies}}
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Исходящие ответы">
+<table class="datamap-table">
+<caption>Ответы клиенту: канал, текст, состояние, epoch владельца, время</caption>
+<thead><tr><th scope="col">Ответ</th><th scope="col">Канал</th><th scope="col">Текст</th><th scope="col">Состояние</th><th scope="col">Epoch</th><th scope="col">Создан</th></tr></thead>
+<tbody>
+{{range .View.Ownership.ReplyRows}}<tr><th scope="row"><span class="digest-block">{{.ReplyID}}</span></th><td>{{.Channel}}</td><td>{{.Content}}</td><td>{{if .State}}<span class="alert" role="status">{{.StateText}}</span>{{else}}{{.StateText}}{{end}}</td><td>{{.Epoch}}</td><td>{{.CreatedAt}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+{{else}}
+<p role="status">Исходящих ответов нет.</p>
+{{end}}
+
 <h2>Work Control Card — рабочие элементы</h2>
 <p class="next-note">Версии — истина: каждая команда пишет новую версию; текущее состояние и тип — производные. Автоматической связи событий с элементами нет; факты не выбирают значение сами — только подтверждение человеком.</p>
 {{if .View.HasWorkItems}}

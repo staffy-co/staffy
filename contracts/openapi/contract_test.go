@@ -1106,3 +1106,97 @@ func TestVerificationContractIsHonest(t *testing.T) {
                 }
         }
 }
+// TestOwnershipContractIsHonest asserts the Story 2.4 surface: the five
+// command paths carry the principal boundary and the idempotency key; the
+// transfer request has NO field for the deadline (the human coverage is
+// the only source); the reply request carries the bounded content only;
+// the WorkOutcome command enum covers the five new commands; the CaseView
+// carries the ownership section; the reply gate refusal is documented as
+// the machine-readable 403.
+func TestOwnershipContractIsHonest(t *testing.T) {
+        content, err := os.ReadFile("staffy.yaml")
+        if err != nil {
+                t.Fatal(err)
+        }
+        var document map[string]any
+        if err := yaml.Unmarshal(content, &document); err != nil {
+                t.Fatal(err)
+        }
+        paths := mapping(t, document, "paths")
+        for _, path := range []string{
+                "/v1/tenants/{tenant_id}/cases/{case_id}/ownership/take",
+                "/v1/tenants/{tenant_id}/cases/{case_id}/ownership/transfer-requests",
+                "/v1/tenants/{tenant_id}/cases/{case_id}/ownership/transfer-requests/{request_id}/resolution",
+                "/v1/tenants/{tenant_id}/cases/{case_id}/ownership/reassign",
+                "/v1/tenants/{tenant_id}/cases/{case_id}/client-replies",
+        } {
+                post := mapping(t, mapping(t, paths, path), "post")
+                if required, _ := post["x-staffy-principal-required"].(bool); !required {
+                        t.Errorf("%s: the principal boundary is not documented", path)
+                }
+                parameters, _ := post["parameters"].([]any)
+                hasKey := false
+                for _, parameter := range parameters {
+                        item, _ := parameter.(map[string]any)
+                        if item == nil {
+                                continue
+                        }
+                        if ref, _ := item["$ref"].(string); ref == "#/components/parameters/IdempotencyKey" {
+                                hasKey = true
+                        }
+                }
+                if !hasKey {
+                        t.Errorf("%s: the Idempotency-Key parameter is missing", path)
+                }
+        }
+        schemas := mapping(t, mapping(t, document, "components"), "schemas")
+        transfer := mapping(t, schemas, "RequestTransferRequest")
+        transferProperties := mapping(t, transfer, "properties")
+        for _, forbidden := range []string{"deadline_minutes", "deadline", "ack_deadline"} {
+                if _, ok := transferProperties[forbidden]; ok {
+                        t.Errorf("the transfer request must never carry the deadline field %q (the human coverage is the only source)", forbidden)
+                }
+        }
+        reply := mapping(t, schemas, "SendClientReplyRequest")
+        replyProperties := mapping(t, reply, "properties")
+        replyContent, _ := replyProperties["content"].(map[string]any)
+        if replyContent == nil {
+                t.Fatal("SendClientReplyRequest.content is missing")
+        }
+        if _, ok := replyContent["maxLength"]; !ok {
+                t.Errorf("content must carry maxLength 2000 (the bounded operator words)")
+        }
+        for _, secret := range []string{"secret", "code", "otp", "password"} {
+                if _, ok := replyProperties[secret]; ok {
+                        t.Errorf("the reply request must not carry the secret field %q", secret)
+                }
+        }
+        outcome := mapping(t, schemas, "WorkOutcome")
+        command := mapping(t, outcome, "properties")["command"].(map[string]any)
+        enum, _ := command["enum"].([]any)
+        covered := map[string]bool{}
+        for _, value := range enum {
+                covered[value.(string)] = true
+        }
+        for _, name := range []string{"take_ownership", "request_transfer", "resolve_transfer", "reassign_ownership", "send_client_reply"} {
+                if !covered[name] {
+                        t.Errorf("the command enum misses %s", name)
+                }
+        }
+        caseView := mapping(t, schemas, "CaseView")
+        viewProperties := mapping(t, caseView, "properties")
+        if _, ok := viewProperties["ownership"]; !ok {
+                t.Errorf("the CaseView misses the ownership section")
+        }
+        health := mapping(t, mapping(t, mapping(t, mapping(t, mapping(t, schemas, "OwnershipView"), "properties"), "state"), "properties"), "Health")
+        healthEnum, _ := health["enum"].([]any)
+        wanted := map[string]bool{"stable": false, "transfer_pending": false, "transfer_timed_out": false, "reassignment_required": false}
+        for _, value := range healthEnum {
+                wanted[value.(string)] = true
+        }
+        for health, present := range wanted {
+                if !present {
+                        t.Errorf("the ownership health enum misses %s", health)
+                }
+        }
+}

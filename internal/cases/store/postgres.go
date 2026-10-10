@@ -246,6 +246,19 @@ func (s *Postgres) AcceptEvent(ctx context.Context, p casesPort.AcceptParams) (c
 			casesDomain.ConversationStateActive, now); err != nil {
 			return casesDomain.IngestResult{}, err
 		}
+		// The initial ownership term (Story 2.4): one INSERT in
+		// the SAME admission transaction — epoch 1, the owner
+		// from the human coverage of the admitting decision, the
+		// inbox surface, the ingest_initial origin. The ladder,
+		// the dictionaries and the order of the steps of 2-1 are
+		// untouched; the conversations columns stay the creation
+		// snapshot.
+		if _, err = tx.Exec(ctx, `
+                        insert into cases.ownership_terms (tenant_id, case_id, term_id, epoch, owner_kind, owner_ref, writable_surface, origin, actor_id, created_at)
+                        values ($1,$2,$3,1,'human',$4,'inbox','ingest_initial',$4,$5)`,
+			tenantID, p.CaseID, p.TermID, ownerID, now); err != nil {
+			return casesDomain.IngestResult{}, err
+		}
 		// The initial work item is created only with a new conversation —
 		// the anchor, the version 1 (kind create, the honest untriaged
 		// state, the system actor) and the link of the first event.

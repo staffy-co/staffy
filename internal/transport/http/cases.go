@@ -50,6 +50,19 @@ func (s *Server) BindCases(service casesAPI.Service) {
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/bindings", s.bindChannelForm)
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/bindings/{binding_id}/unlink", s.unlinkChannelForm)
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/duplicates/{candidate_id}/resolution", s.resolveDuplicateForm)
+	// The Story 2.4 surfaces: the five ownership commands (machine JSON +
+	// operator forms, PRG) and the reply drain sweep.
+	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/ownership/take", s.takeOwnershipAPI)
+	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/ownership/transfer-requests", s.requestTransferAPI)
+	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/ownership/transfer-requests/{request_id}/resolution", s.resolveTransferAPI)
+	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/ownership/reassign", s.reassignOwnershipAPI)
+	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/client-replies", s.sendClientReplyAPI)
+	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/client-replies/drain", s.drainClientRepliesAPI)
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/ownership/take", s.takeOwnershipForm)
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/ownership/transfer-requests", s.requestTransferForm)
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/ownership/transfer-requests/{request_id}/resolution", s.resolveTransferForm)
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/ownership/reassign", s.reassignOwnershipForm)
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/client-replies", s.sendClientReplyForm)
 	// The operator forms of the Work Control Card (the PRG pattern):
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/work-items", s.createWorkItemForm)
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/classify", s.classifyWorkItemForm)

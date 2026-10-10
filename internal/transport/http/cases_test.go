@@ -58,6 +58,27 @@ func (f *fakeCases) DrainOutbox(context.Context, domain.Principal, id.UUID) (cas
 	return casesAPI.DrainResult{}, nil
 }
 
+// The Story 2.4 ownership stubs: the wire-shape tests target the surface
+// contract; the command semantics live in the integration suite.
+func (f *fakeCases) TakeOwnership(context.Context, casesAPI.TakeOwnershipCommand) (casesAPI.WorkOutcome, error) {
+	return casesAPI.WorkOutcome{}, nil
+}
+func (f *fakeCases) RequestTransfer(context.Context, casesAPI.RequestTransferCommand) (casesAPI.WorkOutcome, error) {
+	return casesAPI.WorkOutcome{}, nil
+}
+func (f *fakeCases) ResolveTransfer(context.Context, casesAPI.ResolveTransferCommand) (casesAPI.WorkOutcome, error) {
+	return casesAPI.WorkOutcome{}, nil
+}
+func (f *fakeCases) ReassignOwnership(context.Context, casesAPI.ReassignOwnershipCommand) (casesAPI.WorkOutcome, error) {
+	return casesAPI.WorkOutcome{}, nil
+}
+func (f *fakeCases) SendClientReply(context.Context, casesAPI.SendClientReplyCommand) (casesAPI.WorkOutcome, error) {
+	return casesAPI.WorkOutcome{}, nil
+}
+func (f *fakeCases) DrainClientReplies(context.Context, domain.Principal, id.UUID) (casesAPI.DrainRepliesResult, error) {
+	return casesAPI.DrainRepliesResult{}, nil
+}
+
 func newCasesTestServer(t *testing.T, fake casesAPI.Service) *Server {
 	t.Helper()
 	identity := fakeIdentity{create: func(api.CreateTenantCommand) (api.CreateTenantResult, error) {

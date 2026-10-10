@@ -29,6 +29,10 @@ import (
 var (
         principalID = id.MustParse("01994f64-6c00-7000-8000-000000000001")
         tenantID    = id.MustParse("01994f64-6c00-7000-8000-000000000002")
+        // secondOperatorID is the second review-scoped operator of the
+        // fixture world (the transfer target and the backup owner of the
+        // human coverage).
+        secondOperatorID = id.MustParse("01994f64-6c00-7000-8000-00000000000a")
 )
 
 type identityFixture struct{}
@@ -40,10 +44,16 @@ func (identityFixture) Workspace(context.Context, domain.Principal, id.UUID) (do
         return domain.Workspace{Tenant: domain.Tenant{ID: tenantID, Name: "Магазин Олега"}, Role: "owner"}, nil
 }
 func (identityFixture) ListMembers(context.Context, domain.Principal, id.UUID) ([]domain.Membership, error) {
-        return []domain.Membership{{TenantID: tenantID, PrincipalID: &principalID, Roles: []domain.Role{domain.Owner}, Scopes: domain.AllScopes(), Status: "active", Version: 1}}, nil
+        return []domain.Membership{
+                {TenantID: tenantID, PrincipalID: &principalID, Roles: []domain.Role{domain.Owner}, Scopes: domain.AllScopes(), Status: "active", Version: 1},
+                {TenantID: tenantID, PrincipalID: &secondOperatorID, Roles: []domain.Role{domain.Owner}, Scopes: []domain.Scope{domain.Review, domain.Audit}, Status: "active", Version: 1},
+        }, nil
 }
 func (identityFixture) MembersFacts(context.Context, domain.Principal, id.UUID) ([]domain.Membership, error) {
-        return []domain.Membership{{TenantID: tenantID, PrincipalID: &principalID, Roles: []domain.Role{domain.Owner}, Status: "active", Version: 1}}, nil
+        return []domain.Membership{
+                {TenantID: tenantID, PrincipalID: &principalID, Roles: []domain.Role{domain.Owner}, Status: "active", Version: 1},
+                {TenantID: tenantID, PrincipalID: &secondOperatorID, Roles: []domain.Role{domain.Owner}, Status: "active", Version: 1},
+        }, nil
 }
 func (identityFixture) InviteMember(context.Context, api.MembershipCommand) (domain.Membership, string, error) {
         return domain.Membership{}, "", domain.ErrStepUpRequired
@@ -66,14 +76,27 @@ func (identityFixture) Authorize(context.Context, domain.Principal, id.UUID, dom
 // both the honest step-up refusal and the confirmed approval (the resolver
 // cannot read query parameters — the flag is server state).
 type resolverFixture struct {
-        mu     sync.Mutex
-        stepUp bool
+        mu       sync.Mutex
+        stepUp   bool
+        operator bool // false: the primary owner; true: the second operator
 }
 
 func (r *resolverFixture) Resolve(context.Context) (domain.Principal, error) {
         r.mu.Lock()
         defer r.mu.Unlock()
-        return domain.Principal{ID: principalID, CanCreateTenant: true, StepUpVerified: r.stepUp}, nil
+        resolved := principalID
+        if r.operator {
+                resolved = secondOperatorID
+        }
+        return domain.Principal{ID: resolved, CanCreateTenant: true, StepUpVerified: r.stepUp}, nil
+}
+
+// setOperator switches the acting fixture principal (the ownership
+// journeys walk both operators of the world).
+func (r *resolverFixture) setOperator(second bool) {
+        r.mu.Lock()
+        defer r.mu.Unlock()
+        r.operator = second
 }
 
 func (r *resolverFixture) setStepUp(enabled bool) {
@@ -561,46 +584,46 @@ func (f *connectorFixture) VerifyCapability(_ context.Context, c connectorAPI.Ve
 // surface: identifiers, versions, states and derived reports — never
 // secrets or config values.
 func (f *connectorFixture) ConnectionsFacts(_ context.Context, _ tenancy.Context) ([]connectorAPI.ConnectionFacts, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	facts := make([]connectorAPI.ConnectionFacts, 0, len(f.connections))
-	for _, current := range f.connections {
-		def, _ := connectorCatalog.Get(current.ConnectorID, current.ConnectorVer)
-		result, err := f.capabilityStateLocked(current, def)
-		if err != nil {
-			return nil, err
-		}
-		facts = append(facts, connectorAPI.ConnectionFacts{
-			ConnectionID: current.ConnectionID, ConnectorID: current.ConnectorID,
-			ConnectorType:   string(def.Type),
-			ContractVersion: current.ConnectorVer, AdapterBuild: result.AdapterBuild,
-			Environment: string(current.Environment), Status: current.Status, Capabilities: result.Capabilities,
-		})
-	}
-	return facts, nil
+        f.mu.Lock()
+        defer f.mu.Unlock()
+        facts := make([]connectorAPI.ConnectionFacts, 0, len(f.connections))
+        for _, current := range f.connections {
+                def, _ := connectorCatalog.Get(current.ConnectorID, current.ConnectorVer)
+                result, err := f.capabilityStateLocked(current, def)
+                if err != nil {
+                        return nil, err
+                }
+                facts = append(facts, connectorAPI.ConnectionFacts{
+                        ConnectionID: current.ConnectionID, ConnectorID: current.ConnectorID,
+                        ConnectorType:   string(def.Type),
+                        ContractVersion: current.ConnectorVer, AdapterBuild: result.AdapterBuild,
+                        Environment: string(current.Environment), Status: current.Status, Capabilities: result.Capabilities,
+                })
+        }
+        return facts, nil
 }
 
 // ConnectionFactsByID is the single-connection caller-authority projection
 // for the ingress verifier and the cases ladder (Story 2-1): the real
 // catalog and the real derivation, never secrets.
 func (f *connectorFixture) ConnectionFactsByID(_ context.Context, _ tenancy.Context, connectionID id.UUID) (connectorAPI.ConnectionFacts, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	current, ok := f.connections[connectionID]
-	if !ok {
-		return connectorAPI.ConnectionFacts{}, connectorDomain.ErrNotFound
-	}
-	def, _ := connectorCatalog.Get(current.ConnectorID, current.ConnectorVer)
-	result, err := f.capabilityStateLocked(current, def)
-	if err != nil {
-		return connectorAPI.ConnectionFacts{}, err
-	}
-	return connectorAPI.ConnectionFacts{
-		ConnectionID: current.ConnectionID, ConnectorID: current.ConnectorID,
-		ConnectorType:   string(def.Type),
-		ContractVersion: current.ConnectorVer, AdapterBuild: result.AdapterBuild,
-		Environment: string(current.Environment), Status: current.Status, Capabilities: result.Capabilities,
-	}, nil
+        f.mu.Lock()
+        defer f.mu.Unlock()
+        current, ok := f.connections[connectionID]
+        if !ok {
+                return connectorAPI.ConnectionFacts{}, connectorDomain.ErrNotFound
+        }
+        def, _ := connectorCatalog.Get(current.ConnectorID, current.ConnectorVer)
+        result, err := f.capabilityStateLocked(current, def)
+        if err != nil {
+                return connectorAPI.ConnectionFacts{}, err
+        }
+        return connectorAPI.ConnectionFacts{
+                ConnectionID: current.ConnectionID, ConnectorID: current.ConnectorID,
+                ConnectorType:   string(def.Type),
+                ContractVersion: current.ConnectorVer, AdapterBuild: result.AdapterBuild,
+                Environment: string(current.Environment), Status: current.Status, Capabilities: result.Capabilities,
+        }, nil
 }
 
 func (f *connectorFixture) CapabilityState(_ context.Context, _ domain.Principal, tenant, connectionID id.UUID) (connectorAPI.CapabilityStateResult, error) {
@@ -883,6 +906,13 @@ func main() {
         root.HandleFunc("POST /fixture/step-up", func(w http.ResponseWriter, r *http.Request) {
                 r.ParseForm()
                 resolver.setStepUp(r.FormValue("enabled") == "1")
+                w.WriteHeader(http.StatusNoContent)
+        })
+        // The fixture-only operator switch: the ownership journeys walk the
+        // transfer target as the acting principal.
+        root.HandleFunc("POST /fixture/operator", func(w http.ResponseWriter, r *http.Request) {
+                r.ParseForm()
+                resolver.setOperator(r.FormValue("second") == "1")
                 w.WriteHeader(http.StatusNoContent)
         })
         root.Handle("/", server.Handler())

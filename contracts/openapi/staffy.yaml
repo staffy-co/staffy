@@ -2300,6 +2300,134 @@ paths:
         '403': { $ref: '#/components/responses/Problem' }
         '404': { $ref: '#/components/responses/Problem' }
         '409': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/cases/{case_id}/ownership/take:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+    post:
+      operationId: takeOwnership
+      summary: 'Забрать владение (только «забираемые» состояния: дедлайн истёк без решения или владелец недоступен; здоровое владение — честный отказ)'
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TakeOwnershipRequest' }
+      responses:
+        '201': { description: Термин нового epoch записан (append-only), content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/cases/{case_id}/ownership/transfer-requests:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+    post:
+      operationId: requestTransfer
+      summary: 'Запрос передачи (текущий владелец или configuration; дедлайн — AckDeadlineMinutes human coverage, не параметр команды)'
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RequestTransferRequest' }
+      responses:
+        '201': { description: Назначенный запрос записан, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/cases/{case_id}/ownership/transfer-requests/{request_id}/resolution:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - $ref: '#/components/parameters/TransferRequestID'
+    post:
+      operationId: resolveTransfer
+      summary: 'Решение запроса (acknowledge — только цель, атомарно: resolution + термин + outbox; decline/cancel — цель или автор; опоздание — honest request_expired)'
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ResolveTransferRequest' }
+      responses:
+        '201': { description: Решение (и передача) записаны, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/cases/{case_id}/ownership/reassign:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+    post:
+      operationId: reassignOwnership
+      summary: 'Прямое переназначение (путь надзора — configuration; гасит висящий запрос отменой той же транзакцией)'
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReassignOwnershipRequest' }
+      responses:
+        '201': { description: Термин нового epoch записан, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/cases/{case_id}/client-replies:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+    post:
+      operationId: sendClientReply
+      summary: 'Единственный клиентский исходящий путь (серверный гейт: только текущий владелец-человек; отказ машинно читаем: current_owner/epoch/permitted_path)'
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SendClientReplyRequest' }
+      responses:
+        '201': { description: Подготовленный ответ записан (снимок владельца/маршрута/lineage), content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Отказ гейта (машинно читаем: current_owner_kind, current_owner_name, current_epoch, permitted_path)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/cases/client-replies/drain:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+    post:
+      operationId: drainClientReplies
+      summary: 'Execute-time revalidation подготовленных ответов (свежий — dispatched + outbox; устаревший — stale_needs_review; материальная идемпотентность)'
+      x-staffy-principal-required: true
+      responses:
+        '200': { description: 'Идемпотентный исход sweep-а', content: { application/json: { schema: { $ref: '#/components/schemas/DrainRepliesResult' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
   /v1/tenants/{tenant_id}/cases/{case_id}/duplicates/{candidate_id}/resolution:
     parameters:
       - $ref: '#/components/parameters/TenantID'
@@ -2382,6 +2510,11 @@ components:
       schema: { type: string, format: uuid }
     BindingID:
       name: binding_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    TransferRequestID:
+      name: request_id
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -3983,6 +4116,7 @@ components:
         assurance: { $ref: '#/components/schemas/AssuranceView' }
         bindings: { type: array, items: { $ref: '#/components/schemas/BindingCard' } }
         duplicates: { type: array, items: { $ref: '#/components/schemas/DuplicateCard' } }
+        ownership: { $ref: '#/components/schemas/OwnershipView' }
     AssuranceView:
       type: object
       required: [state, records, allowed_methods, fallback_options, step_up_text]
@@ -4132,7 +4266,7 @@ components:
       required: [command, replay]
       description: 'Материальный исход команды: сохранён и повторяется идемпотентным ключом'
       properties:
-        command: { type: string, enum: [create_work_item, classify_work_item, transition_work_item, split_work_item, merge_work_items, link_event, dispute_work_item, record_fact, confirm_fact_version, rescope_fact, start_verification, bind_channel, unlink_channel, resolve_duplicate] }
+        command: { type: string, enum: [create_work_item, classify_work_item, transition_work_item, split_work_item, merge_work_items, link_event, dispute_work_item, record_fact, confirm_fact_version, rescope_fact, start_verification, bind_channel, unlink_channel, resolve_duplicate, take_ownership, request_transfer, resolve_transfer, reassign_ownership, send_client_reply] }
         replay: { type: boolean }
         work_item_id: { type: string, format: uuid }
         version: { type: integer }
@@ -4155,6 +4289,15 @@ components:
         duplicate_candidate_id: { type: string, format: uuid }
         duplicate_decision: { type: string, enum: [same_client, separate] }
         confirmation_text: { type: string }
+        epoch: { type: integer, description: 'Epoch термина владения перехода' }
+        transfer_request_id: { type: string, format: uuid }
+        transfer_decision: { type: string, enum: [acknowledged, declined, cancelled] }
+        reply_id: { type: string, format: uuid }
+        reply_state: { type: string, enum: [prepared] }
+        gate_owner_kind: { type: string, enum: [human, staffy] }
+        gate_owner_name: { type: string }
+        gate_current_epoch: { type: integer }
+        gate_permitted_path: { type: string }
     StartVerificationRequest:
       type: object
       required: [conversation_id, kind, method, provider_code, subject_handle]
@@ -4198,6 +4341,98 @@ components:
         conversation_id: { type: string, format: uuid }
         bound_conversation_id: { type: string, format: uuid }
         subject_handle: { type: string, maxLength: 64, minLength: 1, description: 'Обязательно для same_client (переносится в связь)' }
+    TakeOwnershipRequest:
+      type: object
+      required: [expected_epoch]
+      additionalProperties: false
+      properties:
+        expected_epoch: { type: integer, minimum: 1, description: 'CAS-ожидание текущего epoch' }
+        reason: { type: string, maxLength: 200 }
+    RequestTransferRequest:
+      type: object
+      required: [expected_epoch, to_owner_kind, to_owner_ref, writable_surface, reason]
+      additionalProperties: false
+      properties:
+        expected_epoch: { type: integer, minimum: 1 }
+        to_owner_kind: { type: string, enum: [human, staffy] }
+        to_owner_ref: { type: string, format: uuid, description: 'Активный участник тенанта либо Employee кейса (очередь/отдел — никогда)' }
+        writable_surface: { type: string, enum: [inbox, external_inbox], description: 'external_inbox — только по действующему доказательству capability' }
+        reason: { type: string, maxLength: 200, minLength: 1 }
+    ResolveTransferRequest:
+      type: object
+      required: [decision]
+      additionalProperties: false
+      properties:
+        decision: { type: string, enum: [acknowledged, declined, cancelled] }
+        reason: { type: string, maxLength: 200 }
+    ReassignOwnershipRequest:
+      type: object
+      required: [expected_epoch, to_owner_kind, to_owner_ref, writable_surface, reason]
+      additionalProperties: false
+      properties:
+        expected_epoch: { type: integer, minimum: 1 }
+        to_owner_kind: { type: string, enum: [human, staffy] }
+        to_owner_ref: { type: string, format: uuid }
+        writable_surface: { type: string, enum: [inbox] }
+        reason: { type: string, maxLength: 200, minLength: 1 }
+    SendClientReplyRequest:
+      type: object
+      required: [conversation_id, content]
+      additionalProperties: false
+      properties:
+        conversation_id: { type: string, format: uuid, description: 'Диалог кейса либо активно связанный (governing-кейс)' }
+        expected_epoch: { type: integer, minimum: 1 }
+        content: { type: string, maxLength: 2000, minLength: 1, description: 'Слова оператора; контент живёт только в записи ответа' }
+    DrainRepliesResult:
+      type: object
+      required: [considered, dispatched, stale_needs_review]
+      properties:
+        considered: { type: integer }
+        dispatched: { type: integer }
+        stale_needs_review: { type: integer }
+    OwnershipView:
+      type: object
+      required: [state, terms, replies, members]
+      description: 'Секция владения карточки: производные слова, история терминов, исходящие ответы, варианты цели передачи'
+      properties:
+        state:
+          type: object
+          description: 'Производные: текущий термин (максимальный epoch), висящий запрос, здоровье, слова покрытия'
+          properties:
+            Current: { type: object, properties: { Epoch: { type: integer }, OwnerKind: { type: string, enum: [human, staffy] }, WritableSurface: { type: string, enum: [inbox, external_inbox] } } }
+            Pending: { type: object, properties: { RequestID: { type: string, format: uuid }, DeadlineAt: { type: string, format: date-time } } }
+            PendingTimedOut: { type: boolean }
+            OwnerActive: { type: boolean }
+            Health: { type: string, enum: [stable, transfer_pending, transfer_timed_out, reassignment_required] }
+            BackupOwnerID: { type: string, format: uuid }
+            AckDeadlineMinutes: { type: integer }
+        owner_name: { type: string }
+        pending_target_name: { type: string }
+        terms: { type: array, items: { $ref: '#/components/schemas/OwnershipTermRecord' } }
+        replies: { type: array, items: { $ref: '#/components/schemas/ReplyCard' } }
+        members: { type: array, items: { type: object, properties: { PrincipalID: { type: string, format: uuid }, Name: { type: string } } } }
+    OwnershipTermRecord:
+      type: object
+      required: [epoch, owner_kind, owner_ref, writable_surface, origin]
+      description: 'Append-only термин владения'
+      properties:
+        Epoch: { type: integer, minimum: 1 }
+        OwnerKind: { type: string, enum: [human, staffy] }
+        OwnerRef: { type: string, format: uuid }
+        WritableSurface: { type: string, enum: [inbox, external_inbox] }
+        Origin: { type: string, enum: [ingest_initial, take, transfer_acknowledge, reassign] }
+        PreviousOwnerKind: { type: string, enum: [human, staffy] }
+        PreviousOwnerRef: { type: string, format: uuid }
+        TransferRequestID: { type: string, format: uuid }
+        CreatedAt: { type: string, format: date-time }
+    ReplyCard:
+      type: object
+      required: [reply]
+      description: 'Исходящий ответ: состояние — производная (пустой исход = prepared)'
+      properties:
+        Reply: { type: object, properties: { ReplyID: { type: string, format: uuid }, ConversationID: { type: string, format: uuid }, Epoch: { type: integer }, Channel: { type: string }, Content: { type: string }, CreatedAt: { type: string, format: date-time } } }
+        OutcomeKind: { type: string, enum: ['', dispatched, stale_needs_review] }
+        OutcomeAt: { type: string, format: date-time }
     CreateWorkItemRequest:
       type: object
       required: [conversation_id, type, title]

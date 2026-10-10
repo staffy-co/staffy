@@ -459,6 +459,10 @@ func (s *Postgres) ExecuteWorkCommand(ctx context.Context, p casesPort.WorkComma
 		if p.Command == "rescope_fact" {
 			lockKeys = append(lockKeys, workLockKey(tenantID, p.TargetWorkItem))
 		}
+	case "take_ownership", "request_transfer", "resolve_transfer", "reassign_ownership":
+		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID))
+	case "send_client_reply":
+		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID), conversationLockKey(tenantID, p.ConversationID))
 	}
 	sort.Strings(lockKeys)
 	for _, key := range lockKeys {
@@ -495,6 +499,16 @@ func (s *Postgres) ExecuteWorkCommand(ctx context.Context, p casesPort.WorkComma
 		err = s.execUnlinkChannel(ctx, tx, tenantID, p, now)
 	case "resolve_duplicate":
 		err = s.execResolveDuplicate(ctx, tx, tenantID, p, now)
+	case "take_ownership":
+		err = s.execTakeOwnership(ctx, tx, tenantID, p, now)
+	case "request_transfer":
+		err = s.execRequestTransfer(ctx, tx, tenantID, p, now)
+	case "resolve_transfer":
+		err = s.execResolveTransfer(ctx, tx, tenantID, p, now)
+	case "reassign_ownership":
+		err = s.execReassignOwnership(ctx, tx, tenantID, p, now)
+	case "send_client_reply":
+		err = s.execSendClientReply(ctx, tx, tenantID, p, now)
 	default:
 		err = fmt.Errorf("неизвестная команда %s", p.Command)
 	}

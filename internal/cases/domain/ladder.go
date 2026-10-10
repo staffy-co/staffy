@@ -30,11 +30,16 @@ type RouteAdmissionWord struct {
 // Route returns the route string of the word.
 func (w RouteAdmissionWord) Route() string { return w.Channel + ":" + w.Direction }
 
-// CoverageWord is one human coverage row of the pinned profile version.
+// CoverageWord is one human coverage row of the pinned profile version:
+// the response owner, the backup owner and the acknowledgement deadline
+// minutes (the Story 2.4 coverage inputs — re-read by the ownership
+// commands; the deadline NEVER comes from a command parameter).
 type CoverageWord struct {
-	Channel         string
-	Direction       string
-	ResponseOwnerID id.UUID
+	Channel            string
+	Direction          string
+	ResponseOwnerID    id.UUID
+	BackupOwnerID      id.UUID
+	AckDeadlineMinutes int64
 }
 
 // Route returns the route string of the coverage row.
