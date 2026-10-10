@@ -1141,3 +1141,73 @@ decisions:
 - Итог review-цикла 2-3 подтверждён CI независимо: 3 Major R1 + M4 R2 закрыты, регресс зелёный локально (×2 TZ, R1/R2/R3) и в CI (×3)
 next: Epic 2 продолжается — story 2-4 «Единственный response-owner и записывающий inbox» (backlog; первый шаг — SM-спека первого среза → CHECKPOINT 1 владельцу). Осталось 13/16 stories
 commit: c4abf6a
+---
+date: 2026-10-10
+task: 47-sm
+role: main (Super Z)
+story: 2-4
+summary: SM-спека первого среза story 2-4 «Единственный response-owner и записывающий inbox» (FR-13, AC×12) — срез владения на append-only-дисциплине (прецедент 2-1/2-2/2-3)
+done:
+- Контекст собран: epics.md 2.4, PRD FR-13/Response Owner/Handoff, ARCHITECTURE-SPINE (rule 87: one owner+writable surface, monotonic epoch, handoff freeze; rule 99: execute-time revalidation), спеки 1-13 (HumanCoverage: BackupOwnerID/AckDeadlineMinutes), 2-1 (владелец из coverage, epoch=1 CHECK, surface='inbox' CHECK, ротация → 2.4), 2-3 (binding/производные), 1-9 (мутирующие capabilities без AG-4 → внешний Inbox недоказуем)
+- Дизайн: владение на кейсе (логическая Conversation FR-13 = кейс + связанные 2-3 разговоры); ownership_terms append-only (UNIQUE tenant+case+epoch, CAS expected_epoch + advisory-лок кейса); transfer_requests/resolutions (assigned→acknowledged/decline/cancel; timeout — производная); серверный гейт SendClientReply + execute-time revalidation DrainClientReplies; health-производные (stable/transfer_pending/transfer_timed_out/reassignment_required + ownership_attention); evidence-гейт surface (внешний Inbox только по verified account-scoped capability); Response Owner Control UI; ingest +1 INSERT initial-термина
+- Спека (99 строк) закоммичена bb419f4 на ветке codex/story-2-4-response-owner-inbox (первый коммит ветки, [skip ci], status backlog)
+- next: CHECKPOINT 1 владельцу
+unpushed: 1
+commit: bb419f4
+---
+date: 2026-10-10
+task: 47-checkpoint-1
+role: main (Super Z)
+story: 2-4
+summary: CHECKPOINT 1 — спека одобрена владельцем без правок («одобряю»); спека+sprint-status → ready-for-dev
+done:
+- Коммит 89c24bc [skip ci] на ветке (прецедент aeec3f7 2-3): status backlog→ready-for-dev, sprint-status.yaml синхронно, Change Log запись; замороженные секции не правились
+unpushed: 2
+commit: 89c24bc
+---
+date: 2026-10-10
+task: 47-dev
+role: main (Super Z)
+story: 2-4
+summary: Dev-фаза первого среза — полная имплементация (миграция 00004, домен, 5 команд + drain, транспорт 6 API + 5 форм, UI, OpenAPI, интеграция ~950 строк, journeys ownership-цепь); полный регресс зелёный
+done:
+- Миграция migrations/cases/00004_response_owner.sql: 5 таблиц (ownership_terms, transfer_requests, transfer_resolutions, client_replies, client_reply_outcomes) RLS+FORCE, гранты INSERT/SELECT, материальные уникальности (CAS-бэкстоп epoch, одна резолюция запроса, один исход ответа, ownership_attention частичный UNIQUE), словарь команд +5, ingest +1 INSERT initial-термина
+- Команды: TakeOwnership (только в забираемых состояниях), RequestTransfer (дедлайн только из human coverage перечиткой RouteFacts), ResolveTransfer (acknowledge — атомарно resolution+термин+outbox; decline/cancel; поздний acknowledge — request_expired), ReassignOwnership (надзор, гасит pending), SendClientReply (гейт: владелец-человек, staffy-отказ, health, governing-кейс связанного разговора) + DrainClientReplies (execute-time revalidation: dispatched/stale_needs_review + ownership_attention)
+- УРОК gofmt: `gofmt -w .` переписал 60+ нетронутых файлов (репо смешанная индентация: cases-модуль табы, прочие — 8 пробелов); whitespace-only диффы откачены, реальные правки пере-применены точечно; итог коммита f89c8c7: 27 файлов +5928/−49
+- Регресс: build/vet/unit, интеграция UTC + TZ=Europe/Moscow, journeys 21/21 (второй оператор фикстуры), контракт OpenAPI, git diff --check — зелёные
+unpushed: 3
+commit: f89c8c7
+---
+date: 2026-10-10
+task: 47-review-1
+role: review-R1 (subagent)
+story: 2-4
+summary: Review R1 (живые пробы) — FAIL узко: 1 Major «истёкший запрос не гасится» + m1 мёртвое expected_epoch + m2 TOCTOU-снапшоты
+done:
+- Зелёное подтверждено живьём: RLS+FORCE ×5, гранты append-only, межтенантная слепота, материальные UNIQUE (CAS-бэкстоп, attention_once, outcome), CHECK-словари синхронны, идемпотентность 5 команд, гонки детерминированы (take×2/ack-vs-take/request×2/reply-vs-ack/drain×2), гейты (не-владелец 403 машинно читаем, staffy-владелец, governing-кейс B/Y + unlink, take только в забираемых, дедлайн только из coverage, external_inbox fail-closed), спека заморожена, регресс/контракт/journeys зелёные
+- MAJOR: PendingTransfer не различает истёкшие и живые запросы + execTakeOwnership (в отличие от reassign) не пишет resolution → (A) новые request_transfer навсегда заблокированы после истечения, (B) кейс перманентно takeable повторными take при живом владельце, (K) health после take = transfer_timed_out; зонды /tmp/staffy-race TestProbeExpiredRequestBlocksNewRequests/TestProbeTakeDoesNotVoidExpiredRequest/TestProbeHealthAfterTakeWithLateClock
+- m1: expected_epoch в SendClientReplyRequest (JSON+OpenAPI) принимается, но игнорируется транспортом — поле мёртвое (CAS серверный); m2: TOCTOU — ownerActive/routeAdmitted читаются до advisory-лока кейса
+- Notes: acknowledge ровно в дедлайн = отказ (полуоткрытое окно [created,deadline)); ownership_attention только при prepared-ответе; 403 reply_gate wire-шейп не покрыт репо-тестами (проверен пробой); gofmt-долг 14 файлов предшествует коммиту
+unpushed: 3
+commit: f89c8c7
+---
+date: 2026-10-10
+task: 47-fix
+role: main (Super Z)
+story: 2-4
+summary: Фиксы review R1 (df1ab0e): Major закрыт водяным знаком терма + ActiveTransferRequest + take-резолюция; m1 закрыт живым CAS expected_epoch; m2 → deferred-work; НОВЫЙ остаток того же Major-класса (зомби-суперсессия) найден и закрыт при переносе фикса
+done:
+- Major: домен — водяной знак терма (неразрешённый запрос строго раньше текущего терма — void для каждого слова: зомби после acknowledge/reassign/take не держит takeable и не искажает health; запрос в момент терма — запрос этого терма: детерминированные часы фикстур делят мгновение, стор-команды строго позже по математике дедлайнов); ActiveTransferRequest (живой ask) — гейт новых запросов в app+store; execTakeOwnership гасит pending cancelled-резолюцией той же транзакции (прецедент reassign)
+- Суперсессия-зомби (найден при переносе, тот же класс B): истёк req1 → новый req2 → acknowledge req2 оставлял req1 зомби (timed_out+takeable поверх здорового владения); двойное истечение: take гасит только последний запрос; оба закрыты водяным знаком + интеграционные TestTransferSupersessionVoidByOwnershipChange/TestTransferDoubleExpiryTakeVoidsEveryZombie + юнит TestPendingTransferVoidByOwnershipWatermark (ack-суперсессия, двойное истечение, decline сохраняет право take, равный момент — живой)
+- m1: expected_epoch — живой CAS: GuardSendClientReply(expected, content); app-сверка ПОСЛЕ gate-слов (не-владелец сначала узнаёт текущего владельца — AC-3/AC-10); стор под локом; форма required со значением epoch; OpenAPI required+minimum 1; JSON-путь sendClientReplyAPI честно требует поле 400-м (контракт = провод); wire-тесты: required 400 + передача значения + reply_gate 403 field_errors (current_owner kind/name/epoch/permitted_path — закрыт R1-note о непокрытом wire-шейпе); контракт-ассерт TestOwnershipContractIsHonest required+minimum
+- m2 TOCTOU → deferred-work (запись с трассировкой R1 m2): окно закрывается execute-time revalidation drain-а на стороне доставки; полное закрытие = перечитка фактов внутри транзакции кейса (перекрёстная зависимость модулей)
+- Восстановление прерванной сессии: незакоммиченный фикс предыдущей сессии разобран по -w-классификации (70 файлов: 61 gofmt-шум откачен, 11+1 реальных сохранены); тесты прерванной сессии починены (акторы renewed-запроса: владелец запрашивает, цель отменяет; подстрока отказа «Владение здорово»); УРОК: Edit-инструмент пишет 8-пробельную индентацию в таб-файлах — после правок gofmt -w по затронутым файлам + amend; итоговый дифф f89c8c7..df1ab0e: 14 файлов +575/−111 raw, -w +505/−41 (дельта 70 строк — легитимное gofmt-выравнивание структур вокруг правок)
+- Регресс после фиксов: build/vet/unit, интеграция UTC ×2 + Europe/Moscow, journeys 21/21, контракт, git diff --check — зелёные; один флэйк profile-audit ordering (не от среза, изменившихся файлов нет) — повторные прогоны зелёные
+- DEVLOG 47-sm/checkpoint-1/dev/review-1 восстановлены этой партией честно по worklog (Task 32/33/34-r1) и git-фактам — сессия сломалась до их записи
+decisions:
+- Семантика гашения: строго-раньше-терма (Before), не ≥ (After): запрос в момент терма сделан против него (фикстуры с фиксированными часами создают запрос и терм в одно мгновение; стор-команды перехода строго позже ask по дедлайн-математике — граничный случай недостижим в живом контуре)
+- Отклонённый renewed-ask (decline) НЕ воскрешает старший истёкший как зомби, но и НЕ гасит его: истёкший ask сохраняет право take (намерение передачи живо — честно по AC-9); гашение — только сменой владения (термин)
+- expected_epoch обязан быть required в машинном контракте: иначе JSON-путь молча деградирует до серверного CAS (класс «контракт ≠ провод»)
+next: review R2 (субагент, свежий контекст) — верификация фиксов R1 живыми пробами (зомби-сценарии A/B/K + суперсессия, CAS-провода, RLS/гейты не размыты)
+unpushed: 5 (4 ветка + 1 main docs)
+commit: df1ab0e
