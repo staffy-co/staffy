@@ -164,6 +164,17 @@ func TestReplyGateAndOwnerReply(t *testing.T) {
 		t.Fatalf("expected the idempotent replay, got %+v", replay)
 	}
 
+	// The same key with the DIVERGENT epoch is the honest key conflict —
+	// the idempotency hash includes the CAS expectation (the fixture and
+	// the form path mirror the same word — the R2 minor lesson).
+	_, err = w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID, ExpectedEpoch: replyEpoch + 1,
+		Content: "Добрый день! Ваше обращение принято в работу.", IdempotencyKey: "reply-owner-1", Now: ownershipNow,
+	})
+	if !errors.Is(err, casesDomain.ErrCommandKeyConflict) {
+		t.Fatalf("expected the key conflict of the divergent epoch, got %v", err)
+	}
+
 	// The bounded content: the empty and the oversized words refuse.
 	_, err = w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
 		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID, ExpectedEpoch: replyEpoch,

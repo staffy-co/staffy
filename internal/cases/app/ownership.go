@@ -582,8 +582,9 @@ func (s *Service) SendClientReply(ctx context.Context, command casesAPI.SendClie
 	hash := requestHash(struct {
 		Case         string `json:"case"`
 		Conversation string `json:"conversation"`
+		Expected     int64  `json:"expected_epoch"`
 		Content      string `json:"content"`
-	}{command.CaseID.String(), command.ConversationID.String(), command.Content})
+	}{command.CaseID.String(), command.ConversationID.String(), command.ExpectedEpoch, command.Content})
 	if outcome, replay, err := s.lookupCommand(ctx, scope, "send_client_reply", command.IdempotencyKey, hash); replay || err != nil {
 		return outcome, err
 	}
