@@ -1327,3 +1327,26 @@ decisions:
 next: Review R1 свежим контекстом (субагент) — спецификация vs реализация, живые пробы, неразмытость регресса 2-1..2-4; затем фиксы → R2 → R3 → закрытие среза → CHECKPOINT 2 (нужен свежий GitHub-токен владельца — предыдущий отозван)
 unpushed: 4 (3 ветка: 180afe1+b053a12+a133aaa; 1 main docs: 9f3d9af)
 commit: a133aaa
+---
+date: 2026-10-10
+task: 48-review-1
+role: main (Super Z)
+story: 2-5
+summary: Review R1 (субагент, свежий контекст, 9 живых проб в /tmp-копии) — ВЕРДИКТ FAIL (узко): 1 Major + 6 Minor + 6 Notes; зелёное подлинно (гейты/CAS/гонки/идемпотентность/RLS/privacy/фриз спеки/регресс доказаны живьём); фиксы loop 1 закоммичены 8e3d082, полный регресс зелёный
+done:
+- Major M1: режимные команды (ProposeMode/RecordDisclosure/RecordDisclosureEvent) пропускали audit-only участников — ownershipScope проходит любой из review|configuration|audit и выбрасывал rights; живая проба: audit-only записал терм sales + раскрытие + событие sent (arming гейта продаж) — все три вернули nil. Фикс: rights.Review||rights.Configuration с ModeWriteScopeText + TestModeCommandsRefuseAuditOnlyMember (expert_qa с scopes=[audit], seed 736; суффиксы участника seed*10+9 — коллизия с owner seed*10+1 вскрыта пробой)
+- Minor m6: шейп отказа reply_mode_gate был тоньше слов Approach(4) — фикс: ReplyModeError несёт полный снимок (active_mode, reason, signal_source, rule_version, permitted_path=exit_mode); GuardReplyClassAgainstMode заполняет слова терма; problem-поля и OpenAPI синхронны
+- Minor m3: wire-тесты новых отказов (прецедент 2-4 расширен) — TestReplyModeGateWireShapeMatchesContract (403 ×5 полей), TestReplyDisclosureGateWireShapeMatchesContract (403 channel/permitted_path=record_disclosure), TestReplyClassRequiredWireWord (400 «класс размечает продюсер»), TestModeConflictWireShapeMatchesContract (409 ×6 полей), TestProposeModeRequiresExpectedVersion (400 CAS-слово); modeErrorCases с инъекцией propose/reply
+- Minor m4: DB-уровневые TestModeTablesRLSForced/TestModeGrantsAppendOnly (RLS+FORCE ×3, INSERT/SELECT=true, UPDATE/DELETE/TRUNCATE=false ×3 — прецедент 2-4 продлён)
+- Minor m5: строка 14 матрицы покрыта — TestModeBasisDisputeRaisesPrivacyNoContact: продажи открыты → реплика-оспаривание (turn) → propose privacy_no_contact с turn_ref → продажи остановлены немедленно, отказ немаркетинговый (FR-15); + отдельная ветка protected_request-отказа гейта раскрытия (свежий кейс без раскрытия)
+- Minor m1/m2 честно отложены в deferred-work с трассировкой: WI-контекст — односторонняя трещотка fail-closed (exit_mode пишет только scope=conversation; поднятый контекст переживает смену диалога, выхода для item-скоупа нет — механика не определена спекой); раскрытие на связанном Y-разговоре — record_disclosure требует собственный диалог кейса → для governing-диалога записей не бывает → sales/protected через Y перманентно заблокированы (fail-closed; мод-гейт governing работает)
+- Notes (6) зафиксированы: modeView-комментарий исправлен (fail-closed, не деградация); reply-форма дефолтит подписанную опцию neutral (сервер требует поле всегда); aria-live в PRG-потоке без полного живого анонса (граница 2-14); reason у propose опционален; история режимов отдельной таблицей; exit sales→unclassified — запрещающий квирк двух порядков
+- Пробы R1 (в /tmp/staffy-r1, зонды удалены): PROBE-RLS (RLS+FORCE+гранты+CHECK+кросс-тенантная слепота), PROBE-GATE-ORDER (stale epoch раньше гейта; не-владелец узнаёт владельца), PROBE-STORE-GATE (стор-гейты под локами мимо app — TOCTOU закрыт), PROBE-WI (трещотка подтверждена), PROBE-CHANNEL/EARLY (канал-граница; прерывание гасит, ранний sent не воскрешает), PROBE-SCOPE (M1 подтверждён: audit-only проходит), PROBE-RACE (один терм + полный ModeConflictError-шейп), PROBE-WIRE (все новые отказы на проводе), полный регресс в копии
+- Двухпорядковая схема оценена ревьюером как «честная минимальная развязка внутреннего противоречия самой спеки, не нарушение»: буквальная лестница сохранена там, где спека её использует (ModeRank/дисплей), proposalRank отличается только позицией unclassified (admission floor) — точная форма binding-демо-пути
+- Регресс после фиксов: build/vet/unit ✓; интеграция ×2 TZ (129 тестов — +3 новых) ✓; journeys 22/22 ✓; контракт ✓; git diff --check ✓
+decisions:
+- M1 как единственный FAIL-фактор: гейт полномочий — серверная истина шире замороженной границы; фикс в одной точке (права на входе трёх команд), ExitMode не затронут (authority-лестница уже честна)
+- Коллизия суффиксов участников мира: owner = seed*10+1, backup = seed*10+8 — новый участник seed*10+9 (вскрыта живой пробой: accept invitation находил владельца)
+next: Review R2 свежим контекстом (субагент) — подлинность закрытия M1 + новых тестов, неразмытость R1-зелёного, полный регресс; затем R3/закрытие → CHECKPOINT 2 (нужен свежий GitHub-токен владельца)
+unpushed: 5 (4 ветка: 180afe1+b053a12+a133aaa+8e3d082; 1 main docs: 9f3d9af)
+commit: 8e3d082
