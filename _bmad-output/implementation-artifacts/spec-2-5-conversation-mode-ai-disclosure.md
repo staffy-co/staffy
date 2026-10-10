@@ -2,7 +2,7 @@
 title: 'Story 2.5 — Conversation Mode и обязательное AI-раскрытие (первый срез)'
 type: 'feature'
 created: '2026-10-10'
-status: 'backlog'
+status: 'ready-for-dev'
 route: 'dispatch'
 baseline_commit: 'cc52fc23e7a595ae65a48907ab9dc7037985785d'
 context:
@@ -100,4 +100,5 @@ context:
 
 ## Spec Change Log
 
+- 2026-10-10, CHECKPOINT 1: спека одобрена владельцем без правок («одобряю», чат 2026-10-10). Замороженные секции (Intent / Boundaries & Constraints / I/O & Edge-Case Matrix) не изменялись. Спека и sprint-status.yaml одновременно переведены в `ready-for-dev`; далее — Dev (step-03).
 - 2026-10-10, review loop 0: создана спека первого среза (SM-драфт) для CHECKPOINT 1. Честные границы: AI Runtime и автоматическое извлечение сигналов/intent из реплик (будущая AI-story, предложения — операторская фиксация + синтетический proposer-порт), реальная доставка/playback/TTS-аудио и живой barge-in (AG-4, события пишет команда), исходящие коннекторы/первый исходящий партнёрский контакт как поверхность и voicemail/третье-лицо формулировки (AG-4, механика оснований fail-closed в домене), богатые policy-правила по Domain Pack/фактам + Policy Outcome с воспроизводимостью по входным версиям (2-6), генерация ответов Staffy (2-6+), классификация контента ответов машиной (reply_class размечает продюсер), real-time push карточки и Work Control Card (2-14), требования customer-confirmed policy (словарь есть, продюсера нет), срок действия раскрытия (не выдумывается — без TTL).

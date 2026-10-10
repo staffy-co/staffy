@@ -57,7 +57,7 @@ development_status:
   2-2-work-items-факты-и-provenance-внутри-case: done
   2-3-проверка-личности-и-безопасное-связывание-каналов: done
   2-4-единственный-response-owner-и-записывающий-inbox: done
-  2-5-conversation-mode-и-обязательное-ai-раскрытие: backlog
+  2-5-conversation-mode-и-обязательное-ai-раскрытие: ready-for-dev
   2-6-progressive-intake-и-детерминированный-policy-outcome: backlog
   2-7-актуальные-данные-owning-system-и-обработка-неопределённости: backlog
   2-8-консультативная-продажа-и-этичная-работа-с-возражениями: backlog
