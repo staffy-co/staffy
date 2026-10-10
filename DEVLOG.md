@@ -1366,5 +1366,22 @@ decisions:
 - Направление фикса m-r2-1 — review-слово на owner-ветке ExitMode (одна строка), а НЕ блокировка reassign-целей: надзор конфигурации остаётся полномочен назначать любого активного участника, но режимные записи требуют review — граница на команде, не на назначении
 - R2-зонд EDGE (audit-only владелец через reassign) принят как Minor (не Major): требует привилегированного действия надзора, эскалации нет, safety-выход не пробивается — прецедент «поверхностная буква шире кода» закрыта точечно
 next: review R3 свежим контекстом — финальный вердикт закрытия первого среза 2-5 (подлинность M1/m-r2-1, неразмытость, полный регресс) → закрытие среза (спека+sprint-status → done) → CHECKPOINT 2 (свежий токен GitHub: батч-пуш 6+4, PR, CI, merge)
-unpushed: 10 (6 ветка + 4 main docs)
+unpushed: 11 (6 ветка: 180afe1..cd9a265; 5 main docs: c94a9e5..934c88e)
 commit: 004b1d9
+---
+date: 2026-10-10
+task: 48-close
+role: main (Super Z)
+story: 2-5
+summary: Review R3 PASS (живая проба композитного edge в /tmp-копии, полный независимый регресс) — story 2-5 закрыта ЛОКАЛЬНО сквозным циклом: SM → CHECKPOINT 1 → dev → R1 FAIL (Major M1 + 6 Minor) → фиксы → R2 PASS (+Minor m-r2-1) → фикс → R3 PASS → done; Epic 2: 5/16 stories done
+done:
+- R3 (Task 48-review-r3, субагент, копия /tmp/staffy-r3, seed 751, зонд удалён, репо не тронуто): ВЕРДИКТ PASS — M1 и m-r2-1 закрыты подлинно (PROBE-R3-COMPOSITE: reassign к аудитору подтверждён чтением терма → exit отказан «полномочия», propose «review или configuration», лестница чиста; контроль review-владельца через тот же путь выходит успешно; safety — только supervisor, без ложных отказов); неразмытость: диффы фиксов = 0 строк в store/mode.go, app/ownership.go, миграции, mode_test.go, лестнице, исходных тестах; полный регресс в независимой копии: build/vet/unit (22 пакета)/интеграция 126 ×2 TZ/journeys 22/22/контракт 14/14/diff-check/gofmt — все новые тесты поимённо PASS
+- Закрытие: спека → done (Execution 5/5 отмечены, Change Log loop 3), sprint-status.yaml 2-5 → done; closure-коммит 00e5cf9 БЕЗ [skip ci] (проактивная дисциплина — amend при CHECKPOINT 2 не понадобится)
+- Итоговая топология ветки codex/story-2-5-conversation-mode-ai-disclosure: 180afe1 (SM-спека [skip ci]) → b053a12 (CHECKPOINT 1 [skip ci]) → a133aaa (feat, без маркера) → 8e3d082 (фиксы R1, без маркера) → 004b1d9 (фикс m-r2-1, без маркера) → cd9a265 (спека loop 2 [skip ci]) → 00e5cf9 (closure, без маркера); unpushed: 13 (7 ветка: 180afe1..00e5cf9; 6 main docs: c94a9e5..HEAD — включая эту самую запись)
+- Честно отложено (deferred-work с трассировкой, R1 m1/m2): WI-контекст — трещотка fail-closed без пути выхода (понижение контекста задачи не существует — будущая story); раскрытие на связанном Y-разговоре — fail-closed тупик (раскрытие живёт на собственном диалоге кейса); вне среза: AI Runtime/авто-извлечение сигналов, реальная доставка/playback/TTS/barge-in, исходящие коннекторы (AG-4), Policy Outcome (2-6), WCC (2-14)
+decisions:
+- Цикл review 2-5 = 3 итерации (прецедент 2-1..2-4): R1 FAIL узко (Major M1 скоупа), R2 PASS (+композитный Minor m-r2-1 — edge, существовавший в feat), R3 PASS с живой пробой закрытия
+- Двухпорядковая лестница (proposal-rank по демо-пути владельца + strictness ModeRank для производной) — подтверждена R1/R2/R3 как честная минимальная развязка внутреннего противоречия спеки (буква лестницы vs демо-путь)
+- Фикс m-r2-1 — граница на команде (review-слово), не на назначении: надзор остаётся полномочен назначать любого, режимные записи требуют review
+next: CHECKPOINT 2 владельцу — НУЖЕН СВЕЖИЙ GitHub-токен (старый отозван): батч-пуш (7 ветка + 4 main docs) → PR через GitHub API → CI ×3 verify → merge → DEVLOG 48-merge; далее Epic 2: story 2-6 progressive intake и детерминированный Policy Outcome (осталось 11/16)
+commit: 00e5cf9
