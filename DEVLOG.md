@@ -1350,3 +1350,21 @@ decisions:
 next: Review R2 свежим контекстом (субагент) — подлинность закрытия M1 + новых тестов, неразмытость R1-зелёного, полный регресс; затем R3/закрытие → CHECKPOINT 2 (нужен свежий GitHub-токен владельца)
 unpushed: 5 (4 ветка: 180afe1+b053a12+a133aaa+8e3d082; 1 main docs: 9f3d9af)
 commit: 8e3d082
+---
+date: 2026-10-10
+task: 48-review-2
+role: main (Super Z)
+story: 2-5
+summary: Review loop 2 закрыт — R2 PASS (субагент, живые пробы ×4 зонда в /tmp-копии: M1 закрыт подлинно, Approach(4) на проводе, тесты не таутологии, R1-зелёное не размыто) + закрыт Minor m-r2-1 (композитный edge: supervision-reassign → audit-only владелец не выходит из режимов); полный регресс зелёный
+done:
+- R2 (Task 48-review-r2): Major M1 закрыт ПОДЛИННО — живой identity-слой + реальный app-путь: audit-only (expert_qa+[audit]) отказан в ProposeMode/RecordDisclosure/RecordDisclosureEvent («review или configuration»), материальных записей нет, чтение карточки не задето, review/config пишут, не-участник 404 ×3; ExitMode-лестница жива (safety — только configuration AC-9; владелец с review выходит из не-safety; audit-only не выходит ни из чего); m6 Approach(4) на живом проводе (403 reply_mode_gate с 5 полями слов реального терма); m3/m4/m5 — подлинные тесты; фриз спеки цел (только Change Log)
+- Minor m-r2-1 (композитный edge, существовал в a133aaa): supervision-reassign (configuration) может передать владение audit-only участнику без подтверждения цели → тот выходил из не-safety; эскалации сверх configuration нет, transfer-путь закрыт review-скоупом acknowledge, safety не пробивается; закрыт 004b1d9: isOwner-ветка ExitMode требует rights.Review (буква Boundaries «владелец с review») + TestModeAuditOnlyOwnerCannotExit (seed 738, живой inviteMember, exit/propose отказаны, лестница не тронута)
+- Note-уточждения loop 2: фактический счётчик интеграции 126 top-level (121+5 новых функций — арифметика записи 48-review-1 была неточна); отказ audit-only в режимных командах — 400 WorkRuleError по когерентной лестнице (без-скоуп 403 / не-участник 404 / словарный отказ 400); гейт «review ИЛИ configuration» шире буквы «с review» — соответствует authority-модели exit
+- Финиш фикса после обрыва сессии: незакоммиченный дифф восстановлен по git-истине, регресс перегнан полностью (build/vet/unit/gofmt, интеграция ×2 TZ 126, journeys 22/22, контракт, diff-check)
+- Коммиты: 004b1d9 (fix, без маркера) + cd9a265 (спека Change Log loop 2 [skip ci])
+decisions:
+- Направление фикса m-r2-1 — review-слово на owner-ветке ExitMode (одна строка), а НЕ блокировка reassign-целей: надзор конфигурации остаётся полномочен назначать любого активного участника, но режимные записи требуют review — граница на команде, не на назначении
+- R2-зонд EDGE (audit-only владелец через reassign) принят как Minor (не Major): требует привилегированного действия надзора, эскалации нет, safety-выход не пробивается — прецедент «поверхностная буква шире кода» закрыта точечно
+next: review R3 свежим контекстом — финальный вердикт закрытия первого среза 2-5 (подлинность M1/m-r2-1, неразмытость, полный регресс) → закрытие среза (спека+sprint-status → done) → CHECKPOINT 2 (свежий токен GitHub: батч-пуш 6+4, PR, CI, merge)
+unpushed: 10 (6 ветка + 4 main docs)
+commit: 004b1d9
