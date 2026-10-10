@@ -2,7 +2,7 @@
 title: 'Story 2.4 — Единственный response-owner и записывающий inbox (первый срез)'
 type: 'feature'
 created: '2026-10-10'
-status: 'backlog'
+status: 'ready-for-dev'
 route: 'dispatch'
 baseline_commit: 'ade1d5c433885d9b31d12ee095d606dfdab06e8d'
 context:
@@ -94,5 +94,6 @@ context:
 
 ## Spec Change Log
 
+- 2026-10-10, CHECKPOINT 1: спека одобрена владельцем без правок («одобряю», чат 2026-10-10). Замороженные секции (Intent / Boundaries & Constraints / I/O & Edge-Case Matrix) не изменялись. Спека и sprint-status.yaml одновременно переведены в `ready-for-dev`; далее — Dev (step-03).
 - 2026-10-10, review loop 0: создана спека первого среза (SM-драфт) для CHECKPOINT 1. Честные границы: реальная доставка в канал и исходящие коннекторы (AG-4, исходящие диалоги), внешний human Inbox как выбираемая поверхность (словарь и evidence-гейт существуют, в контуре недостижим — мутирующие capabilities без AG-4), Staffy-автономия и раскрытие (2-5), Work Control Card (2-14), heartbeat/ownership lease и детекция по часам доступности человека, внутренние заметки как класс, фоновые воркеры (drain-команда — замена), real-time обновление карточки.
 
