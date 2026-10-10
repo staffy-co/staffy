@@ -115,7 +115,8 @@ func TestReplyGateAndOwnerReply(t *testing.T) {
 	// refusal: the owner kind, the name, the epoch, the permitted path.
 	_, err := w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
 		Actor: w.backupActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID, ExpectedEpoch: replyEpoch,
-		Content: "посторонний текст", IdempotencyKey: "reply-gate-1", Now: ownershipNow,
+		ReplyClass: casesDomain.ReplyClassNeutral,
+		Content:    "посторонний текст", IdempotencyKey: "reply-gate-1", Now: ownershipNow,
 	})
 	var gate casesDomain.ReplyGateError
 	if !errors.As(err, &gate) {
@@ -132,7 +133,8 @@ func TestReplyGateAndOwnerReply(t *testing.T) {
 	// the route and the lineage of the acting decision.
 	outcome, err := w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
 		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID, ExpectedEpoch: replyEpoch,
-		Content: "Добрый день! Ваше обращение принято в работу.", IdempotencyKey: "reply-owner-1", Now: ownershipNow,
+		ReplyClass: casesDomain.ReplyClassNeutral,
+		Content:    "Добрый день! Ваше обращение принято в работу.", IdempotencyKey: "reply-owner-1", Now: ownershipNow,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -155,7 +157,8 @@ func TestReplyGateAndOwnerReply(t *testing.T) {
 	// The exact repeat replays the original outcome.
 	replay, err := w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
 		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID, ExpectedEpoch: replyEpoch,
-		Content: "Добрый день! Ваше обращение принято в работу.", IdempotencyKey: "reply-owner-1", Now: ownershipNow,
+		ReplyClass: casesDomain.ReplyClassNeutral,
+		Content:    "Добрый день! Ваше обращение принято в работу.", IdempotencyKey: "reply-owner-1", Now: ownershipNow,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -169,7 +172,8 @@ func TestReplyGateAndOwnerReply(t *testing.T) {
 	// the form path mirror the same word — the R2 minor lesson).
 	_, err = w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
 		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID, ExpectedEpoch: replyEpoch + 1,
-		Content: "Добрый день! Ваше обращение принято в работу.", IdempotencyKey: "reply-owner-1", Now: ownershipNow,
+		ReplyClass: casesDomain.ReplyClassNeutral,
+		Content:    "Добрый день! Ваше обращение принято в работу.", IdempotencyKey: "reply-owner-1", Now: ownershipNow,
 	})
 	if !errors.Is(err, casesDomain.ErrCommandKeyConflict) {
 		t.Fatalf("expected the key conflict of the divergent epoch, got %v", err)
@@ -178,7 +182,8 @@ func TestReplyGateAndOwnerReply(t *testing.T) {
 	// The bounded content: the empty and the oversized words refuse.
 	_, err = w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
 		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID, ExpectedEpoch: replyEpoch,
-		Content: strings.Repeat("а", 2001), IdempotencyKey: "reply-long-1", Now: ownershipNow,
+		ReplyClass: casesDomain.ReplyClassNeutral,
+		Content:    strings.Repeat("а", 2001), IdempotencyKey: "reply-long-1", Now: ownershipNow,
 	})
 	assertRuleError(t, err, "длиннее")
 
@@ -260,7 +265,8 @@ func TestTransferLifecycleAcknowledgeDecline(t *testing.T) {
 	}
 	if _, err = w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
 		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID, ExpectedEpoch: replyEpoch,
-		Content: "ответ до передачи", IdempotencyKey: "tr-reply-1", Now: ownershipNow,
+		ReplyClass: casesDomain.ReplyClassNeutral,
+		Content:    "ответ до передачи", IdempotencyKey: "tr-reply-1", Now: ownershipNow,
 	}); err != nil {
 		t.Fatalf("the pending request never blocks the current owner: %v", err)
 	}
@@ -308,7 +314,8 @@ func TestTransferLifecycleAcknowledgeDecline(t *testing.T) {
 	// NEW owner (AC-10).
 	_, err = w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
 		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID, ExpectedEpoch: replyEpoch,
-		Content: "ответ прежнего владельца", IdempotencyKey: "tr-reply-2", Now: ownershipNow,
+		ReplyClass: casesDomain.ReplyClassNeutral,
+		Content:    "ответ прежнего владельца", IdempotencyKey: "tr-reply-2", Now: ownershipNow,
 	})
 	var gate casesDomain.ReplyGateError
 	if !errors.As(err, &gate) || gate.OwnerName == "" || gate.CurrentEpoch != 2 {
@@ -321,7 +328,8 @@ func TestTransferLifecycleAcknowledgeDecline(t *testing.T) {
 	// silently merged.
 	_, err = w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
 		Actor: w.backupActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
-		ExpectedEpoch: replyEpoch, Content: "ответ с устаревшей версией",
+		ExpectedEpoch: replyEpoch, ReplyClass: casesDomain.ReplyClassNeutral,
+		Content:        "ответ с устаревшей версией",
 		IdempotencyKey: "tr-reply-cas-1", Now: ownershipNow,
 	})
 	if !errors.Is(err, casesDomain.ErrStaleVersion) {
@@ -387,7 +395,8 @@ func TestTransferDeadlineAttentionAndTake(t *testing.T) {
 	}
 	if _, err = w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
 		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID, ExpectedEpoch: replyEpoch,
-		Content: "свежий ответ", IdempotencyKey: "dl-reply-1", Now: ownershipNow,
+		ReplyClass: casesDomain.ReplyClassNeutral,
+		Content:    "свежий ответ", IdempotencyKey: "dl-reply-1", Now: ownershipNow,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -570,7 +579,8 @@ func TestTransferSupersessionVoidByOwnershipChange(t *testing.T) {
 	// fresh epoch).
 	if _, err = w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
 		Actor: w.backupActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
-		ExpectedEpoch: 2, Content: "ответ нового владельца", IdempotencyKey: "sup-reply-1", Now: late,
+		ExpectedEpoch: 2, ReplyClass: casesDomain.ReplyClassNeutral,
+		Content: "ответ нового владельца", IdempotencyKey: "sup-reply-1", Now: late,
 	}); err != nil {
 		t.Fatalf("the new owner replies through the healthy ownership: %v", err)
 	}
@@ -653,7 +663,8 @@ func TestStaleReplyBlocksAndNeedsReview(t *testing.T) {
 	// The owner prepares the reply.
 	if _, err := w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
 		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID, ExpectedEpoch: replyEpoch,
-		Content: "ответ, который устареет", IdempotencyKey: "stale-reply-1", Now: ownershipNow,
+		ReplyClass: casesDomain.ReplyClassNeutral,
+		Content:    "ответ, который устареет", IdempotencyKey: "stale-reply-1", Now: ownershipNow,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -700,7 +711,8 @@ func TestReassignmentRequiredAndSupervision(t *testing.T) {
 	// backup and the backup gets revoked (the honest unavailability).
 	if _, err := w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
 		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID, ExpectedEpoch: replyEpoch,
-		Content: "ответ перед уходом", IdempotencyKey: "reassign-reply-1", Now: ownershipNow,
+		ReplyClass: casesDomain.ReplyClassNeutral,
+		Content:    "ответ перед уходом", IdempotencyKey: "reassign-reply-1", Now: ownershipNow,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -759,7 +771,8 @@ func TestReassignmentRequiredAndSupervision(t *testing.T) {
 	// The outgoing writes block honestly (the gate word).
 	_, err = w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
 		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID, ExpectedEpoch: replyEpoch,
-		Content: "владелец ушёл", IdempotencyKey: "reassign-reply-2", Now: ownershipNow,
+		ReplyClass: casesDomain.ReplyClassNeutral,
+		Content:    "владелец ушёл", IdempotencyKey: "reassign-reply-2", Now: ownershipNow,
 	})
 	var gate casesDomain.ReplyGateError
 	if !errors.As(err, &gate) || !strings.Contains(gate.Reason, "переназначения") {
@@ -930,7 +943,8 @@ func TestGoverningCaseOfBoundConversation(t *testing.T) {
 	var gate casesDomain.ReplyGateError
 	_, err = w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
 		Actor: w.backupActor(), TenantID: w.tenant, CaseID: caseB, ConversationID: conversationB,
-		ExpectedEpoch: 2, Content: "ответ владельца B через связанный канал", IdempotencyKey: "gov-reply-b-1", Now: ownershipNow,
+		ExpectedEpoch: 2, ReplyClass: casesDomain.ReplyClassNeutral,
+		Content: "ответ владельца B через связанный канал", IdempotencyKey: "gov-reply-b-1", Now: ownershipNow,
 	})
 	if !errors.As(err, &gate) {
 		t.Fatalf("expected the governing-case gate refusal, got %v", err)
@@ -945,7 +959,8 @@ func TestGoverningCaseOfBoundConversation(t *testing.T) {
 	// The owner of A writes through Y (the governing case): allowed.
 	if _, err = w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
 		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseA, ConversationID: conversationB,
-		ExpectedEpoch: 1, Content: "ответ владельца A через связанный канал", IdempotencyKey: "gov-reply-a-1", Now: ownershipNow,
+		ExpectedEpoch: 1, ReplyClass: casesDomain.ReplyClassNeutral,
+		Content: "ответ владельца A через связанный канал", IdempotencyKey: "gov-reply-a-1", Now: ownershipNow,
 	}); err != nil {
 		t.Fatalf("the governing owner answers through the bound conversation: %v", err)
 	}
@@ -959,7 +974,8 @@ func TestGoverningCaseOfBoundConversation(t *testing.T) {
 	}
 	_, err = w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
 		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseA, ConversationID: conversationB,
-		ExpectedEpoch: 1, Content: "после отмены связи", IdempotencyKey: "gov-reply-a-2", Now: ownershipNow,
+		ExpectedEpoch: 1, ReplyClass: casesDomain.ReplyClassNeutral,
+		Content: "после отмены связи", IdempotencyKey: "gov-reply-a-2", Now: ownershipNow,
 	})
 	var unlinkGate casesDomain.ReplyGateError
 	if !errors.As(err, &unlinkGate) || !strings.Contains(unlinkGate.Reason, "управляется другим обращением") {
@@ -969,7 +985,8 @@ func TestGoverningCaseOfBoundConversation(t *testing.T) {
 	// And the B-side answer works again.
 	if _, err = w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
 		Actor: w.backupActor(), TenantID: w.tenant, CaseID: caseB, ConversationID: conversationB,
-		ExpectedEpoch: 2, Content: "владелец B снова отвечает", IdempotencyKey: "gov-reply-b-2", Now: ownershipNow,
+		ExpectedEpoch: 2, ReplyClass: casesDomain.ReplyClassNeutral,
+		Content: "владелец B снова отвечает", IdempotencyKey: "gov-reply-b-2", Now: ownershipNow,
 	}); err != nil {
 		t.Fatalf("the B owner answers after the unlink: %v", err)
 	}
@@ -1032,7 +1049,8 @@ func TestOwnershipCommandsRefuseCrossTenant(t *testing.T) {
 			return err
 		}},
 		{func() error {
-			_, err := w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{Actor: w.ownershipActor(), TenantID: foreign, CaseID: caseID, ConversationID: caseID, Content: "текст", IdempotencyKey: "cross-reply", Now: ownershipNow})
+			_, err := w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{Actor: w.ownershipActor(), TenantID: foreign, CaseID: caseID, ConversationID: caseID, ReplyClass: casesDomain.ReplyClassNeutral,
+				Content: "текст", IdempotencyKey: "cross-reply", Now: ownershipNow})
 			return err
 		}},
 	}

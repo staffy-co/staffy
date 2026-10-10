@@ -48,17 +48,23 @@ type reassignOwnershipInput struct {
 
 type sendClientReplyInput struct {
 	ConversationID *string `json:"conversation_id"`
+	WorkItemID     *string `json:"work_item_id"`
 	ExpectedEpoch  *int64  `json:"expected_epoch"`
+	ReplyClass     *string `json:"reply_class"`
 	Content        *string `json:"content"`
 }
 
 // ownershipProblem maps the ownership command errors onto the problem
 // contract: the machine-readable reply gate refusal carries its words as
 // the problem fields; the rule refusals are 400; the CAS conflicts are
-// 409; a foreign tenant is a plain 404.
+// 409; a foreign tenant is a plain 404. The Story 2.5 mode and disclosure
+// gate refusals map through the shared modeProblem words.
 func ownershipProblem(w http.ResponseWriter, r *http.Request, server *Server, err error) {
 	var rule casesDomain.WorkRuleError
 	var gate casesDomain.ReplyGateError
+	var modeGate casesDomain.ReplyModeError
+	var disclosureGate casesDomain.ReplyDisclosureError
+	var modeConflict casesDomain.ModeConflictError
 	switch {
 	case errors.As(err, &gate):
 		server.problem(w, r, http.StatusForbidden, "reply_gate", gate.Reason, false, map[string]string{
@@ -67,6 +73,12 @@ func ownershipProblem(w http.ResponseWriter, r *http.Request, server *Server, er
 			"current_epoch":      strconv.FormatInt(gate.CurrentEpoch, 10),
 			"permitted_path":     casesDomain.ReplyGatePermittedPath,
 		})
+	case errors.As(err, &modeConflict):
+		modeProblem(w, r, server, err)
+	case errors.As(err, &modeGate):
+		modeProblem(w, r, server, err)
+	case errors.As(err, &disclosureGate):
+		modeProblem(w, r, server, err)
 	case errors.As(err, &rule):
 		server.problem(w, r, http.StatusBadRequest, rule.Rule, rule.Reason, false, nil)
 	case errors.Is(err, casesDomain.ErrStaleVersion):
@@ -90,10 +102,15 @@ func ownershipProblem(w http.ResponseWriter, r *http.Request, server *Server, er
 func ownershipFormError(w http.ResponseWriter, r *http.Request, tenant, caseID id.UUID, err error) {
 	var rule casesDomain.WorkRuleError
 	var gate casesDomain.ReplyGateError
+	var modeConflict casesDomain.ModeConflictError
+	var modeGate casesDomain.ReplyModeError
+	var disclosureGate casesDomain.ReplyDisclosureError
 	message := "Действие не выполнено. Повторите позднее."
 	switch {
 	case errors.As(err, &gate):
 		message = gate.Reason + " Текущий владелец: " + gate.OwnerName + " (epoch " + strconv.FormatInt(gate.CurrentEpoch, 10) + "). " + casesDomain.ReplyGatePermittedPath
+	case errors.As(err, &modeConflict), errors.As(err, &modeGate), errors.As(err, &disclosureGate):
+		message = modeFormMessage(err)
 	case errors.As(err, &rule):
 		message = rule.Reason
 	case errors.Is(err, casesDomain.ErrStaleVersion):
@@ -267,9 +284,24 @@ func (s *Server) sendClientReplyAPI(w http.ResponseWriter, r *http.Request) {
 		s.problem(w, r, http.StatusBadRequest, "invalid_request", "Поле expected_epoch обязательно: сверьте текущую версию владения.", false, nil)
 		return
 	}
+	// The reply class is the producer's mark (the OpenAPI required word:
+	// the machine never classifies the content — no silent default).
+	if input.ReplyClass == nil {
+		s.problem(w, r, http.StatusBadRequest, "invalid_request", casesDomain.ReplyClassRequiredText, false, nil)
+		return
+	}
+	workItemID := id.UUID("")
+	if raw := stringOrEmpty(input.WorkItemID); raw != "" {
+		if workItemID, err = id.Parse(raw); err != nil {
+			s.problem(w, r, http.StatusBadRequest, "invalid_request", "Поле work_item_id должно быть UUID.", false, nil)
+			return
+		}
+	}
 	outcome, err := s.cases.SendClientReply(r.Context(), casesAPI.SendClientReplyCommand{
 		Actor: actor, TenantID: tenant, CaseID: caseID, ConversationID: conversationID,
+		WorkItemID:    workItemID,
 		ExpectedEpoch: *input.ExpectedEpoch,
+		ReplyClass:    stringOrEmpty(input.ReplyClass),
 		Content:       stringOrEmpty(input.Content), IdempotencyKey: key, Now: s.clock.Now().UTC(),
 	})
 	if err != nil {
@@ -468,11 +500,21 @@ func (s *Server) sendClientReplyForm(w http.ResponseWriter, r *http.Request) {
 		ownershipFormError(w, r, tenant, caseID, casesDomain.WorkRuleError{Rule: "form", Reason: "Сверьте текущую версию владения (epoch)."})
 		return
 	}
+	// The reply class (the producer's mark) and the Work Item anchor of
+	// the mode gate (the Story 2.5 form material — required without a
+	// silent default).
+	replyClass, workItemID, err := s.sendClientReplyClass(r)
+	if err != nil {
+		ownershipFormError(w, r, tenant, caseID, err)
+		return
+	}
 	_, err = s.cases.SendClientReply(r.Context(), casesAPI.SendClientReplyCommand{
 		Actor: actor, TenantID: tenant, CaseID: caseID, ConversationID: conversationID,
+		WorkItemID:     workItemID,
 		ExpectedEpoch:  expected,
+		ReplyClass:     replyClass,
 		Content:        content,
-		IdempotencyKey: formCommandKey("send-client-reply", actor.ID.String(), caseID.String(), conversationID.String(), strconv.FormatInt(expected, 10), content),
+		IdempotencyKey: formCommandKey("send-client-reply", actor.ID.String(), caseID.String(), conversationID.String(), workItemID.String(), strconv.FormatInt(expected, 10), replyClass, content),
 		Now:            s.clock.Now().UTC(),
 	})
 	if err != nil {

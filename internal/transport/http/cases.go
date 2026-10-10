@@ -63,6 +63,18 @@ func (s *Server) BindCases(service casesAPI.Service) {
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/ownership/transfer-requests/{request_id}/resolution", s.resolveTransferForm)
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/ownership/reassign", s.reassignOwnershipForm)
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/client-replies", s.sendClientReplyForm)
+	// The Story 2.5 surfaces: the four mode commands (machine JSON +
+	// operator forms, PRG) — the conversation mode ladder, the
+	// supervised exit, the AI disclosure records and the delivery
+	// events.
+	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/mode/proposals", s.proposeModeAPI)
+	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/mode/exit", s.exitModeAPI)
+	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/disclosures", s.recordDisclosureAPI)
+	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/disclosures/{disclosure_id}/delivery-events", s.recordDisclosureEventAPI)
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/mode/proposals", s.proposeModeForm)
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/mode/exit", s.exitModeForm)
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/disclosures", s.recordDisclosureForm)
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/disclosures/{disclosure_id}/delivery-events", s.recordDisclosureEventForm)
 	// The operator forms of the Work Control Card (the PRG pattern):
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/work-items", s.createWorkItemForm)
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/classify", s.classifyWorkItemForm)

@@ -100,6 +100,11 @@ type AcceptParams struct {
 	// SAME transaction writes (Story 2.4: epoch 1, the owner from the
 	// human coverage, the inbox surface, the ingest_initial origin).
 	TermID id.UUID
+	// ModeTermID is the identifier of the initial mode term the SAME
+	// transaction writes (Story 2.5: version 1, the unclassified admission
+	// word, the ingest_initial origin — the ownership initial-term
+	// precedent).
+	ModeTermID id.UUID
 	// PackID/PackVersion are the Domain Pack pin of the admitting
 	// decision — the taxonomy the case row carries for its whole
 	// lifecycle (Story 2.2).
@@ -242,6 +247,19 @@ type Repository interface {
 	// material UNIQUE (tenant, reply) makes the drain idempotent: a
 	// repeated run finds the reply decided and writes nothing.
 	ResolveReplyDrain(ctx context.Context, p ReplyDrainParams) (string, bool, error)
+	// Story 2.5 — the mode and disclosure surface:
+	// ReadModeMaterial reads the mode terms of one case ordered by the
+	// version (the derivation input of the active conversation mode, the
+	// Work Item contexts and the reply mode gate).
+	ReadModeMaterial(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]casesDomain.ModeTerm, error)
+	// ReadDisclosures reads the disclosure records with their delivery
+	// events of one case ordered by the record number (the derivation
+	// input of the acting disclosure of a channel).
+	ReadDisclosures(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]DisclosureCard, error)
+	// ReadLiveConversationChannel reads the channel of the latest accepted
+	// event of one conversation (the live route word of the reply gates —
+	// the honest derivation, never the modality fallback guess).
+	ReadLiveConversationChannel(ctx context.Context, scope tenancy.Context, conversationID id.UUID) (string, bool, error)
 }
 
 // ---------------------------------------------------------------------------
@@ -373,6 +391,21 @@ type WorkCommandParams struct {
 	// honest snapshot read before the transaction; the ownership
 	// state itself re-validates under the case lock).
 	OwnerActiveWord bool
+	// The Story 2.5 material (the command-specific fields of the four
+	// mode commands and the reply class extension of send_client_reply).
+	Mode                string
+	ModeScope           string
+	ModeTermID          id.UUID
+	ExpectedModeVersion int64
+	SignalSource        string
+	TurnRef             id.UUID
+	ExitAuthority       string
+	DisclosureID        id.UUID
+	ParentRef           id.UUID
+	DisclosureText      string
+	DeliveryKind        string
+	DeliveryEventID     id.UUID
+	ReplyClass          string
 }
 
 // ---------------------------------------------------------------------------
@@ -402,6 +435,15 @@ type ReplyCard struct {
 	Reply       casesDomain.ClientReply
 	OutcomeKind string
 	OutcomeAt   time.Time
+}
+
+// DisclosureCard is one disclosure record of the case view: the record
+// with its delivery events and the derived status (the kind of the last
+// event; the empty word is the honest pre-migration absence).
+type DisclosureCard struct {
+	Record casesDomain.DisclosureRecord
+	Status string
+	Events []casesDomain.DisclosureDeliveryEvent
 }
 
 // OwnerMember is one active member option of the transfer forms: the

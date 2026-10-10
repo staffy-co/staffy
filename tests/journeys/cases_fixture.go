@@ -77,6 +77,18 @@ type casesFixture struct {
 	replyOutcomes       map[id.UUID]casesDomain.ClientReplyOutcome
 	ownershipSeq        int
 
+	// The Story 2.5 mode material: the append-only mode terms, the
+	// disclosure records with their delivery events. The derivations (the
+	// active conversation mode, the Work Item contexts, the acting
+	// disclosure) are the REAL domain functions.
+	modeTerms        map[id.UUID][]casesDomain.ModeTerm
+	disclosures      map[id.UUID][]casesDomain.DisclosureRecord
+	deliveryEvents   []casesDomain.DisclosureDeliveryEvent
+	modeSeq          int
+	disclosureSeq    int
+	deliveryEventSeq int
+	supervisor       bool // the configuration word of the exit authority ladder
+
 	caseNo, conversationNo int64
 	eventSeq               int
 	workSeq, exceptionSeq  int
@@ -127,11 +139,22 @@ func newCasesFixture() *casesFixture {
 		transferRequests: map[id.UUID][]casesDomain.TransferRequest{},
 		replies:          map[id.UUID][]casesDomain.ClientReply{},
 		replyOutcomes:    map[id.UUID]casesDomain.ClientReplyOutcome{},
+		// The Story 2.5 material:
+		modeTerms:   map[id.UUID][]casesDomain.ModeTerm{},
+		disclosures: map[id.UUID][]casesDomain.DisclosureRecord{},
 	}
 }
 
 func (f *casesFixture) lock()   { f.mu.Lock() }
 func (f *casesFixture) unlock() { f.mu.Unlock() }
+
+// setSupervisor switches the configuration word of the exit authority
+// ladder (the mode journeys walk the supervised exit).
+func (f *casesFixture) setSupervisor(enabled bool) {
+	f.lock()
+	defer f.unlock()
+	f.supervisor = enabled
+}
 
 func (f *casesFixture) facts(command casesAPI.IngestCommand) casesDomain.IngressFacts {
 	return casesDomain.IngressFacts{
@@ -275,6 +298,15 @@ func (f *casesFixture) accept(envelope casesDomain.Envelope, command casesAPI.In
 			WritableSurface: casesDomain.WritableSurfaceInbox, Origin: casesDomain.OwnershipOriginIngestInitial,
 			ActorID: outcome.OwnerID, CreatedAt: now,
 		})
+		// The initial mode term (Story 2.5): the unclassified admission
+		// word — the same in-memory transaction of the fixture accept
+		// (the REAL domain constructor).
+		f.modeSeq++
+		f.modeTerms[caseID] = append(f.modeTerms[caseID], casesDomain.InitialModeTerm(
+			f.tenant, caseID, conversationID,
+			id.MustParse("01994f64-6c00-7000-8000-"+digit12(int(30000+f.modeSeq))),
+			outcome.OwnerID, now,
+		))
 		initialWorkItemID = id.MustParse("01994f64-6c00-7000-8000-" + digit12(int(9000+f.caseNo)))
 		f.items[caseID] = append(f.items[caseID], casesDomain.WorkItem{
 			TenantID: f.tenant, CaseID: caseID, ConversationID: conversationID,
@@ -506,6 +538,9 @@ func (f *casesFixture) CaseView(_ context.Context, _ domain.Principal, tenant, c
 		// The Story 2.4 section: the ownership derivation over the REAL
 		// domain functions.
 		Ownership: f.fixtureOwnershipView(caseID),
+		// The Story 2.5 section: the mode derivation over the REAL
+		// domain functions.
+		Mode: f.fixtureModeView(caseID),
 	}, nil
 }
 

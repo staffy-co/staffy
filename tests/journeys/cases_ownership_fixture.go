@@ -324,13 +324,20 @@ func (f *casesFixture) SendClientReply(_ context.Context, command casesAPI.SendC
 	outcome, fresh, err := f.workCommandFlow("send_client_reply", command.IdempotencyKey, struct {
 		Case         string `json:"case"`
 		Conversation string `json:"conversation"`
+		WorkItem     string `json:"work_item"`
 		Expected     int64  `json:"expected_epoch"`
+		Class        string `json:"reply_class"`
 		Content      string `json:"content"`
-	}{command.CaseID.String(), command.ConversationID.String(), command.ExpectedEpoch, command.Content})
+	}{command.CaseID.String(), command.ConversationID.String(), command.WorkItemID.String(), command.ExpectedEpoch, command.ReplyClass, command.Content})
 	if err != nil || !fresh {
 		return outcome, err
 	}
 	if err := fixtureWorkRule("send_client_reply", casesDomain.GuardSendClientReply(command.ExpectedEpoch, command.Content)); err != nil {
+		return casesAPI.WorkOutcome{}, err
+	}
+	// The reply class is the producer's mark (the machine never classifies
+	// the content — no silent default).
+	if err := fixtureWorkRule("send_client_reply", casesDomain.GuardReplyClass(command.ReplyClass)); err != nil {
 		return casesAPI.WorkOutcome{}, err
 	}
 	// The governing case of the target conversation: the case it is
@@ -378,20 +385,28 @@ func (f *casesFixture) SendClientReply(_ context.Context, command casesAPI.SendC
 	if command.ExpectedEpoch != state.Current.Epoch {
 		return casesAPI.WorkOutcome{}, casesDomain.ErrStaleVersion
 	}
-	replyID := f.fixtureOwnershipID()
-	channel := "phone"
-	if conversation.ConversationID != id.UUID("") && conversation.Modality != "" {
-		channel = channelOfFixtureModality(conversation.Modality)
+	// The mode gate (Story 2.5, AFTER the ownership gate): the effective
+	// mode of the Work Item the reply belongs to decides the sales class.
+	if err := f.fixtureModeGate(command); err != nil {
+		return casesAPI.WorkOutcome{}, err
 	}
+	// The disclosure gate (the sales and the protected classes): the
+	// acting disclosure of the channel of the reply.
+	channel := fixtureReplyChannel(conversation)
+	if err := f.fixtureDisclosureGate(command, channel); err != nil {
+		return casesAPI.WorkOutcome{}, err
+	}
+	replyID := f.fixtureOwnershipID()
 	f.replies[command.CaseID] = append(f.replies[command.CaseID], casesDomain.ClientReply{
 		TenantID: f.tenant, CaseID: command.CaseID, ConversationID: command.ConversationID, ReplyID: replyID,
 		OwnerKind: state.Current.OwnerKind, OwnerRef: state.Current.OwnerRef, Epoch: state.Current.Epoch,
 		WritableSurface: state.Current.WritableSurface, ConnectionID: conversation.ConnectionID,
 		Provider: conversation.Provider, Channel: channel, Direction: "outbound",
 		EmployeeID: f.employee, DecisionNo: 1, ProfileVersion: 1,
-		Content: command.Content, ActorID: command.Actor.ID, CreatedAt: command.Now,
+		Content: command.Content, ActorID: command.Actor.ID,
+		ReplyClass: command.ReplyClass, WorkItemID: command.WorkItemID, CreatedAt: command.Now,
 	})
-	outcome = casesAPI.WorkOutcome{Command: "send_client_reply", ReplyID: replyID, ReplyState: "prepared", Epoch: state.Current.Epoch}
+	outcome = casesAPI.WorkOutcome{Command: "send_client_reply", ReplyID: replyID, ReplyState: "prepared", Epoch: state.Current.Epoch, ReplyClass: command.ReplyClass}
 	f.storeOutcome("send_client_reply", command.IdempotencyKey, outcome)
 	return outcome, nil
 }

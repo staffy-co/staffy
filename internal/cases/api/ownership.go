@@ -87,13 +87,19 @@ type ReassignOwnershipCommand struct {
 // must match, the target conversation must belong to the case or be
 // actively bound into it (the governing case), and the health word must
 // not be reassignment_required. The record is the full send snapshot; the
-// content never leaves the reply row.
+// content never leaves the reply row. Story 2.5 extends the material with
+// the reply class (the producer's mark — the machine never classifies the
+// content) and the optional Work Item anchor (the mode gate reads the
+// effective mode of that item; an absent anchor reads the conversation
+// mode).
 type SendClientReplyCommand struct {
 	Actor          domain.Principal
 	TenantID       id.UUID
 	CaseID         id.UUID
 	ConversationID id.UUID
+	WorkItemID     id.UUID
 	ExpectedEpoch  int64
+	ReplyClass     string
 	Content        string
 	IdempotencyKey string
 	Now            time.Time

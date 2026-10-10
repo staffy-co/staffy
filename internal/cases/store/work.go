@@ -463,6 +463,8 @@ func (s *Postgres) ExecuteWorkCommand(ctx context.Context, p casesPort.WorkComma
 		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID))
 	case "send_client_reply":
 		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID), conversationLockKey(tenantID, p.ConversationID))
+	case "propose_mode", "exit_mode", "record_disclosure", "record_disclosure_event":
+		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID), conversationLockKey(tenantID, p.ConversationID))
 	}
 	sort.Strings(lockKeys)
 	for _, key := range lockKeys {
@@ -509,6 +511,14 @@ func (s *Postgres) ExecuteWorkCommand(ctx context.Context, p casesPort.WorkComma
 		err = s.execReassignOwnership(ctx, tx, tenantID, p, now)
 	case "send_client_reply":
 		err = s.execSendClientReply(ctx, tx, tenantID, p, now)
+	case "propose_mode":
+		err = s.execProposeMode(ctx, tx, tenantID, p, now)
+	case "exit_mode":
+		err = s.execExitMode(ctx, tx, tenantID, p, now)
+	case "record_disclosure":
+		err = s.execRecordDisclosure(ctx, tx, tenantID, p, now)
+	case "record_disclosure_event":
+		err = s.execRecordDisclosureEvent(ctx, tx, tenantID, p, now)
 	default:
 		err = fmt.Errorf("неизвестная команда %s", p.Command)
 	}

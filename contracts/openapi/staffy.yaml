@@ -2413,7 +2413,100 @@ paths:
         '200': { description: Повтор идемпотентного ключа, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
         '400': { $ref: '#/components/responses/Problem' }
         '401': { $ref: '#/components/responses/Problem' }
-        '403': { description: 'Отказ гейта (машинно читаем: current_owner_kind, current_owner_name, current_epoch, permitted_path)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '403': { description: 'Отказ гейта (машинно читаем: current_owner_kind, current_owner_name, current_epoch, permitted_path; гейт режима: effective_mode, permitted_path=exit_mode; гейт раскрытия: channel, permitted_path=record_disclosure)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/cases/{case_id}/mode/proposals:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+    post:
+      operationId: proposeMode
+      summary: 'Предложение режима (только поднимает: понижение невозможно; контекст задачи — scope=work_item; CAS по expected_mode_version; гонка — честный 409 с текущим режимом)'
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProposeModeRequest' }
+      responses:
+        '201': { description: Термин новой версии записан (append-only), content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { description: 'Гонка лестницы (машинно читаем: active_mode, reason, signal_source, rule_version, mode_version)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/mode/exit:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+    post:
+      operationId: exitMode
+      summary: 'Явный выход из режима (единственный путь понижения; полномочие решает сервер: safety — только configuration; причина обязательна)'
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ExitModeRequest' }
+      responses:
+        '201': { description: Термин выхода записан (origin exit_override, полномочие), content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { description: 'Гонка лестницы (машинно читаем: active_mode, reason, signal_source, rule_version, mode_version)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/disclosures:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+    post:
+      operationId: recordDisclosure
+      summary: 'Записать AI-раскрытие (точный текст, канал, lineage; рождается со статусом generated; действует после события sent)'
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecordDisclosureRequest' }
+      responses:
+        '201': { description: Запись раскрытия + событие generated + outbox disclosure_recorded, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/cases/{case_id}/disclosures/{disclosure_id}/delivery-events:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - $ref: '#/components/parameters/DisclosureID'
+    post:
+      operationId: recordDisclosureEvent
+      summary: 'Событие доставки раскрытия (sent / playback* / customer_confirmed / interrupted; одно событие — один kind; последнее — статус записи)'
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecordDisclosureEventRequest' }
+      responses:
+        '201': { description: Событие доставки записано (append-only), content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
         '404': { $ref: '#/components/responses/Problem' }
         '409': { $ref: '#/components/responses/Problem' }
   /v1/tenants/{tenant_id}/cases/client-replies/drain:
@@ -2515,6 +2608,11 @@ components:
       schema: { type: string, format: uuid }
     TransferRequestID:
       name: request_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    DisclosureID:
+      name: disclosure_id
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -4117,6 +4215,7 @@ components:
         bindings: { type: array, items: { $ref: '#/components/schemas/BindingCard' } }
         duplicates: { type: array, items: { $ref: '#/components/schemas/DuplicateCard' } }
         ownership: { $ref: '#/components/schemas/OwnershipView' }
+        mode: { $ref: '#/components/schemas/ModeView' }
     AssuranceView:
       type: object
       required: [state, records, allowed_methods, fallback_options, step_up_text]
@@ -4266,7 +4365,7 @@ components:
       required: [command, replay]
       description: 'Материальный исход команды: сохранён и повторяется идемпотентным ключом'
       properties:
-        command: { type: string, enum: [create_work_item, classify_work_item, transition_work_item, split_work_item, merge_work_items, link_event, dispute_work_item, record_fact, confirm_fact_version, rescope_fact, start_verification, bind_channel, unlink_channel, resolve_duplicate, take_ownership, request_transfer, resolve_transfer, reassign_ownership, send_client_reply] }
+        command: { type: string, enum: [create_work_item, classify_work_item, transition_work_item, split_work_item, merge_work_items, link_event, dispute_work_item, record_fact, confirm_fact_version, rescope_fact, start_verification, bind_channel, unlink_channel, resolve_duplicate, take_ownership, request_transfer, resolve_transfer, reassign_ownership, send_client_reply, propose_mode, exit_mode, record_disclosure, record_disclosure_event] }
         replay: { type: boolean }
         work_item_id: { type: string, format: uuid }
         version: { type: integer }
@@ -4294,6 +4393,13 @@ components:
         transfer_decision: { type: string, enum: [acknowledged, declined, cancelled] }
         reply_id: { type: string, format: uuid }
         reply_state: { type: string, enum: [prepared] }
+        reply_class: { type: string, enum: [sales, neutral, protected_request] }
+        mode_term_id: { type: string, format: uuid }
+        mode_version: { type: integer, minimum: 1 }
+        mode_scope: { type: string, enum: [conversation, work_item] }
+        disclosure_id: { type: string, format: uuid }
+        disclosure_no: { type: integer, minimum: 1 }
+        delivery_kind: { type: string, enum: [generated, sent, playback_acknowledged, playback_estimated, customer_confirmed, interrupted] }
         gate_owner_kind: { type: string, enum: [human, staffy] }
         gate_owner_name: { type: string }
         gate_current_epoch: { type: integer }
@@ -4377,11 +4483,13 @@ components:
         reason: { type: string, maxLength: 200, minLength: 1 }
     SendClientReplyRequest:
       type: object
-      required: [conversation_id, expected_epoch, content]
+      required: [conversation_id, expected_epoch, reply_class, content]
       additionalProperties: false
       properties:
         conversation_id: { type: string, format: uuid, description: 'Диалог кейса либо активно связанный (governing-кейс)' }
+        work_item_id: { type: string, format: uuid, description: 'Элемент работы ответа (необязательный якорь гейта режима: без якоря читается режим диалога)' }
         expected_epoch: { type: integer, minimum: 1 }
+        reply_class: { type: string, enum: [sales, neutral, protected_request], description: 'Класс размечает продюсер: машина контент не классифицирует; sales требует эффективный режим sales + действующее раскрытие; protected_request требует действующее раскрытие' }
         content: { type: string, maxLength: 2000, minLength: 1, description: 'Слова оператора; контент живёт только в записи ответа' }
     DrainRepliesResult:
       type: object
@@ -4390,6 +4498,99 @@ components:
         considered: { type: integer }
         dispatched: { type: integer }
         stale_needs_review: { type: integer }
+    ProposeModeRequest:
+      type: object
+      required: [conversation_id, mode, scope, expected_mode_version, signal_source]
+      additionalProperties: false
+      properties:
+        conversation_id: { type: string, format: uuid, description: 'Собственный диалог обращения (лестница режимов живёт на нём)' }
+        mode: { type: string, enum: [safety, claim, cancellation, privacy_no_contact, human_requested, unclassified, sales], description: 'Предложение только поднимает: понижение невозможно как класс (GuardProposeMode отказывает)' }
+        scope: { type: string, enum: [conversation, work_item] }
+        work_item_id: { type: string, format: uuid, description: 'Якорь контекста задачи (обязателен для scope=work_item)' }
+        expected_mode_version: { type: integer, minimum: 1, description: 'CAS-слово лестницы: сверяется под advisory-локом' }
+        reason: { type: string, maxLength: 200 }
+        signal_source: { type: string, enum: [turn_event, operator, policy_rule] }
+        turn_ref: { type: string, format: uuid, description: 'Принятое событие кейса (обязателен для signal_source=turn_event)' }
+    ExitModeRequest:
+      type: object
+      required: [conversation_id, mode, expected_mode_version, reason]
+      additionalProperties: false
+      properties:
+        conversation_id: { type: string, format: uuid }
+        mode: { type: string, enum: [safety, claim, cancellation, privacy_no_contact, human_requested, unclassified, sales], description: 'Цель выхода — только ниже активного; полномочие решает сервер (safety — только configuration)' }
+        expected_mode_version: { type: integer, minimum: 1 }
+        reason: { type: string, maxLength: 200, minLength: 1, description: 'Честная причина выхода обязательна' }
+    RecordDisclosureRequest:
+      type: object
+      required: [conversation_id, channel, text]
+      additionalProperties: false
+      properties:
+        conversation_id: { type: string, format: uuid }
+        channel: { type: string, enum: [phone, web_chat, telegram, whatsapp, email, max, jivo, avito, mobile_app_chat] }
+        text: { type: string, maxLength: 2000, minLength: 1, description: 'Точный текст раскрытия: живёт только в записи' }
+        parent_ref: { type: string, format: uuid, description: 'Родительская запись повторного раскрытия (после прерывания)' }
+    RecordDisclosureEventRequest:
+      type: object
+      required: [conversation_id, kind]
+      additionalProperties: false
+      properties:
+        conversation_id: { type: string, format: uuid }
+        kind: { type: string, enum: [generated, sent, playback_acknowledged, playback_estimated, customer_confirmed, interrupted], description: 'Одно событие — один kind; последнее событие записи — её статус; interrupted гасит действие' }
+    ModeView:
+      type: object
+      required: [ladder, terms, item_contexts, disclosures, forbidden_text, neutral_rule]
+      description: 'Секция режима карточки: лестница, термины, контексты задач, записи раскрытий со статусами доставки'
+      properties:
+        active: { $ref: '#/components/schemas/ModeTerm' }
+        ladder: { type: array, items: { type: string } }
+        terms: { type: array, items: { $ref: '#/components/schemas/ModeTerm' } }
+        item_contexts: { type: array, items: { type: object, required: [work_item_id, term], properties: { work_item_id: { type: string, format: uuid }, term: { $ref: '#/components/schemas/ModeTerm' } } } }
+        forbidden_text: { type: string }
+        neutral_rule: { type: string }
+        disclosures: { type: array, items: { $ref: '#/components/schemas/DisclosureCard' } }
+    ModeTerm:
+      type: object
+      required: [term_id, mode_version, mode, scope, origin, signal_source, actor_id, rule_version, created_at]
+      properties:
+        term_id: { type: string, format: uuid }
+        case_id: { type: string, format: uuid }
+        conversation_id: { type: string, format: uuid }
+        mode_version: { type: integer, minimum: 1 }
+        mode: { type: string, enum: [safety, claim, cancellation, privacy_no_contact, human_requested, unclassified, sales] }
+        scope: { type: string, enum: [conversation, work_item] }
+        work_item_id: { type: string, format: uuid }
+        origin: { type: string, enum: [ingest_initial, proposal, exit_override] }
+        reason: { type: string, maxLength: 200 }
+        signal_source: { type: string, enum: [turn_event, operator, policy_rule] }
+        turn_ref: { type: string, format: uuid }
+        actor_id: { type: string, format: uuid }
+        prior_mode: { type: string }
+        exit_authority: { type: string, enum: [operator_owner, supervisor] }
+        rule_version: { type: string }
+        created_at: { type: string, format: date-time }
+    DisclosureCard:
+      type: object
+      required: [record, status, events]
+      properties:
+        record: { $ref: '#/components/schemas/DisclosureRecord' }
+        status: { type: string, description: 'Производная последнего события доставки (пусто — до-миграционные данные)' }
+        events: { type: array, items: { type: object, required: [event_id, event_no, kind, actor_id, created_at], properties: { event_id: { type: string, format: uuid }, disclosure_id: { type: string, format: uuid }, event_no: { type: integer, minimum: 1 }, kind: { type: string, enum: [generated, sent, playback_acknowledged, playback_estimated, customer_confirmed, interrupted] }, actor_id: { type: string, format: uuid }, created_at: { type: string, format: date-time } } } }
+    DisclosureRecord:
+      type: object
+      required: [disclosure_id, disclosure_no, channel, text, actor_id, created_at]
+      properties:
+        disclosure_id: { type: string, format: uuid }
+        case_id: { type: string, format: uuid }
+        conversation_id: { type: string, format: uuid }
+        disclosure_no: { type: integer, minimum: 1 }
+        channel: { type: string }
+        text: { type: string, maxLength: 2000 }
+        parent_ref: { type: string, format: uuid }
+        employee_id: { type: string, format: uuid }
+        decision_no: { type: integer }
+        profile_version: { type: integer }
+        actor_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
     OwnershipView:
       type: object
       required: [state, terms, replies, members]

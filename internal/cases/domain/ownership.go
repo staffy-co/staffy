@@ -189,7 +189,12 @@ type ClientReply struct {
 	ProfileVersion  int64
 	Content         string
 	ActorID         id.UUID
-	CreatedAt       time.Time
+	// The Story 2.5 material: the producer's reply class mark and the
+	// Work Item anchor of the mode gate (the honest NULL/absent word of
+	// the pre-migration rows).
+	ReplyClass string
+	WorkItemID id.UUID
+	CreatedAt  time.Time
 }
 
 // ClientReplyOutcome is the append-only execute-time revalidation verdict

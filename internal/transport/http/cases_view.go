@@ -139,6 +139,9 @@ type caseDetailPageView struct {
 	IdentifierKindsText string
 	// The Story 2.4 section: the Response Owner Control panel.
 	Ownership ownershipPanelView
+	// The Story 2.5 section: the Conversation Mode panel and the
+	// disclosure surface.
+	Mode modePanelView
 }
 
 // assurancePanelView is the assurance section of the case page: the derived
@@ -261,12 +264,82 @@ type replyRowView struct {
 	ReplyID   string
 	Channel   string
 	Content   string
+	ClassText string
 	StateText string
 	State     string
 	CreatedAt string
 	OutcomeAt string
 	Epoch     string
 	OwnerText string
+}
+
+// modePanelView is the Conversation Mode panel projection: the badge word
+// of the active mode with the AI role of the owner, the honest words of
+// the active term (the reason, the signal source, the rule version), the
+// ladder, the term history, the Work Item contexts, the forbidden action
+// words, the disclosure records with their delivery statuses and the form
+// options (the propose targets, the exit targets, the event options of
+// the turn signals, the Work Item options of the item contexts).
+type modePanelView struct {
+	BadgeText       string
+	BadgeRole       string
+	ModeVersion     string
+	ActiveMode      string
+	ActiveReason    string
+	ActiveSignal    string
+	ActiveRule      string
+	HasActive       bool
+	ForbiddenText   string
+	NeutralRule     string
+	Ladder          []workOption
+	CurrentVersion  string
+	ProposeTargets  []workOption
+	ExitTargets     []workOption
+	HasTerms        bool
+	TermRows        []modeTermRow
+	HasItemContexts bool
+	ItemContextRows []modeContextRow
+	HasDisclosures  bool
+	DisclosureRows  []disclosureRowView
+	CanManage       bool
+}
+
+// modeTermRow is one term row of the mode ladder history.
+type modeTermRow struct {
+	TermID     string
+	Version    string
+	ModeText   string
+	Scope      string
+	ItemText   string
+	OriginText string
+	Reason     string
+	SignalText string
+	ActorID    string
+	CreatedAt  string
+}
+
+// modeContextRow is one Work Item context row of the panel.
+type modeContextRow struct {
+	WorkItemID string
+	ModeText   string
+	Version    string
+	Reason     string
+	SignalText string
+	CreatedAt  string
+}
+
+// disclosureRowView is one disclosure record row: the exact text (the
+// re-readable word of the record), the channel, the derived status and
+// the parent reference of the re-disclosure.
+type disclosureRowView struct {
+	DisclosureID string
+	No           string
+	Channel      string
+	Text         string
+	StatusText   string
+	Status       string
+	ParentRef    string
+	CreatedAt    string
 }
 
 // externalCaseNo renders the case number of the binding sides: the number
@@ -540,6 +613,7 @@ func prepareCaseView(view casesAPI.CaseView, facts casesAPI.FactsView, flash str
 	// derivation words, the history, the outgoing replies and the member
 	// options of the transfer forms.
 	out.Ownership = prepareOwnershipPanel(view)
+	out.Mode = prepareModePanel(view)
 
 	for _, conversation := range view.Conversations {
 		stateText := "Активна"
@@ -902,6 +976,7 @@ func prepareOwnershipPanel(view casesAPI.CaseView) ownershipPanelView {
 			ReplyID:   card.Reply.ReplyID.String(),
 			Channel:   card.Reply.Channel,
 			Content:   card.Reply.Content,
+			ClassText: replyClassText(card.Reply.ReplyClass),
 			Epoch:     strconv.FormatInt(card.Reply.Epoch, 10),
 			CreatedAt: formatTime(card.Reply.CreatedAt),
 			State:     card.OutcomeKind,
@@ -993,4 +1068,196 @@ func ownershipPrimaryAction(state casesDomain.OwnershipState, canManage bool) st
 // per-request clock — the remaining minutes render from the view time).
 func timeNowHTTP() time.Time {
 	return time.Now().UTC()
+}
+
+// replyClassText renders the producer's reply class word (the honest
+// absence of the pre-migration rows).
+func replyClassText(class string) string {
+	switch class {
+	case casesDomain.ReplyClassSales:
+		return "продажной"
+	case casesDomain.ReplyClassNeutral:
+		return "нейтральный"
+	case casesDomain.ReplyClassProtectedRequest:
+		return "защищённый запрос"
+	}
+	return "— класс не размечен (до-миграционные данные) —"
+}
+
+// modeText renders the mode word of the panel (the human text, never the
+// raw dictionary word alone — unclassified and sales never look alike).
+func modeText(mode string) string {
+	switch mode {
+	case casesDomain.ModeSafety:
+		return "safety (безопасность)"
+	case casesDomain.ModeClaim:
+		return "claim (претензия)"
+	case casesDomain.ModeCancellation:
+		return "cancellation (отмена)"
+	case casesDomain.ModePrivacyNoContact:
+		return "privacy_no_contact (запрет контакта)"
+	case casesDomain.ModeHumanRequested:
+		return "human_requested (запрошен человек)"
+	case casesDomain.ModeUnclassified:
+		return "unclassified (не классифицирован)"
+	case casesDomain.ModeSales:
+		return "sales (продажи)"
+	}
+	return mode
+}
+
+// modeOriginText renders the term origin word.
+func modeOriginText(origin string) string {
+	switch origin {
+	case casesDomain.ModeOriginIngestInitial:
+		return "первоначальное слово (ingest)"
+	case casesDomain.ModeOriginProposal:
+		return "предложение сигнала"
+	case casesDomain.ModeOriginExitOverride:
+		return "явный выход (полномочие)"
+	}
+	return origin
+}
+
+// modeSignalText renders the signal source word.
+func modeSignalText(source string) string {
+	switch source {
+	case casesDomain.ModeSignalTurnEvent:
+		return "сигнал реплики клиента (turn)"
+	case casesDomain.ModeSignalOperator:
+		return "наблюдение оператора"
+	case casesDomain.ModeSignalPolicyRule:
+		return "правило policy"
+	}
+	return source
+}
+
+// deliveryStatusText renders the disclosure delivery status word (the
+// states never mix; the playback words are never a proof of hearing).
+func deliveryStatusText(status string) string {
+	switch status {
+	case casesDomain.DeliveryGenerated:
+		return "записано (ещё не действует)"
+	case casesDomain.DeliverySent:
+		return "отправлено (действует)"
+	case casesDomain.DeliveryPlaybackAck:
+		return "воспроизведение подтверждено (действует; не доказательство услышал)"
+	case casesDomain.DeliveryPlaybackEstimated:
+		return "воспроизведение оценено (действует; не доказательство услышал)"
+	case casesDomain.DeliveryCustomerConfirmed:
+		return "клиент подтвердил (действует)"
+	case casesDomain.DeliveryInterrupted:
+		return "прервано (погашено — нужно повторное раскрытие)"
+	}
+	return "— без событий (до-миграционные данные) —"
+}
+
+// prepareModePanel flattens the mode section into the template
+// projection: the badge text (the active mode + the AI role of the owner
+// — the owner_kind word of the ownership derivation), the honest words
+// of the active term, the ladder in the display order, the term history,
+// the Work Item contexts, the disclosure records with their statuses and
+// the form options of the propose/exit/turn forms. The aria-live badge
+// announces the mode change without a focus move (the template carries
+// the aria-live attribute — AC-11).
+func prepareModePanel(view casesAPI.CaseView) modePanelView {
+	mode := view.Mode
+	panel := modePanelView{
+		ForbiddenText:   mode.ForbiddenText,
+		NeutralRule:     mode.NeutralRule,
+		HasTerms:        len(mode.Terms) > 0,
+		TermRows:        make([]modeTermRow, 0, len(mode.Terms)),
+		HasItemContexts: len(mode.ItemContexts) > 0,
+		ItemContextRows: make([]modeContextRow, 0, len(mode.ItemContexts)),
+		HasDisclosures:  len(mode.Disclosures) > 0,
+		DisclosureRows:  make([]disclosureRowView, 0, len(mode.Disclosures)),
+		CanManage:       view.CanManageWork,
+	}
+	// The ladder in the display order (the spec's written order — the
+	// strictest first, sales at the tail).
+	for _, word := range casesDomain.ModeOrder {
+		panel.Ladder = append(panel.Ladder, workOption{Value: word, Text: modeText(word)})
+	}
+	if mode.Active != nil {
+		panel.HasActive = true
+		panel.ActiveMode = modeText(mode.Active.Mode)
+		panel.ActiveReason = mode.Active.Reason
+		panel.ActiveSignal = modeSignalText(mode.Active.SignalSource)
+		panel.ActiveRule = mode.Active.RuleVersion
+		panel.ModeVersion = strconv.FormatInt(mode.Active.ModeVersion, 10)
+		panel.CurrentVersion = strconv.FormatInt(casesDomain.ModeTermMaxVersion(mode.Terms), 10)
+		panel.BadgeText = modeText(mode.Active.Mode)
+	} else {
+		panel.BadgeText = "не классифицирован (до-миграционные данные)"
+		panel.CurrentVersion = "1"
+	}
+	// The AI role of the owner: the owner_kind word of the ownership
+	// derivation (the badge shows who answers — a human or the digital
+	// employee of the case).
+	if view.Ownership.State.Current != nil && view.Ownership.State.Current.OwnerKind == casesDomain.OwnerKindStaffy {
+		panel.BadgeRole = "цифровой сотрудник"
+	} else {
+		panel.BadgeRole = "участник-человек"
+	}
+	// The propose targets: the words ABOVE the active mode on the raise
+	// ladder (the honest form — the machine refuses the rest anyway); the
+	// exit targets: the words BELOW the active mode.
+	if mode.Active != nil {
+		for _, word := range casesDomain.ModeOrder {
+			if casesDomain.ProposeTargetAllowed(word, mode.Active.Mode) {
+				panel.ProposeTargets = append(panel.ProposeTargets, workOption{Value: word, Text: modeText(word)})
+			}
+			if casesDomain.ExitTargetAllowed(word, mode.Active.Mode) {
+				panel.ExitTargets = append(panel.ExitTargets, workOption{Value: word, Text: modeText(word)})
+			}
+		}
+	} else {
+		panel.ProposeTargets = panel.Ladder
+	}
+	for _, term := range mode.Terms {
+		row := modeTermRow{
+			TermID:     term.TermID.String(),
+			Version:    strconv.FormatInt(term.ModeVersion, 10),
+			ModeText:   modeText(term.Mode),
+			Scope:      term.Scope,
+			OriginText: modeOriginText(term.Origin),
+			Reason:     term.Reason,
+			SignalText: modeSignalText(term.SignalSource),
+			ActorID:    term.ActorID.String(),
+			CreatedAt:  formatTime(term.CreatedAt),
+		}
+		if term.WorkItemID.Valid() {
+			row.ItemText = term.WorkItemID.String()
+		}
+		if term.ExitAuthority != "" {
+			row.Reason = term.Reason + " (полномочие: " + term.ExitAuthority + ")"
+		}
+		panel.TermRows = append(panel.TermRows, row)
+	}
+	for _, context := range mode.ItemContexts {
+		panel.ItemContextRows = append(panel.ItemContextRows, modeContextRow{
+			WorkItemID: context.WorkItemID.String(),
+			ModeText:   modeText(context.Term.Mode),
+			Version:    strconv.FormatInt(context.Term.ModeVersion, 10),
+			Reason:     context.Term.Reason,
+			SignalText: modeSignalText(context.Term.SignalSource),
+			CreatedAt:  formatTime(context.Term.CreatedAt),
+		})
+	}
+	for _, card := range mode.Disclosures {
+		row := disclosureRowView{
+			DisclosureID: card.Record.DisclosureID.String(),
+			No:           strconv.FormatInt(card.Record.DisclosureNo, 10),
+			Channel:      card.Record.Channel,
+			Text:         card.Record.Text,
+			Status:       card.Status,
+			StatusText:   deliveryStatusText(card.Status),
+			CreatedAt:    formatTime(card.Record.CreatedAt),
+		}
+		if card.Record.ParentRef.Valid() {
+			row.ParentRef = card.Record.ParentRef.String()
+		}
+		panel.DisclosureRows = append(panel.DisclosureRows, row)
+	}
+	return panel
 }

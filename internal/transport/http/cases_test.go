@@ -80,6 +80,21 @@ func (f *fakeCases) DrainClientReplies(context.Context, domain.Principal, id.UUI
 	return casesAPI.DrainRepliesResult{}, nil
 }
 
+// The Story 2.5 mode stubs: the wire-shape tests target the surface
+// contract; the command semantics live in the integration suite.
+func (f *fakeCases) ProposeMode(context.Context, casesAPI.ProposeModeCommand) (casesAPI.WorkOutcome, error) {
+	return casesAPI.WorkOutcome{}, nil
+}
+func (f *fakeCases) ExitMode(context.Context, casesAPI.ExitModeCommand) (casesAPI.WorkOutcome, error) {
+	return casesAPI.WorkOutcome{}, nil
+}
+func (f *fakeCases) RecordDisclosure(context.Context, casesAPI.RecordDisclosureCommand) (casesAPI.WorkOutcome, error) {
+	return casesAPI.WorkOutcome{}, nil
+}
+func (f *fakeCases) RecordDisclosureEvent(context.Context, casesAPI.RecordDisclosureEventCommand) (casesAPI.WorkOutcome, error) {
+	return casesAPI.WorkOutcome{}, nil
+}
+
 func newCasesTestServer(t *testing.T, fake casesAPI.Service) *Server {
 	t.Helper()
 	identity := fakeIdentity{create: func(api.CreateTenantCommand) (api.CreateTenantResult, error) {
@@ -572,7 +587,7 @@ func TestSendClientReplyPassesExpectedEpoch(t *testing.T) {
 		return casesAPI.WorkOutcome{}, nil
 	}}
 	server := newCasesTestServer(t, fake)
-	body := `{"conversation_id":"01994f64-6c00-7000-8000-00000000cc01","expected_epoch":3,"content":"Добрый день!"}`
+	body := `{"conversation_id":"01994f64-6c00-7000-8000-00000000cc01","expected_epoch":3,"reply_class":"neutral","content":"Добрый день!"}`
 	recorder := httptest.NewRecorder()
 	server.Handler().ServeHTTP(recorder, casesJSONRequest("POST", clientReplyPath, body))
 	if recorder.Code != http.StatusCreated {
@@ -592,7 +607,7 @@ func TestReplyGateWireShapeMatchesContract(t *testing.T) {
 		return casesAPI.WorkOutcome{}, gate
 	}}
 	server := newCasesTestServer(t, fake)
-	body := `{"conversation_id":"01994f64-6c00-7000-8000-00000000cc01","expected_epoch":2,"content":"посторонний текст"}`
+	body := `{"conversation_id":"01994f64-6c00-7000-8000-00000000cc01","expected_epoch":2,"reply_class":"neutral","content":"посторонний текст"}`
 	recorder := httptest.NewRecorder()
 	server.Handler().ServeHTTP(recorder, casesJSONRequest("POST", clientReplyPath, body))
 	if recorder.Code != http.StatusForbidden {

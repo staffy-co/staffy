@@ -115,6 +115,10 @@ type CaseView struct {
 	// history, the outgoing replies and the member options of the
 	// transfer forms.
 	Ownership OwnershipView `json:"ownership"`
+	// The Story 2.5 section: the conversation mode derivation with the
+	// ladder, the term history, the Work Item contexts and the AI
+	// disclosure records with their delivery statuses.
+	Mode ModeView `json:"mode"`
 }
 
 // PayloadView is the sealed payload read under review/audit: the digest,
@@ -145,6 +149,7 @@ type Service interface {
 	WorkService
 	VerificationService
 	OwnershipService
+	ModeService
 }
 
 // Clock and IDs follow the module conventions.
@@ -336,6 +341,16 @@ type WorkOutcome struct {
 	GateOwnerName     string  `json:"gate_owner_name,omitempty"`
 	GateCurrentEpoch  int64   `json:"gate_current_epoch,omitempty"`
 	GatePermittedPath string  `json:"gate_permitted_path,omitempty"`
+	// The Story 2.5 material: the mode term of the transition, the
+	// disclosure record with its number, the delivery event kind and the
+	// reply class the producer marked.
+	ModeTermID   id.UUID `json:"mode_term_id,omitempty"`
+	ModeVersion  int64   `json:"mode_version,omitempty"`
+	ModeScope    string  `json:"mode_scope,omitempty"`
+	DisclosureID id.UUID `json:"disclosure_id,omitempty"`
+	DisclosureNo int64   `json:"disclosure_no,omitempty"`
+	DeliveryKind string  `json:"delivery_kind,omitempty"`
+	ReplyClass   string  `json:"reply_class,omitempty"`
 }
 
 // FactView is one fact of the facts view: the anchor, the derived status,
