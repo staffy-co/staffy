@@ -1224,3 +1224,21 @@ done:
 - Minor m-r2-1: хэш идемпотентности send_client_reply в app не включал expected_epoch (фикстура/форма/peer-команды включали; JSON-клиент с тем же ключом и другим epoch получал replay вместо честного конфликта — направление безопасное, но расхождение поверхностей); закрыт 39e5683: Expected в requestHash + интеграционный ассерт (тот же ключ + другой epoch = ErrCommandKeyConflict); спека Change Log loop 2
 unpushed: 6 (5 ветка + 1 main docs)
 commit: 39e5683
+---
+date: 2026-10-10
+task: 47-close
+role: main (Super Z)
+story: 2-4
+summary: Review R3 PASS (живая проба поверх полного регресса) — story 2-4 закрыта локально (спека+sprint-status → done, review loop 3 итерации)
+done:
+- R3 вердиккт: Major R1 закрыт классом и живой пробой R3 (истёкший → renewed → ack → health stable/pending nil/take отказан → новый владелец пишет → тот же ключ + другая эпоха = ErrCommandKeyConflict на живом сторе — глубже коммитнутого ассерта; контроль replay честный); m-r2-1 закрыт подлинно; R1/R2-зелёное не размыто (RLS+FORCE ×5, гранты append-only, слепота, гонки, 17/17 поимённо); полный независимый регресс: build/vet/unit/интеграция 115/115 UTC + Europe/Moscow (1 пре-существующий флэйк 1-13 profile-audit вне среза)/journeys 21/21/контракт/diff --check
+- Шум дисциплинирован: f89c8c7..39e5683 = 14 файлов +589/−112 raw, -w +519/−42; gofmt по изменённым: 13/14 чистых (contract_test.go — унаследованный долг до ветки)
+- Закрытие: спека → done (Change Log: loop 0 dev, loop 1 R1-фиксы, loop 2 R2-минор, loop 3 R3 PASS), Execution-чекбоксы отмечены, sprint-status.yaml 2-4 → done; closure-коммит 438ab03 создан БЕЗ [skip ci] (проактивная дисциплина — урок 2-2/2-3 применён сразу, amend при CHECKPOINT 2 не понадобится)
+- Ветка codex/story-2-4-response-owner-inbox: 6 коммитов bb419f4..438ab03 (спека [skip ci], CHECKPOINT 1 [skip ci], feat, fix R1, fix R2-минор, docs-done без маркера); Epic 2: 4/16 stories done
+- Честно отложено (deferred-work с трассировкой): TOCTOU факт-слов владения (R1 m2 — окно закрыто execute-time revalidation на доставке, полное закрытие = перечитка фактов внутри транзакции кейса); замечания-однострочники вне среза: флэйк profile-audit tie-breaker (1-13), gofmt-долг contract_test.go (унаследован)
+decisions:
+- Цикл review 2-4 = 3 итерации (прецедент 2-1/2-2/2-3): R1 — Major-класс «истёкший запрос не гасится» (зонды A/B/K), R2 — PASS + Minor зеркала хэша идемпотентности (фикстура строже прода — урок 2-3 «фикстура зеркалит стор» распространён на хэш), R3 — вердикт + живая проба закрытия минора на живом сторе
+- Водяной знак терма: строго-раньше-терма (Before) — равный момент = запрос этого терма (детерминированные часы фикстур; стор-переходы строго позже ask по математике дедлайнов); decline НЕ воскрешает старший истёкший ask (право take живо — AC-9)
+next: CHECKPOINT 2 владельцу — свежий GitHub-токен (старый отозван, Task 32) → батч-пуш (6 ветка + 3 main docs) → PR через GitHub API → CI verify → merge → DEVLOG 47-merge; далее Epic 2: story 2-5 conversation mode и обязательное AI-раскрытие
+unpushed: 9 (6 ветка + 3 main docs)
+commit: 438ab03
