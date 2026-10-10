@@ -2,7 +2,7 @@
 title: 'Story 2.5 — Conversation Mode и обязательное AI-раскрытие (первый срез)'
 type: 'feature'
 created: '2026-10-10'
-status: 'ready-for-dev'
+status: 'done'
 route: 'dispatch'
 baseline_commit: 'cc52fc23e7a595ae65a48907ab9dc7037985785d'
 context:
@@ -66,11 +66,11 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `internal/cases/domain` — словарь режимов/rank, термы, производные, ModePolicy v1, гейты (propose/exit/reply_class/disclosure/outbound basis); юнит-тесты.
-- [ ] `migrations/cases/00005_conversation_mode.sql` — 3 таблицы, RLS, гранты, уникальности, расширение словаря команд (+4).
-- [ ] `internal/cases/{port,app,store,api}` — 4 команды + расширение send_client_reply + ModeView/DisclosureView + initial-термин ingest.
-- [ ] `internal/transport/http` + OpenAPI + панель режима/раскрытий + таймлайн + privacy-классы.
-- [ ] `tests/integration/cases_mode_test.go`, unit-набор, `tests/journeys/` — все строки матрицы, гонки, доступность.
+- [x] `internal/cases/domain` — словарь режимов/rank, термы, производные, ModePolicy v1, гейты (propose/exit/reply_class/disclosure/outbound basis); юнит-тесты.
+- [x] `migrations/cases/00005_conversation_mode.sql` — 3 таблицы, RLS, гранты, уникальности, расширение словаря команд (+4).
+- [x] `internal/cases/{port,app,store,api}` — 4 команды + расширение send_client_reply + ModeView/DisclosureView + initial-термин ingest.
+- [x] `internal/transport/http` + OpenAPI + панель режима/раскрытий + таймлайн + privacy-классы.
+- [x] `tests/integration/cases_mode_test.go`, unit-набор, `tests/journeys/` — все строки матрицы, гонки, доступность.
 
 **Acceptance Criteria:**
 - Given Staffy впервые становится Response Owner в новой Conversation или новом канале без действующего evidence раскрытия, when начинается автоматическое общение (первый продажный/защищённый ответ), then действующее AI-раскрытие обязано существовать до него: точный текст, канал, время, lineage Release Manifest и delivery-статус сохранены; гейт серверный; скрытие кнопки не заменяет проверку (AC-1, FR-15).
@@ -100,6 +100,7 @@ context:
 
 ## Spec Change Log
 
+- 2026-10-10, review loop 3 (R3 PASS — срез закрыт): финальный вердикт свежим контекстом — фиксы R1 (Major M1: права review||configuration на входе трёх режимных команд) и R2 (Minor m-r2-1: audit-only владелец через supervision-reassign не выходит — review-слово на owner-ветке ExitMode) закрыты ПОДЛИННО (живая проба композитного edge на живом сторе: отказ «полномочия», лестница чиста, положительная ветка review-владельца не перегорожена, supervisor-выход из safety жив); неразмытость подтверждена (store/гейты/миграция/лестница/исходные тесты не тронуты); полный регресс в независимой копии зелёный (интеграция 126 ×2 TZ, journeys 22/22, контракт 14/14, build/vet/unit/gofmt/diff-check); новых Majors/Minors нет; Execution 5/5 отмечен. Спека и sprint-status → done.
 - 2026-10-10, review loop 2 (R2 PASS + фикс m-r2-1): R2 подтвердил закрытие Major M1 подлинно (живые пробы: audit-only отказан ×3 команды, чтение не задето, review/config пишут, не-участник 404 ×3; m6 Approach(4) на живом проводе; m3/m4/m5 — не таутологии; R1-зелёное не размыто). Minor m-r2-1 закрыт коммитом 004b1d9: композитный edge authority-лестницы — supervision-reassign мог передать владение audit-only участнику, и тот выходил из не-safety режимов; фикс — isOwner-ветка ExitMode требует rights.Review (буква Boundaries «владелец с review»), тест TestModeAuditOnlyOwnerCannotExit. Note-уточнения приняты: фактический счётчик интеграции 126 top-level (не 129); отказ audit-only в режимных командах — 400 WorkRuleError (когерентная лестница 403/404/400); гейт «review ИЛИ configuration» шире буквы «с review» — соответствует authority-модели exit. Замороженные секции не изменялись.
 - 2026-10-10, review loop 1 (R1 FAIL→фиксы): Major M1 закрыт — режимные команды ProposeMode/RecordDisclosure/RecordDisclosureEvent пропускали audit-only участников (ownershipScope проходил любой из review|configuration|audit); фикс: требование rights.Review||rights.Configuration (граница Boundaries «propose/record/event — участники с review») + интеграционный тест TestModeCommandsRefuseAuditOnlyMember. Minor m6 закрыт — ReplyModeError расширен полным снимком Approach(4): active_mode/reason/signal_source/rule_version/permitted_path в problem-полях (было только effective_mode+permitted_path). Minor m3/m4 закрыты — wire-тесты новых отказов (reply_mode_gate 403 ×5 полей, reply_disclosure_gate 403, mode_conflict 409 ×6 полей, reply_class required 400, propose required) + DB-уровневые TestModeTablesRLSForced/TestModeGrantsAppendOnly ×3 таблицы. Minor m5 закрыт — TestModeBasisDisputeRaisesPrivacyNoContact (строка 14: оспаривание основания → privacy_no_contact через turn_ref → продажи остановлены, FR-15) + отдельная ветка protected_request-отказа. Minor m1/m2 честно отложены в deferred-work с трассировкой (WI-контекст без пути выхода — трещотка fail-closed; раскрытие на связанном Y-разговоре — fail-closed тупик); Note modeView-комментарий исправлен. Замороженные секции не изменялись.
 - 2026-10-10, CHECKPOINT 1: спека одобрена владельцем без правок («одобряю», чат 2026-10-10). Замороженные секции (Intent / Boundaries & Constraints / I/O & Edge-Case Matrix) не изменялись. Спека и sprint-status.yaml одновременно переведены в `ready-for-dev`; далее — Dev (step-03).
