@@ -2,7 +2,7 @@
 title: 'Story 2.6 — Progressive Intake и детерминированный Policy Outcome (первый срез)'
 type: 'feature'
 created: '2026-10-11'
-status: 'backlog'
+status: 'ready-for-dev'
 route: 'dispatch'
 baseline_commit: 'df136fab8d2033eb376db6a392cfaf0498f25a0d'
 context:
@@ -96,4 +96,5 @@ context:
 
 ## Spec Change Log
 
+- 2026-10-11, CHECKPOINT 1: спека одобрена владельцем без правок («одобряю (доверяю вашему экспертскому мнению)», чат 2026-10-11). Замороженные секции (Intent / Boundaries & Constraints / I/O & Edge-Case Matrix) не изменялись. Спека и sprint-status.yaml одновременно переведены в `ready-for-dev`; далее — Dev (step-03).
 - 2026-10-11, review loop 0: создана спека первого среза (SM-драфт) для CHECKPOINT 1. Честные границы: AI Runtime (вызовы модели, цикл repair-pass, cost/tool budgets, таймауты) и авто-извлечение intent/фактов — будущая AI-story (предложения — синтетический порт/оператор, прецедент proposer-порт 2-5); генерация текста ответа — продюсер (сервер разрешает базис и минимальность вопросов); safety-interrupt останов генерации и barge-in semantic repair — AG-4 (исход mode_blocked — решение, не медиа); телеметрия model/tool time/TTFO/SLO — нет рантайма/стриминга (времена записей есть); modality/пейс-преференсы — 2-10 («позвать человека» уже есть: human_requested 2-5); streaming/a11y частичных ответов — 2-14; Owning System/свежесть/актуальность фактов — 2-7 (подтверждённый = актуальный в v1, без TTL); Domain Pack P1–P6 и богатые правила — Epic 5 (правило-таблица v1 — фиксированный Domain Pack v0); auto-сплит мульти-интента — порт подаёт отдельные предложения (WI — команда 2-2); исходы только по словарю v1.
