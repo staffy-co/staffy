@@ -1406,3 +1406,22 @@ decisions:
 - Итог review-цикла 2-5 подтверждён CI независимо: Major M1 (audit-only в режимных командах) закрыт гейтом прав review||configuration, композитный m-r2-1 (audit-only владелец через supervision-reassign) закрыт review-словом на owner-ветке ExitMode — регресс зелёный локально (×2 TZ, R1/R2/R3) и в CI (×3)
 next: Epic 2 продолжается — story 2-6 «Progressive intake и детерминированный Policy Outcome» (первый шаг — SM-спека первого среза → CHECKPOINT 1 владельцу). Осталось 11/16
 commit: 20c49c1
+---
+date: 2026-10-11
+task: 49-sm
+role: main (Super Z)
+story: 2-6
+summary: SM-спека первого среза story 2-6 «Progressive intake и детерминированный Policy Outcome» (FR-18+FR-22) закоммичена на ветке codex/story-2-6-progressive-intake-policy-outcome (e8e2742) и предъявлена владельцу для CHECKPOINT 1; push выполнен немедленно (токен жив — RPO-дисциплина «push сразу за коммитом», отличие от 2-5, где токен был отозван на SM-фазе)
+done:
+- Контекст изучен: epics.md Story 2.6 (12 критериальных блоков FR-18/FR-22), спеки 2-1..2-5, deferred-work, живые поверхности кода: факты 2-2 (DeriveFactStatus confirmed/conflicting/unverified, подтверждения точных версий, NormalizeMaterialKey), режимы 2-5 (ActiveConversationMode/EffectiveWorkMode/mode-policy-v1), lineage 2-4 (EmployeeID/DecisionNo/ProfileVersion), гейты send_client_reply (владение → режим → раскрытие → CAS)
+- Спека: _bmad-output/implementation-artifacts/spec-2-6-progressive-intake-policy-outcome.md (99 строк): предложения через типизированную схему ai-proposal-v1 и proposer-порт (synthetic_port|operator — прецедент 2-5), Policy intake-policy-v1 с якорями входных версий (expected_mode_version/expected_owner_epoch/expected_facts_digest/expected_work_item_version) и воспроизводимостью (input_snapshot + decision_digest), append-only policy_outcomes UNIQUE(tenant,work_item,outcome_no), дедуп вопросов против подтверждённых фактов 2-2 с provenance-переиспользованием, 5 классов исхода (commercial_answer/informational_answer/clarify/mode_blocked/fail_closed), гейт продажного ответа после раскрытия, outbox ×2, панель/PRG/OpenAPI/контракт/privacy
+- Ключевые проектные решения спеки: (1) load-bearing гейт — продажный ответ требует действующий commercial_answer исход (иначе Policy-механика мёртвая; прецедент мёртвого expected_epoch 2-4 m1); (2) словарь интентов проверяет ПОЛИТИКА, не сабмит — unknown intent fail-closed'ится исходом, а не 400 на входе (буква «результат модели — предложение, не Policy Outcome»); (3) якоря в request-hash команды (урок m-r2-1 2-4) + expected_facts_digest закрывает TOCTOU чтения фактов честным стейл-конфликтом под advisory-локом; (4) механические расширения проходных продажных тестов 2-5 (+якорь WI + подача/оценка предложения) с честной записью в Change Log (прецедент ReplyClass-neutral 18 вызовов)
+- Ветка создана от main df136fa (baseline_commit зафиксирован в спеке); коммит спеки e8e2742 [skip ci] + push -u (байт-в-байт)
+decisions:
+- Продажный путь становится строго WI-принадлежным: WI-less sales ответ — машинночитаемый отказ с permitted_path=anchor_work_item (FR-65 мир 2-2)
+- Domain Pack v0 = фиксированная правило-таблица v1 (intent → mandatory material keys: service_kind/urgency/slot_preference); богатые правила и P1–P6 — Epic 5
+- Подтверждённый факт = актуальный в v1 (свежесть/часы — 2-7 Owning System); конфликт и явный readback — единственные причины повторного вопроса
+- Отказы 2-5 (режим/раскрытие) срабатывают РАНЬШЕ нового гейта политики — порядок гейтов не меняется, их тесты не правятся; расширяются только проходные продажные ветки
+next: CHECKPOINT 1 — одобрение владельцем спеки 2-6; после «одобряю»: спека status → ready-for-dev + sprint-status 2-6 → ready-for-dev (одновременный коммит по прецеденту b053a12), затем Dev (step-03) на ветке
+unpushed: 0 (ветка и main запушены сразу; эта запись — следующий docs-коммит на main)
+commit: e8e2742
