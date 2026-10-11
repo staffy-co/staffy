@@ -80,6 +80,21 @@ func (f *fakeCases) DrainClientReplies(context.Context, domain.Principal, id.UUI
 	return casesAPI.DrainRepliesResult{}, nil
 }
 
+// The Story 2.5 mode stubs: the wire-shape tests target the surface
+// contract; the command semantics live in the integration suite.
+func (f *fakeCases) ProposeMode(context.Context, casesAPI.ProposeModeCommand) (casesAPI.WorkOutcome, error) {
+	return casesAPI.WorkOutcome{}, nil
+}
+func (f *fakeCases) ExitMode(context.Context, casesAPI.ExitModeCommand) (casesAPI.WorkOutcome, error) {
+	return casesAPI.WorkOutcome{}, nil
+}
+func (f *fakeCases) RecordDisclosure(context.Context, casesAPI.RecordDisclosureCommand) (casesAPI.WorkOutcome, error) {
+	return casesAPI.WorkOutcome{}, nil
+}
+func (f *fakeCases) RecordDisclosureEvent(context.Context, casesAPI.RecordDisclosureEventCommand) (casesAPI.WorkOutcome, error) {
+	return casesAPI.WorkOutcome{}, nil
+}
+
 func newCasesTestServer(t *testing.T, fake casesAPI.Service) *Server {
 	t.Helper()
 	identity := fakeIdentity{create: func(api.CreateTenantCommand) (api.CreateTenantResult, error) {
@@ -572,7 +587,7 @@ func TestSendClientReplyPassesExpectedEpoch(t *testing.T) {
 		return casesAPI.WorkOutcome{}, nil
 	}}
 	server := newCasesTestServer(t, fake)
-	body := `{"conversation_id":"01994f64-6c00-7000-8000-00000000cc01","expected_epoch":3,"content":"Добрый день!"}`
+	body := `{"conversation_id":"01994f64-6c00-7000-8000-00000000cc01","expected_epoch":3,"reply_class":"neutral","content":"Добрый день!"}`
 	recorder := httptest.NewRecorder()
 	server.Handler().ServeHTTP(recorder, casesJSONRequest("POST", clientReplyPath, body))
 	if recorder.Code != http.StatusCreated {
@@ -592,7 +607,7 @@ func TestReplyGateWireShapeMatchesContract(t *testing.T) {
 		return casesAPI.WorkOutcome{}, gate
 	}}
 	server := newCasesTestServer(t, fake)
-	body := `{"conversation_id":"01994f64-6c00-7000-8000-00000000cc01","expected_epoch":2,"content":"посторонний текст"}`
+	body := `{"conversation_id":"01994f64-6c00-7000-8000-00000000cc01","expected_epoch":2,"reply_class":"neutral","content":"посторонний текст"}`
 	recorder := httptest.NewRecorder()
 	server.Handler().ServeHTTP(recorder, casesJSONRequest("POST", clientReplyPath, body))
 	if recorder.Code != http.StatusForbidden {
@@ -610,5 +625,156 @@ func TestReplyGateWireShapeMatchesContract(t *testing.T) {
 		problem.FieldErrors["current_epoch"] != "2" ||
 		!strings.Contains(problem.FieldErrors["permitted_path"], "request_transfer") {
 		t.Fatalf("the gate refusal carries the owner and the permitted path, fields = %+v", problem.FieldErrors)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// The Story 2.5 mode wire contract.
+// ---------------------------------------------------------------------------
+
+const proposeModePath = "/v1/tenants/01994f64-6c00-7000-8000-000000000011/cases/01994f64-6c00-7000-8000-00000000aa01/mode/proposals"
+
+// modeErrorCases injects the mode command errors of the wire tests (the
+// Story 2.5 surface contract; the command semantics live in the
+// integration suite).
+type modeErrorCases struct {
+	fakeCases
+	propose func(context.Context, casesAPI.ProposeModeCommand) (casesAPI.WorkOutcome, error)
+	reply   func(context.Context, casesAPI.SendClientReplyCommand) (casesAPI.WorkOutcome, error)
+}
+
+func (f *modeErrorCases) ProposeMode(ctx context.Context, command casesAPI.ProposeModeCommand) (casesAPI.WorkOutcome, error) {
+	if f.propose == nil {
+		return casesAPI.WorkOutcome{}, nil
+	}
+	return f.propose(ctx, command)
+}
+
+func (f *modeErrorCases) SendClientReply(ctx context.Context, command casesAPI.SendClientReplyCommand) (casesAPI.WorkOutcome, error) {
+	if f.reply == nil {
+		return casesAPI.WorkOutcome{}, nil
+	}
+	return f.reply(ctx, command)
+}
+
+func TestReplyModeGateWireShapeMatchesContract(t *testing.T) {
+	gate := casesDomain.ReplyModeError{
+		EffectiveMode: casesDomain.ModeSafety, ModeReason: "сигнал безопасности",
+		SignalSource: casesDomain.ModeSignalTurnEvent, RuleVersion: casesDomain.ModePolicyVersion,
+	}
+	gate.Reason = casesDomain.ReplyModeGateText
+	fake := &modeErrorCases{reply: func(context.Context, casesAPI.SendClientReplyCommand) (casesAPI.WorkOutcome, error) {
+		return casesAPI.WorkOutcome{}, gate
+	}}
+	server := newCasesTestServer(t, fake)
+	body := `{"conversation_id":"01994f64-6c00-7000-8000-00000000cc01","expected_epoch":2,"reply_class":"sales","content":"предлагаю"}`
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, casesJSONRequest("POST", clientReplyPath, body))
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	var problem httpx.Problem
+	if err := json.Unmarshal(recorder.Body.Bytes(), &problem); err != nil {
+		t.Fatal(err)
+	}
+	if problem.Code != "reply_mode_gate" {
+		t.Fatalf("code = %s, body = %s", problem.Code, recorder.Body.String())
+	}
+	for field, want := range map[string]string{
+		"active_mode":    casesDomain.ModeSafety,
+		"reason":         "сигнал безопасности",
+		"signal_source":  casesDomain.ModeSignalTurnEvent,
+		"rule_version":   casesDomain.ModePolicyVersion,
+		"permitted_path": casesDomain.PermittedPathExit,
+	} {
+		if problem.FieldErrors[field] != want {
+			t.Fatalf("field %s = %q, want %q (body %s)", field, problem.FieldErrors[field], want, recorder.Body.String())
+		}
+	}
+}
+
+func TestReplyDisclosureGateWireShapeMatchesContract(t *testing.T) {
+	gate := casesDomain.ReplyDisclosureError{Channel: "phone", Reason: casesDomain.DisclosureGateText}
+	fake := &modeErrorCases{reply: func(context.Context, casesAPI.SendClientReplyCommand) (casesAPI.WorkOutcome, error) {
+		return casesAPI.WorkOutcome{}, gate
+	}}
+	server := newCasesTestServer(t, fake)
+	body := `{"conversation_id":"01994f64-6c00-7000-8000-00000000cc01","expected_epoch":2,"reply_class":"protected_request","content":"подтвердите данные"}`
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, casesJSONRequest("POST", clientReplyPath, body))
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	var problem httpx.Problem
+	if err := json.Unmarshal(recorder.Body.Bytes(), &problem); err != nil {
+		t.Fatal(err)
+	}
+	if problem.Code != "reply_disclosure_gate" {
+		t.Fatalf("code = %s, body = %s", problem.Code, recorder.Body.String())
+	}
+	if problem.FieldErrors["channel"] != "phone" || problem.FieldErrors["permitted_path"] != casesDomain.PermittedPathRecordDisclosure {
+		t.Fatalf("the channel and the permitted path words travel as fields, body = %s", recorder.Body.String())
+	}
+}
+
+func TestReplyClassRequiredWireWord(t *testing.T) {
+	server := newCasesTestServer(t, &fakeCases{})
+	body := `{"conversation_id":"01994f64-6c00-7000-8000-00000000cc01","expected_epoch":2,"content":"без класса"}`
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, casesJSONRequest("POST", clientReplyPath, body))
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), "класс размечает продюсер") {
+		t.Fatalf("the refusal names the producer's mark discipline, body = %s", recorder.Body.String())
+	}
+}
+
+func TestModeConflictWireShapeMatchesContract(t *testing.T) {
+	conflict := casesDomain.ModeConflictError{
+		ActiveMode: casesDomain.ModeClaim, Reason: "претензия",
+		SignalSource: casesDomain.ModeSignalOperator, RuleVersion: casesDomain.ModePolicyVersion, ModeVersion: 2,
+	}
+	fake := &modeErrorCases{propose: func(context.Context, casesAPI.ProposeModeCommand) (casesAPI.WorkOutcome, error) {
+		return casesAPI.WorkOutcome{}, conflict
+	}}
+	server := newCasesTestServer(t, fake)
+	body := `{"conversation_id":"01994f64-6c00-7000-8000-00000000cc01","mode":"safety","scope":"conversation","expected_mode_version":1,"reason":"r","signal_source":"operator"}`
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, casesJSONRequest("POST", proposeModePath, body))
+	if recorder.Code != http.StatusConflict {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	var problem httpx.Problem
+	if err := json.Unmarshal(recorder.Body.Bytes(), &problem); err != nil {
+		t.Fatal(err)
+	}
+	if problem.Code != "mode_conflict" {
+		t.Fatalf("code = %s, body = %s", problem.Code, recorder.Body.String())
+	}
+	for field, want := range map[string]string{
+		"active_mode":    casesDomain.ModeClaim,
+		"reason":         "претензия",
+		"signal_source":  casesDomain.ModeSignalOperator,
+		"rule_version":   casesDomain.ModePolicyVersion,
+		"mode_version":   "2",
+		"permitted_path": "propose_mode",
+	} {
+		if problem.FieldErrors[field] != want {
+			t.Fatalf("field %s = %q, want %q (body %s)", field, problem.FieldErrors[field], want, recorder.Body.String())
+		}
+	}
+}
+
+func TestProposeModeRequiresExpectedVersion(t *testing.T) {
+	server := newCasesTestServer(t, &fakeCases{})
+	body := `{"conversation_id":"01994f64-6c00-7000-8000-00000000cc01","mode":"safety","scope":"conversation","reason":"r","signal_source":"operator"}`
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, casesJSONRequest("POST", proposeModePath, body))
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), "expected_mode_version") {
+		t.Fatalf("the refusal names the required CAS word, body = %s", recorder.Body.String())
 	}
 }

@@ -623,6 +623,20 @@ func (s *Postgres) execSendClientReply(ctx context.Context, tx pgx.Tx, tenantID 
 	if current.Epoch != p.ExpectedVersion {
 		return casesDomain.ErrStaleVersion
 	}
+	// The mode gate (Story 2.5, AFTER the ownership gate — the same «gate
+	// before CAS» order): the effective mode of the Work Item the reply
+	// belongs to decides the sales class; the neutral class passes by the
+	// explicit v1 rule.
+	if err := replyModeGateOfTx(ctx, tx, tenantID, p.CaseID, p); err != nil {
+		return err
+	}
+	// The disclosure gate (the sales and the protected classes): the
+	// acting disclosure of the live channel word of the reply.
+	if p.ReplyClass == casesDomain.ReplyClassSales || p.ReplyClass == casesDomain.ReplyClassProtectedRequest {
+		if err := replyDisclosureGateOfTx(ctx, tx, tenantID, p.CaseID, p.ConversationID, p); err != nil {
+			return err
+		}
+	}
 	// The route snapshot of the conversation: the channel and the
 	// direction of its latest accepted event (the honest live route).
 	channel, direction := p.RouteChannel, p.RouteDirection
@@ -639,12 +653,12 @@ func (s *Postgres) execSendClientReply(ctx context.Context, tx pgx.Tx, tenantID 
 		channel, direction = p.RouteChannel, p.RouteDirection
 	}
 	if _, err = tx.Exec(ctx, `
-                insert into cases.client_replies (tenant_id, case_id, conversation_id, reply_id, owner_kind, owner_ref, epoch, writable_surface, connection_id, provider, channel, direction, employee_id, decision_no, profile_version, content, actor_id, created_at)
-                values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
+                insert into cases.client_replies (tenant_id, case_id, conversation_id, reply_id, owner_kind, owner_ref, epoch, writable_surface, connection_id, provider, channel, direction, employee_id, decision_no, profile_version, content, actor_id, reply_class, work_item_id, created_at)
+                values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
 		tenantID, p.CaseID, p.ConversationID, p.ReplyID, current.OwnerKind, current.OwnerRef,
 		current.Epoch, current.WritableSurface, conversation.ConnectionID, conversation.Provider,
 		channel, "outbound", p.LineageEmployeeID, p.LineageDecisionNo, p.LineageProfileVersion,
-		p.ReplyContent, p.Actor, now); err != nil {
+		p.ReplyContent, p.Actor, nilText(p.ReplyClass), nilID(p.WorkItemID), now); err != nil {
 		return mapOwnershipInsertError(err)
 	}
 	// The prepared outbox event: the safe snapshot only.

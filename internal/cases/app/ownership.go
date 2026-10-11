@@ -582,13 +582,20 @@ func (s *Service) SendClientReply(ctx context.Context, command casesAPI.SendClie
 	hash := requestHash(struct {
 		Case         string `json:"case"`
 		Conversation string `json:"conversation"`
+		WorkItem     string `json:"work_item"`
 		Expected     int64  `json:"expected_epoch"`
+		Class        string `json:"reply_class"`
 		Content      string `json:"content"`
-	}{command.CaseID.String(), command.ConversationID.String(), command.ExpectedEpoch, command.Content})
+	}{command.CaseID.String(), command.ConversationID.String(), command.WorkItemID.String(), command.ExpectedEpoch, command.ReplyClass, command.Content})
 	if outcome, replay, err := s.lookupCommand(ctx, scope, "send_client_reply", command.IdempotencyKey, hash); replay || err != nil {
 		return outcome, err
 	}
 	if err := rule("send_client_reply", casesDomain.GuardSendClientReply(command.ExpectedEpoch, command.Content)); err != nil {
+		return casesAPI.WorkOutcome{}, err
+	}
+	// The reply class is the producer's mark (the machine never classifies
+	// the content — no silent default; the honest boundary of the slice).
+	if err := rule("send_client_reply", casesDomain.GuardReplyClass(command.ReplyClass)); err != nil {
 		return casesAPI.WorkOutcome{}, err
 	}
 	// The governing case of the target conversation: the case it is
@@ -658,6 +665,65 @@ func (s *Service) SendClientReply(ctx context.Context, command casesAPI.SendClie
 	if command.ExpectedEpoch != current.Epoch {
 		return casesAPI.WorkOutcome{}, casesDomain.ErrStaleVersion
 	}
+	// The mode gate (Story 2.5, AFTER the ownership gate — the same
+	// «gate before CAS» order): the effective mode of the Work Item the
+	// reply belongs to (the stricter of the conversation mode and the
+	// item context; an absent anchor reads the conversation mode; an
+	// anchored item must belong to the case). The sales class needs the
+	// effective sales mode; the neutral class passes by the explicit v1
+	// rule; the protected class is a disclosure matter.
+	if command.WorkItemID.Valid() {
+		if err := s.modeWorkItem(ctx, scope, command.CaseID, command.WorkItemID); err != nil {
+			return casesAPI.WorkOutcome{}, err
+		}
+	}
+	modeTerms, err := s.repository.ReadModeMaterial(ctx, scope, command.CaseID)
+	if err != nil {
+		return casesAPI.WorkOutcome{}, err
+	}
+	activeMode := casesDomain.ActiveConversationMode(modeTerms)
+	itemContext := activeMode
+	if command.WorkItemID.Valid() {
+		itemContext = casesDomain.WorkItemModeContext(modeTerms, command.WorkItemID)
+	}
+	effective := casesDomain.EffectiveWorkMode(activeMode, itemContext)
+	if err := casesDomain.GuardReplyClassAgainstMode(command.ReplyClass, effective); err != nil {
+		var modeGate casesDomain.ReplyModeError
+		if errors.As(err, &modeGate) {
+			modeGate.Reason = casesDomain.ReplyModeGateText
+			return casesAPI.WorkOutcome{}, modeGate
+		}
+		return casesAPI.WorkOutcome{}, err
+	}
+	// The disclosure gate (sales and protected classes): the acting
+	// disclosure of the channel — the last record of the conversation
+	// channel whose own status is sent or a playback word (AC-1: the
+	// disclosure BEFORE the sales and the protected replies).
+	if command.ReplyClass == casesDomain.ReplyClassSales || command.ReplyClass == casesDomain.ReplyClassProtectedRequest {
+		// The live channel word: the channel of the latest accepted event of
+		// the reply conversation (the honest route word — the store
+		// re-validates under the lock; the modality fallback only for a
+		// conversation without accepted events).
+		channel := channelOfModality(conversation.Modality)
+		if live, found, liveErr := s.repository.ReadLiveConversationChannel(ctx, scope, command.ConversationID); liveErr == nil && found {
+			channel = live
+		} else if liveErr != nil {
+			return casesAPI.WorkOutcome{}, liveErr
+		}
+		disclosures, err := s.repository.ReadDisclosures(ctx, scope, command.CaseID)
+		if err != nil {
+			return casesAPI.WorkOutcome{}, err
+		}
+		records := make([]casesDomain.DisclosureRecord, 0, len(disclosures))
+		events := make([]casesDomain.DisclosureDeliveryEvent, 0, len(disclosures))
+		for _, card := range disclosures {
+			records = append(records, card.Record)
+			events = append(events, card.Events...)
+		}
+		if casesDomain.EffectiveDisclosure(records, events, command.ConversationID, channel) == nil {
+			return casesAPI.WorkOutcome{}, casesDomain.ReplyDisclosureError{Channel: channel, Reason: casesDomain.DisclosureGateText}
+		}
+	}
 	// The route snapshot and the lineage word of the acting decision.
 	conversationOfCase, err := s.caseConnection(ctx, scope, command.CaseID)
 	if err != nil {
@@ -677,7 +743,7 @@ func (s *Service) SendClientReply(ctx context.Context, command casesAPI.SendClie
 	}
 	outcome := casesAPI.WorkOutcome{
 		Command: "send_client_reply", ReplyID: replyID,
-		ReplyState: "prepared", Epoch: current.Epoch,
+		ReplyState: "prepared", Epoch: current.Epoch, ReplyClass: command.ReplyClass,
 	}
 	outcomeJSON, err := json.Marshal(outcome)
 	if err != nil {
@@ -688,6 +754,7 @@ func (s *Service) SendClientReply(ctx context.Context, command casesAPI.SendClie
 		Actor: command.Actor.ID, CaseID: command.CaseID, ConversationID: command.ConversationID,
 		OwnerKind: current.OwnerKind, OwnerRef: current.OwnerRef, ExpectedVersion: current.Epoch,
 		WritableSurface: current.WritableSurface, ReplyID: replyID, ReplyContent: command.Content,
+		ReplyClass: command.ReplyClass, WorkItemID: command.WorkItemID,
 		OwnerActiveWord:   ownerActive,
 		RouteConnectionID: conversation.ConnectionID, RouteChannel: channelOfModality(conversation.Modality),
 		RouteDirection: "outbound", LineageEmployeeID: employee, LineageDecisionNo: decisionNo,

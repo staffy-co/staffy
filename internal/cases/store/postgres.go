@@ -259,6 +259,19 @@ func (s *Postgres) AcceptEvent(ctx context.Context, p casesPort.AcceptParams) (c
 			tenantID, p.CaseID, p.TermID, ownerID, now); err != nil {
 			return casesDomain.IngestResult{}, err
 		}
+		// The initial mode term (Story 2.5): exactly one more
+		// INSERT of the SAME admission transaction — version 1,
+		// the unclassified admission word (the 2-1 canon «не
+		// классифицирован», the safe non-sales path), the
+		// ingest_initial origin, the rule version. The ladder of
+		// 2-1 stays untouched; the sales replies stay impossible
+		// until a classification signal raises the mode.
+		if _, err = tx.Exec(ctx, `
+                        insert into cases.mode_terms (tenant_id, case_id, conversation_id, term_id, mode_version, mode, scope, origin, reason, signal_source, actor_id, rule_version, created_at)
+                        values ($1,$2,$3,$4,1,'unclassified','conversation','ingest_initial','Запрос ещё не классифицирован.','operator',$5,'mode-policy-v1',$6)`,
+			tenantID, p.CaseID, p.ConversationID, p.ModeTermID, ownerID, now); err != nil {
+			return casesDomain.IngestResult{}, err
+		}
 		// The initial work item is created only with a new conversation —
 		// the anchor, the version 1 (kind create, the honest untriaged
 		// state, the system actor) and the link of the first event.

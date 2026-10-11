@@ -286,6 +286,13 @@ func (s *Service) accept(ctx context.Context, scope tenancy.Context, command cas
 	if err != nil {
 		return casesAPI.IngestOutcome{}, err
 	}
+	// The initial mode term of the new case (Story 2.5): the same
+	// transaction writes it — the unclassified admission word (the 2-1
+	// canon «не классифицирован», the safe non-sales path).
+	modeTermID, err := s.ids.New(now)
+	if err != nil {
+		return casesAPI.IngestOutcome{}, err
+	}
 	sealKey, err := casesDomain.NewSealKey()
 	if err != nil {
 		return casesAPI.IngestOutcome{}, err
@@ -323,7 +330,7 @@ func (s *Service) accept(ctx context.Context, scope tenancy.Context, command cas
 		Scope: scope, Event: event, Payload: envelope.Payload, SealKey: sealKey,
 		Seal:       casesDomain.PayloadSeal(sealKey, envelope.Payload),
 		EmployeeID: outcome.EmployeeID, ResponseOwnerID: outcome.OwnerID,
-		PackID: outcome.PackID, PackVersion: outcome.PackVersion, TermID: termID,
+		PackID: outcome.PackID, PackVersion: outcome.PackVersion, TermID: termID, ModeTermID: modeTermID,
 		Session: casesDomain.PreCaseSession{
 			TenantID: scope.TenantID(), SessionID: sessionID, ConnectionID: envelope.ConnectionID,
 			Provider: envelope.Provider, ProviderSessionID: envelope.ProviderSessionID,
@@ -681,6 +688,14 @@ func (s *Service) CaseView(ctx context.Context, actor domain.Principal, tenantID
 	if err != nil {
 		return casesAPI.CaseView{}, err
 	}
+	// The Story 2.5 section: the conversation mode derivation with the
+	// ladder, the term history, the Work Item contexts and the disclosure
+	// records with their delivery statuses. The reads degrade honestly —
+	// the same view scope.
+	mode, err := s.modeView(ctx, scope, detail)
+	if err != nil {
+		return casesAPI.CaseView{}, err
+	}
 	return casesAPI.CaseView{
 		TenantID: tenantID, Case: detail.Case, Conversations: detail.Conversations,
 		Timeline: detail.Timeline, WorkItems: detail.WorkItems, Exceptions: detail.Exceptions,
@@ -698,6 +713,7 @@ func (s *Service) CaseView(ctx context.Context, actor domain.Principal, tenantID
 		Bindings:   cards,
 		Duplicates: duplicates,
 		Ownership:  ownership,
+		Mode:       mode,
 	}, nil
 }
 
