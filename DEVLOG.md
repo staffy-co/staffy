@@ -1491,3 +1491,19 @@ decisions:
 - Цикл review = 2 итерации (R1 PASS с 6 минорами → фиксы 3f4159f → R2 PASS без новых): R3 не требуется — R2 уже выполнил живые пробы и полный независимый регресс (прецедент цикла 2-2: количество итераций следует находкам)
 next: closure среза (спека+sprint-status → done, closure-коммит без [skip ci]) → CHECKPOINT 2 (PR + CI + merge)
 commit: TBD
+---
+date: 2026-10-12
+task: 49-merge
+role: main (Super Z)
+story: 2-6
+summary: Story 2-6 влита в main — PR #21, merge-коммит b58ca88; CI зелёный тремя полными прогонами (push/PR/main); Epic 2: 6/16 stories done — контур получил progressive intake (типизированные ai_proposals, схема ai-proposal-v1, proposer-порт synthetic_port|operator) и детерминированный Policy Outcome (append-only policy_outcomes с якорями входных версий и decision_digest, дедуп вопросов против подтверждённых фактов 2-2 с reused_facts-provenance, fail-closed unknown intent, гейт продажного ответа ПОСЛЕ владения 2-4/режима 2-5/раскрытия 2-5)
+done:
+- Merge исполнен сессией 2026-10-11 08:11:57Z (PR #21 через GitHub API; merge_method=merge, sha-pinned head 7cdb346 = closure-коммит — паттерн 46/47/48-merge) — сессия-исполнитель потеряла контекст СРАЗУ после merge-вызова: DEVLOG-запись и верификация main-run CI не были сделаны; эта запись закрывает хвост CHECKPOINT 2 по git-фактам (порядок доверия: git origin > sprint-status > DEVLOG > worklog)
+- CI верифицирован по GitHub API (сессия-продолжатель, токен владельца), три полных прогона success: push-run 38123671823 (head 7cdb346, 08:06:53Z) и pull_request-run 38123715154 (head 7cdb346, 08:07:39Z) — NEED=2 на head выполнено ДО merge; main-run 38123964906 (head b58ca88, старт 08:11:59Z — через 2 сек после merge) — NEED=1; промежуточные прогоны ветки тоже success (feat 041f93b 07:31:57Z, fix R1 3f4159f 08:00:11Z)
+- SHA-факты: PR #21 head 7cdb34653ec558b68084167d439b9d2128cd86ba = tip remote-ветки codex/story-2-6-progressive-intake-policy-outcome = closure-коммит (merge ровно от от-reviewенной головы); origin/main = b58ca88008c642bb56bea7da3e0db7adeb843ec7, поверх ничего
+- Ноты 49-review-r2/closure подтверждены без корректировок: спека → done (Execution 5/5, Change Log loops 1-3), sprint-status 2-6 → done, Epic 2: 6/16; цикл review = 2 итерации (R1 PASS с 6 минорами, фиксы 3f4159f → R2 PASS мутационными пробами — прецедент 2-2, R3 не требовался)
+- Пост-merge диагностика (сессия-продолжатель, 2026-10-11 21:09Z): обнаружено и устранено локальное расхождение песочницы — параллельная реализация 2-6 (локальная ветка codex/story-2-6-policy-outcome-progressive-intake, feat 07a8e0e 14:17Z — на 6 часов ПОЗЖЕ remote-merge 08:11Z; сессия без токена неверно диагностировала «2-5 не влита» по устаревшим remote-tracking refs и продублировала SM+Dev локально): local main сброшен на b58ca88 (2 локальных docs-коммита параллельной линии удалены — никогда не публиковались, 0 следов на origin), параллельная ветка удалена; УРОК непрерывности: при недоступном fetch (приватный репо, 401) remote-tracking refs — НЕ источник истины; истина = ls-remote с живым токеном ДО любых выводов о состоянии origin
+- Токен применён только inline env STAFFY_GH_TOKEN per-invocation (credential-helper; на диск не попадал) — паттерн 46/47/48-merge соблюдён четвёртым CHECKPOINT подряд
+- Локальный Go/PG-регресс в этой фазе не запускался (не нужен): рабочее дерево main байт-в-байт = origin/main @ b58ca88 (подтверждено reset --hard без расхождений), CI ×3 прогнал тот же контент независимо
+next: story 2-7 «Актуальные данные Owning System и обработка неопределённости» (FR-19/FR-20/FR-21) — SM-спека первого среза по явному решению владельца (CHECKPOINT 1); в Epic 2 осталось 10/16
+commit: b58ca88
