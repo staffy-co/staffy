@@ -146,10 +146,10 @@ func newCasesFixture() *casesFixture {
 		replies:          map[id.UUID][]casesDomain.ClientReply{},
 		replyOutcomes:    map[id.UUID]casesDomain.ClientReplyOutcome{},
 		// The Story 2.5 material:
-		modeTerms:   map[id.UUID][]casesDomain.ModeTerm{},
-			aiProposals:    map[id.UUID][]casesDomain.AIProposal{},
-			policyOutcomes: map[id.UUID][]casesDomain.PolicyOutcome{},
-		disclosures: map[id.UUID][]casesDomain.DisclosureRecord{},
+		modeTerms:      map[id.UUID][]casesDomain.ModeTerm{},
+		aiProposals:    map[id.UUID][]casesDomain.AIProposal{},
+		policyOutcomes: map[id.UUID][]casesDomain.PolicyOutcome{},
+		disclosures:    map[id.UUID][]casesDomain.DisclosureRecord{},
 	}
 }
 

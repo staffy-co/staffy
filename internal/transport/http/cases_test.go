@@ -784,3 +784,163 @@ func TestProposeModeRequiresExpectedVersion(t *testing.T) {
 		t.Fatalf("the refusal names the required CAS word, body = %s", recorder.Body.String())
 	}
 }
+
+// policyErrorCases injects the policy command errors of the wire tests
+// (the Story 2.6 surface contract; the command semantics live in the
+// integration suite).
+type policyErrorCases struct {
+	fakeCases
+	submit   func(context.Context, casesAPI.SubmitAIProposalCommand) (casesAPI.WorkOutcome, error)
+	evaluate func(context.Context, casesAPI.EvaluatePolicyCommand) (casesAPI.WorkOutcome, error)
+	reply    func(context.Context, casesAPI.SendClientReplyCommand) (casesAPI.WorkOutcome, error)
+}
+
+func (f *policyErrorCases) SubmitAIProposal(ctx context.Context, command casesAPI.SubmitAIProposalCommand) (casesAPI.WorkOutcome, error) {
+	if f.submit == nil {
+		return casesAPI.WorkOutcome{}, nil
+	}
+	return f.submit(ctx, command)
+}
+
+func (f *policyErrorCases) EvaluatePolicy(ctx context.Context, command casesAPI.EvaluatePolicyCommand) (casesAPI.WorkOutcome, error) {
+	if f.evaluate == nil {
+		return casesAPI.WorkOutcome{}, nil
+	}
+	return f.evaluate(ctx, command)
+}
+
+func (f *policyErrorCases) SendClientReply(ctx context.Context, command casesAPI.SendClientReplyCommand) (casesAPI.WorkOutcome, error) {
+	if f.reply == nil {
+		return casesAPI.WorkOutcome{}, nil
+	}
+	return f.reply(ctx, command)
+}
+
+const submitAIProposalPath = "/v1/tenants/01994f64-6c00-7000-8000-000000000011/cases/01994f64-6c00-7000-8000-00000000aa01/ai-proposals"
+const evaluatePolicyPath = "/v1/tenants/01994f64-6c00-7000-8000-000000000011/cases/01994f64-6c00-7000-8000-00000000aa01/policy/evaluations"
+
+// TestReplyPolicyGateWireShapeMatchesContract pins the 403 problem of
+// the sales reply policy gate: the current outcome words (the class, the
+// reason, the rule version, the number) and the permitted path travel as
+// the problem fields.
+func TestReplyPolicyGateWireShapeMatchesContract(t *testing.T) {
+	gate := casesDomain.ReplyPolicyError{
+		WorkItemID:   id.MustParse("01994f64-6c00-7000-8000-00000000bb01"),
+		CurrentClass: casesDomain.OutcomeClarify, CurrentReason: casesDomain.ReasonNoAnswerBasis,
+		RuleVersion: casesDomain.PolicyRuleVersion, OutcomeNo: 3,
+		PermittedPath: casesDomain.PermittedPathEvaluatePolicy, Reason: casesDomain.ReplyPolicyNotCommercialText,
+	}
+	fake := &policyErrorCases{reply: func(context.Context, casesAPI.SendClientReplyCommand) (casesAPI.WorkOutcome, error) {
+		return casesAPI.WorkOutcome{}, gate
+	}}
+	server := newCasesTestServer(t, fake)
+	body := `{"conversation_id":"01994f64-6c00-7000-8000-00000000cc01","work_item_id":"01994f64-6c00-7000-8000-00000000bb01","expected_epoch":2,"reply_class":"sales","content":"предлагаю"}`
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, casesJSONRequest("POST", clientReplyPath, body))
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	var problem httpx.Problem
+	if err := json.Unmarshal(recorder.Body.Bytes(), &problem); err != nil {
+		t.Fatal(err)
+	}
+	if problem.Code != "reply_policy_gate" {
+		t.Fatalf("code = %s, body = %s", problem.Code, recorder.Body.String())
+	}
+	for field, want := range map[string]string{
+		"work_item_id":           "01994f64-6c00-7000-8000-00000000bb01",
+		"current_outcome_class":  casesDomain.OutcomeClarify,
+		"current_outcome_reason": casesDomain.ReasonNoAnswerBasis,
+		"current_rule_version":   casesDomain.PolicyRuleVersion,
+		"current_outcome_no":     "3",
+		"permitted_path":         casesDomain.PermittedPathEvaluatePolicy,
+	} {
+		if problem.FieldErrors[field] != want {
+			t.Fatalf("field %s = %q, want %q (body %s)", field, problem.FieldErrors[field], want, recorder.Body.String())
+		}
+	}
+}
+
+// TestPolicyConflictWireShapeMatchesContract pins the 409 problem of the
+// raced evaluation anchors: the CURRENT versions travel as the problem
+// fields (the operator re-reads the state and re-anchors).
+func TestPolicyConflictWireShapeMatchesContract(t *testing.T) {
+	conflict := casesDomain.PolicyConflictError{
+		CurrentModeVersion: 4, CurrentOwnerEpoch: 2,
+		CurrentFactsDigest:     "aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111",
+		CurrentWorkItemVersion: 5,
+	}
+	fake := &policyErrorCases{evaluate: func(context.Context, casesAPI.EvaluatePolicyCommand) (casesAPI.WorkOutcome, error) {
+		return casesAPI.WorkOutcome{}, conflict
+	}}
+	server := newCasesTestServer(t, fake)
+	body := `{"proposal_ref":"01994f64-6c00-7000-8000-00000000dd01","expected_mode_version":3,"expected_owner_epoch":1,"expected_facts_digest":"bbbb2222bbbb2222bbbb2222bbbb2222bbbb2222bbbb2222bbbb2222bbbb2222","expected_work_item_version":4}`
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, casesJSONRequest("POST", evaluatePolicyPath, body))
+	if recorder.Code != http.StatusConflict {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	var problem httpx.Problem
+	if err := json.Unmarshal(recorder.Body.Bytes(), &problem); err != nil {
+		t.Fatal(err)
+	}
+	if problem.Code != "policy_conflict" {
+		t.Fatalf("code = %s, body = %s", problem.Code, recorder.Body.String())
+	}
+	for field, want := range map[string]string{
+		"current_mode_version":      "4",
+		"current_owner_epoch":       "2",
+		"current_facts_digest":      "aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111",
+		"current_work_item_version": "5",
+		"permitted_path":            "evaluate_policy",
+	} {
+		if problem.FieldErrors[field] != want {
+			t.Fatalf("field %s = %q, want %q (body %s)", field, problem.FieldErrors[field], want, recorder.Body.String())
+		}
+	}
+}
+
+// TestProposalSchemaWireShapeMatchesContract pins the 400 problem of the
+// submission schema: the machine-readable field errors travel as the
+// problem fields (the repair loop is the proposer's duty).
+func TestProposalSchemaWireShapeMatchesContract(t *testing.T) {
+	schema := casesDomain.ProposalSchemaError{Problems: []casesDomain.ProposalFieldProblem{
+		{Field: "intent", Problem: "длиннее 64 символов"},
+		{Field: "missing_facts[0].reason", Problem: "не входит в словарь (mandatory, readback)"},
+	}}
+	fake := &policyErrorCases{submit: func(context.Context, casesAPI.SubmitAIProposalCommand) (casesAPI.WorkOutcome, error) {
+		return casesAPI.WorkOutcome{}, schema
+	}}
+	server := newCasesTestServer(t, fake)
+	body := `{"conversation_id":"01994f64-6c00-7000-8000-00000000cc01","work_item_id":"01994f64-6c00-7000-8000-00000000bb01","turn_ref":"01994f64-6c00-7000-8000-00000000ee01","intent":"x","proposer":"operator"}`
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, casesJSONRequest("POST", submitAIProposalPath, body))
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	var problem httpx.Problem
+	if err := json.Unmarshal(recorder.Body.Bytes(), &problem); err != nil {
+		t.Fatal(err)
+	}
+	if problem.Code != "proposal_schema" {
+		t.Fatalf("code = %s, body = %s", problem.Code, recorder.Body.String())
+	}
+	if problem.FieldErrors["intent"] != "длиннее 64 символов" || problem.FieldErrors["missing_facts[0].reason"] != "не входит в словарь (mandatory, readback)" {
+		t.Fatalf("the field problems travel as the problem fields, body = %s", recorder.Body.String())
+	}
+}
+
+// TestEvaluatePolicyRequiresAnchors pins the honest 400 of the missing
+// anchor words (the machine contract requires all four).
+func TestEvaluatePolicyRequiresAnchors(t *testing.T) {
+	server := newCasesTestServer(t, &fakeCases{})
+	body := `{"proposal_ref":"01994f64-6c00-7000-8000-00000000dd01","expected_mode_version":3}`
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, casesJSONRequest("POST", evaluatePolicyPath, body))
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), "expected_facts_digest") {
+		t.Fatalf("the refusal names the missing anchor words, body = %s", recorder.Body.String())
+	}
+}

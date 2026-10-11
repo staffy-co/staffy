@@ -90,7 +90,7 @@ func (w *casesWorld) recordConfirmedFact(t *testing.T, caseID, workItemID id.UUI
 		Actor: w.workActor(), TenantID: w.tenant, CaseID: caseID, FactID: recorded.FactID,
 		VersionNo: recorded.FactVersion, ConfirmerType: casesDomain.ConfirmerOperatorRelay,
 		EvidenceEventID: eventIDOf(t, w, caseID, evidenceEvent),
-		IdempotencyKey: "policy-confirm-" + keyNo, Now: casesClock.Now(),
+		IdempotencyKey:  "policy-confirm-" + keyNo, Now: casesClock.Now(),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -941,5 +941,131 @@ func TestPolicyTablesRLSForced(t *testing.T) {
 		if !ok || !state[0] || !state[1] {
 			t.Fatalf("%s must carry RLS + FORCE (the append-only discipline), got %+v", table, state)
 		}
+	}
+}
+
+// TestPolicyGrantsAppendOnly asserts the grant discipline: the policy
+// tables carry INSERT/SELECT for staffy_app and no UPDATE or DELETE (the
+// append-only proposals and outcomes — the mode precedent of 2-5).
+func TestPolicyGrantsAppendOnly(t *testing.T) {
+	if runtimePool == nil {
+		t.Skip("no runtime pool")
+	}
+	ctx := context.Background()
+	for _, table := range []string{"ai_proposals", "policy_outcomes"} {
+		for _, grant := range []string{"INSERT", "SELECT", "UPDATE", "DELETE", "TRUNCATE"} {
+			var allowed bool
+			if err := runtimePool.QueryRow(ctx, `select has_table_privilege('staffy_app', $1, $2)`, "cases."+table, grant).Scan(&allowed); err != nil {
+				t.Fatal(err)
+			}
+			if (grant == "INSERT" || grant == "SELECT") != allowed {
+				t.Fatalf("%s on cases.%s: allowed=%v, want %v", grant, table, allowed, grant == "INSERT" || grant == "SELECT")
+			}
+		}
+	}
+}
+
+// TestPolicyCommandsRefuseAuditOnlyMember covers the rights gate of the
+// policy write surface (the R1 Major precedent of 2-5): an audit-only
+// member reads the case view but never writes the proposals or the
+// outcomes (the frozen Boundaries word: «submit/evaluate — участники с
+// review»).
+func TestPolicyCommandsRefuseAuditOnlyMember(t *testing.T) {
+	w := newCasesWorld(t, 768)
+	ctx := context.Background()
+	caseID, workItemID := w.acceptedCase(t, "evt-policy-audit-1", "sess-policy-audit-1", `{"call":"inbound-call","from":"+79000000089"}`)
+	conversationID := w.conversationFirst(t, caseID)
+	turn := w.modeTurnEvent(t, caseID, "sess-policy-audit-1", "evt-policy-audit-1-turn-1", `{"say":"хочу деталь"}`)
+	// The member ids avoid the world suffixes (the owner is seed*10+1, the
+	// backup is seed*10+8): seed*10+6/9 stay free.
+	auditor := inviteMember(t, w.identity, w.readinessActor(true), w.tenant, "policy-auditor-768@example.org", "expert_qa", []identityDomain.Scope{identityDomain.Audit}, "000000007686", "000000007689")
+	auditOnly := actorPrincipal{principalID: auditor.ID, stepUp: true}.principal()
+
+	_, err := w.cases.SubmitAIProposal(ctx, casesAPI.SubmitAIProposalCommand{
+		Actor: auditOnly, TenantID: w.tenant, CaseID: caseID,
+		ConversationID: conversationID, WorkItemID: workItemID, TurnRef: turn,
+		Intent: casesDomain.IntentPriceInquiry, CandidateAnswer: "Аудитор предлагает",
+		Proposer: casesDomain.ProposerSyntheticPort, IdempotencyKey: "policy-audit-submit-1", Now: ownershipNow,
+	})
+	assertRuleError(t, err, "review или configuration")
+
+	_, err = w.cases.EvaluatePolicy(ctx, casesAPI.EvaluatePolicyCommand{
+		Actor: auditOnly, TenantID: w.tenant, CaseID: caseID,
+		ProposalID:          id.MustParse("01994f64-6c00-7000-8000-0000000000e1"),
+		ExpectedModeVersion: 1, ExpectedOwnerEpoch: 1, ExpectedFactsDigest: "0000000000000000000000000000000000000000000000000000000000000000",
+		ExpectedWorkItemVersion: 1, IdempotencyKey: "policy-audit-evaluate-1", Now: ownershipNow,
+	})
+	assertRuleError(t, err, "review или configuration")
+
+	// Nothing landed: the proposal and the outcome surface stays clean.
+	view := w.policyView(t, caseID)
+	if section := policySectionOf(t, view, workItemID); len(section.Proposals) != 0 || len(section.Outcomes) != 0 {
+		t.Fatalf("the audit-only member writes nothing, got %d proposals and %d outcomes", len(section.Proposals), len(section.Outcomes))
+	}
+}
+
+// TestPolicyInformationalOutcomeRefusesSalesReply covers the remaining
+// matrix row of the sales gate: the sales conversation with the acting
+// disclosure, the Work Item anchored, but the CURRENT outcome of that
+// item is informational_answer (the informational path never opens the
+// sales reply — only commercial_answer does; the refusal carries the
+// current outcome words).
+func TestPolicyInformationalOutcomeRefusesSalesReply(t *testing.T) {
+	w := newCasesWorld(t, 769)
+	ctx := context.Background()
+	caseID, workItemID := w.acceptedCase(t, "evt-policy-info-1", "sess-policy-info-1", `{"call":"inbound-call","from":"+79000000090"}`)
+	conversationID := w.conversationFirst(t, caseID)
+	turn := w.modeTurnEvent(t, caseID, "sess-policy-info-1", "evt-policy-info-1-turn-1", `{"say":"какие часы работы"}`)
+	w.policySalesPrelude(t, caseID, conversationID, turn, "policy-info-1")
+
+	// The informational proposal under the SALES conversation: the second
+	// Work Item path of the matrix (the WI-scope outcome).
+	proposal := w.policySubmit(t, casesAPI.SubmitAIProposalCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID,
+		ConversationID: conversationID, WorkItemID: workItemID, TurnRef: turn,
+		Intent: casesDomain.IntentGeneralQuestion, CandidateAnswer: "Часы работы: 9-18",
+		Proposer: casesDomain.ProposerOperator, IdempotencyKey: "policy-info-proposal-1", Now: ownershipNow,
+	})
+	modeVersion, ownerEpoch, workItemVersion, factsDigest := w.policyAnchors(t, caseID, workItemID)
+	outcome := w.policyEvaluateOK(t, casesAPI.EvaluatePolicyCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ProposalID: proposal.ProposalID,
+		ExpectedModeVersion: modeVersion, ExpectedOwnerEpoch: ownerEpoch,
+		ExpectedFactsDigest: factsDigest, ExpectedWorkItemVersion: workItemVersion,
+		IdempotencyKey: "policy-info-evaluate-1", Now: ownershipNow,
+	})
+	if outcome.OutcomeClass != casesDomain.OutcomeInformationalAnswer {
+		t.Fatalf("expected the informational outcome, got %+v", outcome)
+	}
+
+	// The sales reply against the informational current outcome: the
+	// machine-readable refusal with the current words (the mode and the
+	// disclosure gates pass — the POLICY gate decides; the permitted path
+	// is the evaluation).
+	_, err := w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+		WorkItemID: workItemID, ExpectedEpoch: 1, ReplyClass: casesDomain.ReplyClassSales,
+		Content: "Всё продаю", IdempotencyKey: "policy-info-sales-1", Now: ownershipNow,
+	})
+	var policyGate casesDomain.ReplyPolicyError
+	if !errors.As(err, &policyGate) || policyGate.CurrentClass != casesDomain.OutcomeInformationalAnswer ||
+		policyGate.CurrentReason != casesDomain.ReasonOkInformational || policyGate.OutcomeNo != 1 {
+		t.Fatalf("expected the informational current-outcome refusal words, got %+v", policyGate)
+	}
+	if policyGate.PermittedPath != casesDomain.PermittedPathEvaluatePolicy {
+		t.Fatalf("expected the evaluation permitted path, got %+v", policyGate)
+	}
+
+	// The neutral reply of the same Work Item passes (the informational
+	// path IS the neutral work of 2-5).
+	neutral, err := w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+		WorkItemID: workItemID, ExpectedEpoch: 1, ReplyClass: casesDomain.ReplyClassNeutral,
+		Content: "Часы работы: 9-18", IdempotencyKey: "policy-info-neutral-1", Now: ownershipNow,
+	})
+	if err != nil || neutral.ReplyState != "prepared" {
+		t.Fatalf("expected the neutral informational reply, got %+v %v", neutral, err)
+	}
+	if neutral.PolicyOutcomeID.Valid() {
+		t.Fatalf("the neutral reply never references a Policy Outcome, got %+v", neutral)
 	}
 }

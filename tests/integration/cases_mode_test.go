@@ -73,7 +73,7 @@ func (w *casesWorld) policyPrelude(t *testing.T, caseID, conversationID, workIte
 		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID,
 		ConversationID: conversationID, WorkItemID: workItemID, TurnRef: turnRef,
 		Intent: casesDomain.IntentPriceInquiry, CandidateAnswer: "Предлагаю деталь",
-		Proposer: casesDomain.ProposerSyntheticPort,
+		Proposer:       casesDomain.ProposerSyntheticPort,
 		IdempotencyKey: key + "-proposal", Now: ownershipNow,
 	})
 	if err != nil {
