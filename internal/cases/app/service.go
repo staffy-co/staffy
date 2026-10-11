@@ -696,6 +696,13 @@ func (s *Service) CaseView(ctx context.Context, actor domain.Principal, tenantID
 	if err != nil {
 		return casesAPI.CaseView{}, err
 	}
+	// The Story 2.6 section: the progressive intake proposals and the
+	// deterministic Policy Outcomes per Work Item (the reads degrade
+	// honestly — the same view scope).
+	policy, err := s.policyView(ctx, scope, detail)
+	if err != nil {
+		return casesAPI.CaseView{}, err
+	}
 	return casesAPI.CaseView{
 		TenantID: tenantID, Case: detail.Case, Conversations: detail.Conversations,
 		Timeline: detail.Timeline, WorkItems: detail.WorkItems, Exceptions: detail.Exceptions,
@@ -713,7 +720,7 @@ func (s *Service) CaseView(ctx context.Context, actor domain.Principal, tenantID
 		Bindings:   cards,
 		Duplicates: duplicates,
 		Ownership:  ownership,
-		Mode:       mode,
+		Mode:       mode, Policy: policy,
 	}, nil
 }
 

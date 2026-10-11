@@ -1341,3 +1341,146 @@ func TestModeContractIsHonest(t *testing.T) {
 		}
 	}
 }
+
+// TestPolicyContractIsHonest pins the Story 2.6 contract surface: the two
+// policy command paths with the principal boundary and the idempotency
+// key; the schema-word dictionaries (the proposal schema version, the
+// intents, the outcome classes and reasons, the proposers, the missing
+// reasons); the four anchors of the evaluation (the request-hash
+// discipline — the m-r2-1 lesson); the machine-readable conflict fields;
+// the sales gate word of the reply request (the request never carries the
+// outcome id — the server resolves it by the Work Item anchor).
+func TestPolicyContractIsHonest(t *testing.T) {
+	content, err := os.ReadFile("staffy.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document map[string]any
+	if err := yaml.Unmarshal(content, &document); err != nil {
+		t.Fatal(err)
+	}
+	paths := mapping(t, document, "paths")
+	for _, path := range []string{
+		"/v1/tenants/{tenant_id}/cases/{case_id}/ai-proposals",
+		"/v1/tenants/{tenant_id}/cases/{case_id}/policy/evaluations",
+	} {
+		post := mapping(t, mapping(t, paths, path), "post")
+		if required, _ := post["x-staffy-principal-required"].(bool); !required {
+			t.Errorf("%s: the principal boundary is not documented", path)
+		}
+		parameters, _ := post["parameters"].([]any)
+		hasKey := false
+		for _, parameter := range parameters {
+			item, _ := parameter.(map[string]any)
+			if item == nil {
+				continue
+			}
+			if ref, _ := item["$ref"].(string); ref == "#/components/parameters/IdempotencyKey" {
+				hasKey = true
+			}
+		}
+		if !hasKey {
+			t.Errorf("%s: the Idempotency-Key parameter is missing", path)
+		}
+	}
+	schemas := mapping(t, mapping(t, document, "components"), "schemas")
+	// The proposal request: the structure discipline (the intent is a
+	// bounded string — the DICTIONARY is a policy matter, never a
+	// submission constraint; the candidate may be empty; the missing
+	// reasons and the proposers are the enums).
+	proposal := mapping(t, schemas, "AIProposalRequest")
+	proposalRequired, _ := proposal["required"].([]any)
+	for _, word := range []string{"conversation_id", "work_item_id", "turn_ref", "intent", "proposer"} {
+		found := false
+		for _, value := range proposalRequired {
+			if text, _ := value.(string); text == word {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("AIProposalRequest must require %s", word)
+		}
+	}
+	proposalProperties := mapping(t, proposal, "properties")
+	if _, ok := proposalProperties["intent"].(map[string]any); ok {
+		intent := mapping(t, proposalProperties, "intent")
+		if _, hasEnum := intent["enum"]; hasEnum {
+			t.Error("the intent carries NO enum: the dictionary is a policy matter (an unknown intent fails closed as an outcome, never a submission refusal)")
+		}
+		if maxLength, _ := intent["maxLength"].(int); maxLength != 64 {
+			t.Errorf("the intent is bounded by 64 runes, got %v", intent["maxLength"])
+		}
+	}
+	if candidate, ok := proposalProperties["candidate_answer"].(map[string]any); ok {
+		if _, hasMin := candidate["minLength"]; hasMin {
+			t.Error("the candidate answer may be empty (no answer basis — the clarify outcome)")
+		}
+	}
+	// The evaluation request: the four anchors are required (the full
+	// request-hash material — the m-r2-1 lesson).
+	evaluate := mapping(t, schemas, "EvaluatePolicyRequest")
+	evaluateRequired, _ := evaluate["required"].([]any)
+	for _, word := range []string{"proposal_ref", "expected_mode_version", "expected_owner_epoch", "expected_facts_digest", "expected_work_item_version"} {
+		found := false
+		for _, value := range evaluateRequired {
+			if text, _ := value.(string); text == word {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("EvaluatePolicyRequest must require %s (the anchor discipline)", word)
+		}
+	}
+	// The outcome view: the fixed dictionaries of the decision.
+	outcome := mapping(t, schemas, "PolicyOutcomeView")
+	outcomeProperties := mapping(t, outcome, "properties")
+	if classEnum, _ := mapping(t, outcomeProperties, "outcome_class")["enum"].([]any); len(classEnum) != 5 {
+		t.Errorf("outcome_class must carry the five-word enum, got %v", classEnum)
+	}
+	if reasonEnum, _ := mapping(t, outcomeProperties, "reason")["enum"].([]any); len(reasonEnum) != 6 {
+		t.Errorf("reason must carry the six-word enum (mandatory_missing is the reserved pack word), got %v", reasonEnum)
+	}
+	if ruleEnum, _ := mapping(t, outcomeProperties, "rule_version")["enum"].([]any); len(ruleEnum) != 1 || ruleEnum[0] != "intake-policy-v1" {
+		t.Errorf("rule_version is the fixed intake-policy-v1 word, got %v", ruleEnum)
+	}
+	snapshot := mapping(t, schemas, "PolicyInputSnapshot")
+	snapshotRequired, _ := snapshot["required"].([]any)
+	for _, word := range []string{"proposal_id", "schema_version", "mode_version", "owner_epoch", "facts_digest", "work_item_version", "rule_version"} {
+		found := false
+		for _, value := range snapshotRequired {
+			if text, _ := value.(string); text == word {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("PolicyInputSnapshot must require %s (the reproducibility by the input versions)", word)
+		}
+	}
+	// The sales gate word of the reply: the request never carries the
+	// outcome id (the server resolves the current outcome by the Work
+	// Item anchor).
+	reply := mapping(t, schemas, "SendClientReplyRequest")
+	replyProperties := mapping(t, reply, "properties")
+	if _, ok := replyProperties["policy_outcome_id"]; ok {
+		t.Error("SendClientReplyRequest must NOT carry policy_outcome_id: the server resolves the current outcome by the Work Item anchor")
+	}
+	// The WorkOutcome command enum: the two policy commands joined the
+	// idempotency surface.
+	workOutcome := mapping(t, schemas, "WorkOutcome")
+	commandEnum, _ := mapping(t, mapping(t, workOutcome, "properties"), "command")["enum"].([]any)
+	commands := map[string]bool{}
+	for _, value := range commandEnum {
+		if text, _ := value.(string); text != "" {
+			commands[text] = true
+		}
+	}
+	for _, word := range []string{"submit_ai_proposal", "evaluate_policy"} {
+		if !commands[word] {
+			t.Errorf("WorkOutcome.command must carry %s", word)
+		}
+	}
+	// The proposal envelope never carries the candidate text word.
+	if _, ok := mapping(t, schemas, "PolicyOutcomeView")["candidate"]; ok {
+		t.Error("the outcome view never carries the candidate text")
+	}
+}

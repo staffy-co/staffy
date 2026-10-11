@@ -119,6 +119,10 @@ type CaseView struct {
 	// ladder, the term history, the Work Item contexts and the AI
 	// disclosure records with their delivery statuses.
 	Mode ModeView `json:"mode"`
+	// The Story 2.6 section: the progressive intake proposals and the
+	// deterministic Policy Outcomes per Work Item (the CURRENT outcome is
+	// the maximal number — the sales reply gate reads it).
+	Policy PolicyView `json:"policy"`
 }
 
 // PayloadView is the sealed payload read under review/audit: the digest,
@@ -150,6 +154,7 @@ type Service interface {
 	VerificationService
 	OwnershipService
 	ModeService
+	PolicyService
 }
 
 // Clock and IDs follow the module conventions.
@@ -351,6 +356,14 @@ type WorkOutcome struct {
 	DisclosureNo int64   `json:"disclosure_no,omitempty"`
 	DeliveryKind string  `json:"delivery_kind,omitempty"`
 	ReplyClass   string  `json:"reply_class,omitempty"`
+	// The Story 2.6 material: the proposal of the submission, the
+	// outcome of the evaluation (the class word) and the Policy
+	// Outcome the sales reply passed through.
+	ProposalID      id.UUID `json:"proposal_id,omitempty"`
+	OutcomeID       id.UUID `json:"outcome_id,omitempty"`
+	OutcomeNo       int64   `json:"outcome_no,omitempty"`
+	OutcomeClass    string  `json:"outcome_class,omitempty"`
+	PolicyOutcomeID id.UUID `json:"policy_outcome_id,omitempty"`
 }
 
 // FactView is one fact of the facts view: the anchor, the derived status,

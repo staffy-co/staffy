@@ -724,6 +724,20 @@ func (s *Service) SendClientReply(ctx context.Context, command casesAPI.SendClie
 			return casesAPI.WorkOutcome{}, casesDomain.ReplyDisclosureError{Channel: channel, Reason: casesDomain.DisclosureGateText}
 		}
 	}
+	// The policy gate (Story 2.6, AFTER the disclosure gate — the frozen
+	// order: ownership 2-4 → mode 2-5 → disclosure 2-5 → policy 2-6 →
+	// CAS): the sales reply needs the Work Item anchor and the CURRENT
+	// (the maximal number) outcome of that item to be commercial_answer;
+	// the refusal is the machine-readable words with the permitted path.
+	// The passing gate resolves the Policy Outcome id the reply record
+	// references (the request never carries it — the server-side truth).
+	policyOutcomeID := id.UUID("")
+	if command.ReplyClass == casesDomain.ReplyClassSales {
+		policyOutcomeID, err = s.replyPolicyGate(ctx, scope, command.CaseID, command.WorkItemID)
+		if err != nil {
+			return casesAPI.WorkOutcome{}, err
+		}
+	}
 	// The route snapshot and the lineage word of the acting decision.
 	conversationOfCase, err := s.caseConnection(ctx, scope, command.CaseID)
 	if err != nil {
@@ -744,6 +758,7 @@ func (s *Service) SendClientReply(ctx context.Context, command casesAPI.SendClie
 	outcome := casesAPI.WorkOutcome{
 		Command: "send_client_reply", ReplyID: replyID,
 		ReplyState: "prepared", Epoch: current.Epoch, ReplyClass: command.ReplyClass,
+		PolicyOutcomeID: policyOutcomeID,
 	}
 	outcomeJSON, err := json.Marshal(outcome)
 	if err != nil {

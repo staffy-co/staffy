@@ -396,6 +396,14 @@ func (f *casesFixture) SendClientReply(_ context.Context, command casesAPI.SendC
 	if err := f.fixtureDisclosureGate(command, channel); err != nil {
 		return casesAPI.WorkOutcome{}, err
 	}
+	// The policy gate (Story 2.6, AFTER the disclosure gate — the frozen
+	// order: ownership 2-4 → mode 2-5 → disclosure 2-5 → policy 2-6 →
+	// CAS): the sales reply needs the Work Item anchor and the CURRENT
+	// outcome of that item to be commercial_answer.
+	policyOutcomeID, err := f.fixturePolicyGate(command)
+	if err != nil {
+		return casesAPI.WorkOutcome{}, err
+	}
 	replyID := f.fixtureOwnershipID()
 	f.replies[command.CaseID] = append(f.replies[command.CaseID], casesDomain.ClientReply{
 		TenantID: f.tenant, CaseID: command.CaseID, ConversationID: command.ConversationID, ReplyID: replyID,
@@ -404,9 +412,9 @@ func (f *casesFixture) SendClientReply(_ context.Context, command casesAPI.SendC
 		Provider: conversation.Provider, Channel: channel, Direction: "outbound",
 		EmployeeID: f.employee, DecisionNo: 1, ProfileVersion: 1,
 		Content: command.Content, ActorID: command.Actor.ID,
-		ReplyClass: command.ReplyClass, WorkItemID: command.WorkItemID, CreatedAt: command.Now,
+		ReplyClass: command.ReplyClass, WorkItemID: command.WorkItemID, PolicyOutcomeID: policyOutcomeID, CreatedAt: command.Now,
 	})
-	outcome = casesAPI.WorkOutcome{Command: "send_client_reply", ReplyID: replyID, ReplyState: "prepared", Epoch: state.Current.Epoch, ReplyClass: command.ReplyClass}
+	outcome = casesAPI.WorkOutcome{Command: "send_client_reply", ReplyID: replyID, ReplyState: "prepared", Epoch: state.Current.Epoch, ReplyClass: command.ReplyClass, PolicyOutcomeID: policyOutcomeID}
 	f.storeOutcome("send_client_reply", command.IdempotencyKey, outcome)
 	return outcome, nil
 }

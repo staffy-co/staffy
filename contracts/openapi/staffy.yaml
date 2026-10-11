@@ -2509,6 +2509,51 @@ paths:
         '403': { $ref: '#/components/responses/Problem' }
         '404': { $ref: '#/components/responses/Problem' }
         '409': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/cases/{case_id}/ai-proposals:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+    post:
+      operationId: submitAIProposal
+      summary: 'Подать типизированное предложение ИИ (пропозер-порт: synthetic_port|operator; словарь интентов решает ПОЛИТИКА — неизвестное слово fail_closed исходом, не отказом подачи)'
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AIProposalRequest' }
+      responses:
+        '201': { description: 'Предложение записано (append-only) + outbox ai_proposal_submitted', content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { description: 'Схема предложения (машинночитаемые field-errors)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/cases/{case_id}/policy/evaluations:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+    post:
+      operationId: evaluatePolicy
+      summary: 'Оценить предложение (якоря входных версий: mode/epoch/facts_digest/work_item_version; TOCTOU закрыт честным стейл-конфликтом; исход append-only с монотонным номером и decision_digest)'
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EvaluatePolicyRequest' }
+      responses:
+        '201': { description: 'Исход записан (append-only, UNIQUE tenant+work_item+outcome_no)', content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { description: 'Якоря/терминальный WI (work-rule)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { description: 'Стейл-якоря (машинно читаем: current_mode_version, current_owner_epoch, current_facts_digest, current_work_item_version)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
   /v1/tenants/{tenant_id}/cases/client-replies/drain:
     parameters:
       - $ref: '#/components/parameters/TenantID'
@@ -4216,6 +4261,7 @@ components:
         duplicates: { type: array, items: { $ref: '#/components/schemas/DuplicateCard' } }
         ownership: { $ref: '#/components/schemas/OwnershipView' }
         mode: { $ref: '#/components/schemas/ModeView' }
+        policy: { $ref: '#/components/schemas/PolicyView' }
     AssuranceView:
       type: object
       required: [state, records, allowed_methods, fallback_options, step_up_text]
@@ -4365,7 +4411,7 @@ components:
       required: [command, replay]
       description: 'Материальный исход команды: сохранён и повторяется идемпотентным ключом'
       properties:
-        command: { type: string, enum: [create_work_item, classify_work_item, transition_work_item, split_work_item, merge_work_items, link_event, dispute_work_item, record_fact, confirm_fact_version, rescope_fact, start_verification, bind_channel, unlink_channel, resolve_duplicate, take_ownership, request_transfer, resolve_transfer, reassign_ownership, send_client_reply, propose_mode, exit_mode, record_disclosure, record_disclosure_event] }
+        command: { type: string, enum: [create_work_item, classify_work_item, transition_work_item, split_work_item, merge_work_items, link_event, dispute_work_item, record_fact, confirm_fact_version, rescope_fact, start_verification, bind_channel, unlink_channel, resolve_duplicate, take_ownership, request_transfer, resolve_transfer, reassign_ownership, send_client_reply, propose_mode, exit_mode, record_disclosure, record_disclosure_event, submit_ai_proposal, evaluate_policy] }
         replay: { type: boolean }
         work_item_id: { type: string, format: uuid }
         version: { type: integer }
@@ -4404,6 +4450,11 @@ components:
         gate_owner_name: { type: string }
         gate_current_epoch: { type: integer }
         gate_permitted_path: { type: string }
+        proposal_id: { type: string, format: uuid, description: 'Предложение подачи/оценки (Story 2.6)' }
+        outcome_id: { type: string, format: uuid, description: 'Записанный исход оценки (Story 2.6)' }
+        outcome_no: { type: integer, minimum: 1 }
+        outcome_class: { type: string, enum: [commercial_answer, informational_answer, clarify, mode_blocked, fail_closed] }
+        policy_outcome_id: { type: string, format: uuid, description: 'Действующий исход продажного ответа (сервер выбирает по якорю WI; запрос поле не несёт)' }
     StartVerificationRequest:
       type: object
       required: [conversation_id, kind, method, provider_code, subject_handle]
@@ -4489,7 +4540,7 @@ components:
         conversation_id: { type: string, format: uuid, description: 'Диалог кейса либо активно связанный (governing-кейс)' }
         work_item_id: { type: string, format: uuid, description: 'Элемент работы ответа (необязательный якорь гейта режима: без якоря читается режим диалога)' }
         expected_epoch: { type: integer, minimum: 1 }
-        reply_class: { type: string, enum: [sales, neutral, protected_request], description: 'Класс размечает продюсер: машина контент не классифицирует; sales требует эффективный режим sales + действующее раскрытие; protected_request требует действующее раскрытие' }
+        reply_class: { type: string, enum: [sales, neutral, protected_request], description: 'Класс размечает продюсер: машина контент не классифицирует; sales требует эффективный режим sales + действующее раскрытие + действующий Policy Outcome commercial_answer (гейт 2-6 ПОСЛЕ раскрытия); protected_request требует действующее раскрытие' }
         content: { type: string, maxLength: 2000, minLength: 1, description: 'Слова оператора; контент живёт только в записи ответа' }
     DrainRepliesResult:
       type: object
@@ -4548,6 +4599,123 @@ components:
         forbidden_text: { type: string }
         neutral_rule: { type: string }
         disclosures: { type: array, items: { $ref: '#/components/schemas/DisclosureCard' } }
+    AIProposalRequest:
+      type: object
+      required: [conversation_id, work_item_id, turn_ref, intent, proposer]
+      additionalProperties: false
+      description: 'Типизированная схема ai-proposal-v1: притязание подателя, не Policy Outcome и не доказательство факта'
+      properties:
+        conversation_id: { type: string, format: uuid, description: 'Собственный диалог обращения' }
+        work_item_id: { type: string, format: uuid, description: 'Скоуп предложения (WI-принадлежность)' }
+        turn_ref: { type: string, format: uuid, description: 'Принятое событие кейса, на которое отвечает предложение' }
+        intent: { type: string, minLength: 1, maxLength: 64, description: 'Строка ≤64: словарь интентов проверяет ПОЛИТИКА (не сабмит) — неизвестное слово доходит до оценки и fail_closed исходом' }
+        candidate_answer: { type: string, maxLength: 2000, description: 'Кандидат ответа (может быть пустым — базиса нет); текст живёт в предложении и панели, не в конвертах' }
+        missing_facts:
+          type: array
+          items:
+            type: object
+            required: [material_key, reason]
+            additionalProperties: false
+            properties:
+              material_key: { type: string, minLength: 1, maxLength: 64, description: 'Нормализованный ключ материала 2-2' }
+              reason: { type: string, enum: [mandatory, readback], description: 'readback — единственная причина повторного вопроса подтверждённого факта в v1' }
+        extracted_facts:
+          type: array
+          description: 'Притязания извлечённых фактов со source span — аудит; факты из них НЕ записываются (запись факта — команда 2-2)'
+          items:
+            type: object
+            required: [material_key, value_digest, source_event_id]
+            additionalProperties: false
+            properties:
+              material_key: { type: string, minLength: 1, maxLength: 64 }
+              value_digest: { type: string, minLength: 1, maxLength: 128 }
+              source_event_id: { type: string, format: uuid }
+        proposer: { type: string, enum: [synthetic_port, operator] }
+    EvaluatePolicyRequest:
+      type: object
+      required: [proposal_ref, expected_mode_version, expected_owner_epoch, expected_facts_digest, expected_work_item_version]
+      additionalProperties: false
+      properties:
+        proposal_ref: { type: string, format: uuid, description: 'Оцениваемое предложение этого кейса' }
+        expected_mode_version: { type: integer, minimum: 1, description: 'Якорь лестницы режимов 2-5' }
+        expected_owner_epoch: { type: integer, minimum: 1, description: 'Якорь владения 2-4' }
+        expected_facts_digest: { type: string, minLength: 64, maxLength: 64, description: 'Дайджест подтверждённого факт-набора кейса (SHA-256) — TOCTOU чтения фактов закрыт стейл-конфликтом' }
+        expected_work_item_version: { type: integer, minimum: 1, description: 'Якорь элемента работы 2-2' }
+    PolicyView:
+      type: object
+      required: [items, intent_words, commercial_intents, class_words, rule_version, panel_text, facts_digest, owner_epoch, mode_version]
+      description: 'Секция Progressive Intake / Policy карточки: предложения и исходы по элементам работы; действующий исход — последний номер'
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/PolicyWorkItemView' } }
+        intent_words: { type: array, items: { type: string, enum: [general_question, service_request, price_inquiry, booking_request, human_request] } }
+        commercial_intents: { type: array, items: { type: string, enum: [service_request, price_inquiry, booking_request] } }
+        class_words: { type: array, items: { type: string, enum: [commercial_answer, informational_answer, clarify, mode_blocked, fail_closed] } }
+        rule_version: { type: string, enum: [intake-policy-v1] }
+        panel_text: { type: string }
+        facts_digest: { type: string, description: 'Текущий дайджест подтверждённых фактов (якорь формы оценки)' }
+        owner_epoch: { type: integer }
+        mode_version: { type: integer }
+    PolicyWorkItemView:
+      type: object
+      required: [work_item_id, proposals, outcomes]
+      properties:
+        work_item_id: { type: string, format: uuid }
+        proposals: { type: array, items: { $ref: '#/components/schemas/AIProposal' } }
+        outcomes: { type: array, items: { $ref: '#/components/schemas/PolicyOutcomeView' } }
+        current: { $ref: '#/components/schemas/PolicyOutcomeView' }
+    AIProposal:
+      type: object
+      required: [proposal_id, schema_version, intent, proposer, owner_epoch, mode_version, actor_id, created_at]
+      properties:
+        proposal_id: { type: string, format: uuid }
+        case_id: { type: string, format: uuid }
+        conversation_id: { type: string, format: uuid }
+        work_item_id: { type: string, format: uuid }
+        turn_ref: { type: string, format: uuid }
+        schema_version: { type: string, enum: [ai-proposal-v1] }
+        intent: { type: string }
+        candidate_answer: { type: string }
+        missing_facts: { type: array, items: { type: object, required: [material_key, reason], properties: { material_key: { type: string }, reason: { type: string, enum: [mandatory, readback] } } } }
+        extracted_facts: { type: array, items: { type: object, required: [material_key, value_digest, source_event_id], properties: { material_key: { type: string }, value_digest: { type: string }, source_event_id: { type: string, format: uuid } } } }
+        proposer: { type: string, enum: [synthetic_port, operator] }
+        owner_epoch: { type: integer }
+        mode_version: { type: integer }
+        actor_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+    PolicyOutcomeView:
+      type: object
+      required: [outcome_id, outcome_no, outcome_class, reason, rule_version, intent, input_snapshot, decision_digest, actor_id, created_at]
+      properties:
+        outcome_id: { type: string, format: uuid }
+        case_id: { type: string, format: uuid }
+        conversation_id: { type: string, format: uuid }
+        work_item_id: { type: string, format: uuid }
+        proposal_id: { type: string, format: uuid }
+        outcome_no: { type: integer, minimum: 1, description: 'Монотонный номер; действующий исход — максимальный' }
+        outcome_class: { type: string, enum: [commercial_answer, informational_answer, clarify, mode_blocked, fail_closed] }
+        reason: { type: string, enum: [ok_commercial, ok_informational, mandatory_missing, no_answer_basis, mode_blocks_commercial_path, unknown_intent] }
+        rule_version: { type: string, enum: [intake-policy-v1] }
+        intent: { type: string, description: 'Снимок намерения предложения' }
+        mandatory_facts: { type: array, items: { type: object, required: [material_key, source, state], properties: { material_key: { type: string }, source: { type: string, enum: [rule, proposal] }, state: { type: string, enum: [reused, ask] } } } }
+        next_steps: { type: array, items: { type: object, required: [step], properties: { step: { type: string, enum: [ask_fact, await_confirmation, human_handoff] }, material_key: { type: string } } } }
+        reused_facts: { type: array, items: { type: object, required: [material_key, fact_id, version_no, value_digest, source], properties: { material_key: { type: string }, fact_id: { type: string, format: uuid }, version_no: { type: integer }, value_digest: { type: string }, source: { type: string, enum: [rule, proposal] } } } }
+        suppressed_questions: { type: array, items: { type: object, required: [material_key, source], properties: { material_key: { type: string }, source: { type: string, enum: [rule, proposal] } } } }
+        input_snapshot: { $ref: '#/components/schemas/PolicyInputSnapshot' }
+        decision_digest: { type: string, description: 'Канонический SHA-256 входов+решения: те же якоря → тот же дайджест (детерминизм)' }
+        actor_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+    PolicyInputSnapshot:
+      type: object
+      required: [proposal_id, schema_version, mode_version, owner_epoch, facts_digest, facts_digest_hash, work_item_version, rule_version]
+      properties:
+        proposal_id: { type: string, format: uuid }
+        schema_version: { type: string, enum: [ai-proposal-v1] }
+        mode_version: { type: integer }
+        owner_epoch: { type: integer }
+        facts_digest: { type: object, description: 'Карта material_key → {version_no, value_digest} подтверждённых фактов', additionalProperties: { type: object, required: [version_no, value_digest], properties: { version_no: { type: integer }, value_digest: { type: string } } } }
+        facts_digest_hash: { type: string }
+        work_item_version: { type: integer }
+        rule_version: { type: string, enum: [intake-policy-v1] }
     ModeTerm:
       type: object
       required: [term_id, mode_version, mode, scope, origin, signal_source, actor_id, rule_version, created_at]

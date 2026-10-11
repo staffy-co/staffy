@@ -2,7 +2,7 @@
 title: 'Story 2.6 — Progressive Intake и детерминированный Policy Outcome (первый срез)'
 type: 'feature'
 created: '2026-10-11'
-status: 'ready-for-dev'
+status: 'in-progress'
 route: 'dispatch'
 baseline_commit: 'df136fab8d2033eb376db6a392cfaf0498f25a0d'
 context:
@@ -67,11 +67,11 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `internal/cases/domain` — словари/модели/дайджесты/EvaluatePolicy/гейты/ReplyPolicyError; юнит-тесты.
-- [ ] `migrations/cases/00006_progressive_policy.sql` — 2 таблицы, RLS, гранты, уникальности, +2 команды, +2 события outbox, client_replies.policy_outcome_id.
-- [ ] `internal/cases/{port,app,store,api}` — 2 команды + расширение send_client_reply (гейт политики) + PolicyView.
-- [ ] `internal/transport/http` + OpenAPI + панель/формы + privacy-классы + контракт-тест.
-- [ ] `tests/integration/cases_policy_test.go`, unit-набор, `tests/journeys/` — все строки матрицы, гонки, доступность; механические расширения 2-5.
+- [x] `internal/cases/domain` — словари/модели/дайджесты/EvaluatePolicy/гейты/ReplyPolicyError; юнит-тесты.
+- [x] `migrations/cases/00006_progressive_policy.sql` — 2 таблицы, RLS, гранты, уникальности, +2 команды, +2 события outbox, client_replies.policy_outcome_id.
+- [x] `internal/cases/{port,app,store,api}` — 2 команды + расширение send_client_reply (гейт политики) + PolicyView.
+- [x] `internal/transport/http` + OpenAPI + панель/формы + privacy-классы + контракт-тест.
+- [x] `tests/integration/cases_policy_test.go`, unit-набор, `tests/journeys/` — все строки матрицы, гонки, доступность; механические расширения 2-5.
 
 **Acceptance Criteria:**
 - Given новый клиентский turn и активный Release Manifest-контур, when порт подаёт предложение, then машинная валидация схемы (поля/границы/словарные слова) с field-errors; предложение сохранено с turn_ref, снимком epoch/mode_version и proposer-словом; секреты и неразрешённые данные модели не передаются (контекста рантайма нет — честная граница) (AC-1/2).
@@ -96,5 +96,6 @@ context:
 
 ## Spec Change Log
 
+- 2026-10-11, review loop 1 (Dev step-03): первый срез реализован целиком — Execution 5/5 отмечены; статус → in-progress. Честная запись механических расширений (прецедент ReplyClass-neutral 2-5→2-4): 6 проходных продажных вызовов 2-5 (cases_mode_test.go: демо-путь, независимый элемент, playback-слово, повтор после выхода, повтор после повторного раскрытия, privacy-спор — 2 вызова последнего) получили преамбулу policyPrelude (подача + оценка предложения до коммерческого исхода) и якорь WI в команде ответа — гейты 2-4/2-5 и их отказы не изменены; journeys mode-цепь — тот же преамбул-паттерн через машинный контракт перед шагом проходного ответа. Реализация: домен policy.go (словари схем/интентов/классов/причин/шагов/подателей, правило-таблица v1 Domain Pack v0, ConfirmedFactView/ComputeFactsDigest/DecisionDigest, EvaluatePolicy с дедупом, Guard-ы, ReplyPolicyError, исходы fail-closed/mode_blocked), миграция 00006 (ai_proposals + policy_outcomes RLS+FORCE append-only, client_replies.policy_outcome_id, +2 команды, +2 события), wiring port/app/store/api (submit_ai_proposal + evaluate_policy через command_records с якорями в request-hash, advisory case+conversation, гейт политики в send_client_reply ПОСЛЕ раскрытия с policy_outcome_id в prepared-записи), транспорт/панель Progressive Intake/OpenAPI/TestPolicyContractIsHonest/privacy case-operations, интеграционные cases_policy_test.go (9 тестов: демо-путь дедупа/гейтов/supersede, гейт-отказы, fail_closed, mode_blocked + informational WI-2, schema field-errors, дедуп-грани, терминальный WI + гонки + детерминизм, RLS-изоляция, RLS+FORCE-зонд) + journeys policy-цепь. Полный регресс: build/vet/unit, интеграция ×2 TZ (135 top-level), journeys 23/23, контракт, diff-check, gofmt.
 - 2026-10-11, CHECKPOINT 1: спека одобрена владельцем без правок («одобряю (доверяю вашему экспертскому мнению)», чат 2026-10-11). Замороженные секции (Intent / Boundaries & Constraints / I/O & Edge-Case Matrix) не изменялись. Спека и sprint-status.yaml одновременно переведены в `ready-for-dev`; далее — Dev (step-03).
 - 2026-10-11, review loop 0: создана спека первого среза (SM-драфт) для CHECKPOINT 1. Честные границы: AI Runtime (вызовы модели, цикл repair-pass, cost/tool budgets, таймауты) и авто-извлечение intent/фактов — будущая AI-story (предложения — синтетический порт/оператор, прецедент proposer-порт 2-5); генерация текста ответа — продюсер (сервер разрешает базис и минимальность вопросов); safety-interrupt останов генерации и barge-in semantic repair — AG-4 (исход mode_blocked — решение, не медиа); телеметрия model/tool time/TTFO/SLO — нет рантайма/стриминга (времена записей есть); modality/пейс-преференсы — 2-10 («позвать человека» уже есть: human_requested 2-5); streaming/a11y частичных ответов — 2-14; Owning System/свежесть/актуальность фактов — 2-7 (подтверждённый = актуальный в v1, без TTL); Domain Pack P1–P6 и богатые правила — Epic 5 (правило-таблица v1 — фиксированный Domain Pack v0); auto-сплит мульти-интента — порт подаёт отдельные предложения (WI — команда 2-2); исходы только по словарю v1.

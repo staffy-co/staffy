@@ -94,6 +94,12 @@ func (f *fakeCases) RecordDisclosure(context.Context, casesAPI.RecordDisclosureC
 func (f *fakeCases) RecordDisclosureEvent(context.Context, casesAPI.RecordDisclosureEventCommand) (casesAPI.WorkOutcome, error) {
 	return casesAPI.WorkOutcome{}, nil
 }
+func (f *fakeCases) SubmitAIProposal(context.Context, casesAPI.SubmitAIProposalCommand) (casesAPI.WorkOutcome, error) {
+	return casesAPI.WorkOutcome{}, nil
+}
+func (f *fakeCases) EvaluatePolicy(context.Context, casesAPI.EvaluatePolicyCommand) (casesAPI.WorkOutcome, error) {
+	return casesAPI.WorkOutcome{}, nil
+}
 
 func newCasesTestServer(t *testing.T, fake casesAPI.Service) *Server {
 	t.Helper()

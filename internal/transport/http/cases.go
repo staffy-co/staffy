@@ -71,6 +71,13 @@ func (s *Server) BindCases(service casesAPI.Service) {
 	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/mode/exit", s.exitModeAPI)
 	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/disclosures", s.recordDisclosureAPI)
 	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/disclosures/{disclosure_id}/delivery-events", s.recordDisclosureEventAPI)
+	// The Story 2.6 surfaces: the two policy commands (machine JSON +
+	// operator forms, PRG) — the typed AI proposal of the proposer port
+	// and the deterministic evaluation with the four input anchors.
+	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/ai-proposals", s.submitAIProposalAPI)
+	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/policy/evaluations", s.evaluatePolicyAPI)
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/ai-proposals", s.submitAIProposalForm)
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/policy/evaluations", s.evaluatePolicyForm)
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/mode/proposals", s.proposeModeForm)
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/mode/exit", s.exitModeForm)
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/disclosures", s.recordDisclosureForm)

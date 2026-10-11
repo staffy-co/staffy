@@ -260,6 +260,14 @@ type Repository interface {
 	// event of one conversation (the live route word of the reply gates —
 	// the honest derivation, never the modality fallback guess).
 	ReadLiveConversationChannel(ctx context.Context, scope tenancy.Context, conversationID id.UUID) (string, bool, error)
+	// Story 2.6 — the policy surface:
+	// ReadAIProposals reads every AI proposal of one case ordered by the
+	// creation time (the claims audit of the panel and the gate words).
+	ReadAIProposals(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]casesDomain.AIProposal, error)
+	// ReadPolicyOutcomes reads every Policy Outcome of one case ordered by
+	// the Work Item and the monotonic number (the derivation input of the
+	// CURRENT outcome the sales reply gate reads).
+	ReadPolicyOutcomes(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]casesDomain.PolicyOutcome, error)
 }
 
 // ---------------------------------------------------------------------------
@@ -406,6 +414,28 @@ type WorkCommandParams struct {
 	DeliveryKind        string
 	DeliveryEventID     id.UUID
 	ReplyClass          string
+	// The Story 2.6 material (the command-specific fields of the two
+	// policy commands and the policy gate extension of send_client_reply).
+	ProposalID              id.UUID
+	Intent                  string
+	CandidateAnswer         string
+	MissingFacts            []casesDomain.MissingFact
+	ExtractedFacts          []casesDomain.ExtractedFact
+	Proposer                string
+	OutcomeID               id.UUID
+	OutcomeNo               int64
+	OutcomeClass            string
+	OutcomeReason           string
+	DecisionDigest          string
+	InputSnapshot           []byte
+	MandatoryFacts          []byte
+	NextSteps               []byte
+	ReusedFacts             []byte
+	SuppressedQuestions     []byte
+	ExpectedOwnerEpoch      int64
+	ExpectedFactsDigest     string
+	ExpectedWorkItemVersion int64
+	PolicyOutcomeID         id.UUID
 }
 
 // ---------------------------------------------------------------------------

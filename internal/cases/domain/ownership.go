@@ -194,6 +194,9 @@ type ClientReply struct {
 	// the pre-migration rows).
 	ReplyClass string
 	WorkItemID id.UUID
+	// The Story 2.6 material: the Policy Outcome the sales reply passed
+	// through (the zero id of the pre-migration and non-sales rows).
+	PolicyOutcomeID id.UUID
 	CreatedAt  time.Time
 }
 
