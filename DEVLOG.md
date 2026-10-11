@@ -1425,3 +1425,15 @@ decisions:
 next: CHECKPOINT 1 — одобрение владельцем спеки 2-6; после «одобряю»: спека status → ready-for-dev + sprint-status 2-6 → ready-for-dev (одновременный коммит по прецеденту b053a12), затем Dev (step-03) на ветке
 unpushed: 0 (ветка и main запушены сразу; эта запись — следующий docs-коммит на main)
 commit: e8e2742
+date: 2026-10-11
+task: 49-checkpoint-1
+role: main (Super Z)
+story: 2-6
+summary: CHECKPOINT 1 закрыт — владелец одобрил спеку первого среза 2-6 «Progressive intake и детерминированный Policy Outcome» без правок («одобряю (доверяю вашему экспертскому мнению)», чат 2026-10-11); спека и sprint-status одновременно → ready-for-dev
+done:
+- Одобрение зафиксировано в Spec Change Log спеки (замороженные секции Intent/Boundaries/Matrix не изменялись — фриз соблюдён, только status+Change Log, прецедент b053a12)
+- Спека 2-6 status: ready-for-dev; sprint-status.yaml 2-6: ready-for-dev (синхронный переход, прецедент 2-2..2-5)
+- Коммит CHECKPOINT 1 на ветке codex/story-2-6-progressive-intake-policy-outcome: 30a9518 [skip ci] (дифф байт-в-байт прецеденту: 3+/2- в тех же 2 файлах)
+- Топология ветки: e8e2742 (SM-спека [skip ci]) → 30a9518 (CHECKPOINT 1 [skip ci]); main: 32a3b03 → эта запись
+next: Dev (step-03) — реализация первого среза 2-6 по спеке: domain policy.go (словари схем/интентов/классов, ComputeFactsDigest/DecisionDigest, EvaluatePolicy с дедупом, Guard-ы, ReplyPolicyError), миграция 00006 (ai_proposals + policy_outcomes RLS append-only, client_replies.policy_outcome_id, +2 команды, +2 события), wiring port/app/store/api (submit_ai_proposal + evaluate_policy + гейт политики в send_client_reply ПОСЛЕ раскрытия), транспорт/панель Progressive Intake/OpenAPI, интеграционные cases_policy_test.go + journeys policy-цепь + механические расширения продажных 2-5; затем review R1 свежим контекстом
+commit: TBD
