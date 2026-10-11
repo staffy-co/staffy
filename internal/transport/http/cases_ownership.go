@@ -64,6 +64,7 @@ func ownershipProblem(w http.ResponseWriter, r *http.Request, server *Server, er
 	var gate casesDomain.ReplyGateError
 	var modeGate casesDomain.ReplyModeError
 	var disclosureGate casesDomain.ReplyDisclosureError
+	var policyGate casesDomain.ReplyPolicyError
 	var modeConflict casesDomain.ModeConflictError
 	switch {
 	case errors.As(err, &gate):
@@ -79,6 +80,8 @@ func ownershipProblem(w http.ResponseWriter, r *http.Request, server *Server, er
 		modeProblem(w, r, server, err)
 	case errors.As(err, &disclosureGate):
 		modeProblem(w, r, server, err)
+	case errors.As(err, &policyGate):
+		policyProblem(w, r, server, err)
 	case errors.As(err, &rule):
 		server.problem(w, r, http.StatusBadRequest, rule.Rule, rule.Reason, false, nil)
 	case errors.Is(err, casesDomain.ErrStaleVersion):
@@ -105,12 +108,15 @@ func ownershipFormError(w http.ResponseWriter, r *http.Request, tenant, caseID i
 	var modeConflict casesDomain.ModeConflictError
 	var modeGate casesDomain.ReplyModeError
 	var disclosureGate casesDomain.ReplyDisclosureError
+	var policyGate casesDomain.ReplyPolicyError
 	message := "Действие не выполнено. Повторите позднее."
 	switch {
 	case errors.As(err, &gate):
 		message = gate.Reason + " Текущий владелец: " + gate.OwnerName + " (epoch " + strconv.FormatInt(gate.CurrentEpoch, 10) + "). " + casesDomain.ReplyGatePermittedPath
 	case errors.As(err, &modeConflict), errors.As(err, &modeGate), errors.As(err, &disclosureGate):
 		message = modeFormMessage(err)
+	case errors.As(err, &policyGate):
+		message = policyFormMessage(err)
 	case errors.As(err, &rule):
 		message = rule.Reason
 	case errors.Is(err, casesDomain.ErrStaleVersion):

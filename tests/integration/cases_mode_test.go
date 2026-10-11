@@ -47,6 +47,59 @@ func (w *casesWorld) modeTurnEvent(t *testing.T, caseID id.UUID, sessionID, even
 	return result.EventID
 }
 
+// policyPrelude is the Story 2.6 mechanical extension of the passing
+// sales replies of 2-5 (the honest Change Log entry of the spec): one
+// proposal for the Work Item and one evaluation with the current anchors
+// — the commercial outcome that opens the sales path of the reply (the
+// gate needs the Work Item anchor AND the acting Policy Outcome; the
+// 2-5 test bodies themselves are not changed — only the prelude).
+func (w *casesWorld) policyPrelude(t *testing.T, caseID, conversationID, workItemID id.UUID, key string) casesAPI.WorkOutcome {
+	t.Helper()
+	detail, err := w.cases.CaseView(context.Background(), w.ownershipActor(), w.tenant, caseID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	turnRef := id.UUID("")
+	for _, event := range detail.Timeline {
+		if event.State == casesDomain.EventStateAccepted {
+			turnRef = event.EventID
+			break
+		}
+	}
+	if !turnRef.Valid() {
+		t.Fatalf("the case carries no accepted turn for the proposal")
+	}
+	proposal, err := w.cases.SubmitAIProposal(context.Background(), casesAPI.SubmitAIProposalCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID,
+		ConversationID: conversationID, WorkItemID: workItemID, TurnRef: turnRef,
+		Intent: casesDomain.IntentPriceInquiry, CandidateAnswer: "Предлагаю деталь",
+		Proposer:       casesDomain.ProposerSyntheticPort,
+		IdempotencyKey: key + "-proposal", Now: ownershipNow,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	version := int64(0)
+	for _, item := range detail.WorkItems {
+		if item.WorkItemID == workItemID {
+			version = item.Version
+		}
+	}
+	outcome, err := w.cases.EvaluatePolicy(context.Background(), casesAPI.EvaluatePolicyCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ProposalID: proposal.ProposalID,
+		ExpectedModeVersion: detail.Policy.ModeVersion, ExpectedOwnerEpoch: detail.Policy.OwnerEpoch,
+		ExpectedFactsDigest: detail.Policy.FactsDigest, ExpectedWorkItemVersion: version,
+		IdempotencyKey: key + "-evaluate", Now: ownershipNow,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if outcome.OutcomeClass != casesDomain.OutcomeCommercialAnswer {
+		t.Fatalf("expected the commercial outcome of the prelude, got %+v", outcome)
+	}
+	return outcome
+}
+
 // proposeMode is the command shorthand of the tests.
 func (w *casesWorld) proposeMode(t *testing.T, command casesAPI.ProposeModeCommand) casesAPI.WorkOutcome {
 	t.Helper()
@@ -130,7 +183,7 @@ func TestModeIngestWritesInitialTerm(t *testing.T) {
 func TestModeDemoPathClassificationSafetyExit(t *testing.T) {
 	w := newCasesWorld(t, 731)
 	ctx := context.Background()
-	caseID, _ := w.acceptedCase(t, "evt-mode-2", "sess-mode-2", `{"call":"inbound-call","from":"+79000000064"}`)
+	caseID, workItemID := w.acceptedCase(t, "evt-mode-2", "sess-mode-2", `{"call":"inbound-call","from":"+79000000064"}`)
 	conversationID := w.conversationFirst(t, caseID)
 	turn := w.modeTurnEvent(t, caseID, "sess-mode-2", "evt-mode-2-turn-1", `{"say":"хочу заказать деталь"}`)
 
@@ -200,9 +253,16 @@ func TestModeDemoPathClassificationSafetyExit(t *testing.T) {
 	}
 
 	// The sales reply passes now (AC-1: the disclosure BEFORE the sale).
+	// The Story 2.6 mechanical extension: the sales path needs the Work
+	// Item anchor and the acting commercial Policy Outcome — the prelude
+	// submits and evaluates one proposal (the honest Change Log entry).
+	policy := w.policyPrelude(t, caseID, conversationID, workItemID, "mode-sales-ok-1")
+	if !policy.PolicyOutcomeID.Valid() && policy.OutcomeID.String() == "" {
+		t.Fatalf("the prelude outcome carries its identifiers")
+	}
 	salesReply, err := w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
 		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
-		ExpectedEpoch: 1, ReplyClass: casesDomain.ReplyClassSales,
+		WorkItemID: workItemID, ExpectedEpoch: 1, ReplyClass: casesDomain.ReplyClassSales,
 		Content: "Предлагаю оригинальную деталь", IdempotencyKey: "mode-sales-ok-1", Now: ownershipNow,
 	})
 	if err != nil || salesReply.ReplyState != "prepared" {
@@ -210,6 +270,9 @@ func TestModeDemoPathClassificationSafetyExit(t *testing.T) {
 	}
 	if salesReply.ReplyClass != casesDomain.ReplyClassSales {
 		t.Fatalf("the outcome carries the producer's class, got %+v", salesReply)
+	}
+	if !salesReply.PolicyOutcomeID.Valid() {
+		t.Fatalf("the passing sales reply carries the Policy Outcome reference, got %+v", salesReply)
 	}
 
 	// The safety signal: sales -> safety is a strict raise; the turn
@@ -285,10 +348,12 @@ func TestModeDemoPathClassificationSafetyExit(t *testing.T) {
 	}
 
 	// The sales reply passes again after the exit (the disclosure still
-	// acts — its last event is sent).
+	// acts — its last event is sent). The Story 2.6 mechanical extension:
+	// the prelude outcome stays current (the honest Change Log entry).
+	w.policyPrelude(t, caseID, conversationID, workItemID, "mode-sales-after-exit-1")
 	afterExit, err := w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
 		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
-		ExpectedEpoch: 1, ReplyClass: casesDomain.ReplyClassSales,
+		WorkItemID: workItemID, ExpectedEpoch: 1, ReplyClass: casesDomain.ReplyClassSales,
 		Content: "Предлагаю аналог", IdempotencyKey: "mode-sales-after-exit-1", Now: ownershipNow,
 	})
 	if err != nil || afterExit.ReplyState != "prepared" {
@@ -452,7 +517,10 @@ func TestModeWorkItemContexts(t *testing.T) {
 	}
 
 	// The sales reply of the independent item: the conversation sales word
-	// governs — allowed (the explicit v1 rule, AC-8).
+	// governs — allowed (the explicit v1 rule, AC-8). The Story 2.6
+	// mechanical extension: the prelude opens the commercial outcome of
+	// the independent item (the honest Change Log entry).
+	w.policyPrelude(t, caseID, conversationID, secondItem.WorkItemID, "mode-wi-sales-ok-1")
 	allowed, err := w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
 		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
 		WorkItemID: secondItem.WorkItemID, ExpectedEpoch: 1, ReplyClass: casesDomain.ReplyClassSales,
@@ -499,7 +567,7 @@ func TestModeWorkItemContexts(t *testing.T) {
 func TestModeDisclosureInterruptionAndReplay(t *testing.T) {
 	w := newCasesWorld(t, 734)
 	ctx := context.Background()
-	caseID, _ := w.acceptedCase(t, "evt-mode-5", "sess-mode-5", `{"call":"inbound-call","from":"+79000000067"}`)
+	caseID, workItemID := w.acceptedCase(t, "evt-mode-5", "sess-mode-5", `{"call":"inbound-call","from":"+79000000067"}`)
 	conversationID := w.conversationFirst(t, caseID)
 
 	// The sales mode and the acting disclosure.
@@ -553,9 +621,16 @@ func TestModeDisclosureInterruptionAndReplay(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+	// The Story 2.6 mechanical extension: the prelude opens the commercial
+	// outcome (the honest Change Log entry).
+	policyItem := workItemID
+	if !policyItem.Valid() {
+		t.Fatalf("the prelude needs the Work Item anchor")
+	}
+	w.policyPrelude(t, caseID, conversationID, policyItem, "mode-disc-sales-1")
 	sales, err := w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
 		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
-		ExpectedEpoch: 1, ReplyClass: casesDomain.ReplyClassSales,
+		WorkItemID: policyItem, ExpectedEpoch: 1, ReplyClass: casesDomain.ReplyClassSales,
 		Content: "Предлагаю деталь", IdempotencyKey: "mode-disc-sales-1", Now: ownershipNow,
 	})
 	if err != nil || sales.ReplyState != "prepared" {
@@ -602,9 +677,12 @@ func TestModeDisclosureInterruptionAndReplay(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+	// The Story 2.6 mechanical extension: the prelude outcome opens the
+	// sales path again (the honest Change Log entry).
+	w.policyPrelude(t, caseID, conversationID, workItemID, "mode-disc-sales-3")
 	afterReDisclosure, err := w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
 		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
-		ExpectedEpoch: 1, ReplyClass: casesDomain.ReplyClassSales,
+		WorkItemID: workItemID, ExpectedEpoch: 1, ReplyClass: casesDomain.ReplyClassSales,
 		Content: "Предлагаю деталь (повторно)", IdempotencyKey: "mode-disc-sales-3", Now: ownershipNow,
 	})
 	if err != nil || afterReDisclosure.ReplyState != "prepared" {
@@ -921,7 +999,7 @@ func TestModeCommandsRefuseAuditOnlyMember(t *testing.T) {
 func TestModeBasisDisputeRaisesPrivacyNoContact(t *testing.T) {
 	w := newCasesWorld(t, 737)
 	ctx := context.Background()
-	caseID, _ := w.acceptedCase(t, "evt-mode-privacy-1", "sess-mode-privacy-1", `{"call":"inbound-call","from":"+79000000071"}`)
+	caseID, workItemID := w.acceptedCase(t, "evt-mode-privacy-1", "sess-mode-privacy-1", `{"call":"inbound-call","from":"+79000000071"}`)
 	conversationID := w.conversationFirst(t, caseID)
 
 	// The sales classification and the acting disclosure open the sales
@@ -947,9 +1025,12 @@ func TestModeBasisDisputeRaisesPrivacyNoContact(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+	// The Story 2.6 mechanical extension: the prelude opens the commercial
+	// outcome (the honest Change Log entry).
+	w.policyPrelude(t, caseID, conversationID, workItemID, "mode-privacy-open-1")
 	open, err := w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
 		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
-		ExpectedEpoch: 1, ReplyClass: casesDomain.ReplyClassSales,
+		WorkItemID: workItemID, ExpectedEpoch: 1, ReplyClass: casesDomain.ReplyClassSales,
 		Content: "Предлагаю деталь", IdempotencyKey: "mode-privacy-open-1", Now: ownershipNow,
 	})
 	if err != nil || open.ReplyState != "prepared" {

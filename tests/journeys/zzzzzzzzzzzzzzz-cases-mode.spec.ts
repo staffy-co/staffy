@@ -124,9 +124,40 @@ test('cases-mode: the ladder, the disclosure gate, the exit and the re-disclosur
     await expect(disclosures.getByText(/отправлено \(действует\)/)).toBeVisible();
 
     // 6. The sales reply passes now; the outgoing table shows the class.
+    // The Story 2.6 mechanical extension (the honest Change Log entry):
+    // the sales path needs the Work Item anchor and the acting
+    // commercial Policy Outcome — the prelude submits and evaluates one
+    // proposal through the machine contract before the reply.
+    const caseView = await (await api.get(`/v1/tenants/${tenantID}/cases/${caseA}`)).json();
+    const workItemID = caseView.work_items[0].WorkItemID;
+    const turnEvent = caseView.timeline.find((event: any) => event.State === 'accepted');
+    const proposalOutcome = await (await api.post(`/v1/tenants/${tenantID}/cases/${caseA}/ai-proposals`, {
+      data: {
+        conversation_id: replyConversation,
+        work_item_id: workItemID,
+        turn_ref: turnEvent.EventID,
+        intent: 'price_inquiry',
+        candidate_answer: 'Предлагаю оригинальную деталь',
+        proposer: 'synthetic_port',
+      },
+      headers: { "Content-Type": "application/json", "Idempotency-Key": "journey-mode-policy-1" },
+    })).json();
+    const anchors = caseView.policy;
+    const evaluation = await api.post(`/v1/tenants/${tenantID}/cases/${caseA}/policy/evaluations`, {
+      data: {
+        proposal_ref: proposalOutcome.proposal_id,
+        expected_mode_version: anchors.mode_version,
+        expected_owner_epoch: anchors.owner_epoch,
+        expected_facts_digest: anchors.facts_digest,
+        expected_work_item_version: caseView.work_items[0].Version,
+      },
+      headers: { "Content-Type": "application/json", "Idempotency-Key": "journey-mode-policy-2" },
+    });
+    expect(evaluation.status()).toBe(201);
     await page.locator('details:has(summary:text-is("Ответить клиенту (единственный исходящий путь — серверный гейт)"))').click();
     const openSales = page.locator('form[action$="/client-replies"]').first();
     await openSales.locator('select[name="conversation_id"]').selectOption(replyConversation);
+    await openSales.locator('select[name="work_item_id"]').selectOption(workItemID);
     await openSales.locator('select[name="reply_class"]').selectOption('sales');
     await openSales.locator('textarea[name="content"]').fill('Предлагаю оригинальную деталь');
     await openSales.getByRole('button', { name: /Подготовить ответ/ }).click();

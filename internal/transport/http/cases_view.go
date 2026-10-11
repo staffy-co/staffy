@@ -142,6 +142,8 @@ type caseDetailPageView struct {
 	// The Story 2.5 section: the Conversation Mode panel and the
 	// disclosure surface.
 	Mode modePanelView
+	// The Story 2.6 section: the Progressive Intake / Policy panel.
+	Policy policyPanelView
 }
 
 // assurancePanelView is the assurance section of the case page: the derived
@@ -614,6 +616,7 @@ func prepareCaseView(view casesAPI.CaseView, facts casesAPI.FactsView, flash str
 	// options of the transfer forms.
 	out.Ownership = prepareOwnershipPanel(view)
 	out.Mode = prepareModePanel(view)
+	out.Policy = preparePolicyPanel(view, out.ConversationOpts, out.ActiveWIOptions, out.EventOptions)
 
 	for _, conversation := range view.Conversations {
 		stateText := "Активна"
@@ -1260,4 +1263,307 @@ func prepareModePanel(view casesAPI.CaseView) modePanelView {
 		panel.DisclosureRows = append(panel.DisclosureRows, row)
 	}
 	return panel
+}
+
+// policyPanelView is the Progressive Intake / Policy panel projection:
+// the fixed rule words, the current anchor words of the evaluation form,
+// the per-Work-Item sections (the proposals with the proposer word and
+// the candidate the operator sees, the CURRENT outcome with the class
+// words, the mandatory facts with the states, the next steps, the
+// suppressed questions, the outcome history) and the submit form options.
+type policyPanelView struct {
+	PanelText        string
+	RuleVersion      string
+	IntentWords      []workOption
+	CommercialText   string
+	ClassWords       string
+	FactsDigest      string
+	OwnerEpoch       string
+	ModeVersion      string
+	CanManage        bool
+	Items            []policyItemView
+	HasItems         bool
+	ConversationOpts []workOption
+	ActiveWIOptions  []workOption
+	EventOptions     []workOption
+	ProposerOptions  []workOption
+	ProposerDefault  string
+}
+
+// policyItemView is one Work Item section of the policy panel: the
+// proposals (the claims audit), the outcomes history and the CURRENT
+// outcome (the maximal number) with its honest words.
+type policyItemView struct {
+	WorkItemID    string
+	WorkItemTitle string
+	Version       string
+	HasProposals  bool
+	ProposalRows  []policyProposalRow
+	HasOutcomes   bool
+	OutcomeRows   []policyOutcomeRow
+	Current       *policyOutcomeRow
+	EvaluateOpts  []workOption
+}
+
+// policyProposalRow is one proposal row: the intent claim, the proposer
+// word, the candidate answer (the operator sees the text), the missing
+// and the extracted claim words and the submission snapshot.
+type policyProposalRow struct {
+	ProposalID    string
+	Intent        string
+	Proposer      string
+	ProposerText  string
+	Candidate     string
+	MissingText   string
+	ExtractedText string
+	TurnRef       string
+	OwnerEpoch    string
+	ModeVersion   string
+	CreatedAt     string
+}
+
+// policyOutcomeRow is one outcome row: the class word, the reason, the
+// rule version, the intent snapshot, the mandatory facts with the states,
+// the next steps, the reused facts with the provenance signature, the
+// suppressed questions and the decision digest.
+type policyOutcomeRow struct {
+	OutcomeID      string
+	No             string
+	Class          string
+	ClassText      string
+	Reason         string
+	RuleVersion    string
+	Intent         string
+	Mandatory      []policyMandatoryRow
+	NextSteps      []string
+	Reused         []string
+	ReusedSigs     []string
+	Suppressed     []string
+	PermittedText  string
+	DecisionDigest string
+	CreatedAt      string
+}
+
+// policyMandatoryRow is one mandatory fact of the outcome plan: the
+// material key, the source word and the state (reused with the
+// provenance signature or ask — the question).
+type policyMandatoryRow struct {
+	MaterialKey string
+	Source      string
+	State       string
+	StateText   string
+}
+
+// policyClassText renders the outcome class word honestly.
+func policyClassText(class string) string {
+	switch class {
+	case casesDomain.OutcomeCommercialAnswer:
+		return "commercial_answer (разрешённый коммерческий ответ)"
+	case casesDomain.OutcomeInformationalAnswer:
+		return "informational_answer (информационный ответ)"
+	case casesDomain.OutcomeClarify:
+		return "clarify (уточнение — только вопросы)"
+	case casesDomain.OutcomeModeBlocked:
+		return "mode_blocked (режим блокирует коммерческий путь)"
+	case casesDomain.OutcomeFailClosed:
+		return "fail_closed (закрыт безопасно — неизвестное правило)"
+	}
+	return class
+}
+
+// policyReasonText renders the outcome reason word.
+func policyReasonText(reason string) string {
+	switch reason {
+	case casesDomain.ReasonOkCommercial:
+		return "ok_commercial (коммерческий путь открыт)"
+	case casesDomain.ReasonOkInformational:
+		return "ok_informational (информационный путь)"
+	case casesDomain.ReasonMandatoryMissing:
+		return "mandatory_missing (обязательный факт отсутствует)"
+	case casesDomain.ReasonNoAnswerBasis:
+		return "no_answer_basis (нет базиса ответа)"
+	case casesDomain.ReasonModeBlocksCommercial:
+		return "mode_blocks_commercial_path (режим решает)"
+	case casesDomain.ReasonUnknownIntent:
+		return "unknown_intent (намерение вне словаря)"
+	}
+	return reason
+}
+
+// policyProposerText renders the proposer word.
+func policyProposerText(proposer string) string {
+	switch proposer {
+	case casesDomain.ProposerSyntheticPort:
+		return "synthetic_port (порт-провод)"
+	case casesDomain.ProposerOperator:
+		return "operator (оператор)"
+	}
+	return proposer
+}
+
+// policyMandatoryStateText renders the mandatory fact state word: reused
+// (the confirmed value answers it) or ask (the question remains).
+func policyMandatoryStateText(state string) string {
+	switch state {
+	case casesDomain.MandatoryStateReused:
+		return "переиспользован (подтверждённое значение)"
+	case casesDomain.MandatoryStateAsk:
+		return "вопрос остаётся"
+	}
+	return state
+}
+
+// policyNextStepText renders one next step word with the material key.
+func policyNextStepText(step casesDomain.NextStep) string {
+	switch step.Step {
+	case casesDomain.StepAskFact:
+		return "спросить факт: " + step.MaterialKey
+	case casesDomain.StepAwaitConfirmation:
+		return "дождаться подтверждения"
+	case casesDomain.StepHumanHandoff:
+		return "передать человеку"
+	}
+	return step.Step
+}
+
+// preparePolicyPanel flattens the policy section into the template
+// projection: the fixed rule words and the current anchors of the
+// evaluation form, the per-Work-Item sections with the proposals, the
+// outcomes and the CURRENT outcome (the aria-live region announces the
+// outcome change without a focus move — AC-12 edge of the panel).
+func preparePolicyPanel(view casesAPI.CaseView, conversationOpts, activeWIOptions, eventOptions []workOption) policyPanelView {
+	policy := view.Policy
+	panel := policyPanelView{
+		PanelText:      policy.PanelText,
+		RuleVersion:    policy.RuleVersion,
+		FactsDigest:    policy.FactsDigest,
+		OwnerEpoch:     strconv.FormatInt(policy.OwnerEpoch, 10),
+		ModeVersion:    strconv.FormatInt(policy.ModeVersion, 10),
+		CanManage:      view.CanManageWork,
+		Items:          make([]policyItemView, 0, len(policy.Items)),
+		HasItems:       len(policy.Items) > 0,
+		CommercialText: "Коммерческие намерения: " + strings.Join(policy.Commercial, ", ") + " — продажный путь открыт только исходом commercial_answer.",
+	}
+	for _, word := range policy.IntentWords {
+		panel.IntentWords = append(panel.IntentWords, workOption{Value: word, Text: word})
+	}
+	panel.ClassWords = strings.Join(policy.ClassWords, ", ")
+	for _, word := range casesDomain.ProposalProposers {
+		panel.ProposerOptions = append(panel.ProposerOptions, workOption{Value: word, Text: policyProposerText(word)})
+	}
+	panel.ProposerDefault = casesDomain.ProposerSyntheticPort
+	// The form options of the proposal submission (the shared case view
+	// options — the conversations, the work items and the accepted
+	// events of the case).
+	panel.ConversationOpts = append(panel.ConversationOpts, conversationOpts...)
+	panel.ActiveWIOptions = append(panel.ActiveWIOptions, activeWIOptions...)
+	panel.EventOptions = append(panel.EventOptions, eventOptions...)
+	// The Work Item versions for the evaluation prefill.
+	versions := map[string]string{}
+	titles := map[string]string{}
+	for _, item := range view.WorkItems {
+		versions[item.WorkItemID.String()] = strconv.FormatInt(item.Version, 10)
+		titles[item.WorkItemID.String()] = item.Title
+	}
+	for _, section := range policy.Items {
+		row := policyItemView{
+			WorkItemID:    section.WorkItemID.String(),
+			WorkItemTitle: titles[section.WorkItemID.String()],
+			Version:       versions[section.WorkItemID.String()],
+			HasProposals:  len(section.Proposals) > 0,
+			ProposalRows:  make([]policyProposalRow, 0, len(section.Proposals)),
+			HasOutcomes:   len(section.Outcomes) > 0,
+			OutcomeRows:   make([]policyOutcomeRow, 0, len(section.Outcomes)),
+			EvaluateOpts:  make([]workOption, 0, len(section.Proposals)),
+		}
+		for _, proposal := range section.Proposals {
+			row.ProposalRows = append(row.ProposalRows, policyProposalRow{
+				ProposalID:    proposal.ProposalID.String(),
+				Intent:        proposal.Intent,
+				Proposer:      proposal.Proposer,
+				ProposerText:  policyProposerText(proposal.Proposer),
+				Candidate:     proposal.CandidateAnswer,
+				MissingText:   policyMissingText(proposal.MissingFacts),
+				ExtractedText: policyExtractedText(proposal.ExtractedFacts),
+				TurnRef:       proposal.TurnRef.String(),
+				OwnerEpoch:    strconv.FormatInt(proposal.OwnerEpoch, 10),
+				ModeVersion:   strconv.FormatInt(proposal.ModeVersion, 10),
+				CreatedAt:     formatTime(proposal.CreatedAt),
+			})
+			row.EvaluateOpts = append(row.EvaluateOpts, workOption{Value: proposal.ProposalID.String(), Text: proposal.Intent + " (" + formatTime(proposal.CreatedAt) + ")"})
+		}
+		for _, outcome := range section.Outcomes {
+			outcomeRow := preparePolicyOutcomeRow(outcome)
+			row.OutcomeRows = append(row.OutcomeRows, outcomeRow)
+		}
+		if section.Current != nil {
+			current := preparePolicyOutcomeRow(*section.Current)
+			row.Current = &current
+		}
+		panel.Items = append(panel.Items, row)
+	}
+	return panel
+}
+
+// preparePolicyOutcomeRow flattens one outcome into the row projection.
+func preparePolicyOutcomeRow(outcome casesDomain.PolicyOutcome) policyOutcomeRow {
+	row := policyOutcomeRow{
+		OutcomeID:      outcome.OutcomeID.String(),
+		No:             strconv.FormatInt(outcome.OutcomeNo, 10),
+		Class:          outcome.OutcomeClass,
+		ClassText:      policyClassText(outcome.OutcomeClass),
+		Reason:         policyReasonText(outcome.Reason),
+		RuleVersion:    outcome.RuleVersion,
+		Intent:         outcome.Intent,
+		Mandatory:      make([]policyMandatoryRow, 0, len(outcome.MandatoryFacts)),
+		NextSteps:      make([]string, 0, len(outcome.NextSteps)),
+		Reused:         make([]string, 0, len(outcome.ReusedFacts)),
+		ReusedSigs:     make([]string, 0, len(outcome.ReusedFacts)),
+		Suppressed:     make([]string, 0, len(outcome.SuppressedQuestions)),
+		PermittedText:  "Разрешённый путь: " + casesDomain.OutcomePermittedPath(outcome.OutcomeClass),
+		DecisionDigest: outcome.DecisionDigest,
+		CreatedAt:      formatTime(outcome.CreatedAt),
+	}
+	for _, fact := range outcome.MandatoryFacts {
+		row.Mandatory = append(row.Mandatory, policyMandatoryRow{
+			MaterialKey: fact.MaterialKey, Source: fact.Source,
+			State: fact.State, StateText: policyMandatoryStateText(fact.State),
+		})
+	}
+	for _, step := range outcome.NextSteps {
+		row.NextSteps = append(row.NextSteps, policyNextStepText(step))
+	}
+	for _, reused := range outcome.ReusedFacts {
+		row.Reused = append(row.Reused, reused.MaterialKey)
+		row.ReusedSigs = append(row.ReusedSigs, reused.ValueDigest+" (факт "+reused.FactID.String()+", версия "+strconv.FormatInt(reused.VersionNo, 10)+")")
+	}
+	for _, suppressed := range outcome.SuppressedQuestions {
+		row.Suppressed = append(row.Suppressed, suppressed.MaterialKey+" (источник: "+suppressed.Source+")")
+	}
+	return row
+}
+
+// policyMissingText renders the missing-fact claim words of one proposal.
+func policyMissingText(missing []casesDomain.MissingFact) string {
+	if len(missing) == 0 {
+		return "—"
+	}
+	parts := make([]string, 0, len(missing))
+	for _, fact := range missing {
+		parts = append(parts, fact.MaterialKey+" ("+fact.Reason+")")
+	}
+	return strings.Join(parts, ", ")
+}
+
+// policyExtractedText renders the extracted-fact claim words of one
+// proposal (the AUDIT claims — the facts are never written from them).
+func policyExtractedText(extracted []casesDomain.ExtractedFact) string {
+	if len(extracted) == 0 {
+		return "—"
+	}
+	parts := make([]string, 0, len(extracted))
+	for _, fact := range extracted {
+		parts = append(parts, fact.MaterialKey+" = "+fact.ValueDigest+" (событие "+fact.SourceEventID.String()+")")
+	}
+	return strings.Join(parts, ", ")
 }

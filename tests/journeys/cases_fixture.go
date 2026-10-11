@@ -87,6 +87,12 @@ type casesFixture struct {
 	modeSeq          int
 	disclosureSeq    int
 	deliveryEventSeq int
+	// The Story 2.6 policy material: the typed AI proposals, the
+	// deterministic outcomes with the monotonic numbers.
+	aiProposals      map[id.UUID][]casesDomain.AIProposal
+	policyOutcomes   map[id.UUID][]casesDomain.PolicyOutcome
+	proposalSeq      int
+	policyOutcomeSeq int
 	supervisor       bool // the configuration word of the exit authority ladder
 
 	caseNo, conversationNo int64
@@ -140,8 +146,10 @@ func newCasesFixture() *casesFixture {
 		replies:          map[id.UUID][]casesDomain.ClientReply{},
 		replyOutcomes:    map[id.UUID]casesDomain.ClientReplyOutcome{},
 		// The Story 2.5 material:
-		modeTerms:   map[id.UUID][]casesDomain.ModeTerm{},
-		disclosures: map[id.UUID][]casesDomain.DisclosureRecord{},
+		modeTerms:      map[id.UUID][]casesDomain.ModeTerm{},
+		aiProposals:    map[id.UUID][]casesDomain.AIProposal{},
+		policyOutcomes: map[id.UUID][]casesDomain.PolicyOutcome{},
+		disclosures:    map[id.UUID][]casesDomain.DisclosureRecord{},
 	}
 }
 
@@ -540,7 +548,7 @@ func (f *casesFixture) CaseView(_ context.Context, _ domain.Principal, tenant, c
 		Ownership: f.fixtureOwnershipView(caseID),
 		// The Story 2.5 section: the mode derivation over the REAL
 		// domain functions.
-		Mode: f.fixtureModeView(caseID),
+		Mode: f.fixtureModeView(caseID), Policy: f.fixturePolicyView(caseID),
 	}, nil
 }
 

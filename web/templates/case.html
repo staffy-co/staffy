@@ -325,6 +325,109 @@
 <p role="status">Исходящих ответов нет.</p>
 {{end}}
 
+<h2>Progressive Intake / Policy — предложения и исходы</h2>
+<p class="next-note" id="policy-panel-note" aria-live="polite">{{.View.Policy.PanelText}} Правило: {{.View.Policy.RuleVersion}}. Классы исхода: {{.View.Policy.ClassWords}}. {{.View.Policy.CommercialText}}</p>
+<p class="next-note">Текущие якоря оценки: версия лестницы {{.View.Policy.ModeVersion}}, эпоха владения {{.View.Policy.OwnerEpoch}}, дайджест подтверждённых фактов <span class="digest-block">{{.View.Policy.FactsDigest}}</span>.</p>
+{{if .View.CanManageWork}}
+<details>
+<summary>Подать предложение ИИ (порт-провод или оператор)</summary>
+<p class="next-note">Предложение — притязание подателя: намерение проверяет ПОЛИТИКА (неизвестное слово — исход fail_closed, не отказ подачи); факты из extracted_facts автоматически НЕ записываются; кандидат — базис ответа, не его текст.</p>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/ai-proposals">
+<label for="proposal-conversation">Диалог обращения</label>
+<select id="proposal-conversation" name="conversation_id" required>{{range $.View.Policy.ConversationOpts}}<option value="{{.Value}}">{{.Text}}</option>{{end}}</select>
+<label for="proposal-work-item">Элемент работы (скоуп предложения)</label>
+<select id="proposal-work-item" name="work_item_id" required>{{range $.View.Policy.ActiveWIOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}</select>
+<label for="proposal-turn">Принятый turn кейса</label>
+<select id="proposal-turn" name="turn_ref" required>{{range $.View.Policy.EventOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}</select>
+<label for="proposal-intent">Намерение (строка до 64 символов, словарь решает политика)</label>
+<input id="proposal-intent" name="intent" type="text" maxlength="64" required>
+<label for="proposal-candidate">Кандидат ответа (до 2000 символов, может быть пустым)</label>
+<textarea id="proposal-candidate" name="candidate_answer" rows="3" maxlength="2000"></textarea>
+<label for="proposal-proposer">Податель</label>
+<select id="proposal-proposer" name="proposer" required>{{range $.View.Policy.ProposerOptions}}<option value="{{.Value}}"{{if eq .Value $.View.Policy.ProposerDefault}} selected{{end}}>{{.Text}}</option>{{end}}</select>
+<label for="proposal-missing-key">Недостающий факт — ключ материала (нормализованный, до 64 символов)</label>
+<input id="proposal-missing-key" name="missing_key_0" type="text" maxlength="64">
+<label for="proposal-missing-reason">Причина недостающего факта</label>
+<select id="proposal-missing-reason" name="missing_reason_0">
+<option value="">— нет —</option>
+<option value="mandatory">mandatory (обязательный)</option>
+<option value="readback">readback (явное повторение вслух)</option>
+</select>
+<button class="primary" type="submit">Подать предложение</button>
+</form>
+</details>
+{{end}}
+{{if .View.Policy.HasItems}}
+{{range .View.Policy.Items}}
+<h3>Элемент работы <span class="digest-block">{{.WorkItemID}}</span>{{if .WorkItemTitle}} — {{.WorkItemTitle}}{{end}} (версия {{.Version}})</h3>
+{{if .HasProposals}}
+<details>
+<summary>Предложения ({{len .ProposalRows}})</summary>
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Предложения ИИ элемента">
+<table class="datamap-table">
+<caption>Предложения: намерение, податель, кандидат, недостающие и извлечённые притязания, снимок подачи</caption>
+<thead><tr><th scope="col">Предложение</th><th scope="col">Намерение</th><th scope="col">Податель</th><th scope="col">Кандидат ответа</th><th scope="col">Недостающие</th><th scope="col">Извлечённые</th><th scope="col">Снимок</th></tr></thead>
+<tbody>
+{{range .ProposalRows}}<tr><th scope="row"><span class="digest-block">{{.ProposalID}}</span></th><td>{{.Intent}}</td><td>{{.ProposerText}}</td><td>{{if .Candidate}}{{.Candidate}}{{else}}— пусто (нет базиса) —{{end}}</td><td>{{.MissingText}}</td><td>{{.ExtractedText}}</td><td>epoch {{.OwnerEpoch}}, лестница {{.ModeVersion}}, {{.CreatedAt}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+</details>
+{{else}}
+<p role="status">Предложений для этого элемента нет.</p>
+{{end}}
+{{if .Current}}
+<div id="policy-outcome-{{.WorkItemID}}" aria-live="polite" class="next-note">
+<p>Действующий исход (№{{.Current.No}}): <strong>{{.Current.ClassText}}</strong>. Причина: {{.Current.Reason}}. Правило: {{.Current.RuleVersion}}. Намерение: {{.Current.Intent}}. {{.Current.PermittedText}}</p>
+{{if .Current.Mandatory}}<p>Обязательные факты: {{range $i, $fact := .Current.Mandatory}}{{if $i}}; {{end}}{{$fact.MaterialKey}} ({{if eq $fact.Source "rule"}}правило{{else}}предложение{{end}}) — {{$fact.StateText}}{{end}}.</p>{{end}}
+{{if .Current.NextSteps}}<p>Следующие шаги: {{range $i, $step := .Current.NextSteps}}{{if $i}}; {{end}}{{$step}}{{end}}.</p>{{end}}
+{{if .Current.Reused}}<p>Переиспользованные значения: {{range $i, $reused := .Current.Reused}}{{if $i}}; {{end}}{{$reused}}{{end}}.</p><p class="next-note">{{range $i, $sig := .Current.ReusedSigs}}{{if $i}} {{end}}<span class="digest-block">{{$sig}}</span>{{end}}</p>{{end}}
+{{if .Current.Suppressed}}<p>Удалённые повторы вопросов: {{range $i, $q := .Current.Suppressed}}{{if $i}}; {{end}}{{$q}}{{end}} (дедуп против подтверждённых фактов).</p>{{end}}
+<p>Дайджест решения: <span class="digest-block">{{.Current.DecisionDigest}}</span>. {{.Current.CreatedAt}}.</p>
+</div>
+{{else}}
+<p id="policy-outcome-{{.WorkItemID}}" role="status">Действующего исхода нет: продажный ответ по этому элементу будет отклонён гейтом политики (нужны submit_ai_proposal + evaluate_policy).</p>
+{{end}}
+{{if .HasOutcomes}}
+<details>
+<summary>История исходов ({{len .OutcomeRows}})</summary>
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="История исходов элемента">
+<table class="datamap-table">
+<caption>Исходы: номер, класс, причина, правило, намерение, шаги, дайджест</caption>
+<thead><tr><th scope="col">№</th><th scope="col">Класс</th><th scope="col">Причина</th><th scope="col">Намерение</th><th scope="col">Шаги</th><th scope="col">Дайджест решения</th></tr></thead>
+<tbody>
+{{range .OutcomeRows}}<tr><th scope="row">{{.No}}</th><td>{{.ClassText}}</td><td>{{.Reason}}</td><td>{{.Intent}}</td><td>{{range $i, $step := .NextSteps}}{{if $i}}; {{end}}{{$step}}{{end}}</td><td><span class="digest-block">{{.DecisionDigest}}</span></td></tr>{{end}}
+</tbody>
+</table>
+</div>
+</details>
+{{end}}
+{{if $.View.CanManageWork}}
+{{if .EvaluateOpts}}
+<details>
+<summary>Оценить предложение (evaluate_policy)</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/policy/evaluations">
+<label for="evaluate-proposal-{{.WorkItemID}}">Предложение</label>
+<select id="evaluate-proposal-{{.WorkItemID}}" name="proposal_ref" required>{{range .EvaluateOpts}}<option value="{{.Value}}">{{.Text}}</option>{{end}}</select>
+<label for="evaluate-mode-{{.WorkItemID}}">Якорь: версия лестницы режимов</label>
+<input id="evaluate-mode-{{.WorkItemID}}" name="expected_mode_version" type="number" min="1" required value="{{$.View.Policy.ModeVersion}}">
+<label for="evaluate-epoch-{{.WorkItemID}}">Якорь: эпоха владения</label>
+<input id="evaluate-epoch-{{.WorkItemID}}" name="expected_owner_epoch" type="number" min="1" required value="{{$.View.Policy.OwnerEpoch}}">
+<label for="evaluate-version-{{.WorkItemID}}">Якорь: версия элемента работы</label>
+<input id="evaluate-version-{{.WorkItemID}}" name="expected_work_item_version" type="number" min="1" required value="{{.Version}}">
+<label for="evaluate-digest-{{.WorkItemID}}">Якорь: дайджест подтверждённых фактов</label>
+<input id="evaluate-digest-{{.WorkItemID}}" name="expected_facts_digest" type="text" required value="{{$.View.Policy.FactsDigest}}">
+<button class="primary" type="submit">Оценить предложение</button>
+</form>
+<p class="next-note">Якоря сверяются под локом: любое изменение (лестница, владение, факты, элемент) — честный конфликт с текущими версиями; тот же ключ с иными якорями — конфликт ключа.</p>
+</details>
+{{end}}
+{{end}}
+{{end}}
+{{else}}
+<p role="status">Рабочих элементов нет.</p>
+{{end}}
+
 <h2>Work Control Card — рабочие элементы</h2>
 <p class="next-note">Версии — истина: каждая команда пишет новую версию; текущее состояние и тип — производные. Автоматической связи событий с элементами нет; факты не выбирают значение сами — только подтверждение человеком.</p>
 {{if .View.HasWorkItems}}
