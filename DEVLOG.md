@@ -1385,3 +1385,24 @@ decisions:
 - Фикс m-r2-1 — граница на команде (review-слово), не на назначении: надзор остаётся полномочен назначать любого, режимные записи требуют review
 next: CHECKPOINT 2 владельцу — НУЖЕН СВЕЖИЙ GitHub-токен (старый отозван): батч-пуш (7 ветка + 4 main docs) → PR через GitHub API → CI ×3 verify → merge → DEVLOG 48-merge; далее Epic 2: story 2-6 progressive intake и детерминированный Policy Outcome (осталось 11/16)
 commit: 00e5cf9
+---
+date: 2026-10-11
+task: 48-merge
+role: main (Super Z)
+story: 2-5
+summary: Story 2-5 влита в main — PR #20, merge-коммит 20c49c1; CI зелёный тремя полными прогонами (push/PR/main); Epic 2: 5/16 stories done — контур получил режимы разговора (append-only mode_terms с mode_version-CAS и двухпорядковой лестницей: proposal-rank по демо-пути владельца + strictness ModeRank), AI-раскрытие с delivery-событиями, гейты режима/раскрытия в send_client_reply (после владения 2-4) и fail-closed исходящий базис
+done:
+- Токен выдан владельцем в чате (CHECKPOINT 2, продолжение после сброса сессии): применён только inline env при каждом вызове (STAFFY_GH_TOKEN=... bash <script>) — на диск не попадал; паттерн-стандарт 46/47-merge соблюдён третьим CHECKPOINT подряд
+- Push батчем (push_batch_2_5.sh, адаптация прецедента push_batch_2_4.sh): main cc52fc2..e5467d3 (6 docs-коммитов DEVLOG 48-sm..48-close; [skip ci] легитимен — docs прямо на main) + ветка codex/story-2-5-conversation-mode-ai-disclosure 180afe1..00e5cf9 (7 story-коммитов: SM-спека, CHECKPOINT 1, feat, fix R1, fix m-r2-1, спека loop 2, closure; первая публикация, -u tracking) — байт-в-байт, отревьюенный R3-хед, amend не понадобился
+- PR #20 создан через GitHub API (create_pr_2_5.sh, токен только из env, прецедент PR #19): https://github.com/artemiosu/staffy/pull/20 — состав среза (миграция 00005: 3 таблицы RLS + режим/раскрытие/события, домен mode.go с гейтами и машинными отказами, 4 идемпотентные команды, send_client_reply +reply_class и гейты после владения, ingest +1 INSERT, outbox ×2 события, транспорт/панели/OpenAPI), review R1/R2/R3, честные границы, регресс, ссылка на спеку
+- CI: три полных прогона, все success — push-run 38111529333 и pull_request-run 38111534803 (head 00e5cf9), main-run 38111710493 (head 20c49c1)
+- Merge через API (merge_pr_2_5.sh: merge_method=merge, sha-pinned 00e5cf965deb1db18e9b962b0ff36ac5e1e23ebe, прецедент PR #13..#19): merge-коммит 20c49c1f9883cc9726a2f50f3d42b7651e710e0c; локальный main синхронизирован ff-only (e5467d3..20c49c1); оверлап файлов main/ветки пуст (main-сторона трогала только DEVLOG.md) — конфликтов не было
+- Ноты 48-close точны: «unpushed: 13 (7 ветка + 6 main)» — подтверждено живьём; «closure-коммит без [skip ci]» — подтверждён (CI стартовал мгновенно на оба события); корректировок канона не требуется
+- Чекпоинт-скрипты 2_5 (локальные, вне git) были утеряны при рецикле песочницы — восстановлены по прецеденту 47-merge; два инлайн-парсера API-ответов упали на экранировании кавычек ПОСЛЕ успешного сетевого вызова (PR создан, merge исполнен — git-истина проверена отдельным запросом), парсеры вынесены в отдельные .py, повторный вызов create_pr честно отклонён GitHub-дубликатом («Validation Failed», PR #20 уже существовал)
+- Локальный Go/PG-регресс в этой фазе не запускался (не нужен): дерево не менялось с R3 (полный suite зелёный ×2 TZ на 00e5cf9), CI ×3 прогнал тот же контент независимо
+decisions:
+- Прецедент CHECKPOINT 2 воспроизведён без отклонений: скрипты push_batch/create_pr/ci_poll+eval/merge_pr 2_5 — точные адаптации 2_4 (HEAD_PREFIX 00e5cf9, STATE ci_poll_2_5_runs.json); main-run опрошен тем же ci_poll_2_5.sh через env-override (POLL_BRANCH=main, HEAD_PREFIX=20c49c1, NEED=1)
+- Токен-дисциплина env-only per-invocation — третий CHECKPOINT подряд, ноль инцидентов утечки
+- Итог review-цикла 2-5 подтверждён CI независимо: Major M1 (audit-only в режимных командах) закрыт гейтом прав review||configuration, композитный m-r2-1 (audit-only владелец через supervision-reassign) закрыт review-словом на owner-ветке ExitMode — регресс зелёный локально (×2 TZ, R1/R2/R3) и в CI (×3)
+next: Epic 2 продолжается — story 2-6 «Progressive intake и детерминированный Policy Outcome» (первый шаг — SM-спека первого среза → CHECKPOINT 1 владельцу). Осталось 11/16
+commit: 20c49c1
