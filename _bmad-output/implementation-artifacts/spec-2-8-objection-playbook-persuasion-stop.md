@@ -2,7 +2,7 @@
 title: 'Story 2.8 — Консультативная продажа и этичная работа с возражениями (первый срез: Objection Record, versioned Playbook и останов убеждения)'
 type: 'feature'
 created: '2026-10-13'
-status: 'ready-for-dev'
+status: 'review'
 route: 'dispatch'
 baseline_commit: '214ef7e70d14ed4a5d9c1cb8804970f0ba590833'
 context:
@@ -91,3 +91,4 @@ context:
 
 - 2026-10-13, SM (первый срез): спека создана по форматам 2-5/2-6/2-7; статус backlog; ожидает CHECKPOINT 1 (предъявление владельцу в ответе сессии, делегированный прецедент 2-6/2-7).
 - 2026-10-13, CHECKPOINT 1: спека одобрена владельцем без правок («продолжайте», чат 2026-10-13; предъявлена нетехническим пересказом в ответе сессии — делегированный прецедент 2-6/2-7). Замороженные секции (Intent / Boundaries & Constraints / I/O & Edge-Case Matrix) не изменялись. Спека и sprint-status.yaml одновременно переведены в `ready-for-dev`; далее — Dev (step-01..05).
+- 2026-10-13, Dev step-01..05: первый срез реализован (feat 8522a6a — ядро субагента + хвост main 489d98a): домен (словари/плейбук v1/гварды/деривации/SpanInPayload), миграция 00008 (append-only objections + client_replies.objection_id/playbook_step), команда record_objection (скоуп-гейт 403 ДО стражей, turn-якорь принятый text-event, побайтовые выдержки), гейт sales-ответов ПОСЛЕ 2-6 (первый связанный = acknowledge_concern; без возражений путь байт-в-байт), панель a11y/320px, OpenAPI + контракт, 8 интеграционных + 5 wire + journeys-цепь; регресс зелёный (build/vet, unit 21 ok, интеграция 157 ×2 TZ (+8), journeys 25/25 (+1), контракт, gofmt, diff-check). Спека → review.
