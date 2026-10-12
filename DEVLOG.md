@@ -1604,3 +1604,52 @@ done:
 - Техническая нота среды: 3 транзиентных сбоя вывода Bash-инструмента во время checkpoint-скриптов — все операции завершились успешно (проверено ls-remote/API после каждой); выводы верифицированы, канон не пострадал
 next: story 2-8 «Консультативная продажа и этичная работа с возражениями» (backlog; SM-фаза по решению владельца) — в Epic 2 осталось 9/16; свежий токен для следующего CHECKPOINT 2 понадобится от владельца
 commit: 61d3a09
+
+---
+date: 2026-10-13
+task: 51-sm
+role: main (Super Z)
+story: 2-8
+summary: SM-спека первого среза story 2-8 «Консультативная продажа и этичная работа с возражениями» — «Objection Record, versioned Playbook и останов убеждения» (FR-24 машинный скелет); ожидает CHECKPOINT 1
+done:
+- Окружение после рецикла песочницы восстановлено bootstrap-скриптом: Go 1.27.1 (build/vet чистые), PostgreSQL 16.4 порт 54329, check-continuity OK (fail=0, warn=0) на main 214ef7e; токен GitHub в сессии отсутствует (публикация — батчем при CHECKPOINT 2, прецедент 2-7)
+- Входы SM прочитаны: epics.md §2.8 (12 AC-блоков), PRD FR-23/FR-24, ARCHITECTURE-SPINE AD-7/AD-8, механика 2-1 (channel_events/sealed_payload/ReadPayload), 2-4 (client_replies/gейты ответа), 2-5 (лестница режимов/классы ответов/propose_mode), 2-6 (intake/policy_outcomes/гейт policy на sales-ответ), 2-7 (observations/производные состояния)
+- Спека написана: _bmad-output/implementation-artifacts/spec-2-8-objection-playbook-persuasion-stop.md (92 строки): словари Domain Pack v0 (типы trust/price_comparison/general_doubt; сигналы concern/refusal/stop_intent/human_request; шаги playbook) + versioned playbook v1 (порог бюджета = 2 refusal-записи на WI, lifetime) + команда record_objection (скоуп-гейт ДО стражей, принятый text-turn, побайтовые span-выдержки через ReadPayload — выдуманные выдержки невозможны) + append-only objections (миграция 00008, objection_no монотонный, outbox-метаданные без выдержек) + состояние убеждения производной (stop_intent/human_request немедленно; refusal-счёт ≥ порога; подъём режима только командой 2-5) + гейт sales-ответов ПОСЛЕ 2-6 (первый связанный ответ = acknowledge_concern; без playbook_step при текущем возражении → 400; без возражений путь байт-в-байт) + панель «Возражения и бюджет убеждения» (a11y/320px)
+- Never-границы: контентная классификация dark-patterns и repair-цикл (AC-8 — путь AI-кандидата следующих срезов), Allowed Claims кросс-проверка (AC-2 — порт каталога), freshness-гейт (заморожено 2-7 → 2-9+), commit/next-step машины (AC-9 — story 2-9), eval-набор (AC-11), голосовая разметка span; гейты/лестница/миграции 2-1…2-7 не трогаются (кроме +1 команда, +1 outbox-тип, client_replies.objection_id+playbook_step — прецедент policy_outcome_id 2-6)
+- Git: ветка codex/story-2-8-objection-playbook-persuasion-stop от main 214ef7e, спека d5302ff [skip ci]
+next: реакция владельца на предъявление спеки (CHECKPOINT 1): при «продолжайте» — коммит спека+sprint-status → ready-for-dev и запуск Dev-фазы (step-01..05, прецедент 2-6/2-7); токен GitHub понадобится к CHECKPOINT 2
+commit: d5302ff
+
+---
+date: 2026-10-13
+task: 51-dev
+role: main (Super Z; ядро — dev-субагент 200 ходов, хвост — main)
+story: 2-8
+summary: Dev-фаза 2-8 завершена — первый срез «Objection Record, versioned Playbook и останов убеждения» реализован полностью по спеке (feat 8522a6a ядро + 489d98a хвост); регресс зелёный во всех контурах; спека → review
+done:
+- CHECKPOINT 1 закрыт коммитом 8449411 (спека+sprint-status → ready-for-dev, прецедент df0ffbc 2-7)
+- Dev-субагент реализовал ядро (до лимита 200 ходов, feat 8522a6a): domain/objection.go (словари типов/сигналов/шагов, playbook v1 rule-table, гварды, DeriveObjectionState, GuardSalesReplyAgainstObjections, ObjectionStoppedError, SpanInPayload), миграция 00008 (append-only cases.objections: RLS+FORCE, гранты, CHECK-словари, objection_no монотонный; client_replies.objection_id+playbook_step), порт/стор (advisory-локами, replyObjectionGateOfTx под локами), app/objection.go (RecordObjection: скоуп 403 ДО стражей, replay, turn-якорь, побайтовые выдержки; objectionPanelView), гейт sales-ответов в SendClientReply ПОСЛЕ replyPolicyGate 2-6, api+транспорт (API+PRG), панель case.html, journeys-фикстура (REAL-гварды, text-turn web_chat), privacy-класс case-content, регистрация 00008
+- main завершил хвост (feat 489d98a): интеграционные 8 тестов seeds 960-965 (полный охват матрицы; зонд грантов/RLS + INSERT-зонд словарей/23514 поимённо — урок R1 2-7 применён сраз: инварианты закреплены живыми пробами в первой реализации), OpenAPI (+1 путь +6 схем + playbook_step + record_objection в WorkOutcome), TestObjectionContractIsHonest, wire-тесты 5 (persuasion_stopped с budget-полями FieldErrors), регистрация ObjectionsPanelText/словарей селектов в cases_view (пробел субагента — панель без текстов/опций), journeys-цепь zzz(18)-cases-objection
+- Фиксы хвоста: WorkRuleError словарной ветки гейта (консистентность типизации ошибок для assertRuleError); уникальные ID зондов (objectionSeedSeq — PK-коллизия при no=1 на двух WI); json.Marshal 9-пробы (fmt %q на []string даёт невалидный JSON → 22P02 вместо 23514); INSERT-проба client_replies — канал/decision_no литералами (в conversations нет этих колонок); policyPrelude для контрольного WI дисциплины (гейт 2-6 требует коммерческий outcome на каждом WI); флеш-проверка спека journeys на целевой странице PRG (one-shot flash не переживает повторный goto)
+- Полный регресс зелёный: build/vet, unit 21 ok/0 FAIL, интеграция 157 top-level ×2 TZ (UTC+Europe/Moscow; было 149, +8), journeys 25/25 (было 24, +1), контракт, gofmt, diff-check; check-continuity на ветке OK (fail=0, warn=1 — ветка не опубликована, ожидаемо)
+- Коммиты: ветка 8522a6a (feat ядро, без [skip ci]) → 489d98a (feat хвост, без [skip ci]) → acc15ec (спека+sprint-status → review [skip ci]); unpushed: main 1 docs (51-sm ac4f8af) + ветка 5 коммитов (d5302ff/8449411/8522a6a/489d98a/acc15ec) — публикация при следующем GitHub-токене
+next: review R1 свежим контекстом (субагент по прецедентам 48/49/50-review-r1); затем closure → CHECKPOINT 2 (свежий токен владельца)
+commit: acc15ec
+
+---
+date: 2026-10-13
+task: 51-review-r1
+role: main (Super Z; мутационные пробы — main, субагент ревьюера исчерпал лимит ходов до отчёта)
+story: 2-8
+summary: review R1 завершён — вердикт PASS с одной Minor-находкой (идемпотентность record_objection не пиннилась живым тестом), закрытой фикс-коммитом 83f7314 немедленно; все мутационные пробы M1-M6 красные
+done:
+- Субагент ревьюера (200 ходов): подготовил копию staffy-r1 @ acc15ec (чистую), но исчерпал лимит до отчёта; пробы и верификация выполнены main-агентом в той же копии
+- Фриз спеки ✓: дифф 8449411..acc15ec по спеке = только status + Change Log; неразмытость ✓: миграции 00001-00007 = 0 строк, mode/policy/observation-файлы = 0 строк; ownership.go = только аддитивный 2-8-гейт (после replyPolicyGate 2-6, только sales-класс) + Step-поле в request-hash
+- Мутационные пробы (все КРАСНЫЕ — каждый инвариант закреплён живым тестом): M1a spans-CHECK→ослаблен → зонд 23514 краснеет (пустой массив принят); M1b словарь типов → краснеет; M2 скоуп-гейт за стражей → композитный audit-only краснеет (словарь-400 маскирует 403); M3 DeriveObjectionState stopped=false → StopsPersuasion краснеет; M4 acknowledge-first отключён → Discipline краснеет; M5 SpanInPayload always-true → юнит + journeys-цепь (выдуманная выдержка) краснеют; M6 контрольная ветка отказывает → Discipline краснеет (байт-в-байт старый путь пинится)
+- Полный регресс в копии: build/vet, unit 21 ok, интеграция 157 ×2 TZ, journeys 25/25, контракт, gofmt (файлы диффа), git diff --check — всё зелёное; копия чистая после проб
+- Честность: outbox objection_recorded = метаданные без текста выдержек (структура ObjectionRecordedPayload проверена); WorkOutcome без spans; выдержки — слова клиента в записи (по спеке)
+- Minor-находка: replay record_objection (матрица строка 5) не пиннился живым тестом — интеграционный мир строит только голосовые turn (запись честно отказывает по модальности), счастливый путь записи живёт только в journeys-контуре; закрыто фикс-коммитом 83f7314: шаг 5b journeys-цепи — пара идентичных PRG-POST (тот же якорь) пишет ровно одну строку, вторая команда возвращает сохранённый исход; journeys 25/25 зелёные
+- Косметика (без правки): ObjectionBudgetText заполняется, но шаблоном не используется — мёртвое поле вью, влияния нет; тексты панелей/опций идут из словарей домена
+- Коммиты: ветка 83f7314 (fix, без [skip ci]) + 16e9a3f (Change Log R1 [skip ci]); main — эта запись
+next: review R2 свежим контекстом (субагент: подлинность фикса 83f7314 мутационной пробой фикстуры replay + неразмытость + полный регресс в свежей копии); затем closure → CHECKPOINT 2 (токен владельца)
+commit: 83f7314
