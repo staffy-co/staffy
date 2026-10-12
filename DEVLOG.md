@@ -1653,3 +1653,34 @@ done:
 - Коммиты: ветка 83f7314 (fix, без [skip ci]) + 16e9a3f (Change Log R1 [skip ci]); main — эта запись
 next: review R2 свежим контекстом (субагент: подлинность фикса 83f7314 мутационной пробой фикстуры replay + неразмытость + полный регресс в свежей копии); затем closure → CHECKPOINT 2 (токен владельца)
 commit: 83f7314
+
+---
+date: 2026-10-13
+task: 51-review-r2
+role: review-R2 (subagent)
+story: 2-8
+summary: review R2 — ВЕРДИКТ PASS: фикс 83f7314 подлинный (мутации B1/B2 краснят шаг 5b journeys-цепи), неразмытость/фриз ✓, полный регресс в свежей копии зелёный; новая Minor m1 (проба 5b не пиннила ногу «возвращён сохранённый исход») закрыта усилением 11fcf20
+done:
+- Свежая копия staffy-r2 @ 16e9a3f; дифф фикса acc15ec..83f7314 = только journeys-спека (+32/−2: шаг 5b + перенумерация свидетелей №3→№4), прод-кода 0
+- Подлинность: B1 (workCommandFlow → always fresh для record_objection — вторая команда пишет дубликат) КРАСНЫЙ на строке 134 (текущая карточка №4 — дубликат вытеснил свидетеля №3); B2 (ранний возврат !fresh убран) КРАСНЫЙ там же; обе откачены, полный journeys 25/25 зелёный после
+- Регресс в копии: build/vet, unit 21 ok, интеграция 157/157 ×2 TZ (UTC+Europe/Moscow), journeys 25/25, контракт TestObjectionContractIsHonest PASS, gofmt (25 файлов диффа) пуст, diff-check чист
+- Фриз: 8449411..16e9a3f по спеке = только status + Change Log; замороженные секции нетронуты
+- Minor m1: проба 5b пиннит «нет второй строки», но не «возвращён сохранённый исход» — на PRG-пути каждая ошибка тоже редиректит 303 (objectionFormError), статус неразличим; дискриминатор (флаг objection_recorded=1 в итоговом URL) проверен живьём с инструментированными URL; рекомендация: пиннить флаг на обоих POST — закрыто усилением 11fcf20 (мутация Y верифицирована main-агентом: replay-ветка → ErrCommandKeyConflict краснеет)
+- Основной репозиторий не тронут (HEAD 16e9a3f, дерево чистое); test-results удалены
+next: closure (спека → done, sprint-status 2-8 → done, Epic 2: 8/16) → CHECKPOINT 2 (токен владельца: батч-пуш main docs + ветка, PR, CI ×3, merge)
+commit: 83f7314
+
+---
+date: 2026-10-13
+task: 51-close
+role: main (Super Z)
+story: 2-8
+summary: Closure среза 2-8 — R2 PASS + Minor m1 закрыта усилением 11fcf20 (мутационно заверена); спека → done (Execution 5/5), sprint-status 2-8 → done; Epic 2: 8/16; ветка готова к CHECKPOINT 2
+done:
+- Усиление пробы идемпотентности 11fcf20 (обе ноги матрицы строки 5: флаг objection_recorded=1 в итоговом URL обоих POST пары; мутация Y — сломанный replay → конфликт — краснеет живьём); journeys 25/25 после
+- merge main→ветка 533c32f (union DEVLOG 51-sm/51-dev/51-review-r1 — прецедент 1-9/2-6/2-7, ort-merge чисто)
+- Спека → done: status + Change Log loops 1-3 (SM/CHECKPOINT 1/Dev/R1/R2/closure; замороженные секции не тронуты — дифф от CHECKPOINT 1 = только status + Change Log); sprint-status 2-8 → done
+- Финальный регресс: build/vet, journeys 25/25 (полный), дерево чистое
+- unpushed: main 3 docs (51-sm ac4f8af, 51-dev 1ca9286, 51-review-r1 329d897) + ветка 9 коммитов (d5302ff, 8449411, 8522a6a, 489d98a, acc15ec, 83f7314, 16e9a3f, 11fcf20, 533c32f + closure) — публикация батчем при следующем GitHub-токене владельца
+next: CHECKPOINT 2 — свежий токен владельца: ls-remote-валидация → батч-пуш (main docs + ветка) → PR через GitHub API → CI (push + PR) → merge sha-pinned → main-run CI → синк main → DEVLOG 51-merge
+commit: TBD
