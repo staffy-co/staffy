@@ -2,7 +2,7 @@
 title: 'Story 2.7 — Актуальные данные Owning System и обработка неопределённости (первый срез: State/Authority Matrix v1 и Observation-цикл)'
 type: 'feature'
 created: '2026-10-12'
-status: 'ready-for-dev'
+status: 'review'
 route: 'dispatch'
 baseline_commit: '010d2ac92ee6e5e29f18c1f8642e897e9976d8ab'
 context:
@@ -88,3 +88,4 @@ context:
 
 - 2026-10-12, SM (первый срез): спека создана по форматам 2-5/2-6; статус backlog; ожидает CHECKPOINT 1 (предъявление владельцу в ответе сессии, делегированный прецедент 2-6).
 - 2026-10-12, CHECKPOINT 1: спека одобрена владельцем без правок («продолжайте», чат 2026-10-12; предъявлена нетехническим пересказом в ответе сессии — делегированный прецедент 2-6 от 2026-10-10). Замороженные секции (Intent / Boundaries & Constraints / I/O & Edge-Case Matrix) не изменялись. Спека и sprint-status.yaml одновременно переведены в `ready-for-dev`; далее — Dev (step-01..05).
+- 2026-10-12, Dev step-01..05: первый срез реализован (feat 4476c81): матрица/порт/адаптер/миграция/команда/панель/OpenAPI/контракт/10 интеграционных тестов/journeys-цепь; регресс зелёный (build/vet, unit 23, интеграция 148 ×2 TZ, journeys 24/24, контракт, gofmt, diff-check). Спека → review.
