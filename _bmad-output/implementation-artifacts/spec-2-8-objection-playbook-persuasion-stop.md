@@ -2,7 +2,7 @@
 title: 'Story 2.8 — Консультативная продажа и этичная работа с возражениями (первый срез: Objection Record, versioned Playbook и останов убеждения)'
 type: 'feature'
 created: '2026-10-13'
-status: 'backlog'
+status: 'ready-for-dev'
 route: 'dispatch'
 baseline_commit: '214ef7e70d14ed4a5d9c1cb8804970f0ba590833'
 context:
@@ -90,3 +90,4 @@ context:
 ## Spec Change Log
 
 - 2026-10-13, SM (первый срез): спека создана по форматам 2-5/2-6/2-7; статус backlog; ожидает CHECKPOINT 1 (предъявление владельцу в ответе сессии, делегированный прецедент 2-6/2-7).
+- 2026-10-13, CHECKPOINT 1: спека одобрена владельцем без правок («продолжайте», чат 2026-10-13; предъявлена нетехническим пересказом в ответе сессии — делегированный прецедент 2-6/2-7). Замороженные секции (Intent / Boundaries & Constraints / I/O & Edge-Case Matrix) не изменялись. Спека и sprint-status.yaml одновременно переведены в `ready-for-dev`; далее — Dev (step-01..05).
