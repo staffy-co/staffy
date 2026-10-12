@@ -106,6 +106,36 @@ test('cases-objection: the record, the budget and the persuasion stop at 320px',
     await expect(refusalCard).toContainText('отказов 1 из 2');
     await expect(refusalCard).not.toContainText('Убеждение остановлено');
 
+    // 5b. The idempotent replay of the record command (the matrix row 5):
+    // the SAME form (the same anchor of the double-submit protection,
+    // the same fields) posted twice records ONE objection — the exact
+    // repeat returns the stored outcome, no second row, no second event
+    // (the command key of 2-1; a re-rendered form with a new anchor
+    // records anew by design). The witness: the budget line stays
+    // «отказов 1 из 2» and no objection №3 exists yet.
+    const recordFormAction = await page.locator('form[action$="/objections"]').first().getAttribute('action');
+    expect(recordFormAction).toBeTruthy();
+    const replayBody = new URLSearchParams({
+      turn_ref: turnTwo,
+      objection_type: 'general_doubt',
+      client_signal: 'concern',
+      span_1: 'Не буду',
+      expected_objection_no: '2',
+    }).toString();
+    const firstPost = await api.post(recordFormAction as string, { data: replayBody, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+    expect(firstPost.status()).toBeLessThan(400);
+    const secondPost = await api.post(recordFormAction as string, { data: replayBody, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+    expect(secondPost.status()).toBeLessThan(400);
+    await page.goto(pathA);
+    // The pair recorded exactly ONE new row: the current objection is
+    // №3 (concern — the budget stays 1 refusal) and №4 does NOT exist
+    // (the second POST of the pair replayed the stored outcome).
+    const replayWitness = page.locator('details').filter({ has: page.locator('summary', { hasText: /^Возражение №3 — general_doubt/ }) }).first();
+    await replayWitness.locator('summary').click();
+    await expect(replayWitness).toContainText('concern (опасение — убеждение продолжается)');
+    await expect(replayWitness).toContainText('отказов 1 из 2');
+    expect(await page.locator('details summary').filter({ hasText: /^Возражение №4 —/ }).count()).toBe(0);
+
     // 6. The second refusal: the budget is spent (2 of 2) — the honest
     // STOP badge with the allowed endings (the neutral completion, the
     // privacy request, the human handoff — never the color alone: the
@@ -119,7 +149,7 @@ test('cases-objection: the record, the budget and the persuasion stop at 320px',
     await stopForm.getByRole('button', { name: /Записать возражение/ }).click();
     await expect(page).toHaveURL(new RegExp(`${caseA}\\?objection_recorded=1`));
     await page.goto(pathA);
-    const stoppedCard = page.locator('details').filter({ has: page.locator('summary', { hasText: /^Возражение №3 — general_doubt/ }) }).first();
+    const stoppedCard = page.locator('details').filter({ has: page.locator('summary', { hasText: /^Возражение №4 — general_doubt/ }) }).first();
     await stoppedCard.locator('summary').click();
     await expect(stoppedCard).toContainText('отказов 2 из 2');
     const stopAlert = page.locator('div[aria-live="polite"] .alert').filter({ hasText: /Убеждение остановлено/ });
@@ -144,7 +174,7 @@ test('cases-objection: the record, the budget and the persuasion stop at 320px',
     await expect(page.locator('#case-flash')).toContainText('не входит в слова клиента');
     // The objection count stays three: the dishonest record never landed.
     await page.goto(pathA);
-    const afterRefusalCard = page.locator('details').filter({ has: page.locator('summary', { hasText: /^Возражение №3 — general_doubt/ }) }).first();
+    const afterRefusalCard = page.locator('details').filter({ has: page.locator('summary', { hasText: /^Возражение №4 — general_doubt/ }) }).first();
     await afterRefusalCard.locator('summary').click();
     await expect(afterRefusalCard).toContainText('отказов 2 из 2');
 
