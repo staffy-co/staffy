@@ -2,7 +2,7 @@
 title: 'Story 2.7 — Актуальные данные Owning System и обработка неопределённости (первый срез: State/Authority Matrix v1 и Observation-цикл)'
 type: 'feature'
 created: '2026-10-12'
-status: 'backlog'
+status: 'ready-for-dev'
 route: 'dispatch'
 baseline_commit: '010d2ac92ee6e5e29f18c1f8642e897e9976d8ab'
 context:
@@ -87,3 +87,4 @@ context:
 ## Spec Change Log
 
 - 2026-10-12, SM (первый срез): спека создана по форматам 2-5/2-6; статус backlog; ожидает CHECKPOINT 1 (предъявление владельцу в ответе сессии, делегированный прецедент 2-6).
+- 2026-10-12, CHECKPOINT 1: спека одобрена владельцем без правок («продолжайте», чат 2026-10-12; предъявлена нетехническим пересказом в ответе сессии — делегированный прецедент 2-6 от 2026-10-10). Замороженные секции (Intent / Boundaries & Constraints / I/O & Edge-Case Matrix) не изменялись. Спека и sprint-status.yaml одновременно переведены в `ready-for-dev`; далее — Dev (step-01..05).
