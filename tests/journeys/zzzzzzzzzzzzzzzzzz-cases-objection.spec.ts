@@ -126,6 +126,12 @@ test('cases-objection: the record, the budget and the persuasion stop at 320px',
     expect(firstPost.status()).toBeLessThan(400);
     const secondPost = await api.post(recordFormAction as string, { data: replayBody, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
     expect(secondPost.status()).toBeLessThan(400);
+    // BOTH legs of matrix row 5: the stored outcome is RETURNED — the
+    // success flag of the PRG redirect lands on both POSTs (a conflict
+    // or a refusal leg would redirect to the bare case URL with an
+    // error flash instead — the R2 discriminator, now pinned).
+    expect(firstPost.url()).toContain('objection_recorded=1');
+    expect(secondPost.url()).toContain('objection_recorded=1');
     await page.goto(pathA);
     // The pair recorded exactly ONE new row: the current objection is
     // №3 (concern — the budget stays 1 refusal) and №4 does NOT exist
