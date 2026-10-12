@@ -1557,3 +1557,34 @@ decisions:
 - Review-цикл следует находкам (прецедент 2-2/2-5): R1 FAIL с мажором → фиксы → R2 обязателен (подлинность фиксов мутационными пробами)
 next: review R2 (субагент, свежий контекст) — верификация подлинности фиксов 82e1d6c (мутации M1a/M1b/M2 должны краснить новые тесты), фриз спеки, неразмытость, фулл-регресс в независимой копии; затем closure среза → CHECKPOINT 2 (токен владельца получен в чате 2026-10-12 — батч: main docs + ветка, PR, CI ×3, merge)
 commit: 82e1d6c
+---
+date: 2026-10-12
+task: 50-review-r2
+role: main (Super Z)
+story: 2-7
+summary: Review R2 (субагент, свежий контекст, независимая копия /home/z/my-project/staffy-r2) — PASS: все 3 фикса R1 верифицированы ПОДЛИННО мутационными пробами, неразмытость подтверждена, новых находок нет; цикл review 2-7 = 2 итерации (R1 FAIL → R2 PASS)
+done:
+- Подлинность фиксов 82e1d6c (живые мутации в копии, каждая откачена): M1a — CHECK(true) на observation_failure_carries_no_value → зонд КРАСНЫЙ «failed with a value: the dishonest row must be refused, got accepted»; M1b — то же на observation_ok_carries_material → «ok without a value…»; M2 — скоуп-гейт за материальными стражами → композитный тест КРАСНЫЙ «the field outside the matrix: expected the honest 403 forbidden refusal…»
+- Живые зонды ревьюера сверх мутаций: wrapped-ошибка domain.ErrForbidden через НАСТОЯЩИЙ транспорт → 403 cases_forbidden с текстом скоупа (switch-порядок WorkRuleError-As первым чужого не перехватывает); observationFormMessage(wrapped) → текст скоупа, не дефолт «Чтение не выполнено»; зонд M1 не таудология — мутации доказали зависимость теста от констрейнтов БД
+- Неразмытость: дифф фикса ровно 3 файла (+135/−16); миграции 00001–00006 и mode/policy/ownership/reply файлы 0 строк от бейзлайна 010d2ac; спека-фриз (только status + Change Log); транспорт cases_observation.go фиксом не тронут — 403-ветка и тексты wire/формы существовали до фикса; команды 2-5/2-6 остались при своей лестнице 400 (их тесты зелёные)
+- Регресс в копии (HEAD 82e1d6c): build/vet, unit 23 ok/0 FAIL, интеграция 149 top-level ×2 TZ (UTC + Europe/Moscow), journeys 24/24 (54с), gofmt 3 файлов фикса пуст, git diff --check чист
+- Честные ноты R2 (не находки): (1) sentinel domain.ErrForbidden текстом «principal is not allowed to create a tenant» переиспользован для скоуп-отказа cases — на wire невидим, прецедент ранних stories, фиксом не привнесён; (2) известный вне-срезовый флэйк TestProfileWriteAuditAndGrants (employee 1-13, order by без tie-breaker, задокументирован review 2-4) единожды проявился в первом прогоне, изолированно и в повторных прогонах зелёный — вне среза 2-7 (0 строк диффа); рекомендация tie-breaker audit_id — ниже порога deferred-work; (3) сквозного HTTP-теста audit-only 403 с реальным сервисом нет — пробел закрыт живыми пробами ревьюера (композиция: app-тест wrapped-ошибки + wire-тест маппинга), PRG-флеш текста скоупа проверен живой пробой
+decisions:
+- Цикл review завершён за 2 итерации: R1 FAIL (Major M1 + m2/m3) → фиксы → R2 PASS без новых находок; R3 не требуется (прецедент 2-2/2-6 — количество итераций следует находкам)
+- Известный флэйк employee-контура не относится к срезу и не блокирует закрытие (документирован ранее, не внесён в deferred-work — ниже порога)
+next: closure среза (спека+sprint-status → done, closure-коммит без [skip ci]) → CHECKPOINT 2 (токен владельца в чате 2026-10-12)
+commit: 82e1d6c
+---
+date: 2026-10-12
+task: 50-close
+role: main (Super Z)
+story: 2-7
+summary: Срез 2-7 закрыт локально: R2 PASS → спека done (Execution 5/5, Change Log loops 1-3), sprint-status 2-7 → done, Epic 2: 7/16; main влит в ветку union-ом DEVLOG (55717d8); closure-коммит без [skip ci]; check-continuity OK (fail=0, warn=1 — ветка не опубликована, ожидаемо)
+done:
+- Closure-материал: спека status → done + Change Log loop 3 (closure) — фриз соблюдён (замороженные секции не тронуты, дифф от CHECKPOINT 1 = status + 5 строк Change Log); sprint-status 2-7 → done синхронно
+- main влит в ветку 55717d8 (ort-merge, чисто: ветка не трогала DEVLOG после бейзлайна — union 50-sm/50-dev/50-review-r1); DEVLOG 50-review-r2/50-close едут в closure-коммите — PR понесёт полный журнал
+- Итог среза: State/Authority Matrix v1 (Domain Pack v0) + команда read_owning_system (гейт 403 ДО стражей) + синтетический OwningSystemReader + append-only owning_system_observations (DB-инварианты AC-6 закреплены зондами) + идемпотентность/версии + freshness-деривация + изоляция полей + конфликт-бейдж с фактами 2-2 + панель оператора (a11y/320px) + OpenAPI-контракт; интеграционные 11 (149 top-level ×2 TZ), journeys 24/24, контракт
+- Коммиты среза на ветке: 67ec5f0 (спека) → df0ffbc (CHECKPOINT 1) → 4476c81 (feat) → 23804c5 (review) → 82e1d6c (фиксы R1) → 55717d8 (merge main) → closure
+- check-continuity на ветке: OK (fail=0, warn=1 — ветка не опубликована; уйдёт при публикации)
+next: CHECKPOINT 2 — свежий токен владельца получен (чат 2026-10-12, inline env per-invocation): ls-remote-валидация → батч-пуш (ветка несёт main docs 010d2ac/542f565/100a35f в истории) → PR через GitHub API → CI (push + PR) → merge sha-pinned → main-run CI → синк локального main → DEVLOG 50-merge
+commit: TBD
