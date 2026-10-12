@@ -1619,3 +1619,19 @@ done:
 - Git: ветка codex/story-2-8-objection-playbook-persuasion-stop от main 214ef7e, спека d5302ff [skip ci]
 next: реакция владельца на предъявление спеки (CHECKPOINT 1): при «продолжайте» — коммит спека+sprint-status → ready-for-dev и запуск Dev-фазы (step-01..05, прецедент 2-6/2-7); токен GitHub понадобится к CHECKPOINT 2
 commit: d5302ff
+
+---
+date: 2026-10-13
+task: 51-dev
+role: main (Super Z; ядро — dev-субагент 200 ходов, хвост — main)
+story: 2-8
+summary: Dev-фаза 2-8 завершена — первый срез «Objection Record, versioned Playbook и останов убеждения» реализован полностью по спеке (feat 8522a6a ядро + 489d98a хвост); регресс зелёный во всех контурах; спека → review
+done:
+- CHECKPOINT 1 закрыт коммитом 8449411 (спека+sprint-status → ready-for-dev, прецедент df0ffbc 2-7)
+- Dev-субагент реализовал ядро (до лимита 200 ходов, feat 8522a6a): domain/objection.go (словари типов/сигналов/шагов, playbook v1 rule-table, гварды, DeriveObjectionState, GuardSalesReplyAgainstObjections, ObjectionStoppedError, SpanInPayload), миграция 00008 (append-only cases.objections: RLS+FORCE, гранты, CHECK-словари, objection_no монотонный; client_replies.objection_id+playbook_step), порт/стор (advisory-локами, replyObjectionGateOfTx под локами), app/objection.go (RecordObjection: скоуп 403 ДО стражей, replay, turn-якорь, побайтовые выдержки; objectionPanelView), гейт sales-ответов в SendClientReply ПОСЛЕ replyPolicyGate 2-6, api+транспорт (API+PRG), панель case.html, journeys-фикстура (REAL-гварды, text-turn web_chat), privacy-класс case-content, регистрация 00008
+- main завершил хвост (feat 489d98a): интеграционные 8 тестов seeds 960-965 (полный охват матрицы; зонд грантов/RLS + INSERT-зонд словарей/23514 поимённо — урок R1 2-7 применён сраз: инварианты закреплены живыми пробами в первой реализации), OpenAPI (+1 путь +6 схем + playbook_step + record_objection в WorkOutcome), TestObjectionContractIsHonest, wire-тесты 5 (persuasion_stopped с budget-полями FieldErrors), регистрация ObjectionsPanelText/словарей селектов в cases_view (пробел субагента — панель без текстов/опций), journeys-цепь zzz(18)-cases-objection
+- Фиксы хвоста: WorkRuleError словарной ветки гейта (консистентность типизации ошибок для assertRuleError); уникальные ID зондов (objectionSeedSeq — PK-коллизия при no=1 на двух WI); json.Marshal 9-пробы (fmt %q на []string даёт невалидный JSON → 22P02 вместо 23514); INSERT-проба client_replies — канал/decision_no литералами (в conversations нет этих колонок); policyPrelude для контрольного WI дисциплины (гейт 2-6 требует коммерческий outcome на каждом WI); флеш-проверка спека journeys на целевой странице PRG (one-shot flash не переживает повторный goto)
+- Полный регресс зелёный: build/vet, unit 21 ok/0 FAIL, интеграция 157 top-level ×2 TZ (UTC+Europe/Moscow; было 149, +8), journeys 25/25 (было 24, +1), контракт, gofmt, diff-check; check-continuity на ветке OK (fail=0, warn=1 — ветка не опубликована, ожидаемо)
+- Коммиты: ветка 8522a6a (feat ядро, без [skip ci]) → 489d98a (feat хвост, без [skip ci]) → acc15ec (спека+sprint-status → review [skip ci]); unpushed: main 1 docs (51-sm ac4f8af) + ветка 5 коммитов (d5302ff/8449411/8522a6a/489d98a/acc15ec) — публикация при следующем GitHub-токене
+next: review R1 свежим контекстом (субагент по прецедентам 48/49/50-review-r1); затем closure → CHECKPOINT 2 (свежий токен владельца)
+commit: acc15ec
