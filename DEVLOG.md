@@ -1588,3 +1588,19 @@ done:
 - check-continuity на ветке: OK (fail=0, warn=1 — ветка не опубликована; уйдёт при публикации)
 next: CHECKPOINT 2 — свежий токен владельца получен (чат 2026-10-12, inline env per-invocation): ls-remote-валидация → батч-пуш (ветка несёт main docs 010d2ac/542f565/100a35f в истории) → PR через GitHub API → CI (push + PR) → merge sha-pinned → main-run CI → синк локального main → DEVLOG 50-merge
 commit: TBD
+---
+date: 2026-10-12
+task: 50-merge
+role: main (Super Z)
+story: 2-7
+summary: Story 2-7 влита в main — PR #22, merge-коммит 61d3a09; CI зелёный тремя полными прогонами (push/PR/main); Epic 2: 7/16 stories done — контур получил Owning System Observations: State/Authority Matrix v1 (Domain Pack v0), типизированные чтения через порт, append-only наблюдения с DB-инвариантами честности AC-6, идемпотентность/версии провайдера, freshness-деривация, изоляция полей, конфликт-бейдж с фактами 2-2 и панель оператора
+done:
+- Git-факты: PR #22 head 04da6698ecc3679cb03ef00717703d7e1c8e8bc3 = closure-коммит ветки (merge ровно от от-reviewенной головы; merge_method=merge, sha-pinned); origin/main = 61d3a091af2890a4490b305c6bab3679689511f2, локальный main синхронизирован ff-only
+- Публикация батчем: main docs 010d2ac→100a35f (542f565 DEVLOG 50-dev, 100a35f DEVLOG 50-review-r1; оба [skip ci] — CI не гонялся; ls-remote-валидация канона ДО пуша: origin/main был 010d2ac — remote-tracking ref b58ca88 был stale, урок 49-merge сработал) + первая публикация ветки 2-7 (7 коммитов: 67ec5f0/df0ffbc/4476c81/23804c5/82e1d6c/55717d8/04da669; 55717d8 — union DEVLOG с main, поэтому ветка понесла и main docs — публикация одной операцией)
+- CI ×3 зелёный по GitHub API: push-run 38279658243 (head 04da669) и pull_request-run 38280240308 (head 04da669) — NEED=2 выполнено ДО merge; main-run 38281669836 (head 61d3a09, после merge) — NEED=1; полный конвейер Go+PG+Playwright во всех трёх
+- Цикл story 2-7 (один день, 2026-10-12): SM-спека (CHECKPOINT 1 «продолжайте») → Dev (feat 4476c81 + хвост main) → review R1 FAIL (Major M1: DB-инварианты AC-6 не закреплены тестом — мутационная проба; m2 400→403; m3 порядок гейта) → фиксы 82e1d6c (мутационно заверены) → review R2 PASS (подлинность фиксов, неразмытость, регресс 149×2TZ+journeys 24/24) → closure 04da669 (спека done, Execution 5/5, sprint-status 2-7 done) → PR #22 → merge 61d3a09
+- Токен применён только inline env STAFFY_GH_TOKEN per-invocation (http.extraheader; на диск не попадал) — паттерн 46/47/48/49-merge соблюдён пятым CHECKPOINT подряд
+- Локальный регресс в merge-фазе не перегонялся (не нужен): рабочее дерево main байт-в-байт = origin/main @ 61d3a09 (ff-only без расхождений), CI ×3 прогнал тот же контент независимо; регресс последнего дерева ветки прогнан R2 в независимой копии (149 ×2 TZ, journeys 24/24)
+- Техническая нота среды: 3 транзиентных сбоя вывода Bash-инструмента во время checkpoint-скриптов — все операции завершились успешно (проверено ls-remote/API после каждой); выводы верифицированы, канон не пострадал
+next: story 2-8 «Консультативная продажа и этичная работа с возражениями» (backlog; SM-фаза по решению владельца) — в Epic 2 осталось 9/16; свежий токен для следующего CHECKPOINT 2 понадобится от владельца
+commit: 61d3a09
