@@ -579,14 +579,18 @@ func (s *Service) SendClientReply(ctx context.Context, command casesAPI.SendClie
 	if err != nil {
 		return casesAPI.WorkOutcome{}, err
 	}
+	// The request hash covers the whole command material INCLUDING the
+	// playbook step of the Story 2.8 extension (the same key with another
+	// step word is the honest key conflict).
 	hash := requestHash(struct {
 		Case         string `json:"case"`
 		Conversation string `json:"conversation"`
 		WorkItem     string `json:"work_item"`
 		Expected     int64  `json:"expected_epoch"`
 		Class        string `json:"reply_class"`
+		Step         string `json:"playbook_step"`
 		Content      string `json:"content"`
-	}{command.CaseID.String(), command.ConversationID.String(), command.WorkItemID.String(), command.ExpectedEpoch, command.ReplyClass, command.Content})
+	}{command.CaseID.String(), command.ConversationID.String(), command.WorkItemID.String(), command.ExpectedEpoch, command.ReplyClass, command.PlaybookStep, command.Content})
 	if outcome, replay, err := s.lookupCommand(ctx, scope, "send_client_reply", command.IdempotencyKey, hash); replay || err != nil {
 		return outcome, err
 	}
@@ -738,6 +742,24 @@ func (s *Service) SendClientReply(ctx context.Context, command casesAPI.SendClie
 			return casesAPI.WorkOutcome{}, err
 		}
 	}
+	// The objection gate (Story 2.8, AFTER the policy gate — the frozen
+	// ladder: ownership 2-4 → mode 2-5 → disclosure 2-5 → policy 2-6 →
+	// objection 2-8 → write; the SALES class only — the neutral and the
+	// protected paths stay byte-identical): the stopped persuasion refuses
+	// with the allowed endings (the neutral completion, the protected
+	// request, the human handoff); a CURRENT objection of the Work Item
+	// makes the playbook step mandatory and disciplined (the first linked
+	// answer — always acknowledge_concern); no objection — the empty step
+	// keeps the old path. The passing gate resolves the objection id the
+	// reply record references (the request never carries it — the
+	// server-side truth; the store re-validates under the locks).
+	objectionID := id.UUID("")
+	if command.ReplyClass == casesDomain.ReplyClassSales {
+		objectionID, err = s.salesObjectionGate(ctx, scope, command.CaseID, command.WorkItemID, command.PlaybookStep)
+		if err != nil {
+			return casesAPI.WorkOutcome{}, err
+		}
+	}
 	// The route snapshot and the lineage word of the acting decision.
 	conversationOfCase, err := s.caseConnection(ctx, scope, command.CaseID)
 	if err != nil {
@@ -758,7 +780,7 @@ func (s *Service) SendClientReply(ctx context.Context, command casesAPI.SendClie
 	outcome := casesAPI.WorkOutcome{
 		Command: "send_client_reply", ReplyID: replyID,
 		ReplyState: "prepared", Epoch: current.Epoch, ReplyClass: command.ReplyClass,
-		PolicyOutcomeID: policyOutcomeID,
+		PolicyOutcomeID: policyOutcomeID, ObjectionID: objectionID, PlaybookStep: command.PlaybookStep,
 	}
 	outcomeJSON, err := json.Marshal(outcome)
 	if err != nil {
@@ -774,6 +796,7 @@ func (s *Service) SendClientReply(ctx context.Context, command casesAPI.SendClie
 		RouteConnectionID: conversation.ConnectionID, RouteChannel: channelOfModality(conversation.Modality),
 		RouteDirection: "outbound", LineageEmployeeID: employee, LineageDecisionNo: decisionNo,
 		LineageProfileVersion: profileVersion, OutboxEventID: outboxEventID,
+		ObjectionID: objectionID, PlaybookStep: command.PlaybookStep,
 		Outcome: outcomeJSON, Now: command.Now.UTC().Truncate(time.Microsecond),
 	}); err != nil {
 		return casesAPI.WorkOutcome{}, err

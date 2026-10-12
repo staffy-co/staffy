@@ -104,6 +104,14 @@ type casesFixture struct {
 	owningReader   *observationsyn.Reader
 	observationSeq int
 
+	// The Story 2.8 objection material: the append-only objection records
+	// with the monotonic numbers and the reply links (the derivations —
+	// the CURRENT objection, the refusal budget, the stopped word, the
+	// acknowledged word — are the REAL domain functions).
+	objections   map[id.UUID][]casesDomain.ObjectionRecord
+	replyLinks   map[id.UUID][]casesDomain.ReplyLink
+	objectionSeq int
+
 	caseNo, conversationNo int64
 	eventSeq               int
 	workSeq, exceptionSeq  int
@@ -162,6 +170,9 @@ func newCasesFixture() *casesFixture {
 		// The Story 2.7 material:
 		observations: map[id.UUID][]casesDomain.Observation{},
 		owningReader: newFixtureOwningReader(),
+		// The Story 2.8 material:
+		objections: map[id.UUID][]casesDomain.ObjectionRecord{},
+		replyLinks: map[id.UUID][]casesDomain.ReplyLink{},
 	}
 }
 
@@ -565,6 +576,10 @@ func (f *casesFixture) CaseView(_ context.Context, _ domain.Principal, tenant, c
 		// over the REAL derivations (the CURRENT observation per
 		// matrix field, the freshness state, the conflict badge).
 		Observations: f.fixtureObservationView(caseID),
+		// The Story 2.8 section: the objection records with the
+		// persuasion budget and the stopped word over the REAL
+		// derivations.
+		Objections: f.fixtureObjectionView(caseID),
 	}, nil
 }
 

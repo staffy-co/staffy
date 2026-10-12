@@ -107,6 +107,12 @@ func (f *fakeCases) ReadOwningSystem(context.Context, casesAPI.ReadOwningSystemC
 	return casesAPI.WorkOutcome{}, nil
 }
 
+// The Story 2.8 objection stub: the wire-shape tests target the surface
+// contract; the command semantics live in the integration suite.
+func (f *fakeCases) RecordObjection(context.Context, casesAPI.RecordObjectionCommand) (casesAPI.WorkOutcome, error) {
+	return casesAPI.WorkOutcome{}, nil
+}
+
 func newCasesTestServer(t *testing.T, fake casesAPI.Service) *Server {
 	t.Helper()
 	identity := fakeIdentity{create: func(api.CreateTenantCommand) (api.CreateTenantResult, error) {

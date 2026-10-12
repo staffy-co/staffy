@@ -81,6 +81,11 @@ func (s *Server) BindCases(service casesAPI.Service) {
 	// panel) — one material field of the authority matrix per read.
 	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/owning-system-reads", s.readOwningSystemAPI)
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/owning-system-reads", s.readOwningSystemForm)
+	// The Story 2.8 surfaces: the objection record command (machine JSON
+	// + the operator PRG form of the «Возражения и бюджет убеждения»
+	// panel) — one client objection per record with the verbatim spans.
+	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/objections", s.recordObjectionAPI)
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/objections", s.recordObjectionForm)
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/ai-proposals", s.submitAIProposalForm)
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/policy/evaluations", s.evaluatePolicyForm)
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/mode/proposals", s.proposeModeForm)

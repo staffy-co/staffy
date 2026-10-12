@@ -141,6 +141,11 @@
 <option value="sales">Продажной (требует режим sales + раскрытие)</option>
 <option value="protected_request">Защищённый запрос (требует раскрытие)</option>
 </select>
+<label for="reply-step">Шаг playbook (обязателен при действующем возражении — sales-класс)</label>
+<select id="reply-step" name="playbook_step">
+<option value="">— без шага (возражений нет) —</option>
+{{range $.View.ObjectionStepOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}
+</select>
 <label for="reply-workitem">Элемент работы ответа (необязательно — контекст режима)</label>
 <select id="reply-workitem" name="work_item_id">
 <option value="">— без привязки (режим диалога —</option>
@@ -507,6 +512,47 @@
 <button class="primary" type="submit">Перечитать поле</button>
 </form>
 <p class="next-note">Чтение — снимок системы-владельца: не факт и не подтверждение; новая строка наблюдения сохраняет прежнюю для аудита; таймаут и отказ пишутся честно без значения.</p>
+</details>
+{{end}}
+
+<h4>Возражения и бюджет убеждения</h4>
+<p class="next-note">{{$.View.ObjectionsPanelText}} Playbook: <span class="digest-block">{{$.View.ObjectionVersionText}}</span>.</p>
+<div id="objections-{{.WorkItemID}}" aria-live="polite">
+{{if .ObjCurrent.HasCurrent}}
+<details class="connector-connect">
+<summary>Возражение №{{.ObjCurrent.No}} — {{.ObjCurrent.TypeText}} · сигнал: {{.ObjCurrent.SignalText}}</summary>
+<p>Тип: <strong>{{.ObjCurrent.TypeText}}</strong>. Сигнал: <strong>{{.ObjCurrent.SignalText}}</strong>. Playbook-версия: {{.ObjCurrent.PlaybookVersion}}. Время записи: {{.ObjCurrent.CreatedAt}}. Источник (turn): <span class="digest-block">{{.ObjCurrent.TurnRef}}</span>.</p>
+<p>Выдержки (дословные слова клиента):</p>
+{{range .ObjCurrent.Spans}}<blockquote>{{.}}</blockquote>
+{{end}}
+<p class="next-note">Бюджет убеждения: отказов {{.ObjCurrent.Refusals}} из {{.ObjCurrent.Threshold}}.{{if .ObjCurrent.AcknowledgedText}} Acknowledge: {{.ObjCurrent.AcknowledgedText}}.{{end}}{{if .ObjCurrent.LinkedCount}} Связанных ответов: {{.ObjCurrent.LinkedCount}}.{{end}}{{if .ObjCurrent.NextStepsText}} Шаги playbook типа: {{.ObjCurrent.NextStepsText}}.{{end}}</p>
+</details>
+{{else}}
+<p role="status">Возражений на элементе нет: бюджет убеждения не расходован.</p>
+{{end}}
+{{if .ObjCurrent.Stopped}}
+<p class="alert" role="status">{{.ObjCurrent.StoppedText}}.</p>
+{{end}}
+</div>
+{{if and $.View.CanManageWork (not .Terminal)}}
+<details class="connector-connect"><summary>Записать возражение клиента (record_objection)</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/work-items/{{.WorkItemID}}/objections">
+<label for="objection-turn-{{.WorkItemID}}">Событие-источник (принятый текстовый turn кейса)</label>
+<select id="objection-turn-{{.WorkItemID}}" name="turn_ref" required>{{range $.View.EventOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}</select>
+<label for="objection-type-{{.WorkItemID}}">Тип возражения (словарь)</label>
+<select id="objection-type-{{.WorkItemID}}" name="objection_type" required>{{range $.View.ObjectionTypeOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}</select>
+<label for="objection-signal-{{.WorkItemID}}">Сигнал клиента (словарь)</label>
+<select id="objection-signal-{{.WorkItemID}}" name="client_signal" required>{{range $.View.ObjectionSignalOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}</select>
+<label for="objection-span1-{{.WorkItemID}}">Дословная выдержка 1 (до 200 символов, точно из payload)</label>
+<input id="objection-span1-{{.WorkItemID}}" name="span_1" type="text" maxlength="200">
+<label for="objection-span2-{{.WorkItemID}}">Дословная выдержка 2 (необязательно)</label>
+<input id="objection-span2-{{.WorkItemID}}" name="span_2" type="text" maxlength="200">
+<label for="objection-span3-{{.WorkItemID}}">Дословная выдержка 3 (необязательно)</label>
+<input id="objection-span3-{{.WorkItemID}}" name="span_3" type="text" maxlength="200">
+<input type="hidden" name="expected_objection_no" value="{{.ObjCount}}">
+<button class="primary" type="submit">Записать возражение</button>
+</form>
+<p class="next-note">Выдержки сверяются побайтово со словами клиента события-источника: выдуманная выдержка невозможна. Запись не меняет режим: просьба не связываться — stop_intent + propose_mode (privacy_no_contact), требование человека — human_request + propose_mode (human_requested).</p>
 </details>
 {{end}}
 {{if and $.View.CanManageWork (not .Terminal)}}

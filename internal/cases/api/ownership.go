@@ -91,7 +91,11 @@ type ReassignOwnershipCommand struct {
 // the reply class (the producer's mark — the machine never classifies the
 // content) and the optional Work Item anchor (the mode gate reads the
 // effective mode of that item; an absent anchor reads the conversation
-// mode).
+// mode). Story 2.8 extends the material with the optional playbook step
+// word: the SALES reply against a CURRENT objection of the Work Item MUST
+// carry a step of the playbook of the objection type (the first linked
+// answer — always acknowledge_concern); without an objection the empty
+// word keeps the old path byte-identical.
 type SendClientReplyCommand struct {
 	Actor          domain.Principal
 	TenantID       id.UUID
@@ -100,6 +104,7 @@ type SendClientReplyCommand struct {
 	WorkItemID     id.UUID
 	ExpectedEpoch  int64
 	ReplyClass     string
+	PlaybookStep   string
 	Content        string
 	IdempotencyKey string
 	Now            time.Time
