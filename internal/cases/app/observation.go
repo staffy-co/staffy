@@ -9,6 +9,7 @@ import (
 	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
 	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
 	casesPort "github.com/artemiosu/staffy/internal/cases/port"
+	"github.com/artemiosu/staffy/internal/identity/domain"
 	"github.com/artemiosu/staffy/internal/platform/id"
 	"github.com/artemiosu/staffy/internal/platform/tenancy"
 )
@@ -18,11 +19,14 @@ import (
 // ---------------------------------------------------------------------------
 //
 // The read command is idempotent by the tenant-scoped key with the stored
-// outcome (the 2-2..2-6 precedent: the replay answer comes BEFORE the
-// material guards); the request hash covers the work item anchor and the
-// material field (the whole command material). The gate order is frozen:
-// the rights gate (review OR configuration — the M1 precedent of 2-5) fires
-// BEFORE every material guard; the field outside the matrix is the honest
+// outcome (the 2-2..2-6 precedent: the replay answer comes before the state
+// guards — the terminal Work Item check never hides a stored outcome); the
+// request hash covers the work item anchor and the material field (the
+// whole command material). The gate order is frozen: the rights gate
+// (review OR configuration — the M1 precedent of 2-5) fires BEFORE every
+// material guard and refuses with the forbidden word (the honest 403 of
+// the frozen matrix row and the OpenAPI contract — the scope sentence
+// travels in the transport); the field outside the matrix is the honest
 // 400 field-not-in-matrix (the unknown class — no row is ever written); the
 // terminal Work Item refuses honestly; the missing reader port refuses
 // honestly BEFORE any record (the «коннектор без верификатора» precedent).
@@ -40,11 +44,18 @@ func (s *Service) WithOwningSystemReader(reader casesPort.OwningSystemReader) *S
 	return s
 }
 
+// observationReadScopeText is the honest scope refusal of the read command
+// (the shared «review или configuration» vocabulary of the 2-5..2-6 rights
+// gates): the app word travels inside the forbidden error only — the
+// transport renders its own sentence for the wire and the form.
+const observationReadScopeText = "Команды чтения owning-system требуют полномочия review или configuration: участники только с audit не читают материальные поля систем-владельцев."
+
 // ReadOwningSystem reads the CURRENT value of one material field of the
 // authority matrix from the owning system of the Work Item scope: the
 // operator with the review OR the configuration scope (the gate fires
-// BEFORE the material guards — an audit-only member never writes), the
-// field must be declared in the matrix (otherwise the honest unknown of the
+// BEFORE the material guards and refuses with the 403 forbidden word —
+// an audit-only member never writes), the field must be declared in the
+// matrix (otherwise the honest unknown of the
 // class — the machine-readable field-not-in-matrix refusal), the Work Item
 // must be alive, the reader answers ONCE (the fixed deadline word — no
 // retry exists) and the observation lands append-only with the monotonic
@@ -53,13 +64,15 @@ func (s *Service) WithOwningSystemReader(reader casesPort.OwningSystemReader) *S
 func (s *Service) ReadOwningSystem(ctx context.Context, command casesAPI.ReadOwningSystemCommand) (casesAPI.WorkOutcome, error) {
 	// The rights gate FIRST: review or configuration (the frozen Boundaries
 	// word — the M1 precedent of 2-5); an audit-only member reads the case
-	// surface but never issues the owning-system reads.
+	// surface but never issues the owning-system reads. The refusal is the
+	// forbidden word of the frozen matrix row (the honest 403 — the scope
+	// sentence, never the 400 rule word).
 	scope, rights, err := s.ownershipScope(ctx, command.Actor, command.TenantID)
 	if err != nil {
 		return casesAPI.WorkOutcome{}, err
 	}
 	if !rights.Review && !rights.Configuration {
-		return casesAPI.WorkOutcome{}, rule("read_owning_system", fmt.Errorf("%s", ModeWriteScopeText))
+		return casesAPI.WorkOutcome{}, fmt.Errorf("%w: %s", domain.ErrForbidden, observationReadScopeText)
 	}
 	if err := rule("read_owning_system", casesDomain.GuardReadOwnCommand(command.CaseID, command.WorkItemID, command.MaterialKey)); err != nil {
 		return casesAPI.WorkOutcome{}, err

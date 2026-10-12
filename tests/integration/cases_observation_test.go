@@ -5,6 +5,8 @@ package integration_test
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -17,6 +19,7 @@ import (
 	casesStore "github.com/artemiosu/staffy/internal/cases/store"
 	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
 	"github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // The Story 2.7 matrix: the State/Authority Matrix v1 reads, the
@@ -340,8 +343,12 @@ func TestObservationFieldNotInMatrixAndTerminal(t *testing.T) {
 
 // TestObservationCommandsRefuseAuditOnlyMember covers the rights gate of
 // the read command (the M1 precedent of 2-5): an audit-only member reads
-// the case view but never issues the owning-system reads (the gate fires
-// BEFORE the material guards — nothing is ever written).
+// the case view but never issues the owning-system reads — the refusal is
+// the honest 403 forbidden word with the scope text BEFORE every material
+// guard. The composite probes pin the gate order live: neither the field
+// outside the matrix nor the terminal Work Item masks the scope refusal
+// (the review R1 mutation basis — moving the gate after the material
+// guards must redden this test), nothing is ever written.
 func TestObservationCommandsRefuseAuditOnlyMember(t *testing.T) {
 	w := newCasesWorld(t, 786)
 	ctx := context.Background()
@@ -351,11 +358,39 @@ func TestObservationCommandsRefuseAuditOnlyMember(t *testing.T) {
 	auditor := inviteMember(t, w.identity, w.readinessActor(true), w.tenant, "observation-auditor-786@example.org", "expert_qa", []identityDomain.Scope{identityDomain.Audit}, "000000007866", "000000007869")
 	auditOnly := actorPrincipal{principalID: auditor.ID, stepUp: true}.principal()
 
-	_, err := w.cases.ReadOwningSystem(ctx, casesAPI.ReadOwningSystemCommand{
-		Actor: auditOnly, TenantID: w.tenant, CaseID: caseID, WorkItemID: workItemID,
-		MaterialKey: casesDomain.MaterialFieldPrice, IdempotencyKey: "observation-audit-1", Now: ownershipNow,
-	})
-	assertRuleError(t, err, "review или configuration")
+	read := func(field string) error {
+		_, err := w.cases.ReadOwningSystem(ctx, casesAPI.ReadOwningSystemCommand{
+			Actor: auditOnly, TenantID: w.tenant, CaseID: caseID, WorkItemID: workItemID,
+			MaterialKey: field, IdempotencyKey: "observation-audit-1", Now: ownershipNow,
+		})
+		return err
+	}
+	assertScopeRefusal := func(err error, probe string) {
+		t.Helper()
+		if !errors.Is(err, identityDomain.ErrForbidden) || !strings.Contains(err.Error(), "review или configuration") {
+			t.Fatalf("%s: expected the honest 403 forbidden refusal with the scope words, got %v", probe, err)
+		}
+	}
+
+	// The healthy field of the alive Work Item: the plain scope refusal.
+	assertScopeRefusal(read(casesDomain.MaterialFieldPrice), "the healthy read")
+	// The field outside the matrix never masks the scope words: the rights
+	// gate fires FIRST (before the matrix guard).
+	assertScopeRefusal(read("magic_field"), "the field outside the matrix")
+
+	// The terminal Work Item never masks the scope words either: classify,
+	// resolve, then the audit-only read still refuses with the scope text.
+	classify := w.workBaseInput(caseID, workItemID, 1)
+	classify.Reason, classify.IdempotencyKey = "Классификация", "observation-audit-classify-1"
+	if _, err := w.cases.ClassifyWorkItem(ctx, casesAPI.ClassifyCommand{WorkCommandInput: classify, Type: "поиск детали", Title: "Подбор детали"}); err != nil {
+		t.Fatal(err)
+	}
+	resolve := w.workBaseInput(caseID, workItemID, 2)
+	resolve.Reason, resolve.IdempotencyKey = "Решено", "observation-audit-resolve-1"
+	if _, err := w.cases.TransitionWorkItem(ctx, casesAPI.TransitionCommand{WorkCommandInput: resolve, ToState: "resolved"}); err != nil {
+		t.Fatal(err)
+	}
+	assertScopeRefusal(read(casesDomain.MaterialFieldPrice), "the terminal Work Item")
 
 	// Nothing landed: the observation surface stays clean.
 	view := w.observationView(t, caseID)
@@ -455,4 +490,74 @@ func TestObservationTablesGrantsAndRLS(t *testing.T) {
 			t.Fatalf("%s on cases.owning_system_observations: allowed=%v, want %v", grant, allowed, grant == "INSERT" || grant == "SELECT")
 		}
 	}
+}
+
+// TestObservationDBConstraintsRefuseDishonestRows pins the AC-6 database
+// backstops of the append-only row: the assumed value never lands (the
+// failed/unknown row carries NO value; the ok row carries its full carrier
+// material) and the dictionary words of the row are the CHECK constraints —
+// the honest shape is a database guarantee, not only a domain guard (the
+// review R1 mutation probe proved the gap: the weakened CHECK did not
+// redden a single test). The direct INSERTs run as the admin role behind
+// the RLS curtain — the constraint backstop is the last line of the honest
+// contour (the grants/RLS probe precedent).
+func TestObservationDBConstraintsRefuseDishonestRows(t *testing.T) {
+	if adminPool == nil {
+		t.Skip("no admin pool")
+	}
+	w := newCasesWorld(t, 789)
+	ctx := context.Background()
+	caseID, workItemID := w.acceptedCase(t, "evt-observation-10", "sess-observation-10", `{"call":"inbound-call","from":"+79000000109"}`)
+
+	// insert builds the direct INSERT of one observation row over the real
+	// case + work item anchors (the owning system and the projection words
+	// are the matrix literals of the price field).
+	insert := func(materialKey string, no int64, status string, reason, value, externalID, externalVersion, observedAt any) error {
+		_, err := adminPool.Exec(ctx, `
+                        insert into cases.owning_system_observations (tenant_id, case_id, work_item_id, material_key, observation_no,
+                                observation_id, owning_system, status, reason, value, projection, external_id, external_version,
+                                observed_at, received_at, actor_id, correlation_id, created_at)
+                        values ($1,$2,$3,$4,$5,$6,'catalog',$7,$8,$9,'price_quote',$10,$11,$12,$13,$14,$15,$16)`,
+			w.tenant, caseID, workItemID, materialKey, no,
+			fmt.Sprintf("00000000-0000-0000-0000-%012d", no), status, reason, value,
+			externalID, externalVersion, observedAt, ownershipNow, w.ownershipActor().ID, w.ownershipActor().ID, ownershipNow)
+		return err
+	}
+	// checkRefused asserts the honest 23514 refusal of the dishonest row (the
+	// named AC-6 constraints when given).
+	checkRefused := func(probe string, err error, constraint string) {
+		t.Helper()
+		if err == nil {
+			t.Fatalf("%s: the dishonest row must be refused, got accepted", probe)
+		}
+		var pgErr *pgconn.PgError
+		if !errors.As(err, &pgErr) || pgErr.SQLState() != "23514" {
+			t.Fatalf("%s: expected the check_violation 23514, got %v", probe, err)
+		}
+		if constraint != "" && pgErr.ConstraintName != constraint {
+			t.Fatalf("%s: expected the constraint %s, got %s", probe, constraint, pgErr.ConstraintName)
+		}
+	}
+
+	// The raw JSON text of the value parameter (the admin pool speaks the
+	// simple protocol — the bytes would travel bytea-escaped, the string
+	// travels as the JSON text the column parses).
+	value := `{"price_quote":"3000"}`
+	// The honest ok row lands: the row template is valid, so every refusal
+	// below isolates exactly its dishonest part.
+	if err := insert(casesDomain.MaterialFieldPrice, 1, "ok", nil, value, "catalog-item-1", "v1", ownershipNow); err != nil {
+		t.Fatalf("the honest ok row must land, got %v", err)
+	}
+	// AC-6: the failed/unknown read never carries the assumed value.
+	checkRefused("failed with a value", insert(casesDomain.MaterialFieldPrice, 2, "failed", "provider_timeout", value, "catalog-item-1", "v1", ownershipNow), "observation_failure_carries_no_value")
+	checkRefused("unknown with a value", insert(casesDomain.MaterialFieldPrice, 3, "unknown", "insufficient_scope", value, "catalog-item-1", "v1", ownershipNow), "observation_failure_carries_no_value")
+	// The ok read always names its carrier material.
+	checkRefused("ok without a value", insert(casesDomain.MaterialFieldPrice, 4, "ok", nil, nil, "catalog-item-1", "v1", ownershipNow), "observation_ok_carries_material")
+	checkRefused("ok without the external id", insert(casesDomain.MaterialFieldPrice, 5, "ok", nil, value, nil, "v1", ownershipNow), "observation_ok_carries_material")
+	checkRefused("ok without the provider time", insert(casesDomain.MaterialFieldPrice, 6, "ok", nil, value, "catalog-item-1", "v1", nil), "observation_ok_carries_material")
+	// The dictionary words of the row are the CHECK backstops (the fixed
+	// vocabularies of the status, the reason and the material field).
+	checkRefused("status outside the dictionary", insert(casesDomain.MaterialFieldPrice, 7, "maybe", nil, nil, nil, nil, nil), "")
+	checkRefused("reason outside the dictionary", insert(casesDomain.MaterialFieldPrice, 8, "failed", "provider_flaky", nil, nil, nil, nil), "")
+	checkRefused("field outside the matrix", insert("magic_field", 9, "ok", nil, value, "catalog-item-1", "v1", ownershipNow), "")
 }
