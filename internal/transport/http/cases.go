@@ -76,6 +76,11 @@ func (s *Server) BindCases(service casesAPI.Service) {
 	// and the deterministic evaluation with the four input anchors.
 	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/ai-proposals", s.submitAIProposalAPI)
 	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/policy/evaluations", s.evaluatePolicyAPI)
+	// The Story 2.7 surfaces: the owning-system read command (machine JSON
+	// + the operator PRG form of the «Материальные поля Owning System»
+	// panel) — one material field of the authority matrix per read.
+	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/owning-system-reads", s.readOwningSystemAPI)
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/owning-system-reads", s.readOwningSystemForm)
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/ai-proposals", s.submitAIProposalForm)
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/policy/evaluations", s.evaluatePolicyForm)
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/mode/proposals", s.proposeModeForm)

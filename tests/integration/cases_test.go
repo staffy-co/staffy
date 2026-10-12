@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/artemiosu/staffy/internal/adapters/ingresssyn"
+	"github.com/artemiosu/staffy/internal/adapters/observationsyn"
 	"github.com/artemiosu/staffy/internal/adapters/verificationsyn"
 	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
 	casesApp "github.com/artemiosu/staffy/internal/cases/app"
@@ -68,14 +69,30 @@ func (w *casesWorld) buildCasesService(ids casesAPI.IDGenerator) *casesApp.Servi
 
 // buildCasesServiceClock wires the contour with an explicit clock (the
 // Story 2.3 threshold-window tests read the derivations of a later time)
-// and the synthetic identity verifier of the test contour.
+// and the synthetic identity verifier of the test contour. The synthetic
+// owning-system reader answers ok per matrix field by default (the Story
+// 2.7 scripted worlds rebuild the service with their scenario script).
 func (w *casesWorld) buildCasesServiceClock(ids casesAPI.IDGenerator, clock casesAPI.Clock) *casesApp.Service {
 	return casesApp.New(casesStore.NewPostgres(runtimePool).WithIDs(ids), w.identity, ingresssyn.New(w.connector), clock, ids).
 		WithRouteFacts(w.employee).
 		WithConnectionFacts(w.connector).
 		WithMembers(w.identity).
 		WithPackTaxonomy(w.employee).
-		WithIdentityVerifier(verificationsyn.New())
+		WithIdentityVerifier(verificationsyn.New()).
+		WithOwningSystemReader(observationsyn.New(nil))
+}
+
+// buildCasesObservationService wires the contour with the synthetic
+// owning-system reader of the given scenario script (the Story 2.7 worlds:
+// the failure scenarios and the staleness probe of the panel).
+func (w *casesWorld) buildCasesObservationService(ids casesAPI.IDGenerator, clock casesAPI.Clock, script map[string]observationsyn.Scenario) *casesApp.Service {
+	return casesApp.New(casesStore.NewPostgres(runtimePool).WithIDs(ids), w.identity, ingresssyn.New(w.connector), clock, ids).
+		WithRouteFacts(w.employee).
+		WithConnectionFacts(w.connector).
+		WithMembers(w.identity).
+		WithPackTaxonomy(w.employee).
+		WithIdentityVerifier(verificationsyn.New()).
+		WithOwningSystemReader(observationsyn.New(script))
 }
 
 func (w *casesWorld) publishSynthetic(t *testing.T) {

@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/artemiosu/staffy/internal/adapters/observationsyn"
 	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
 	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
 	casesPort "github.com/artemiosu/staffy/internal/cases/port"
@@ -94,6 +95,14 @@ type casesFixture struct {
 	proposalSeq      int
 	policyOutcomeSeq int
 	supervisor       bool // the configuration word of the exit authority ladder
+	// The Story 2.7 observation material: the append-only rows with the
+	// monotonic numbers (the derivations — the CURRENT observation per
+	// matrix field, the freshness state, the conflict badge — are the REAL
+	// domain functions; the synthetic reader of the fixture contour answers
+	// the scripted scenarios).
+	observations   map[id.UUID][]casesDomain.Observation
+	owningReader   *observationsyn.Reader
+	observationSeq int
 
 	caseNo, conversationNo int64
 	eventSeq               int
@@ -150,6 +159,9 @@ func newCasesFixture() *casesFixture {
 		aiProposals:    map[id.UUID][]casesDomain.AIProposal{},
 		policyOutcomes: map[id.UUID][]casesDomain.PolicyOutcome{},
 		disclosures:    map[id.UUID][]casesDomain.DisclosureRecord{},
+		// The Story 2.7 material:
+		observations: map[id.UUID][]casesDomain.Observation{},
+		owningReader: newFixtureOwningReader(),
 	}
 }
 
@@ -549,6 +561,10 @@ func (f *casesFixture) CaseView(_ context.Context, _ domain.Principal, tenant, c
 		// The Story 2.5 section: the mode derivation over the REAL
 		// domain functions.
 		Mode: f.fixtureModeView(caseID), Policy: f.fixturePolicyView(caseID),
+		// The Story 2.7 section: the owning-system field observations
+		// over the REAL derivations (the CURRENT observation per
+		// matrix field, the freshness state, the conflict badge).
+		Observations: f.fixtureObservationView(caseID),
 	}, nil
 }
 

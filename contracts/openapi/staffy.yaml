@@ -2554,6 +2554,30 @@ paths:
         '403': { $ref: '#/components/responses/Problem' }
         '404': { $ref: '#/components/responses/Problem' }
         '409': { description: 'Стейл-якоря (машинно читаем: current_mode_version, current_owner_epoch, current_facts_digest, current_work_item_version)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/owning-system-reads:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - $ref: '#/components/parameters/WorkItemID'
+    post:
+      operationId: readOwningSystem
+      summary: 'Прочитать материальное поле State/Authority Matrix v1 из Owning System (одно чтение — одна попытка; ok несёт значение/внешний ID/версию/время; failed/unknown без значения — предполагаемое значение не пишется никогда; повтор ключа — replay, новая версия провайдера — новая строка наблюдения)'
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OwningSystemReadRequest' }
+      responses:
+        '201': { description: 'Наблюдение записано (append-only, UNIQUE tenant+work_item+material_key+observation_no) + outbox owning_system_observed (метаданные без значения)', content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { description: 'Поле вне матрицы (field_not_in_matrix, словарь полей в тексте) / терминальный WI / контур не сконфигурирован', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Гейт прав ДО стражей: команды чтения требуют review или configuration', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { description: 'Тот же ключ с иным материалом — command_key_conflict', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
   /v1/tenants/{tenant_id}/cases/client-replies/drain:
     parameters:
       - $ref: '#/components/parameters/TenantID'
@@ -4262,6 +4286,7 @@ components:
         ownership: { $ref: '#/components/schemas/OwnershipView' }
         mode: { $ref: '#/components/schemas/ModeView' }
         policy: { $ref: '#/components/schemas/PolicyView' }
+        observations: { $ref: '#/components/schemas/ObservationView', description: 'Секция Owning System (Story 2.7): карточки материальных полей по WI со свежестью и конфликт-бейджем' }
     AssuranceView:
       type: object
       required: [state, records, allowed_methods, fallback_options, step_up_text]
@@ -4411,7 +4436,7 @@ components:
       required: [command, replay]
       description: 'Материальный исход команды: сохранён и повторяется идемпотентным ключом'
       properties:
-        command: { type: string, enum: [create_work_item, classify_work_item, transition_work_item, split_work_item, merge_work_items, link_event, dispute_work_item, record_fact, confirm_fact_version, rescope_fact, start_verification, bind_channel, unlink_channel, resolve_duplicate, take_ownership, request_transfer, resolve_transfer, reassign_ownership, send_client_reply, propose_mode, exit_mode, record_disclosure, record_disclosure_event, submit_ai_proposal, evaluate_policy] }
+        command: { type: string, enum: [create_work_item, classify_work_item, transition_work_item, split_work_item, merge_work_items, link_event, dispute_work_item, record_fact, confirm_fact_version, rescope_fact, start_verification, bind_channel, unlink_channel, resolve_duplicate, take_ownership, request_transfer, resolve_transfer, reassign_ownership, send_client_reply, propose_mode, exit_mode, record_disclosure, record_disclosure_event, submit_ai_proposal, evaluate_policy, read_owning_system] }
         replay: { type: boolean }
         work_item_id: { type: string, format: uuid }
         version: { type: integer }
@@ -4455,6 +4480,11 @@ components:
         outcome_no: { type: integer, minimum: 1 }
         outcome_class: { type: string, enum: [commercial_answer, informational_answer, clarify, mode_blocked, fail_closed] }
         policy_outcome_id: { type: string, format: uuid, description: 'Действующий исход продажного ответа (сервер выбирает по якорю WI; запрос поле не несёт)' }
+        observation_id: { type: string, format: uuid, description: 'Записанное наблюдение чтения (Story 2.7)' }
+        observation_status: { type: string, enum: [ok, failed, unknown] }
+        observation_reason: { type: string, enum: [provider_timeout, malformed_response, insufficient_scope, read_error] }
+        observation_external_id: { type: string, description: 'Внешний ID носителя значения (только ok)' }
+        observation_external_version: { type: string, description: 'Версия значения провайдера (только ok)' }
     StartVerificationRequest:
       type: object
       required: [conversation_id, kind, method, provider_code, subject_handle]
@@ -4716,6 +4746,62 @@ components:
         facts_digest_hash: { type: string }
         work_item_version: { type: integer }
         rule_version: { type: string, enum: [intake-policy-v1] }
+    OwningSystemReadRequest:
+      type: object
+      required: [material_key]
+      additionalProperties: false
+      description: 'Типизированный Read Request (Story 2.7): материальное поле фиксированной матрицы State/Authority v1 — поле вне словаря честно отказано field_not_in_matrix (unknown как класс, строка не пишется)'
+      properties:
+        material_key: { type: string, enum: [price, availability, order_status], description: 'Материальное поле матрицы v1 (Domain Pack v0; словарь полей — доменный, не конфигурация)' }
+    ObservationView:
+      type: object
+      required: [items, field_words, matrix_version, panel_text]
+      description: 'Секция «Материальные поля Owning System» карточки: карточки полей по WI; действующее наблюдение — максимальный номер; свежесть — read-time деривация; конфликт-бейдж — байтовое сравнение с подтверждённым фактом 2-2 (решение за человеком)'
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/ObservationWorkItemView' } }
+        field_words: { type: array, items: { type: string, enum: [price, availability, order_status] } }
+        matrix_version: { type: string, enum: [state-authority-matrix-v1] }
+        panel_text: { type: string }
+    ObservationWorkItemView:
+      type: object
+      required: [work_item_id, fields, observation_count]
+      description: 'Карточки всех полей матрицы одного WI (изоляция per-field: отказ одной системы не маскирует другие поля — AC-9)'
+      properties:
+        work_item_id: { type: string, format: uuid }
+        fields: { type: array, items: { $ref: '#/components/schemas/ObservationCard' } }
+        observation_count: { type: integer, minimum: 0, description: 'Число строк наблюдений WI (якорь формы чтения — защита от двойного сабмита PRG)' }
+    ObservationCard:
+      type: object
+      required: [material_key, owning_system, projection, freshness_seconds]
+      description: 'Карточка одного материального поля: строка матрицы, действующее наблюдение, read-time состояние свежести и конфликт-бейдж'
+      properties:
+        material_key: { type: string, enum: [price, availability, order_status] }
+        owning_system: { type: string, enum: [catalog, erp] }
+        projection: { type: string, enum: [price_quote, stock_count, status_word] }
+        freshness_seconds: { type: integer, minimum: 1 }
+        current: { $ref: '#/components/schemas/ObservationRecord' }
+        state: { type: string, enum: [fresh, stale, failed, unknown], description: 'fresh/stale — только ok (age против окна матрицы, от observed_at провайдера); failed/unknown не приукрашиваются' }
+        conflict_badge: { type: string, enum: [equal, differs, no_fact], description: 'equal — байты совпадают с подтверждённым фактом; differs — честное «расхождение» (решение за человеком); no_fact — факта нет' }
+    ObservationRecord:
+      type: object
+      required: [observation_id, observation_no, status, received_at, actor_id]
+      description: 'Append-only строка одного чтения: ok несёт value/внешний ID/версию/observed_at; failed/unknown — value NULL, причина словарём (предполагаемое значение не пишется никогда)'
+      properties:
+        observation_id: { type: string, format: uuid }
+        observation_no: { type: integer, minimum: 1, description: 'Монотонный номер (WI, material_key); действующее — максимальный' }
+        material_key: { type: string, enum: [price, availability, order_status] }
+        owning_system: { type: string, enum: [catalog, erp] }
+        projection: { type: string, enum: [price_quote, stock_count, status_word] }
+        status: { type: string, enum: [ok, failed, unknown] }
+        reason: { type: string, enum: [provider_timeout, malformed_response, insufficient_scope, read_error] }
+        value: { type: object, additionalProperties: true, description: 'Каноническая проекция (только ok; ≤2048 байт)' }
+        external_id: { type: string, description: 'Внешний ID носителя (только ok)' }
+        external_version: { type: string, description: 'Версия провайдера (только ok)' }
+        observed_at: { type: string, format: date-time, description: 'Время провайдера (только ok)' }
+        received_at: { type: string, format: date-time, description: 'Наше время приёма (никогда не смешивается с observed_at)' }
+        actor_id: { type: string, format: uuid }
+        correlation_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
     ModeTerm:
       type: object
       required: [term_id, mode_version, mode, scope, origin, signal_source, actor_id, rule_version, created_at]

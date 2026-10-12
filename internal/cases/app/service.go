@@ -31,6 +31,7 @@ type Service struct {
 	members          casesPort.MembersSource
 	taxonomy         casesPort.PackTaxonomy
 	identityVerifier casesPort.IdentityVerifier
+	owningReader     casesPort.OwningSystemReader
 	clock            casesAPI.Clock
 	ids              casesAPI.IDGenerator
 }
@@ -703,6 +704,13 @@ func (s *Service) CaseView(ctx context.Context, actor domain.Principal, tenantID
 	if err != nil {
 		return casesAPI.CaseView{}, err
 	}
+	// The Story 2.7 section: the owning-system field observations per Work
+	// Item with the freshness derivations and the conflict badges (the reads
+	// degrade honestly — the same view scope).
+	observations, err := s.observationView(ctx, scope, detail)
+	if err != nil {
+		return casesAPI.CaseView{}, err
+	}
 	return casesAPI.CaseView{
 		TenantID: tenantID, Case: detail.Case, Conversations: detail.Conversations,
 		Timeline: detail.Timeline, WorkItems: detail.WorkItems, Exceptions: detail.Exceptions,
@@ -721,6 +729,7 @@ func (s *Service) CaseView(ctx context.Context, actor domain.Principal, tenantID
 		Duplicates: duplicates,
 		Ownership:  ownership,
 		Mode:       mode, Policy: policy,
+		Observations: observations,
 	}, nil
 }
 

@@ -144,6 +144,11 @@ type caseDetailPageView struct {
 	Mode modePanelView
 	// The Story 2.6 section: the Progressive Intake / Policy panel.
 	Policy policyPanelView
+	// The Story 2.7 section: the Owning System panel words (the field
+	// cards live on the Work Control Cards of the work items).
+	ObservationsPanelText string
+	ObservationMatrixText string
+	OwningFieldOptions    []workOption
 }
 
 // assurancePanelView is the assurance section of the case page: the derived
@@ -617,6 +622,18 @@ func prepareCaseView(view casesAPI.CaseView, facts casesAPI.FactsView, flash str
 	out.Ownership = prepareOwnershipPanel(view)
 	out.Mode = prepareModePanel(view)
 	out.Policy = preparePolicyPanel(view, out.ConversationOpts, out.ActiveWIOptions, out.EventOptions)
+	// The Story 2.7 section: the Owning System panel words — the field
+	// cards live on the Work Control Cards (the read form select carries
+	// the fixed matrix dictionary, never an invented option).
+	out.ObservationsPanelText = view.Observations.PanelText
+	out.ObservationMatrixText = view.Observations.MatrixVersion
+	for _, field := range view.Observations.FieldWords {
+		entry, _ := casesDomain.AuthorityEntryOf(field)
+		out.OwningFieldOptions = append(out.OwningFieldOptions, workOption{
+			Value: field,
+			Text:  field + " → " + entry.OwningSystem + " · " + entry.Projection + " (свежесть " + strconv.Itoa(entry.FreshnessSeconds) + " с)",
+		})
+	}
 
 	for _, conversation := range view.Conversations {
 		stateText := "Активна"
@@ -727,6 +744,12 @@ type workCardView struct {
 	CreatedAt  string
 	HasFacts   bool
 	Facts      []factCardView
+	// The Story 2.7 section: the owning-system field cards of this
+	// item (the matrix fields with the CURRENT observation, the
+	// freshness state and the conflict badge) and the observation
+	// anchor of the read form.
+	ObsFields []observationFieldView
+	ObsCount  string
 	// The form options of this card (empty when the state refuses them).
 	AllowedTransitions []transitionOption
 	MergeSources       []mergeSourceOption
@@ -766,6 +789,91 @@ type factVersionView struct {
 	ReceivedAt    string
 	CreatedAt     string
 	ConfirmedText string
+}
+
+// observationFieldView is one material field card of the Owning System panel
+// of a Work Control Card: the matrix row words, the CURRENT observation (the
+// value text, the carrier words, both times), the read-time freshness state
+// (the stale state carries the re-read word — never the color alone) and the
+// conflict badge against the confirmed fact of the same material key.
+type observationFieldView struct {
+	MaterialKey      string
+	Projection       string
+	OwningSystemText string
+	HasCurrent       bool
+	No               string
+	ValueText        string
+	Status           string
+	StatusText       string
+	State            string
+	StateText        string
+	StaleText        string
+	Reason           string
+	ReasonText       string
+	ExternalID       string
+	ExternalVersion  string
+	ObservedAt       string
+	ReceivedAt       string
+	FreshnessText    string
+	Conflict         string
+	ConflictText     string
+}
+
+// observationStatusText renders the status word honestly.
+func observationStatusText(status string) string {
+	switch status {
+	case casesDomain.ObservationStatusOk:
+		return "ok (значение прочитано)"
+	case casesDomain.ObservationStatusFailed:
+		return "failed (чтение не удалось)"
+	case casesDomain.ObservationStatusUnknown:
+		return "unknown (значение неизвестно)"
+	}
+	return status
+}
+
+// observationReasonText renders the read reason word.
+func observationReasonText(reason string) string {
+	switch reason {
+	case casesDomain.ReadReasonProviderTimeout:
+		return "provider_timeout (таймаут провайдера)"
+	case casesDomain.ReadReasonMalformedResponse:
+		return "malformed_response (ответ не разбирается)"
+	case casesDomain.ReadReasonInsufficientScope:
+		return "insufficient_scope (нет полномочия чтения)"
+	case casesDomain.ReadReasonReadError:
+		return "read_error (ошибка чтения)"
+	}
+	return reason
+}
+
+// observationStateText renders the freshness state word: the stale state
+// carries the re-read action in the text (stale is NEVER distinguished from
+// fresh by the color alone — AC-12).
+func observationStateText(state string) string {
+	switch state {
+	case casesDomain.ObservationStateFresh:
+		return "свежее (в окне матрицы)"
+	case casesDomain.ObservationStateStale:
+		return "устаревшее — " + casesDomain.StaleBadgeText
+	case casesDomain.ObservationStateFailed:
+		return "чтение не удалось — причина словарём"
+	case casesDomain.ObservationStateUnknown:
+		return "значение неизвестно — перечитайте"
+	}
+	return state
+}
+
+// observationConflictText renders the conflict badge word (the resolution
+// stays with the human confirmation — never an automatic choice).
+func observationConflictText(badge string) string {
+	switch badge {
+	case casesDomain.ConflictBadgeEqual:
+		return "совпадает с подтверждённым фактом"
+	case casesDomain.ConflictBadgeDiffers:
+		return "расхождение с фактом — сверьте значения и подтвердите точную версию (авторазрешения нет)"
+	}
+	return ""
 }
 
 func workItemStateText(state string) string {
@@ -832,6 +940,8 @@ func allowedTransitionsOf(state string) []transitionOption {
 // with the fact grouping by the current scope, the honest actions and the
 // form options. The facts of a split source stay on its card (the rescope
 // is the explicit command); the facts of merged sources live on the target.
+// The Story 2.7 field cards of the Owning System panel join the same cards
+// (the observations belong to the Work Item scope of the read command).
 func prepareWorkCards(view casesAPI.CaseView, facts casesAPI.FactsView) []workCardView {
 	factsByScope := map[id.UUID][]factCardView{}
 	for _, fact := range facts.Facts {
@@ -866,6 +976,12 @@ func prepareWorkCards(view casesAPI.CaseView, facts casesAPI.FactsView) []workCa
 		}
 	}
 	cards := make([]workCardView, 0, len(view.WorkItems))
+	// The Story 2.7 observation sections per Work Item (the field cards
+	// of the matrix + the observation anchor of the read form).
+	obsSections := map[id.UUID]casesAPI.ObservationWorkItemView{}
+	for _, section := range view.Observations.Items {
+		obsSections[section.WorkItemID] = section
+	}
 	for index, item := range view.WorkItems {
 		card := workCardView{
 			WorkItemID: item.WorkItemID.String(), IndexNo: strconv.Itoa(index + 1),
@@ -874,6 +990,10 @@ func prepareWorkCards(view casesAPI.CaseView, facts casesAPI.FactsView) []workCa
 			KindText: workItemKindText(item.Kind), Reason: item.Reason, ActorID: item.ActorID.String(),
 			Terminal: item.Terminal, NextAction: casesDomain.RecommendedNextAction(item.State),
 			CreatedAt: formatTime(item.CreatedAt), Facts: factsByScope[item.WorkItemID],
+		}
+		if section, known := obsSections[item.WorkItemID]; known {
+			card.ObsFields = observationFieldRows(section)
+			card.ObsCount = strconv.Itoa(section.ObservationCount)
 		}
 		if item.Type == "" {
 			card.TypeText = "— не классифицирован —"
@@ -899,6 +1019,45 @@ func prepareWorkCards(view casesAPI.CaseView, facts casesAPI.FactsView) []workCa
 		cards = append(cards, card)
 	}
 	return cards
+}
+
+// observationFieldRows flattens one observation section of the case view
+// into the field cards of the Work Control Card: the value text, the matrix
+// words, the carrier words, both times, the honest state (the aria-live
+// region of the panel announces the change without a focus move) and the
+// conflict badge text.
+func observationFieldRows(section casesAPI.ObservationWorkItemView) []observationFieldView {
+	rows := make([]observationFieldView, 0, len(section.Fields))
+	for _, field := range section.Fields {
+		row := observationFieldView{
+			MaterialKey: field.MaterialKey, Projection: field.Projection,
+			FreshnessText:    strconv.Itoa(field.FreshnessSeconds) + " с",
+			OwningSystemText: field.OwningSystem + " (система-владелец поля)",
+		}
+		if field.Current != nil {
+			current := field.Current
+			row.HasCurrent = true
+			row.No = strconv.FormatInt(current.ObservationNo, 10)
+			row.Status = current.Status
+			row.StatusText = observationStatusText(current.Status)
+			row.State = field.State
+			row.StateText = observationStateText(field.State)
+			if field.State == casesDomain.ObservationStateStale {
+				row.StaleText = casesDomain.StaleBadgeText
+			}
+			row.Reason = current.Reason
+			row.ReasonText = observationReasonText(current.Reason)
+			row.ValueText = string(current.Value)
+			row.ExternalID = current.ExternalID
+			row.ExternalVersion = current.ExternalVersion
+			row.ObservedAt = formatTime(current.ObservedAt)
+			row.ReceivedAt = formatTime(current.ReceivedAt)
+			row.Conflict = field.ConflictBadge
+			row.ConflictText = observationConflictText(field.ConflictBadge)
+		}
+		rows = append(rows, row)
+	}
+	return rows
 }
 
 // prepareOwnershipPanel flattens the ownership section into the template

@@ -478,6 +478,37 @@
 {{else}}
 <p role="status">Фактов на элементе нет.</p>
 {{end}}
+
+<h4>Материальные поля Owning System</h4>
+<p class="next-note">{{$.View.ObservationsPanelText}} Матрица: <span class="digest-block">{{$.View.ObservationMatrixText}}</span>. Одно чтение — одна попытка; неудача честна: значение не предполагается.</p>
+<div id="observation-{{.WorkItemID}}" aria-live="polite">
+{{range .ObsFields}}
+<details class="connector-connect">
+<summary>{{.MaterialKey}} — {{if .HasCurrent}}{{.StateText}}{{else}}поле не читалось{{end}}</summary>
+{{if .HasCurrent}}
+<p>Статус: <strong>{{.StatusText}}</strong>.{{if .Reason}} Причина: {{.ReasonText}}.{{end}} Проекция: {{.Projection}}. Источник: <strong>{{.OwningSystemText}}</strong>. Окно свежести матрицы: {{.FreshnessText}}.</p>
+{{if .ValueText}}<p>Значение (снимок чтения, json): <span class="digest-block">{{.ValueText}}</span></p>{{else}}<p role="status">Значение не записано: чтение не удалось — предполагаемое значение не появляется.</p>{{end}}
+<p class="next-note">Внешний ID: <span class="digest-block">{{.ExternalID}}</span>. Версия провайдера: {{.ExternalVersion}}. Наблюдено (провайдер): {{.ObservedAt}}. Принято (наше): {{.ReceivedAt}}. Номер наблюдения: №{{.No}}.</p>
+{{if .StaleText}}<p class="alert" role="status">Устаревшее: {{.StaleText}}.</p>{{end}}
+{{if .ConflictText}}<p class="alert" role="status">Конфликт-бейдж: {{.ConflictText}}.</p>{{end}}
+{{else}}
+<p role="status">Действующего наблюдения нет: поле не читалось командой read_owning_system.</p>
+<p class="next-note">Проекция: {{.Projection}}. Источник: {{.OwningSystemText}}. Окно свежести матрицы: {{.FreshnessText}}.</p>
+{{end}}
+</details>
+{{end}}
+</div>
+{{if and $.View.CanManageWork (not .Terminal)}}
+<details class="connector-connect"><summary>Перечитать поле Owning System (read_owning_system)</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/work-items/{{.WorkItemID}}/owning-system-reads">
+<label for="owning-field-{{.WorkItemID}}">Материальное поле (словарь матрицы v1)</label>
+<select id="owning-field-{{.WorkItemID}}" name="material_key" required>{{range $.View.OwningFieldOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}</select>
+<input type="hidden" name="expected_observation_no" value="{{.ObsCount}}">
+<button class="primary" type="submit">Перечитать поле</button>
+</form>
+<p class="next-note">Чтение — снимок системы-владельца: не факт и не подтверждение; новая строка наблюдения сохраняет прежнюю для аудита; таймаут и отказ пишутся честно без значения.</p>
+</details>
+{{end}}
 {{if and $.View.CanManageWork (not .Terminal)}}
 <details class="connector-connect"><summary>Классифицировать / переклассифицировать</summary>
 <form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/work-items/{{.WorkItemID}}/classify">
