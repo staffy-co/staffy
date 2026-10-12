@@ -1604,3 +1604,18 @@ done:
 - Техническая нота среды: 3 транзиентных сбоя вывода Bash-инструмента во время checkpoint-скриптов — все операции завершились успешно (проверено ls-remote/API после каждой); выводы верифицированы, канон не пострадал
 next: story 2-8 «Консультативная продажа и этичная работа с возражениями» (backlog; SM-фаза по решению владельца) — в Epic 2 осталось 9/16; свежий токен для следующего CHECKPOINT 2 понадобится от владельца
 commit: 61d3a09
+
+---
+date: 2026-10-13
+task: 51-sm
+role: main (Super Z)
+story: 2-8
+summary: SM-спека первого среза story 2-8 «Консультативная продажа и этичная работа с возражениями» — «Objection Record, versioned Playbook и останов убеждения» (FR-24 машинный скелет); ожидает CHECKPOINT 1
+done:
+- Окружение после рецикла песочницы восстановлено bootstrap-скриптом: Go 1.27.1 (build/vet чистые), PostgreSQL 16.4 порт 54329, check-continuity OK (fail=0, warn=0) на main 214ef7e; токен GitHub в сессии отсутствует (публикация — батчем при CHECKPOINT 2, прецедент 2-7)
+- Входы SM прочитаны: epics.md §2.8 (12 AC-блоков), PRD FR-23/FR-24, ARCHITECTURE-SPINE AD-7/AD-8, механика 2-1 (channel_events/sealed_payload/ReadPayload), 2-4 (client_replies/gейты ответа), 2-5 (лестница режимов/классы ответов/propose_mode), 2-6 (intake/policy_outcomes/гейт policy на sales-ответ), 2-7 (observations/производные состояния)
+- Спека написана: _bmad-output/implementation-artifacts/spec-2-8-objection-playbook-persuasion-stop.md (92 строки): словари Domain Pack v0 (типы trust/price_comparison/general_doubt; сигналы concern/refusal/stop_intent/human_request; шаги playbook) + versioned playbook v1 (порог бюджета = 2 refusal-записи на WI, lifetime) + команда record_objection (скоуп-гейт ДО стражей, принятый text-turn, побайтовые span-выдержки через ReadPayload — выдуманные выдержки невозможны) + append-only objections (миграция 00008, objection_no монотонный, outbox-метаданные без выдержек) + состояние убеждения производной (stop_intent/human_request немедленно; refusal-счёт ≥ порога; подъём режима только командой 2-5) + гейт sales-ответов ПОСЛЕ 2-6 (первый связанный ответ = acknowledge_concern; без playbook_step при текущем возражении → 400; без возражений путь байт-в-байт) + панель «Возражения и бюджет убеждения» (a11y/320px)
+- Never-границы: контентная классификация dark-patterns и repair-цикл (AC-8 — путь AI-кандидата следующих срезов), Allowed Claims кросс-проверка (AC-2 — порт каталога), freshness-гейт (заморожено 2-7 → 2-9+), commit/next-step машины (AC-9 — story 2-9), eval-набор (AC-11), голосовая разметка span; гейты/лестница/миграции 2-1…2-7 не трогаются (кроме +1 команда, +1 outbox-тип, client_replies.objection_id+playbook_step — прецедент policy_outcome_id 2-6)
+- Git: ветка codex/story-2-8-objection-playbook-persuasion-stop от main 214ef7e, спека d5302ff [skip ci]
+next: реакция владельца на предъявление спеки (CHECKPOINT 1): при «продолжайте» — коммит спека+sprint-status → ready-for-dev и запуск Dev-фазы (step-01..05, прецедент 2-6/2-7); токен GitHub понадобится к CHECKPOINT 2
+commit: d5302ff
