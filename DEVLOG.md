@@ -1521,3 +1521,20 @@ done:
 - Ветка codex/story-2-7-owning-system-observations создана от main 010d2ac (2-6 влита — базис EffectiveWorkMode/гейтов reply_class больше не нужен с вершины 2-5, ветка от main корректна); спека закоммичена 67ec5f0 [skip ci]
 next: CHECKPOINT 1 — предъявление спеки владельцу в ответе сессии (2026-10-12, нетехнический пересказ); по реакции владельца: спека+sprint-status → ready-for-dev, затем Dev-фаза (субагент, инструкция из спеки+DEVLOG+worklog)
 commit: 67ec5f0
+---
+date: 2026-10-12
+task: 50-dev
+role: main (Super Z; ядро — dev-субагент, завершение хвоста — main)
+story: 2-7
+summary: Dev-фаза story 2-7 завершена — первый срез Owning System Observations реализован (feat 4476c81, 26 файлов +3781/−477): State/Authority Matrix v1, типизированный Read Request/канонический Observation, append-only наблюдения с идемпотентностью и версиями провайдера, freshness-деривация, изоляция полей, конфликт-бейдж с фактами 2-2, панель оператора; регресс зелёный во всех контурах
+done:
+- Среда восстановлена после рецикла песочницы (bootstrap: Go 1.27.1, PG, build/vet/check-continuity OK — warn=1 ветка не опубликована, ожидаемо); playwright-браузер переустановлен (chromium_headless_shell-1243, кэш сброшен окружением — прецедент 49-dev)
+- CHECKPOINT 1 закрыт коммитом df0ffbc («продолжайте», чат 2026-10-12; спека+sprint-status → ready-for-dev; прецедент 30a9518)
+- Dev-субагент (Task 50-dev, general-purpose) реализовал ядро до лимита ходов (200): domain/observation.go+тесты (словари, authorityMatrixV1, гварды, DeriveObservationState, ConflictBadgeOf, outbox-пейлоад), порт OwningSystemReader, адаптер observationsyn (сценарии ok/timeout/malformed/insufficient_scope, версия=счётчик чтений, Age для стейл-проб), миграция 00007 (append-only RLS+FORCE, CHECK-инварианты ok⇒value NOT NULL / failed⇒value NULL, +1 команда, +1 outbox-тип), store/observation.go (монотонный номер под локами, чтение производной), app/observation.go (гейт review||configuration до стражей, replay, nil-reader отказ, вью с деривациями и бейджем), транспорт cases_observation.go (API+PRG, problem-мэппинг), панель case.html + cases_view.go, journeys-фикстура; сабагент не дошёл до: интеграционных тестов, OpenAPI, контракт-теста, journeys-спеки, регресса, worklog
+- main завершил хвост: интеграционные cases_observation_test.go (10 тестов seeds 780-789, полный охват 16 строк матрицы спеки; миграция 00007 добавлена в TestMain-список — корневая причина первого красного прогона); OpenAPI (+1 путь +5 схем со словарями, CaseView.observations, WorkOutcome +read_owning_system и 5 observation-полей); TestObservationContractIsHonest; регистрация cases.owning_system_observations в privacy class registry ClassCaseOperations (TestPerimeterIntegrity — вторая найденная точка); journeys-цепь zzzzzzzzzzzzzzzzz-cases-observation.spec.ts (панель/PRG-чтение/fresh/stale-текст/конфликт-бейдж/арia-live/320px)
+- Фиксы хвоста: одна неточность собственного теста (конфликт-бейдж no_fact проверялся до чтения поля — сравнение возможно только над прочитанным значением, порядок исправлен); локатор значения journeys уточнён (strict-mode: значение и внешний ID оба digest-block с price_quote — фильтр по точным байтам)
+- gofmt -w 5 файлов субагента (пробелы→табы, прецедент 49-dev); git diff --check чист
+- Полный регресс зелёный: build/vet, unit 23 пакета ok/0 FAIL, интеграция 148 top-level ×2 TZ (UTC + Europe/Moscow; было 138 в 2-6, +10 observation), journeys 24/24 (было 23, +observation-цепь), контракт ok (вкл. TestObservationContractIsHonest), gofmt тронутых файлов чист
+- Коммиты: ветка 4476c81 (feat, без [skip ci]) → 23804c5 (спека+sprint-status → review [skip ci]); check-continuity на ветке: OK (fail=0, warn=1 — ветка не опубликована, ожидаемо)
+next: review R1 свежим контекстом (субагент по прецедентам 48-review-r1/49-review-r1 — живые пробы, неразмытость гейтов 2-4/2-5/2-6, полный регресс в независимой копии); затем closure → CHECKPOINT 2 (батч-пуш: main 6a0588e (50-sm) + 50-dev + ветка; нужен свежий GitHub-токен владельца)
+commit: 23804c5
