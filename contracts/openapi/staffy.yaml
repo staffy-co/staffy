@@ -2578,6 +2578,30 @@ paths:
         '403': { description: 'Гейт прав ДО стражей: команды чтения требуют review или configuration', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
         '404': { $ref: '#/components/responses/Problem' }
         '409': { description: 'Тот же ключ с иным материалом — command_key_conflict', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/objections:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - $ref: '#/components/parameters/WorkItemID'
+    post:
+      operationId: recordObjection
+      summary: 'Записать возражение клиента (первый срез 2-8): тип+сигнал словарём, дословные выдержки из payload принятого text-turn (побайтовая проверка — выдуманная выдержка невозможна), append-only строка + outbox objection_recorded (метаданные без выдержек); бюджет убеждения — производная чтения'
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ObjectionRecordRequest' }
+      responses:
+        '201': { description: 'Возражение записано (append-only, UNIQUE tenant+work_item+objection_no) + outbox objection_recorded (метаданные: тип/сигнал/номер/turn_ref/версия playbook — без текста выдержек)', content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { description: 'Словари (тип/сигнал/выдержки) / терминальный WI / turn не принят или голосовой / выдержка вне payload (span_not_in_source) / stop-сигнал требования режима', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Гейт прав ДО стражей: команды записи возражений требуют review или configuration', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { description: 'Тот же ключ с иным материалом — command_key_conflict', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
   /v1/tenants/{tenant_id}/cases/client-replies/drain:
     parameters:
       - $ref: '#/components/parameters/TenantID'
@@ -4287,6 +4311,7 @@ components:
         mode: { $ref: '#/components/schemas/ModeView' }
         policy: { $ref: '#/components/schemas/PolicyView' }
         observations: { $ref: '#/components/schemas/ObservationView', description: 'Секция Owning System (Story 2.7): карточки материальных полей по WI со свежестью и конфликт-бейджем' }
+        objections: { $ref: '#/components/schemas/ObjectionView', description: 'Секция «Возражения и бюджет убеждения» (Story 2.8): записи возражений по WI с производным состоянием останова убеждения' }
     AssuranceView:
       type: object
       required: [state, records, allowed_methods, fallback_options, step_up_text]
@@ -4436,7 +4461,7 @@ components:
       required: [command, replay]
       description: 'Материальный исход команды: сохранён и повторяется идемпотентным ключом'
       properties:
-        command: { type: string, enum: [create_work_item, classify_work_item, transition_work_item, split_work_item, merge_work_items, link_event, dispute_work_item, record_fact, confirm_fact_version, rescope_fact, start_verification, bind_channel, unlink_channel, resolve_duplicate, take_ownership, request_transfer, resolve_transfer, reassign_ownership, send_client_reply, propose_mode, exit_mode, record_disclosure, record_disclosure_event, submit_ai_proposal, evaluate_policy, read_owning_system] }
+        command: { type: string, enum: [create_work_item, classify_work_item, transition_work_item, split_work_item, merge_work_items, link_event, dispute_work_item, record_fact, confirm_fact_version, rescope_fact, start_verification, bind_channel, unlink_channel, resolve_duplicate, take_ownership, request_transfer, resolve_transfer, reassign_ownership, send_client_reply, propose_mode, exit_mode, record_disclosure, record_disclosure_event, submit_ai_proposal, evaluate_policy, read_owning_system, record_objection] }
         replay: { type: boolean }
         work_item_id: { type: string, format: uuid }
         version: { type: integer }
@@ -4572,6 +4597,7 @@ components:
         expected_epoch: { type: integer, minimum: 1 }
         reply_class: { type: string, enum: [sales, neutral, protected_request], description: 'Класс размечает продюсер: машина контент не классифицирует; sales требует эффективный режим sales + действующее раскрытие + действующий Policy Outcome commercial_answer (гейт 2-6 ПОСЛЕ раскрытия); protected_request требует действующее раскрытие' }
         content: { type: string, maxLength: 2000, minLength: 1, description: 'Слова оператора; контент живёт только в записи ответа' }
+        playbook_step: { type: string, enum: [acknowledge_concern, present_evidence, honest_no_answer, offer_alternative, clarify_question], description: 'Шаг playbook sales-ответа (гейт 2-8 ПОСЛЕ Policy-гейта 2-6): при текущем возражении WI обязателен (первый связанный — только acknowledge_concern); без возражений поле пусто — путь байт-в-байт прежний' }
     DrainRepliesResult:
       type: object
       required: [considered, dispatched, stale_needs_review]
@@ -4802,6 +4828,73 @@ components:
         actor_id: { type: string, format: uuid }
         correlation_id: { type: string, format: uuid }
         created_at: { type: string, format: date-time }
+    ObjectionRecordRequest:
+      type: object
+      required: [turn_ref, objection_type, client_signal, spans]
+      additionalProperties: false
+      description: 'Запись одного возражения: источник — принятый text-turn кейса (2-1); выдержки — дословные подстроки payload (побайтовая проверка на сервере — выдуманная выдержка невозможна)'
+      properties:
+        turn_ref: { type: string, format: uuid, description: 'Принятое текстовое событие кейса — источник слов клиента' }
+        objection_type: { type: string, enum: [trust, price_comparison, general_doubt], description: 'Тип возражения (продюсер размечает — машина контент не классифицирует)' }
+        client_signal: { type: string, enum: [concern, refusal, stop_intent, human_request], description: 'Сила сигнала: concern не останавливает; refusal копит бюджет (порог 2, lifetime); stop_intent/human_request останавливают немедленно' }
+        spans: { type: array, minItems: 1, maxItems: 8, items: { type: string, minLength: 1, maxLength: 200 }, description: 'Дословные выдержки слов клиента (подстроки payload turn_ref)' }
+    ObjectionView:
+      type: object
+      required: [items, type_words, signal_words, step_words, playbook_version, threshold, panel_text]
+      description: 'Секция «Возражения и бюджет убеждения» карточки: записи по WI; состояние убеждения — производная чтения (stopped никогда не хранится); objection_ref ответа разрешает только сервер'
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/ObjectionWorkItemView' } }
+        type_words: { type: array, items: { type: string, enum: [trust, price_comparison, general_doubt] } }
+        signal_words: { type: array, items: { type: string, enum: [concern, refusal, stop_intent, human_request] } }
+        step_words: { type: array, items: { type: string, enum: [acknowledge_concern, present_evidence, honest_no_answer, offer_alternative, clarify_question] } }
+        playbook_version: { type: string, enum: [objection-playbook-v1] }
+        threshold: { type: integer, minimum: 1, description: 'Порог бюджета (refusal-записей на WI, lifetime, append-only)' }
+        panel_text: { type: string }
+    ObjectionWorkItemView:
+      type: object
+      required: [work_item_id, objection_count, refusals, threshold, stopped, acknowledged]
+      description: 'Возражения одного WI (изоляция per-WI — AC-10): текущее возражение = максимальный objection_no; stopped = stop_intent/human_request текущего ИЛИ refusal-счёт ≥ порога'
+      properties:
+        work_item_id: { type: string, format: uuid }
+        objection_count: { type: integer, minimum: 0, description: 'Число строк возражений WI (якорь формы записи — защита от двойного сабмита PRG)' }
+        current: { $ref: '#/components/schemas/ObjectionCard' }
+        refusals: { type: integer, minimum: 0, description: 'Число refusal-записей (бюджет lifetime, не сбрасывается)' }
+        threshold: { type: integer, minimum: 1 }
+        stopped: { type: boolean, description: 'Убеждение остановлено: sales-класс ответов честно отказан (persuasion_stopped)' }
+        acknowledged: { type: boolean, description: 'acknowledge_concern по текущему возражению уже отправлен (производная связанных ответов)' }
+        next_steps: { type: array, items: { type: string }, description: 'Разрешённые шаги playbook типа текущего возражения' }
+        linked_replies: { type: array, items: { $ref: '#/components/schemas/ObjectionReplyLink' } }
+    ObjectionCard:
+      type: object
+      required: [record]
+      description: 'Текущее возражение WI: запись + дословные выдержки слов клиента'
+      properties:
+        record: { $ref: '#/components/schemas/ObjectionRecord' }
+        refusals: { type: integer, minimum: 0 }
+        acknowledged: { type: boolean }
+    ObjectionRecord:
+      type: object
+      required: [objection_id, objection_no, turn_ref, objection_type, client_signal, playbook_version, actor_id, created_at]
+      description: 'Append-only строка возражения: словарные слова, выдержки (слова клиента, ≤8×200), снимок версии playbook'
+      properties:
+        objection_id: { type: string, format: uuid }
+        objection_no: { type: integer, minimum: 1, description: 'Монотонный номер (WI); текущее — максимальный' }
+        work_item_id: { type: string, format: uuid }
+        turn_ref: { type: string, format: uuid, description: 'Принятое текстовое событие-источник' }
+        objection_type: { type: string, enum: [trust, price_comparison, general_doubt] }
+        client_signal: { type: string, enum: [concern, refusal, stop_intent, human_request] }
+        spans: { type: array, items: { type: string }, description: 'Дословные выдержки payload turn_ref (слова клиента)' }
+        playbook_version: { type: string, enum: [objection-playbook-v1] }
+        actor_id: { type: string, format: uuid }
+        correlation_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+    ObjectionReplyLink:
+      type: object
+      required: [objection_id, playbook_step]
+      description: 'Связь sales-ответа с возражением (objection_id разрешает только сервер — request его не несёт)'
+      properties:
+        objection_id: { type: string, format: uuid }
+        playbook_step: { type: string, enum: [acknowledge_concern, present_evidence, honest_no_answer, offer_alternative, clarify_question] }
     ModeTerm:
       type: object
       required: [term_id, mode_version, mode, scope, origin, signal_source, actor_id, rule_version, created_at]

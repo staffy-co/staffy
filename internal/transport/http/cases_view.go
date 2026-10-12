@@ -644,6 +644,23 @@ func prepareCaseView(view casesAPI.CaseView, facts casesAPI.FactsView, flash str
 		})
 	}
 
+	// The Story 2.8 section: the Objection panel words — the fixed
+	// dictionaries of the record form and the reply step select (the
+	// type, the signal and the step words render honestly; the options
+	// never carry invented words).
+	out.ObjectionsPanelText = view.Objections.PanelText
+	out.ObjectionVersionText = view.Objections.PlaybookVersion
+	out.ObjectionBudgetText = "бюджет убеждения — " + strconv.Itoa(view.Objections.Threshold) + " отказ(а) на элемент, lifetime"
+	for _, word := range view.Objections.TypeWords {
+		out.ObjectionTypeOptions = append(out.ObjectionTypeOptions, workOption{Value: word, Text: objectionTypeText(word)})
+	}
+	for _, word := range view.Objections.SignalWords {
+		out.ObjectionSignalOptions = append(out.ObjectionSignalOptions, workOption{Value: word, Text: objectionSignalText(word)})
+	}
+	for _, word := range view.Objections.StepWords {
+		out.ObjectionStepOptions = append(out.ObjectionStepOptions, workOption{Value: word, Text: objectionStepText(word)})
+	}
+
 	for _, conversation := range view.Conversations {
 		stateText := "Активна"
 		if conversation.CaseID != view.Case.CaseID {

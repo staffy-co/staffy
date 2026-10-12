@@ -1612,3 +1612,143 @@ func TestObservationContractIsHonest(t *testing.T) {
 		t.Errorf("CaseView must reference the ObservationView section, got %v", observationRef)
 	}
 }
+
+func TestObjectionContractIsHonest(t *testing.T) {
+	content, err := os.ReadFile("staffy.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document map[string]any
+	if err := yaml.Unmarshal(content, &document); err != nil {
+		t.Fatal(err)
+	}
+	paths := mapping(t, document, "paths")
+	path := "/v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/objections"
+	post := mapping(t, mapping(t, paths, path), "post")
+	if required, _ := post["x-staffy-principal-required"].(bool); !required {
+		t.Errorf("%s: the principal boundary is not documented", path)
+	}
+	parameters, _ := post["parameters"].([]any)
+	hasKey := false
+	for _, parameter := range parameters {
+		item, _ := parameter.(map[string]any)
+		if item == nil {
+			continue
+		}
+		if ref, _ := item["$ref"].(string); ref == "#/components/parameters/IdempotencyKey" {
+			hasKey = true
+		}
+	}
+	if !hasKey {
+		t.Errorf("%s: the Idempotency-Key parameter is missing", path)
+	}
+
+	schemas := mapping(t, mapping(t, document, "components"), "schemas")
+	// The record request: the type, the signal and the verbatim spans are
+	// the fixed dictionaries (a word outside the dictionary is refused
+	// honestly; the spans are the CLIENT's words — the byte-verified
+	// excerpts, never the invented evidence).
+	request := mapping(t, schemas, "ObjectionRecordRequest")
+	requestRequired, _ := request["required"].([]any)
+	if len(requestRequired) != 4 {
+		t.Errorf("ObjectionRecordRequest requires the four material fields, got %v", requestRequired)
+	}
+	requestProperties := mapping(t, request, "properties")
+	if typeEnum, _ := mapping(t, requestProperties, "objection_type")["enum"].([]any); len(typeEnum) != 3 {
+		t.Errorf("objection_type must carry the three type words (trust, price_comparison, general_doubt), got %v", typeEnum)
+	}
+	if signalEnum, _ := mapping(t, requestProperties, "client_signal")["enum"].([]any); len(signalEnum) != 4 {
+		t.Errorf("client_signal must carry the four signal words (concern, refusal, stop_intent, human_request), got %v", signalEnum)
+	}
+	if spans, _ := mapping(t, requestProperties, "spans")["maxItems"].(int); spans != 8 {
+		t.Errorf("the spans stay bounded by eight excerpts, got %v", spans)
+	}
+
+	// The view: the fixed dictionary words of the whole objection surface
+	// and the derived (never stored) persuasion state.
+	view := mapping(t, schemas, "ObjectionView")
+	viewRequired, _ := view["required"].([]any)
+	for _, word := range []string{"items", "type_words", "signal_words", "step_words", "playbook_version", "threshold", "panel_text"} {
+		found := false
+		for _, value := range viewRequired {
+			if text, _ := value.(string); text == word {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("ObjectionView must require %s", word)
+		}
+	}
+	viewProperties := mapping(t, view, "properties")
+	if playbookEnum, _ := mapping(t, viewProperties, "playbook_version")["enum"].([]any); len(playbookEnum) != 1 || playbookEnum[0] != "objection-playbook-v1" {
+		t.Errorf("playbook_version is the fixed objection-playbook-v1 word, got %v", playbookEnum)
+	}
+	if stepsItems, _ := mapping(t, viewProperties, "step_words")["items"].(map[string]any); stepsItems != nil {
+		if itemsEnum, _ := stepsItems["enum"].([]any); len(itemsEnum) != 5 {
+			t.Errorf("step_words items must carry the five step words, got %v", itemsEnum)
+		}
+	}
+
+	// The Work Item section: the derived state words of the persuasion
+	// budget (stopped/acknowledged are the read-time derivations — never
+	// stored mutable state).
+	section := mapping(t, schemas, "ObjectionWorkItemView")
+	sectionRequired, _ := section["required"].([]any)
+	for _, word := range []string{"work_item_id", "objection_count", "refusals", "threshold", "stopped", "acknowledged"} {
+		found := false
+		for _, value := range sectionRequired {
+			if text, _ := value.(string); text == word {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("ObjectionWorkItemView must require %s", word)
+		}
+	}
+
+	// The record: the dictionary words are the fixed CHECK backstops of
+	// migration 00008.
+	record := mapping(t, schemas, "ObjectionRecord")
+	recordProperties := mapping(t, record, "properties")
+	if typeEnum, _ := mapping(t, recordProperties, "objection_type")["enum"].([]any); len(typeEnum) != 3 {
+		t.Errorf("the record objection_type carries the three-word enum, got %v", typeEnum)
+	}
+	if signalEnum, _ := mapping(t, recordProperties, "client_signal")["enum"].([]any); len(signalEnum) != 4 {
+		t.Errorf("the record client_signal carries the four-word enum, got %v", signalEnum)
+	}
+
+	// The sales reply request: the optional playbook step is the dictionary
+	// with the acknowledge-first discipline (the gate 2-8 words).
+	reply := mapping(t, schemas, "SendClientReplyRequest")
+	replyProperties := mapping(t, reply, "properties")
+	if stepEnum, _ := mapping(t, replyProperties, "playbook_step")["enum"].([]any); len(stepEnum) != 5 {
+		t.Errorf("playbook_step must carry the five step words, got %v", stepEnum)
+	}
+	replyRequired, _ := reply["required"].([]any)
+	for _, value := range replyRequired {
+		if text, _ := value.(string); text == "playbook_step" {
+			t.Error("playbook_step stays optional (the honest absence of objections keeps the old path)")
+		}
+	}
+
+	// The WorkOutcome command enum: the record command joined the
+	// idempotency surface.
+	workOutcome := mapping(t, schemas, "WorkOutcome")
+	commandEnum, _ := mapping(t, mapping(t, workOutcome, "properties"), "command")["enum"].([]any)
+	hasRecord := false
+	for _, value := range commandEnum {
+		if text, _ := value.(string); text == "record_objection" {
+			hasRecord = true
+		}
+	}
+	if !hasRecord {
+		t.Error("WorkOutcome.command must carry record_objection")
+	}
+
+	// The case view carries the objection section.
+	caseView := mapping(t, schemas, "CaseView")
+	caseProperties := mapping(t, caseView, "properties")
+	if objectionRef, _ := mapping(t, caseProperties, "objections")["$ref"].(string); objectionRef != "#/components/schemas/ObjectionView" {
+		t.Errorf("CaseView must reference the ObjectionView section, got %v", objectionRef)
+	}
+}

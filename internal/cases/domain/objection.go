@@ -239,7 +239,7 @@ func GuardPlaybookStep(step string) error {
 		return nil
 	}
 	if !inDictionary(PlaybookSteps, step) {
-		return fmt.Errorf("шаг playbook «%s» не входит в словарь (%s)", step, joinQuoted(PlaybookSteps))
+		return WorkRuleError{Rule: "objection_step_dictionary", Reason: fmt.Sprintf("шаг playbook «%s» не входит в словарь (%s)", step, joinQuoted(PlaybookSteps))}
 	}
 	return nil
 }
@@ -372,21 +372,21 @@ func GuardSalesReplyAgainstObjections(state ObjectionState, step string) error {
 	}
 	if state.Current == nil {
 		if step != "" {
-			return fmt.Errorf("%s", ObjectionStepForeignText)
+			return WorkRuleError{Rule: "objection_step_foreign", Reason: ObjectionStepForeignText}
 		}
 		return nil
 	}
 	if step == "" {
-		return fmt.Errorf("%s", ObjectionStepRequiredText)
+		return WorkRuleError{Rule: "objection_step_required", Reason: ObjectionStepRequiredText}
 	}
 	if !inDictionary(PlaybookSteps, step) {
-		return fmt.Errorf("шаг playbook «%s» не входит в словарь (%s)", step, joinQuoted(PlaybookSteps))
+		return WorkRuleError{Rule: "objection_step_dictionary", Reason: fmt.Sprintf("шаг playbook «%s» не входит в словарь (%s)", step, joinQuoted(PlaybookSteps))}
 	}
 	if !PlaybookAllowsStep(state.Current.ObjectionType, step) {
-		return fmt.Errorf("%s", ObjectionStepOutsidePlaybookText)
+		return WorkRuleError{Rule: "objection_step_playbook", Reason: ObjectionStepOutsidePlaybookText}
 	}
 	if !state.Acknowledged && step != PlaybookStepAcknowledgeConcern {
-		return fmt.Errorf("%s", ObjectionAcknowledgeFirstText)
+		return WorkRuleError{Rule: "objection_acknowledge_first", Reason: ObjectionAcknowledgeFirstText}
 	}
 	return nil
 }

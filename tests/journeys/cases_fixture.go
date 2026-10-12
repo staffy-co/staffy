@@ -28,6 +28,10 @@ type casesFixture struct {
 	employee   id.UUID
 	owner      id.UUID
 	connection id.UUID
+	// chatConnection is the second fixture connection of the chat type
+	// (the Story 2.8 objection journeys: the text turns of the web_chat
+	// channel — the excerpt markup demands the text modality).
+	chatConnection id.UUID
 
 	// The acting decision facts of the fixture world.
 	routes   []casesDomain.RouteAdmissionWord
@@ -126,15 +130,19 @@ type fixtureCaseMaterial struct {
 func newCasesFixture() *casesFixture {
 	owner := principalID
 	return &casesFixture{
-		tenant:     tenantID,
-		employee:   fixtureEmployeeID,
-		owner:      owner,
-		connection: fixtureConnectionID,
+		tenant:         tenantID,
+		employee:       fixtureEmployeeID,
+		owner:          owner,
+		connection:     fixtureConnectionID,
+		chatConnection: fixtureChatConnectionID,
 		routes: []casesDomain.RouteAdmissionWord{
 			{Channel: "phone", Direction: "inbound", State: casesDomain.RouteWordAdmitted},
+			{Channel: "web_chat", Direction: "inbound", State: casesDomain.RouteWordAdmitted},
 		},
 		coverage: []casesDomain.CoverageWord{
 			{Channel: "phone", Direction: "inbound", ResponseOwnerID: owner,
+				BackupOwnerID: secondOperatorID, AckDeadlineMinutes: 120},
+			{Channel: "web_chat", Direction: "inbound", ResponseOwnerID: owner,
 				BackupOwnerID: secondOperatorID, AckDeadlineMinutes: 120},
 		},
 		events:   map[string]*casesDomain.ChannelEvent{},
@@ -188,10 +196,17 @@ func (f *casesFixture) setSupervisor(enabled bool) {
 }
 
 func (f *casesFixture) facts(command casesAPI.IngestCommand) casesDomain.IngressFacts {
+	// The connector type of the event connection: the telephony fixture
+	// connection stays SIP; the chat fixture connection carries the chat
+	// type (the web_chat text turns of the objection journeys).
+	connectorType := casesDomain.ConnectorTypeSIP
+	if command.Envelope.ConnectionID == f.chatConnection {
+		connectorType = casesDomain.ConnectorTypeChat
+	}
 	return casesDomain.IngressFacts{
 		Connection: casesDomain.ConnectionFacts{
 			ConnectionID: command.Envelope.ConnectionID, Status: "connected_unverified",
-			Environment: "sandbox", ConnectorID: "staffy-synthetic-telephony", ConnectorType: casesDomain.ConnectorTypeSIP,
+			Environment: "sandbox", ConnectorID: "staffy-synthetic-telephony", ConnectorType: connectorType,
 		},
 		Channel:   command.Envelope.Channel,
 		Direction: command.Envelope.Direction,
@@ -225,7 +240,7 @@ func (f *casesFixture) IngestEvent(_ context.Context, command casesAPI.IngestCom
 	// The source verification of the test contour: only the fixture
 	// connection of the fixture tenant verifies (the honest unknown
 	// refusal otherwise).
-	if envelope.ConnectionID != f.connection || envelope.TenantClaim != f.tenant {
+	if (envelope.ConnectionID != f.connection && envelope.ConnectionID != f.chatConnection) || envelope.TenantClaim != f.tenant {
 		f.rejections = append(f.rejections, casesDomain.IngressRejection{Kind: casesDomain.KindUnknownConnection, Message: "Подключение не найдено в заявленном пространстве.", CorrelationID: command.CorrelationID})
 		return casesAPI.IngestOutcome{Refused: &casesAPI.IngestRefusal{Kind: casesDomain.KindUnknownConnection, Message: "Подключение не найдено в заявленном пространстве."}}, nil
 	}

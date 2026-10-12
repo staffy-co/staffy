@@ -1070,3 +1070,167 @@ func TestObservationReadRequiresMaterialKey(t *testing.T) {
 		t.Fatalf("the refusal names the material field, body = %s", recorder.Body.String())
 	}
 }
+
+// ---------------------------------------------------------------------------
+// The Story 2.8 wire shapes: the objection record command
+// ---------------------------------------------------------------------------
+
+type objectionErrorCases struct {
+	fakeCases
+	record func(context.Context, casesAPI.RecordObjectionCommand) (casesAPI.WorkOutcome, error)
+}
+
+func (f *objectionErrorCases) RecordObjection(ctx context.Context, command casesAPI.RecordObjectionCommand) (casesAPI.WorkOutcome, error) {
+	if f.record == nil {
+		return casesAPI.WorkOutcome{}, nil
+	}
+	return f.record(ctx, command)
+}
+
+const objectionRecordPath = "/v1/tenants/01994f64-6c00-7000-8000-000000000011/cases/01994f64-6c00-7000-8000-00000000aa01/work-items/01994f64-6c00-7000-8000-00000000bb02/objections"
+
+// TestObjectionDictionaryWireShapeMatchesContract pins the honest 400 of
+// the dictionary refusal: the code is the machine rule word, the text
+// lists the full signal dictionary (the unknown class never passes).
+func TestObjectionDictionaryWireShapeMatchesContract(t *testing.T) {
+	server := newCasesTestServer(t, &objectionErrorCases{record: func(context.Context, casesAPI.RecordObjectionCommand) (casesAPI.WorkOutcome, error) {
+		return casesAPI.WorkOutcome{}, casesDomain.WorkRuleError{
+			Rule:   "record_objection",
+			Reason: "сигнал клиента «magic_signal» не входит в словарь («concern», «refusal», «stop_intent», «human_request»)",
+		}
+	}})
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, casesJSONRequest("POST", objectionRecordPath,
+		`{"turn_ref":"01994f64-6c00-7000-8000-00000000cc03","objection_type":"trust","client_signal":"concern","spans":["Сомневаюсь"]}`))
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	var problem httpx.Problem
+	if err := json.Unmarshal(recorder.Body.Bytes(), &problem); err != nil {
+		t.Fatal(err)
+	}
+	if problem.Code != "record_objection" {
+		t.Fatalf("code = %s, body = %s", problem.Code, recorder.Body.String())
+	}
+	for _, word := range casesDomain.ClientSignals {
+		if !strings.Contains(problem.Message, "«"+word+"»") {
+			t.Fatalf("the refusal lists the signal dictionary word %q, body = %s", word, recorder.Body.String())
+		}
+	}
+}
+
+// TestObjectionStoppedWireShapeMatchesContract pins the honest 400
+// persuasion_stopped of the sales gate: the machine-readable budget
+// (refusals/threshold/current signal) and the allowed endings travel in
+// the problem fields and the text (AC-7).
+func TestObjectionStoppedWireShapeMatchesContract(t *testing.T) {
+	server := newCasesTestServer(t, &objectionErrorCases{record: func(context.Context, casesAPI.RecordObjectionCommand) (casesAPI.WorkOutcome, error) {
+		return casesAPI.WorkOutcome{}, casesDomain.ObjectionStoppedError{
+			Refusals: 2, Threshold: casesDomain.PersuasionThresholdV1, CurrentSignal: casesDomain.ClientSignalRefusal,
+			Reason: casesDomain.ObjectionStoppedText,
+		}
+	}})
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, casesJSONRequest("POST", objectionRecordPath,
+		`{"turn_ref":"01994f64-6c00-7000-8000-00000000cc03","objection_type":"trust","client_signal":"refusal","spans":["Не буду"]}`))
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	var problem httpx.Problem
+	if err := json.Unmarshal(recorder.Body.Bytes(), &problem); err != nil {
+		t.Fatal(err)
+	}
+	if problem.Code != "persuasion_stopped" {
+		t.Fatalf("code = %s, body = %s", problem.Code, recorder.Body.String())
+	}
+	if problem.FieldErrors["refusals"] != "2" || problem.FieldErrors["threshold"] != "2" {
+		t.Fatalf("the budget is machine-readable, body = %s", recorder.Body.String())
+	}
+	for _, ending := range []string{"вежливое завершение", "запрос приватности", "передача человеку"} {
+		if !strings.Contains(problem.Message, ending) {
+			t.Fatalf("the refusal names the allowed ending %q, body = %s", ending, recorder.Body.String())
+		}
+	}
+}
+
+// TestObjectionScopeRefusalWireShapeMatchesContract pins the honest 403 of
+// the audit-only member: the scope words travel in the text (the rights
+// gate fires BEFORE every material guard — the M1 precedent of 2-5/2-7).
+func TestObjectionScopeRefusalWireShapeMatchesContract(t *testing.T) {
+	server := newCasesTestServer(t, &objectionErrorCases{record: func(context.Context, casesAPI.RecordObjectionCommand) (casesAPI.WorkOutcome, error) {
+		return casesAPI.WorkOutcome{}, domain.ErrForbidden
+	}})
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, casesJSONRequest("POST", objectionRecordPath,
+		`{"turn_ref":"01994f64-6c00-7000-8000-00000000cc03","objection_type":"trust","client_signal":"concern","spans":["Сомневаюсь"]}`))
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	var problem httpx.Problem
+	if err := json.Unmarshal(recorder.Body.Bytes(), &problem); err != nil {
+		t.Fatal(err)
+	}
+	if problem.Code != "cases_forbidden" {
+		t.Fatalf("code = %s, body = %s", problem.Code, recorder.Body.String())
+	}
+	if !strings.Contains(problem.Message, "review или configuration") {
+		t.Fatalf("the refusal names the scope words, body = %s", recorder.Body.String())
+	}
+}
+
+// TestObjectionHonestErrorsWireShape pins the 409 key conflict and the 404
+// without the existence disclosure of the record command (the shared
+// work-command vocabulary).
+func TestObjectionHonestErrorsWireShape(t *testing.T) {
+	server := newCasesTestServer(t, &objectionErrorCases{record: func(context.Context, casesAPI.RecordObjectionCommand) (casesAPI.WorkOutcome, error) {
+		return casesAPI.WorkOutcome{}, casesDomain.ErrCommandKeyConflict
+	}})
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, casesJSONRequest("POST", objectionRecordPath,
+		`{"turn_ref":"01994f64-6c00-7000-8000-00000000cc03","objection_type":"trust","client_signal":"concern","spans":["Сомневаюсь"]}`))
+	if recorder.Code != http.StatusConflict {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), "command_key_conflict") {
+		t.Fatalf("the key conflict is machine-readable, body = %s", recorder.Body.String())
+	}
+	server = newCasesTestServer(t, &objectionErrorCases{record: func(context.Context, casesAPI.RecordObjectionCommand) (casesAPI.WorkOutcome, error) {
+		return casesAPI.WorkOutcome{}, casesDomain.ErrNotFound
+	}})
+	recorder = httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, casesJSONRequest("POST", objectionRecordPath,
+		`{"turn_ref":"01994f64-6c00-7000-8000-00000000cc03","objection_type":"trust","client_signal":"concern","spans":["Сомневаюсь"]}`))
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), "не найдены") {
+		t.Fatalf("the 404 never discloses the existence, body = %s", recorder.Body.String())
+	}
+}
+
+// TestObjectionRecordRequiresFields pins the transport-level honest 400 of
+// the missing dictionary fields (the machine contract requires the turn
+// ref, the type word and the signal word).
+func TestObjectionRecordRequiresFields(t *testing.T) {
+	server := newCasesTestServer(t, &fakeCases{})
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, casesJSONRequest("POST", objectionRecordPath, `{"objection_type":"trust","client_signal":"concern","spans":["Сомневаюсь"]}`))
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), "turn_ref") {
+		t.Fatalf("the refusal names the turn ref, body = %s", recorder.Body.String())
+	}
+	recorder = httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, casesJSONRequest("POST", objectionRecordPath,
+		`{"turn_ref":"01994f64-6c00-7000-8000-00000000cc03","client_signal":"concern","spans":["Сомневаюсь"]}`))
+	if recorder.Code != http.StatusBadRequest || !strings.Contains(recorder.Body.String(), "objection_type") {
+		t.Fatalf("the refusal names the type field, status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	recorder = httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, casesJSONRequest("POST", objectionRecordPath,
+		`{"turn_ref":"01994f64-6c00-7000-8000-00000000cc03","objection_type":"trust","spans":["Сомневаюсь"]}`))
+	if recorder.Code != http.StatusBadRequest || !strings.Contains(recorder.Body.String(), "client_signal") {
+		t.Fatalf("the refusal names the signal field, status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+}

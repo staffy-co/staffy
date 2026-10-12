@@ -321,6 +321,7 @@ func (f *employeeFixture) SaveBehavior(ctx context.Context, c employeeAPI.Behavi
 var fixtureEmployeeID = id.MustParse("01994f64-6c00-7000-8000-000000000004")
 var fixtureSourceID = id.MustParse("01994f64-6c00-7000-8000-000000000005")
 var fixtureConnectionID = id.MustParse("01994f64-6c00-7000-8000-000000000006")
+var fixtureChatConnectionID = id.MustParse("01994f64-6c00-7000-8000-000000000016")
 var fixtureSecretID = id.MustParse("01994f64-6c00-7000-8000-000000000007")
 var fixtureSecretID2 = id.MustParse("01994f64-6c00-7000-8000-000000000009")
 var fixtureEvidenceID = id.MustParse("01994f64-6c00-7000-8000-000000000008")
