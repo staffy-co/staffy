@@ -123,6 +123,11 @@ type CaseView struct {
 	// deterministic Policy Outcomes per Work Item (the CURRENT outcome is
 	// the maximal number — the sales reply gate reads it).
 	Policy PolicyView `json:"policy"`
+	// The Story 2.7 section: the owning-system field observations per
+	// Work Item (the CURRENT observation per matrix field with the
+	// freshness derivation and the conflict badge against the confirmed
+	// fact of the case).
+	Observations ObservationView `json:"observations"`
 }
 
 // PayloadView is the sealed payload read under review/audit: the digest,
@@ -155,6 +160,7 @@ type Service interface {
 	OwnershipService
 	ModeService
 	PolicyService
+	ObservationService
 }
 
 // Clock and IDs follow the module conventions.
@@ -364,6 +370,15 @@ type WorkOutcome struct {
 	OutcomeNo       int64   `json:"outcome_no,omitempty"`
 	OutcomeClass    string  `json:"outcome_class,omitempty"`
 	PolicyOutcomeID id.UUID `json:"policy_outcome_id,omitempty"`
+	// The Story 2.7 material: the observation of the owning-system read
+	// (the id, the status word with the reason and the carrier words of
+	// the value — the projection value itself never travels in the
+	// outcome).
+	ObservationID         id.UUID `json:"observation_id,omitempty"`
+	ObservationStatus     string  `json:"observation_status,omitempty"`
+	ObservationReason     string  `json:"observation_reason,omitempty"`
+	ObservationExternalID string  `json:"observation_external_id,omitempty"`
+	ObservationVersion    string  `json:"observation_external_version,omitempty"`
 }
 
 // FactView is one fact of the facts view: the anchor, the derived status,

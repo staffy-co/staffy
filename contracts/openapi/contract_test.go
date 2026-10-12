@@ -1484,3 +1484,131 @@ func TestPolicyContractIsHonest(t *testing.T) {
 		t.Error("the outcome view never carries the candidate text")
 	}
 }
+
+func TestObservationContractIsHonest(t *testing.T) {
+	content, err := os.ReadFile("staffy.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document map[string]any
+	if err := yaml.Unmarshal(content, &document); err != nil {
+		t.Fatal(err)
+	}
+	paths := mapping(t, document, "paths")
+	path := "/v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/owning-system-reads"
+	post := mapping(t, mapping(t, paths, path), "post")
+	if required, _ := post["x-staffy-principal-required"].(bool); !required {
+		t.Errorf("%s: the principal boundary is not documented", path)
+	}
+	parameters, _ := post["parameters"].([]any)
+	hasKey := false
+	for _, parameter := range parameters {
+		item, _ := parameter.(map[string]any)
+		if item == nil {
+			continue
+		}
+		if ref, _ := item["$ref"].(string); ref == "#/components/parameters/IdempotencyKey" {
+			hasKey = true
+		}
+	}
+	if !hasKey {
+		t.Errorf("%s: the Idempotency-Key parameter is missing", path)
+	}
+
+	schemas := mapping(t, mapping(t, document, "components"), "schemas")
+	// The read request: the material field IS the fixed dictionary (a
+	// field outside the matrix is refused honestly — the unknown class,
+	// unlike the intent word of 2.6 whose dictionary is a policy matter).
+	read := mapping(t, schemas, "OwningSystemReadRequest")
+	readRequired, _ := read["required"].([]any)
+	if len(readRequired) != 1 || readRequired[0] != "material_key" {
+		t.Errorf("OwningSystemReadRequest requires exactly the material_key, got %v", readRequired)
+	}
+	if fieldEnum, _ := mapping(t, mapping(t, read, "properties"), "material_key")["enum"].([]any); len(fieldEnum) != 3 {
+		t.Errorf("material_key must carry the three matrix words (price, availability, order_status), got %v", fieldEnum)
+	}
+
+	// The view: the fixed dictionary words of the matrix and the honest
+	// per-field derivations.
+	view := mapping(t, schemas, "ObservationView")
+	viewRequired, _ := view["required"].([]any)
+	for _, word := range []string{"items", "field_words", "matrix_version", "panel_text"} {
+		found := false
+		for _, value := range viewRequired {
+			if text, _ := value.(string); text == word {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("ObservationView must require %s", word)
+		}
+	}
+	viewProperties := mapping(t, view, "properties")
+	if matrixEnum, _ := mapping(t, viewProperties, "matrix_version")["enum"].([]any); len(matrixEnum) != 1 || matrixEnum[0] != "state-authority-matrix-v1" {
+		t.Errorf("matrix_version is the fixed state-authority-matrix-v1 word, got %v", matrixEnum)
+	}
+	if fieldsItems, _ := mapping(t, viewProperties, "field_words")["items"].(map[string]any); fieldsItems != nil {
+		if itemsEnum, _ := fieldsItems["enum"].([]any); len(itemsEnum) != 3 {
+			t.Errorf("field_words items must carry the three-word enum, got %v", itemsEnum)
+		}
+	}
+
+	// The card: the state derivation words and the conflict badge words
+	// are the fixed dictionaries (the honest states never dress up).
+	card := mapping(t, schemas, "ObservationCard")
+	cardProperties := mapping(t, card, "properties")
+	if stateEnum, _ := mapping(t, cardProperties, "state")["enum"].([]any); len(stateEnum) != 4 {
+		t.Errorf("state must carry the four derivation words (fresh, stale, failed, unknown), got %v", stateEnum)
+	}
+	if badgeEnum, _ := mapping(t, cardProperties, "conflict_badge")["enum"].([]any); len(badgeEnum) != 3 {
+		t.Errorf("conflict_badge must carry the three badge words (equal, differs, no_fact), got %v", badgeEnum)
+	}
+	if systemsEnum, _ := mapping(t, cardProperties, "owning_system")["enum"].([]any); len(systemsEnum) != 2 {
+		t.Errorf("owning_system must carry the two system words (catalog, erp), got %v", systemsEnum)
+	}
+
+	// The record: the status and the reason are the fixed dictionaries;
+	// the ok row always carries the carrier words (the projection value
+	// is the ok-only word — a failure never carries a value).
+	record := mapping(t, schemas, "ObservationRecord")
+	recordProperties := mapping(t, record, "properties")
+	if statusEnum, _ := mapping(t, recordProperties, "status")["enum"].([]any); len(statusEnum) != 3 {
+		t.Errorf("status must carry the three outcome words (ok, failed, unknown), got %v", statusEnum)
+	}
+	if reasonEnum, _ := mapping(t, recordProperties, "reason")["enum"].([]any); len(reasonEnum) != 4 {
+		t.Errorf("reason must carry the four failure words, got %v", reasonEnum)
+	}
+	recordRequired, _ := record["required"].([]any)
+	for _, word := range []string{"observation_id", "observation_no", "status", "received_at"} {
+		found := false
+		for _, value := range recordRequired {
+			if text, _ := value.(string); text == word {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("ObservationRecord must require %s", word)
+		}
+	}
+
+	// The WorkOutcome command enum: the read command joined the
+	// idempotency surface.
+	workOutcome := mapping(t, schemas, "WorkOutcome")
+	commandEnum, _ := mapping(t, mapping(t, workOutcome, "properties"), "command")["enum"].([]any)
+	hasRead := false
+	for _, value := range commandEnum {
+		if text, _ := value.(string); text == "read_owning_system" {
+			hasRead = true
+		}
+	}
+	if !hasRead {
+		t.Error("WorkOutcome.command must carry read_owning_system")
+	}
+
+	// The case view carries the observation section.
+	caseView := mapping(t, schemas, "CaseView")
+	caseProperties := mapping(t, caseView, "properties")
+	if observationRef, _ := mapping(t, caseProperties, "observations")["$ref"].(string); observationRef != "#/components/schemas/ObservationView" {
+		t.Errorf("CaseView must reference the ObservationView section, got %v", observationRef)
+	}
+}

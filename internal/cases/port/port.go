@@ -268,6 +268,11 @@ type Repository interface {
 	// the Work Item and the monotonic number (the derivation input of the
 	// CURRENT outcome the sales reply gate reads).
 	ReadPolicyOutcomes(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]casesDomain.PolicyOutcome, error)
+	// Story 2.7 — the owning-system surface:
+	// ReadObservations reads every observation of one case ordered by the
+	// Work Item, the material field and the monotonic number (the
+	// derivation input of the CURRENT observation per field of the panel).
+	ReadObservations(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]casesDomain.Observation, error)
 }
 
 // ---------------------------------------------------------------------------
@@ -436,6 +441,21 @@ type WorkCommandParams struct {
 	ExpectedFactsDigest     string
 	ExpectedWorkItemVersion int64
 	PolicyOutcomeID         id.UUID
+	// The Story 2.7 material (the command-specific fields of the
+	// read_owning_system command): the observation id, the matrix row
+	// snapshot words and the port answer of the read (the app read the
+	// owning system BEFORE the transaction; the store re-validates the
+	// anchors under the locks and writes the append-only row with the
+	// per-(work item, material field) monotonic number).
+	ObservationID   id.UUID
+	OwningSystem    string
+	Projection      string
+	ReadStatus      string
+	ReadReason      string
+	ReadValue       []byte
+	ExternalID      string
+	ExternalVersion string
+	CorrelationID   id.UUID
 }
 
 // ---------------------------------------------------------------------------
@@ -554,6 +574,59 @@ type BindingCard struct {
 	TargetCaseNo     int64
 	BoundCaseNo      int64
 	ConfirmationText string
+}
+
+// ---------------------------------------------------------------------------
+// Story 2.7: the owning-system read port
+// ---------------------------------------------------------------------------
+
+// OwningSystemReadRequest is the typed read request of one material field
+// of the authority matrix: the scope context (the tenant with the acting
+// principal of the command), the material key and the matrix row words (the
+// owning system word with the permitted projection — the reader answers in
+// the projection terms), the external reference (the anchor the owning
+// system names the entity by — the v1 carrier is the work item of the case),
+// the correlation context and the read moment (the provider time basis of
+// the synthetic contour; the real providers own their clocks). A provider
+// DTO never crosses this boundary — the typed request is the only question
+// an owning system answers.
+type OwningSystemReadRequest struct {
+	Scope             tenancy.Context
+	MaterialKey       string
+	OwningSystem      string
+	Projection        string
+	ExternalReference string
+	CorrelationID     id.UUID
+	Now               time.Time
+}
+
+// OwningSystemReading is the observation material of one read: the status
+// word of the dictionary, the reason word of the failure vocabulary (a
+// failed/unknown read only), the canonical projection value bytes (ok
+// only), the external id of the value carrier, the provider version of the
+// value and the provider-observed time (never the receive time — the 2-2
+// discipline). The value bytes never travel into an error, a log or an
+// envelope — only into the observation row and the panel.
+type OwningSystemReading struct {
+	Status          string
+	Reason          string
+	Value           []byte
+	ExternalID      string
+	ExternalVersion string
+	ObservedAt      time.Time
+}
+
+// OwningSystemReader reads the CURRENT value of one material field from the
+// owning system declared by the authority matrix (AD-2 consumer-owned
+// port): the synthetic adapter of the test contour answers deterministically
+// over the fixed scenario dictionary; the real providers (AG-4) will pass
+// through the same port without touching the domain. A nil reader refuses
+// honestly before any record (the «коннектор без верификатора» precedent —
+// an "ok" contour is never assumed). ONE attempt per command: no retry, no
+// circuit breaker, no rate limit (the full provider discipline comes with
+// the real providers).
+type OwningSystemReader interface {
+	Read(ctx context.Context, request OwningSystemReadRequest) (OwningSystemReading, error)
 }
 
 // The Story 2.3 repository surface is part of Repository: the reads of the

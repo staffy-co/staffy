@@ -101,6 +101,12 @@ func (f *fakeCases) EvaluatePolicy(context.Context, casesAPI.EvaluatePolicyComma
 	return casesAPI.WorkOutcome{}, nil
 }
 
+// The Story 2.7 observation stubs: the wire-shape tests target the surface
+// contract; the command semantics live in the integration suite.
+func (f *fakeCases) ReadOwningSystem(context.Context, casesAPI.ReadOwningSystemCommand) (casesAPI.WorkOutcome, error) {
+	return casesAPI.WorkOutcome{}, nil
+}
+
 func newCasesTestServer(t *testing.T, fake casesAPI.Service) *Server {
 	t.Helper()
 	identity := fakeIdentity{create: func(api.CreateTenantCommand) (api.CreateTenantResult, error) {
@@ -942,5 +948,119 @@ func TestEvaluatePolicyRequiresAnchors(t *testing.T) {
 	}
 	if !strings.Contains(recorder.Body.String(), "expected_facts_digest") {
 		t.Fatalf("the refusal names the missing anchor words, body = %s", recorder.Body.String())
+	}
+}
+
+// The Story 2.7 observation wire-shape tests: the honest problem contract of
+// the owning-system read command over the fake service (the command
+// semantics live in the integration suite).
+
+type observationErrorCases struct {
+	fakeCases
+	read func(context.Context, casesAPI.ReadOwningSystemCommand) (casesAPI.WorkOutcome, error)
+}
+
+func (f *observationErrorCases) ReadOwningSystem(ctx context.Context, command casesAPI.ReadOwningSystemCommand) (casesAPI.WorkOutcome, error) {
+	if f.read == nil {
+		return casesAPI.WorkOutcome{}, nil
+	}
+	return f.read(ctx, command)
+}
+
+const owningSystemReadPath = "/v1/tenants/01994f64-6c00-7000-8000-000000000011/cases/01994f64-6c00-7000-8000-00000000aa01/work-items/01994f64-6c00-7000-8000-00000000bb02/owning-system-reads"
+
+// TestObservationFieldNotInMatrixWireShapeMatchesContract pins the honest
+// 400 field-not-in-matrix: the code is the machine word, the text lists the
+// full field dictionary of the matrix (the unknown class).
+func TestObservationFieldNotInMatrixWireShapeMatchesContract(t *testing.T) {
+	server := newCasesTestServer(t, &observationErrorCases{read: func(context.Context, casesAPI.ReadOwningSystemCommand) (casesAPI.WorkOutcome, error) {
+		return casesAPI.WorkOutcome{}, casesDomain.WorkRuleError{
+			Rule:   "field_not_in_matrix",
+			Reason: "материальное поле «magic_field» вне матрицы State/Authority v1: чтение невозможно, поле unknown как класс; словарь полей матрицы: «price», «availability», «order_status»",
+		}
+	}})
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, casesJSONRequest("POST", owningSystemReadPath, `{"material_key":"magic_field"}`))
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	var problem httpx.Problem
+	if err := json.Unmarshal(recorder.Body.Bytes(), &problem); err != nil {
+		t.Fatal(err)
+	}
+	if problem.Code != "field_not_in_matrix" {
+		t.Fatalf("code = %s, body = %s", problem.Code, recorder.Body.String())
+	}
+	for _, word := range casesDomain.MaterialFields {
+		if !strings.Contains(problem.Message, "«"+word+"»") {
+			t.Fatalf("the refusal lists the dictionary word %q, body = %s", word, recorder.Body.String())
+		}
+	}
+}
+
+// TestObservationScopeRefusalWireShapeMatchesContract pins the honest 403
+// of the audit-only member: the scope words travel in the text (the rights
+// gate fires BEFORE every material guard — the M1 precedent).
+func TestObservationScopeRefusalWireShapeMatchesContract(t *testing.T) {
+	server := newCasesTestServer(t, &observationErrorCases{read: func(context.Context, casesAPI.ReadOwningSystemCommand) (casesAPI.WorkOutcome, error) {
+		return casesAPI.WorkOutcome{}, domain.ErrForbidden
+	}})
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, casesJSONRequest("POST", owningSystemReadPath, `{"material_key":"price"}`))
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	var problem httpx.Problem
+	if err := json.Unmarshal(recorder.Body.Bytes(), &problem); err != nil {
+		t.Fatal(err)
+	}
+	if problem.Code != "cases_forbidden" {
+		t.Fatalf("code = %s, body = %s", problem.Code, recorder.Body.String())
+	}
+	if !strings.Contains(problem.Message, "review или configuration") {
+		t.Fatalf("the refusal names the scope words, body = %s", recorder.Body.String())
+	}
+}
+
+// TestObservationHonestErrorsWireShape pins the 409 key conflict and the
+// 404 without the existence disclosure of the read command (the problem
+// codes are the shared work-command vocabulary).
+func TestObservationHonestErrorsWireShape(t *testing.T) {
+	server := newCasesTestServer(t, &observationErrorCases{read: func(context.Context, casesAPI.ReadOwningSystemCommand) (casesAPI.WorkOutcome, error) {
+		return casesAPI.WorkOutcome{}, casesDomain.ErrCommandKeyConflict
+	}})
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, casesJSONRequest("POST", owningSystemReadPath, `{"material_key":"price"}`))
+	if recorder.Code != http.StatusConflict {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), "command_key_conflict") {
+		t.Fatalf("the key conflict is machine-readable, body = %s", recorder.Body.String())
+	}
+	server = newCasesTestServer(t, &observationErrorCases{read: func(context.Context, casesAPI.ReadOwningSystemCommand) (casesAPI.WorkOutcome, error) {
+		return casesAPI.WorkOutcome{}, casesDomain.ErrNotFound
+	}})
+	recorder = httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, casesJSONRequest("POST", owningSystemReadPath, `{"material_key":"price"}`))
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), "не найдены") {
+		t.Fatalf("the 404 never discloses the existence, body = %s", recorder.Body.String())
+	}
+}
+
+// TestObservationReadRequiresMaterialKey pins the transport-level honest
+// 400 of the missing material field (the machine contract requires the
+// matrix word).
+func TestObservationReadRequiresMaterialKey(t *testing.T) {
+	server := newCasesTestServer(t, &fakeCases{})
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, casesJSONRequest("POST", owningSystemReadPath, `{"material_key":""}`))
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), "material_key") {
+		t.Fatalf("the refusal names the material field, body = %s", recorder.Body.String())
 	}
 }
