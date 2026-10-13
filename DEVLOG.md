@@ -1803,3 +1803,20 @@ done:
 - Коммит ветки 6158cb1 [skip ci] + публикация по токену владельца (ls-remote без дрейфа)
 next: Dev step-04 — интеграционная матрица 25 строк поимённо (tests/integration/cases_commitment_test.go поверх живых команд: гейты прав/словари/draft/unknown-цена/freshness/предъявление/выдуманные выдержки/assurance/duplicate/replay/версии/отказы/изоляция) + journeys-цепь zzz(19)-cases-commitment (создание→предъявление через sales-reply→PRG-confirm→состояние confirmed→decline/новая версия→superseded-бейдж→a11y/320px/фокус)
 commit: TBD
+
+---
+date: 2026-10-13
+task: 53-dev-step-04
+role: main (Super Z) — Dev-роль по BMAD-контуру
+story: 2-9
+summary: Dev step-04 (интеграционная часть) закрыт — живые строки матрицы в интеграционном контуре + два честных найденных бага канонического сравнения цены (CanonicalPayload обеих сторон: PG jsonb рендерит с пробелами; json.Marshal(nil)=null ломал CHECK массива); bootstrap зелёный; ветка опубликована 0391f8a; journeys-цепь — next (контекст сессии исчерпан)
+done:
+- Найдено и закрыто 2 бага реализации step-03 живыми матричными прогонами: (1) байтовое сравнение цены — PG jsonb хранит каноническую форму С пробелами («kind»: ...), PriceValueJSON рендерит порядок полей структуры → сравнение только канонических форм ОБЕИХ сторон через CanonicalPayload (спека: «байтовое равенство канонических значений»); (2) json.Marshal(nil-unknowns)=null ломал CHECK material_unknowns (массив) → nil→[] в app
+- TestCommitmentMatrixCreateVersionedPanel (мир 971): offered №1 (пины owner/lineage/policy/observation, токен-присутствие, readiness confirmable); №2 той же связи монотонно append-only (№1 не мутируется — AC-8); draft → связь 400 draft-not-presentable; sales-reply со связью offered-версии проходит замороженную лестницу 2-4→2-5→2-6→2-8→2-9 байт-в-байт (policySalesPrelude+policyPrelude), предъявление точной версии зафиксировано в панели (AC-4 машинная часть)
+- TestCommitmentMatrixConfirmChain (мир 972): presented-гейт ДО turn-источника (orphan → 400 not-presented); голосовой turn → честный 400 «вне текущего срез» (AG-4: единственный коннектабельный коннектор интеграционного мира — синтетическая телефония; happy-path confirm на text-turn живёт в journeys-контуре web_chat — прецедент 2-8 спанов, задокументирован честно)
+- TestCommitmentMatrixHonestPriceAndDecline (мир 973): unknown-цена offered садится честно (AC-2: дыра блокирует readiness, не создание; домен: валидный термин + маркер unknown), confirm → 400 mandatory-unknown; offered с известной ценой без наблюдения → 400 «нечестно предполагать значение»; голосовой отказ AG-4 ничего не пишет (declines=0, статус offered — AC-11 не-мутация); audit-only member (inviteMember expert_qa) → 403 скоуп-словами ДО стражей; чужой tenant → 404
+- Хелперы: commitmentWorld (сценарная цена = канонические байты PriceValueJSON через observationsyn), commitmentAssurance (identity known_number_callback verified + authority mandate_note скоуп payment — субъект совпадает с confirm subjectRef), classifyCommitmentItem (лестница in_work)
+- Регресс: bootstrap exit=0 (build/vet/unit/интеграция на живом PG — 160 интеграционных тестов); зонды step-02 зелёные; gofmt/дифф-чек чисты
+- Коммит ветки 0391f8a [skip ci] + публикация по токену
+next: Dev step-04 (journeys-часть) — цепь zzz(19)-cases-commitment.spec.ts: happy-path create (PRG-форма страницы Commitment Review) → read_owning_system price → предъявление через sales-reply со связью → PRG-confirm (subject+turn+spans+assurance) → состояние WI confirmed → decline/новая версия → superseded-бейдж → a11y (320px, aria-live, перевод фокуса, confirm без preselect); затем step-05 полный регресс ×2 TZ + коммит feat без [skip ci] → QA-фаза по BMAD
+commit: TBD
