@@ -1750,3 +1750,18 @@ done:
 - Коммит ветки cb1abbc [skip ci]: фикс + честная closure-запись deferred-work (исходное «audit_id» предложение откорректировано с evidence); DEVLOG 53-sm публикация уже на origin (main 563525f, ветка a1ece27)
 next: Dev step-01 по спеке 2-9 — домен и словари: internal/cases/domain/commitment.go (словари статусов/терминов/действий/метода/исходов/слов недействительности, MaterialTerms v1 канонизация+гварды, DeriveCommitmentReadiness, GuardCreate/Confirm/Decline, DeriveConfirmationValidity, CommitmentToken HMAC домен-сепарация), work.go +confirmed аддитивно (лестница 2-2, контрольная ветка), unit-тесты
 commit: TBD
+
+---
+date: 2026-10-13
+task: 53-dev-step-01
+role: main (Super Z) — Dev-роль по BMAD-контуру
+story: 2-9
+summary: Dev step-01 закрыт — домен и словари обязательств (commitment.go 820 строк + 14 unit-тестов + work.go +confirmed аддитивно); полный unit-контур зелёный, контрольная ветка лестницы 2-2 зелёная без правок
+done:
+- internal/cases/domain/commitment.go (новый): словари статусов/терминов/действий/метода/исходов/слов недействительности (revoked/consumed — зарезервированы без продюсера, прецедент 2-6); MaterialTerms v1 — каноническая детерминированная json-сериализация (фиксированный порядок ключей, без пробелов, ≤4096 байт), CommitmentPrice amount/range в копейках с гвардом исключительности полей; material_unknowns — только слова обязательных терминов (честная дыра блокирует readiness, не создание); rule-table v1 (observation-backed = {price} — матрица 2-7; authority-триггер = цена>0); DeriveCommitmentReadiness (draft/offered_unknown_blocked/offered_confirmable/superseded) и DeriveConfirmationValidity (expired→superseded→owner_stale→release_stale в порядке спеки, read-time); CommitmentToken — HMAC-SHA256 с домен-сепарацией «commitment:v1:id:version:material» (прецедент IdentifierToken 2-3), NewCommitmentKey 32 байта; гварды GuardCreateCommitment/GuardConfirmEvidence (span-дисциплина 2-8 переиспользована — SpanInPayload)/GuardConfirmReadiness/GuardDeclineCommitment/GuardPresentedCommitment (пара оба-или-ни-один); outbox-payload события — только идентификаторы и слова словаря (материальные условия и выдержки не покидают строку)
+- internal/cases/domain/work.go: +WorkItemStateConfirmed аддитивно — переходы in_work→confirmed, waiting→confirmed, confirmed→{resolved, cancelled}; лестница существующих переходов байт-в-байт (контрольная ветка: TestConfirmedLadderIsAdditive проверяет все прежние переходы/терминальность/untriaged-дисциплину/классификацию без изменений; confirmed не терминален, не ре-открывается, не классифицируется)
+- Тесты commitment_test.go (14): закрытость словарей, гварды цены (7 отказов + 2 прохода), пустые/oversize термины, дубликаты позиций/выдержек/действий, границы action_set/consumption, детерминизм канонических байт (префикс scope/суффикс consequences/внедрённый PriceValueJSON), readiness 4 ветки, validity 5 веток + приоритет, токен (детерминизм/версия/материал/ключ/домен-сепарация), ключ 32 байта без повторов, evidence (выдуманное согласие невозможно), пара предъявления, текущая версия = максимальная, outbox-конверты безопасны
+- Регресс: go build/vet/gofmt чисто; go test ./... полный unit-контур зелёный (domain 0.005s)
+- Коммит ветки 632fb2d [skip ci]
+next: Dev step-02 — миграция 00009 (таблицы cases.commitments/confirmations/commitment_declines/commitment_hmac_keys: append-only, RLS+FORCE, INSERT/SELECT гранты, CHECK-словари, монотонный version_no, пара колонок client_replies, ALTER лестницы +confirmed) + internal/cases/store/commitment.go (монотонная версия под advisory-локами, ensure-ключ, чтения, транзит WI→confirmed) + зонды pg_class/INSERT/state-CHECK
+commit: TBD
