@@ -5,9 +5,11 @@ package integration_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -296,17 +298,72 @@ type fixedClock struct{ now time.Time }
 func (c fixedClock) Now() time.Time { return c.now }
 
 type sequenceIDs struct {
+	mu     sync.Mutex
 	values []id.UUID
 	index  int
 }
 
+// New hands out the next UUID of the fixed sequence. The hand-out is
+// goroutine-safe (the mutex of the 2026-10-14 fix, deferred-work): the
+// race tests share ONE generator across concurrent command calls — the
+// racy index read of the old code handed the SAME UUID to two goroutines
+// (the honest «duplicate key policy_outcomes_pkey» of the PR #24 CI
+// flake). The assignment order under concurrency stays arbitrary — no
+// caller depends on WHICH value it gets, only on uniqueness.
 func (g *sequenceIDs) New(time.Time) (id.UUID, error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
 	if g.index >= len(g.values) {
 		return "", errors.New("no test UUID left")
 	}
 	value := g.values[g.index]
 	g.index++
 	return value, nil
+}
+
+// TestSequenceIDsConcurrentHandoutStaysUnique pins the harness invariant
+// that closed the CI flake of 2026-10-13 (PR #24, deferred-work): the
+// fixed-sequence generator hands out every UUID EXACTLY once — under the
+// concurrent callers too (the raced EvaluatePolicy of
+// TestPolicyTerminalWorkItemAndRaces shares ONE sequence; a racy index
+// read hands the SAME UUID to two goroutines — the honest «duplicate key
+// policy_outcomes_pkey» of the CI evidence). The tight-loop probe makes
+// the overlap deterministic where the DB-race timing of the policy test
+// stays a lottery.
+func TestSequenceIDsConcurrentHandoutStaysUnique(t *testing.T) {
+	values := make([]id.UUID, 64)
+	for i := range values {
+		values[i] = id.MustParse(fmt.Sprintf("01994f64-6c00-7000-8000-%012d", i+1))
+	}
+	generator := &sequenceIDs{values: values}
+	const workers = 8
+	handed := make(chan id.UUID, len(values))
+	var wg sync.WaitGroup
+	for w := 0; w < workers; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				value, err := generator.New(time.Time{})
+				if err != nil {
+					return
+				}
+				handed <- value
+			}
+		}()
+	}
+	wg.Wait()
+	close(handed)
+	seen := make(map[id.UUID]bool, len(values))
+	for value := range handed {
+		if seen[value] {
+			t.Fatalf("the concurrent hand-out duplicated the sequence value %s", value)
+		}
+		seen[value] = true
+	}
+	if len(seen) != len(values) {
+		t.Fatalf("expected exactly %d unique hand-outs, got %d", len(values), len(seen))
+	}
 }
 
 func newService(principalSuffix, tenantSuffix, eventSuffix string) (*app.Service, domain.Principal) {
