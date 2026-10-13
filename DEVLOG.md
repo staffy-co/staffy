@@ -1899,3 +1899,17 @@ done:
 - deferred-work.md: запись закрыта append-only (ЗАКРЫТО 2026-10-14, прецедент закрытия audit-flake)
 next: пункт 1 — SM-фаза story 2-10 «Защищённое мультимодальное продолжение» (спека первого среза по epics §2.10/PRD → CHECKPOINT 1 предъявлением в ответе сессии; Dev не стартует до явного одобрения владельца — дисциплина 52-sm)
 commit: 3ff4d0a
+
+---
+date: 2026-10-14
+task: 54-sm
+role: main (Super Z)
+story: 2-10
+summary: SM-фаза story 2-10 «Защищённое мультимодальное продолжение» — спека первого среза создана (purpose-bound Continuation Link + защищённая страница продолжения, модальность text; media/step-up/Commitment-ветка — Never среза); статус backlog, ожидает CHECKPOINT 1
+done:
+- Входы SM: epics.md §2.10 (12 AC-блоков: ссылка purpose-bound / step-up / поверхность / media-consent / uploader+quarantine / одноразовые разрешения / недоверенный контент / resume / жизненный цикл ссылки / новые версии с provenance / возврат в разговор / a11y), PRD FR-16 (проверяемые следствия: объяснение цели, статусы доставки в основном канале, ровно одна отправка, пригодность media) + FR-82 (единый мультимодальный контекст), ARCH-SPINE (AD-2: protected continuation — Case-поверхность; AD-6: playback-permit — прецедент request-carried credential; AD-10: tenancy-честность), механика 2-1/2-2/2-3/2-4/2-6/2-9 (команды/факты/verification/owner-epoch/reply-связки/commitment), deferred-work
+- Первый срез спекой: ссылка-возможность (словари, ttl 5..120 мин, consumption_limit 1..10 default 1, токен base64url(tenant‖random-32B) с хранением только SHA-256 — opaque, AD-10-честность верификацией хеша до материала) + append-only links/uses/revocations + операторские issue/revoke (delivery-связка client_replies.link_id — прецедент 2-9) + публичная страница /continue/{token} (имя Tenant, цель, резюме подтверждённых фактов WI, открытый вопрос, исправление факта → новая неподтверждённая версия с channel=protected_continuation/source_ref=link_id, события submitted/human_requested/returned, generic-отказы без раскрытия кейса) + панель оператора + полный a11y-срез; матрица 19 строк, Code Map 11 файлов, шаги 01-05
+- Never среза (честные границы): media-поверхность целиком (блоки 4-8 — второй срез, media edge AD-6), risk-based step-up (блок 2), подтверждение Commitment с клиентской поверхности (блок 10 — Commitment-ветка), resume/upload-состояния (блок 8), rate-limiting public-маршрута, доставка URL коннектором, клиентская идентификация помимо токена, Inbox-роутинг human_requested
+- Git: спека 77e174b на ветке codex/story-2-10-protected-multimodal-continuation [skip ci] (baseline 90b03d4, ветка уже несёт пре-шаг флэйк-фикса 3ff4d0a); sprint-status 2-10 = backlog (движется при закрытии CHECKPOINT 1, прецедент 2-9); DEVLOG 54-sm — этот коммит
+next: CHECKPOINT 1 — предъявление спеки владельцу нетехническим пересказом в ответе сессии (формат AGENTS.md); при одобрении: спека+sprint-status → ready-for-dev → Dev step-01..05; отклонение/правки → переработка SM-ролью; токен публикации уже в руках (CHECKPOINT 2 без паузы)
+commit: 77e174b
