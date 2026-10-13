@@ -1866,3 +1866,20 @@ done:
 - Дерево ветки: спека a5bf416 → CHECKPOINT 1 a1ece27 → флэйк cb1abbc → step-01..05 632fb2d/77a68e5/6158cb1/0391f8a/27b539f/a064af1 → R1-фикс a4c9ce4 → union 39263e0 → closure
 next: CHECKPOINT 2 — пуш closure (без [skip ci]) → CI на head → PR через GitHub API → CI (push+PR) → merge sha-pinned → синк main → DEVLOG 53-merge; токен владельца в руках (маска github_pat_***)
 commit: TBD
+
+---
+date: 2026-10-13
+task: 53-merge
+role: main (Super Z)
+story: 2-9
+summary: Story 2-9 влита в main — PR #24, merge-коммит cef7360; CI тремя полными прогонами (push c3f8a24 success с первой попытки; PR-run потребовал один rerun известного класса вне-срезовых флэйков — гонка данных харнесса sequenceIDs, задокументирована в deferred-work; main-run cef7360 success с первой попытки); Epic 2: 9/16 stories done — контур получил версии обязательств с материальными условиями, точное подтверждение показанной версии и честные отказы
+done:
+- Токен владельца (маска github_pat_***) — inline env через helper (паттерн 46/47/48/49/50/51-merge, седьмой CHECKPOINT подряд); публикация по решениям владельца из CHECKPOINT 1
+- Пуш ветки: c3f8a24 (closure, без [skip ci]) — push-run 38426798763 success с первой попытки (полный конвейер Go+PG+Playwright на head закрытия)
+- PR #24 через GitHub API (title/body по спеке + цикл ревью R1/R2); PR-run 38427598831 — FAIL на TestPolicyTerminalWorkItemAndRaces «duplicate key policy_outcomes_pkey» (гонка данных харнесса sequenceIDs — вне-срезовый флэйк: push-run того же дерева зелёный, дифф 2-9 policy-путь не трогает) → rerun-failed-jobs → success
+- Флэйк sequenceIDs внесён в deferred-work.md (append-only, evidence: PR-run FAIL/push-run success/rerun success; кандидат — мьютекс в генераторе, решение владельца; класс = прецедент флэйка audit-order из 2-8)
+- Merge: PR #24, merge_method=merge, sha-pinned c3f8a24 → merge-коммит cef7360; локальный main синхронизирован ff-only
+- CI после merge (NEED=1): main-run 38428725933 (head cef7360) — success с первой попытки
+- Контур 2-9 в main: append-only версии (00009, RLS, гранты), 3 команды с гейт-лестницей, предъявление связкой sales-reply, подтверждение точной показанной версии (spans+assurance+свежесть пина под локами), транзит WI→confirmed, отказы append-only, Commitment Review + панель (a11y), OpenAPI +3/+11, journeys-цепь 19 z, контракт, зонды инвариантов и гонок
+next: story 2-10 «Защищённое мультимодальное продолжение» (SM-фаза по дисциплине BMAD: спека → CHECKPOINT 1 предъявлением в ответе сессии); решение владельца по флэйку sequenceIDs (deferred-work)
+commit: cef7360
