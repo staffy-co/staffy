@@ -40,6 +40,12 @@ var (
 	// decides the honest answer (replay of the original version or the
 	// cross-case conflict) — never an internal error.
 	ErrFactMaterialExists = errors.New("cases: fact material exists")
+	// ErrCommitmentDuplicate marks a confirm command of the same subject
+	// of the SAME version under another command key: one confirmation per
+	// subject per version (the fail-closed duplicate — the honest 409,
+	// never a silent merge; the replay of the SAME key returns the stored
+	// outcome instead).
+	ErrCommitmentDuplicate = errors.New("cases: commitment duplicate")
 )
 
 // WorkRuleError is the honest work-command refusal: the command name and

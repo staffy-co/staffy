@@ -1,0 +1,158 @@
+{{define "commitment"}}
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Обязательства · Обращение №{{.View.CaseNo}} · Staffy</title><link rel="stylesheet" href="/assets/app.css"></head>
+<body><a class="skip-link" href="#main">К основному содержанию</a><header class="topbar"><a class="brand" href="/app/tenants/{{.TenantID}}">Staffy</a><strong>Обязательства · Обращение №{{.View.CaseNo}}</strong></header>
+<div class="shell"><nav aria-label="Основная навигация"><a href="{{.View.BackURL}}">К обращению</a></nav><main id="main"><section class="panel"><h1>Обязательства элемента работы</h1>
+<p class="next-note">Обращение №{{.View.CaseNo}}. Элемент: <span class="digest-block">{{.View.WorkItemID}}</span>. Состояние: <strong>{{.View.StateText}}</strong> (версия {{.View.Version}}).</p>
+<p class="next-note">{{.View.PanelText}}</p>
+{{if .View.Flash}}<p class="alert" role="alert" tabindex="-1" id="commitment-flash">{{.View.Flash}}</p><script>addEventListener('DOMContentLoaded', () => document.getElementById('commitment-flash').focus());</script>{{end}}
+{{if .View.ChangedText}}<p class="next-note" role="status" aria-live="polite" tabindex="-1" id="commitment-changed">{{.View.ChangedText}}</p><script>addEventListener('DOMContentLoaded', () => document.getElementById('commitment-changed').focus());</script>{{end}}
+<p id="commitment-summary" aria-live="polite">Версий: {{len .View.Versions}}. Подтверждений: {{len .View.Confirmations}}. Отказов: {{len .View.Declines}}.</p>
+
+<h2>Версии обязательства</h2>
+{{if .View.Versions}}
+{{range .View.Versions}}
+<section class="panel" aria-label="Версия {{.No}} обязательства">
+<p><strong>Версия №{{.No}}</strong> · {{.StatusText}} · {{.CurrentText}} · {{.ReadinessText}}.{{if .PresentedText}} Предъявление: {{.PresentedText}}.{{end}} Создана: {{.CreatedAt}}. {{.TokenText}}.</p>
+<dl>
+<dt>Предмет (scope)</dt><dd>{{.Scope}}</dd>
+<dt>Позиции и услуги</dt><dd>{{.ServiceItems}}</dd>
+<dt>Цена</dt><dd>{{.PriceText}}</dd>
+<dt>Получатель (payee)</dt><dd>{{.Payee}}</dd>
+<dt>Гарантийная роль</dt><dd>{{.WarrantyRole}}</dd>
+<dt>Следующий шаг</dt><dd>{{.NextStep}}</dd>
+<dt>Последствия</dt><dd>{{.Consequences}}</dd>
+<dt>Действует до</dt><dd>{{.ValidUntil}}</dd>
+<dt>Слова действий</dt><dd>{{.ActionsText}}</dd>
+<dt>Неизвестные термины</dt><dd>{{.UnknownsText}}</dd>
+</dl>
+<p class="next-note">Идентификатор обязательства: <span class="digest-block">{{.CommitmentID}}</span>.</p>
+{{if and $.View.CanManageWork (not $.View.Terminal)}}
+<details class="connector-connect commitment-card-action"><summary>Подтвердить эту версию (confirm_commitment)</summary>
+<form class="commitment-form" method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/work-items/{{$.View.WorkItemID}}/commitments/{{.CommitmentID}}/confirm">
+<input type="hidden" name="version_no" value="{{.No}}">
+<input type="hidden" name="expected_version" value="{{$.View.Version}}">
+<label for="confirm-subject-{{.CommitmentID}}-{{.No}}">Субъект подтверждения (ссылка клиента — совпадает с проверенной личностью)</label>
+<input id="confirm-subject-{{.CommitmentID}}-{{.No}}" name="subject_ref" type="text" required maxlength="128">
+<label for="confirm-turn-{{.CommitmentID}}-{{.No}}">Событие-источник согласия (принятый текстовый turn кейса)</label>
+<select id="confirm-turn-{{.CommitmentID}}-{{.No}}" name="turn_ref" required>{{range $.View.EventOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}</select>
+<label for="confirm-span1-{{.CommitmentID}}-{{.No}}">Дословная выдержка согласия 1 (до 200 символов, точно из payload)</label>
+<input id="confirm-span1-{{.CommitmentID}}-{{.No}}" name="span_1" type="text" required maxlength="200">
+<label for="confirm-span2-{{.CommitmentID}}-{{.No}}">Дословная выдержка 2 (необязательно)</label>
+<input id="confirm-span2-{{.CommitmentID}}-{{.No}}" name="span_2" type="text" maxlength="200">
+<label for="confirm-span3-{{.CommitmentID}}-{{.No}}">Дословная выдержка 3 (необязательно)</label>
+<input id="confirm-span3-{{.CommitmentID}}-{{.No}}" name="span_3" type="text" maxlength="200">
+<button class="primary" type="submit">Подтвердить показанную версию</button>
+</form>
+<p class="next-note">Выдержки сверяются побайтово со словами клиента события-источника: выдуманное согласие невозможно. Подтверждение требует проверенной личности субъекта (verified) и — при цене больше нуля — действующей записи полномочий (mandate_note). Наблюдение цены должно оставаться текущим: перечитанное поле требует новой версии.</p>
+</details>
+<details class="connector-connect commitment-card-action"><summary>Зафиксировать отказ или запрос изменения (record_commitment_decline)</summary>
+<form class="commitment-form" method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/work-items/{{$.View.WorkItemID}}/commitments/{{.CommitmentID}}/decline">
+<input type="hidden" name="version_no" value="{{.No}}">
+<label for="decline-outcome-{{.CommitmentID}}-{{.No}}">Исход (словарь)</label>
+<select id="decline-outcome-{{.CommitmentID}}-{{.No}}" name="outcome" required>{{range $.View.DeclineOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}</select>
+<label for="decline-turn-{{.CommitmentID}}-{{.No}}">Событие-источник отказа (принятый текстовый turn кейса)</label>
+<select id="decline-turn-{{.CommitmentID}}-{{.No}}" name="turn_ref" required>{{range $.View.EventOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}</select>
+<label for="decline-span1-{{.CommitmentID}}-{{.No}}">Дословная выдержка отказа 1 (до 200 символов)</label>
+<input id="decline-span1-{{.CommitmentID}}-{{.No}}" name="span_1" type="text" required maxlength="200">
+<label for="decline-span2-{{.CommitmentID}}-{{.No}}">Дословная выдержка 2 (необязательно)</label>
+<input id="decline-span2-{{.CommitmentID}}-{{.No}}" name="span_2" type="text" maxlength="200">
+<button class="primary" type="submit">Записать отказ</button>
+</form>
+<p class="next-note">Отказ ничего не меняет: материальные условия остаются; запрос изменения оператор закрывает новой версией обязательства.</p>
+</details>
+{{end}}
+</section>
+{{end}}
+{{else}}
+<p role="status">Версий обязательства нет: создайте первую версию формой ниже.</p>
+{{end}}
+
+<h2>Подтверждения</h2>
+{{if .View.Confirmations}}
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Подтверждения обязательств">
+<table class="datamap-table">
+<caption>Подтверждения: версия, субъект, метод, канал, срок, действительность</caption>
+<thead><tr><th scope="col">Обязательство</th><th scope="col">Версия</th><th scope="col">Субъект</th><th scope="col">Метод</th><th scope="col">Канал</th><th scope="col">Действует до</th><th scope="col">Состояние</th><th scope="col">Записано</th></tr></thead>
+<tbody>
+{{range .View.Confirmations}}<tr><th scope="row"><span class="digest-block">{{.CommitmentID}}</span></th><td>№{{.VersionNo}}</td><td>{{.Subject}}</td><td>{{.Method}}</td><td>{{.Channel}}</td><td>{{.ExpiresAt}}</td><td>{{.ValidityText}}</td><td>{{.ConfirmedAt}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+<p class="next-note">Действительность — производная чтения: истекший срок, новая версия, смена владения или смена релиза делают подтверждение недействующим; повторная доставка старого события его не восстанавливает.</p>
+{{else}}
+<p role="status">Подтверждений нет.</p>
+{{end}}
+
+<h2>Отказы и запросы изменения</h2>
+{{if .View.Declines}}
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Отказы обязательств">
+<table class="datamap-table">
+<caption>Отказы: версия, исход, источник, время</caption>
+<thead><tr><th scope="col">Обязательство</th><th scope="col">Версия</th><th scope="col">Исход</th><th scope="col">Источник</th><th scope="col">Время</th></tr></thead>
+<tbody>
+{{range .View.Declines}}<tr><th scope="row"><span class="digest-block">{{.CommitmentID}}</span></th><td>№{{.VersionNo}}</td><td>{{.OutcomeText}}</td><td><span class="digest-block">{{.TurnRef}}</span></td><td>{{.CreatedAt}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+{{else}}
+<p role="status">Отказов нет.</p>
+{{end}}
+
+{{if and .View.CanManageWork (not .View.Terminal)}}
+<h2>Создать версию обязательства</h2>
+<section class="panel" aria-label="Форма создания версии">
+<form class="commitment-form" method="post" action="/app/tenants/{{.TenantID}}/cases/{{.View.CaseID}}/work-items/{{.View.WorkItemID}}/commitments">
+<label for="create-commitment-id">Идентификатор обязательства (UUID — пустым для нового; та же связь = новая версия)</label>
+<input id="create-commitment-id" name="commitment_id" type="text" maxlength="36">
+<label for="create-status">Статус версии (словарь)</label>
+<select id="create-status" name="status" required>{{range .View.StatusOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}</select>
+<label for="create-scope">Предмет (scope, до 200 символов)</label>
+<input id="create-scope" name="scope" type="text" required maxlength="200">
+<label for="create-service-items">Позиции и услуги (по одной в строке)</label>
+<textarea id="create-service-items" name="service_items" rows="3" required></textarea>
+<label for="create-price-kind">Вид цены</label>
+<select id="create-price-kind" name="price_kind" required>
+<option value="amount">Сумма (точная)</option>
+<option value="range">Диапазон (мин/макс)</option>
+</select>
+<label for="create-price-amount">Сумма в копейках (для вида «Сумма»)</label>
+<input id="create-price-amount" name="price_amount_cents" type="number" min="1">
+<label for="create-price-min">Минимум в копейках (для вида «Диапазон»)</label>
+<input id="create-price-min" name="price_min_cents" type="number" min="1">
+<label for="create-price-max">Максимум в копейках (для вида «Диапазон»)</label>
+<input id="create-price-max" name="price_max_cents" type="number" min="2">
+<label for="create-payee">Получатель (payee)</label>
+<input id="create-payee" name="payee" type="text" required maxlength="128">
+<label for="create-warranty">Гарантийная роль</label>
+<input id="create-warranty" name="warranty_role" type="text" required maxlength="128">
+<label for="create-next-step">Следующий шаг</label>
+<input id="create-next-step" name="next_step" type="text" required maxlength="200">
+<label for="create-consequences">Последствия</label>
+<input id="create-consequences" name="consequences" type="text" required maxlength="200">
+<fieldset>
+<legend>Неизвестные обязательные термины (честные дыры — блокируют подтверждаемость)</legend>
+<input type="checkbox" id="create-unknown-scope" name="unknown_scope"><label for="create-unknown-scope">scope — предмет неизвестен</label>
+<input type="checkbox" id="create-unknown-service-items" name="unknown_service_items"><label for="create-unknown-service-items">service_items — позиции неизвестны</label>
+<input type="checkbox" id="create-unknown-price" name="unknown_price"><label for="create-unknown-price">price — цена неизвестна</label>
+<input type="checkbox" id="create-unknown-payee" name="unknown_payee"><label for="create-unknown-payee">payee — получатель неизвестен</label>
+<input type="checkbox" id="create-unknown-warranty" name="unknown_warranty"><label for="create-unknown-warranty">warranty_role — гарантия неизвестна</label>
+<input type="checkbox" id="create-unknown-next-step" name="unknown_next_step"><label for="create-unknown-next-step">next_step — шаг неизвестен</label>
+<input type="checkbox" id="create-unknown-consequences" name="unknown_consequences"><label for="create-unknown-consequences">consequences — последствия неизвестны</label>
+</fieldset>
+<fieldset>
+<legend>Слова действий (1..4 — исполнение отсутствует, словарь v1)</legend>
+<input type="checkbox" id="create-action-prepare" name="action_prepare_order"><label for="create-action-prepare">prepare_order — подготовить заказ</label>
+<input type="checkbox" id="create-action-schedule" name="action_schedule_appointment"><label for="create-action-schedule">schedule_appointment — записать на приём</label>
+<input type="checkbox" id="create-action-document" name="action_issue_document"><label for="create-action-document">issue_document — выпустить документ</label>
+</fieldset>
+<label for="create-valid-until">Действует до (RFC 3339, будущее)</label>
+<input id="create-valid-until" name="valid_until" type="datetime-local" required>
+<label for="create-limit">Лимит потребления (1..10)</label>
+<input id="create-limit" name="consumption_limit" type="number" min="1" max="10" required value="1">
+<button class="primary" type="submit">Создать версию</button>
+</form>
+<p class="next-note">Предложенная версия с известной ценой требует свежего наблюдения price (read_owning_system) с совпадающим значением — иначе честный отказ. Черновик не предъявляется клиенту и не подтверждается. Новая версия той же связи = версия №+1; прежние версии не меняются, прежние подтверждения становятся заменёнными.</p>
+</section>
+{{end}}
+</section></main></div></body></html>
+{{end}}

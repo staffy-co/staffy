@@ -29,7 +29,10 @@ import (
 
 // Work item states: the ladder of the slice. untriaged is the honest state
 // of the initial work item written by the ingress; in_work is the
-// classified state; waiting is the honest pause; resolved and cancelled are
+// classified state; waiting is the honest pause; confirmed (2.9) is the
+// machine step of the exact-version commitment confirmation — the work
+// item holds a confirmed obligation, the execution contour is Epic 3;
+// resolved and cancelled are
 // the operator completions; split and merged are the terminal states of the
 // split/merge commands. A completion of one work item never closes the
 // conversation or the case.
@@ -37,6 +40,7 @@ const (
 	WorkItemStateUntriaged = "untriaged"
 	WorkItemStateInWork    = "in_work"
 	WorkItemStateWaiting   = "waiting"
+	WorkItemStateConfirmed = "confirmed"
 	WorkItemStateResolved  = "resolved"
 	WorkItemStateCancelled = "cancelled"
 	WorkItemStateSplit     = "split"
@@ -46,7 +50,8 @@ const (
 // WorkItemStates is the full dictionary.
 var WorkItemStates = []string{
 	WorkItemStateUntriaged, WorkItemStateInWork, WorkItemStateWaiting,
-	WorkItemStateResolved, WorkItemStateCancelled, WorkItemStateSplit, WorkItemStateMerged,
+	WorkItemStateConfirmed, WorkItemStateResolved, WorkItemStateCancelled,
+	WorkItemStateSplit, WorkItemStateMerged,
 }
 
 // TerminalWorkItemStates are the states no further command may mutate: the
@@ -60,8 +65,12 @@ var TerminalWorkItemStates = map[string]bool{
 // non-terminal state. untriaged is not on the transition command ladder at
 // all — it leaves its state only through classification.
 var transitions = map[string][]string{
-	WorkItemStateInWork:  {WorkItemStateWaiting, WorkItemStateResolved, WorkItemStateCancelled},
-	WorkItemStateWaiting: {WorkItemStateInWork, WorkItemStateResolved, WorkItemStateCancelled},
+	WorkItemStateInWork:  {WorkItemStateWaiting, WorkItemStateResolved, WorkItemStateCancelled, WorkItemStateConfirmed},
+	WorkItemStateWaiting: {WorkItemStateInWork, WorkItemStateResolved, WorkItemStateCancelled, WorkItemStateConfirmed},
+	// confirmed (2.9) is the machine step of the exact-version confirmation: the
+	// exits stay the operator completions only (no split/merge of a confirmed
+	// item in this slice — the honest boundary; the action continuation is Epic 3).
+	WorkItemStateConfirmed: {WorkItemStateResolved, WorkItemStateCancelled},
 }
 
 // TransitionAllowed reports whether the transition command may move a work
@@ -168,6 +177,8 @@ func RecommendedNextAction(state string) string {
 		return "Запишите факты и проверьте подтверждения."
 	case WorkItemStateWaiting:
 		return "Проверьте условие возврата клиента."
+	case WorkItemStateConfirmed:
+		return "Обязательство подтверждено: исполнение вне системы (контур исполнений — будущие срезы)."
 	case WorkItemStateResolved:
 		return "Работа завершена; история доступна."
 	case WorkItemStateCancelled:

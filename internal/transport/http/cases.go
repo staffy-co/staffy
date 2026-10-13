@@ -86,6 +86,17 @@ func (s *Server) BindCases(service casesAPI.Service) {
 	// panel) — one client objection per record with the verbatim spans.
 	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/objections", s.recordObjectionAPI)
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/objections", s.recordObjectionForm)
+	// The Story 2.9 surfaces: the three commitment commands (machine JSON
+	// + the operator PRG forms of the Commitment Review page) and the
+	// Commitment Review page itself (the operator surface of one Work
+	// Item: the version history, the confirmations, the declines).
+	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/commitments", s.createCommitmentAPI)
+	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/commitments/{commitment_id}/confirm", s.confirmCommitmentAPI)
+	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/commitments/{commitment_id}/decline", s.declineCommitmentAPI)
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/commitments", s.createCommitmentForm)
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/commitments/{commitment_id}/confirm", s.confirmCommitmentForm)
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/commitments/{commitment_id}/decline", s.declineCommitmentForm)
+	s.mux.HandleFunc("GET /app/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/commitments", s.commitmentReviewPage)
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/ai-proposals", s.submitAIProposalForm)
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/policy/evaluations", s.evaluatePolicyForm)
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/mode/proposals", s.proposeModeForm)

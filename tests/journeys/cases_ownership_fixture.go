@@ -328,8 +328,10 @@ func (f *casesFixture) SendClientReply(_ context.Context, command casesAPI.SendC
 		Expected     int64  `json:"expected_epoch"`
 		Class        string `json:"reply_class"`
 		Step         string `json:"playbook_step"`
+		Commitment   string `json:"commitment_id"`
+		CVersion     int64  `json:"commitment_version"`
 		Content      string `json:"content"`
-	}{command.CaseID.String(), command.ConversationID.String(), command.WorkItemID.String(), command.ExpectedEpoch, command.ReplyClass, command.PlaybookStep, command.Content})
+	}{command.CaseID.String(), command.ConversationID.String(), command.WorkItemID.String(), command.ExpectedEpoch, command.ReplyClass, command.PlaybookStep, command.CommitmentID.String(), command.CommitmentVersionNo, command.Content})
 	if err != nil || !fresh {
 		return outcome, err
 	}
@@ -420,6 +422,34 @@ func (f *casesFixture) SendClientReply(_ context.Context, command casesAPI.SendC
 	if objectionID.Valid() && command.PlaybookStep != "" {
 		f.replyLinks[command.CaseID] = append(f.replyLinks[command.CaseID], casesDomain.ReplyLink{
 			ObjectionID: objectionID, Step: command.PlaybookStep,
+		})
+	}
+	// The Story 2.9 presentation link: the nullable pair is both or
+	// neither; ONLY the sales class carries the commercial material of
+	// the EXACT shown offered version; the linked version must exist and
+	// be offered — the draft never presents.
+	if command.CommitmentID.Valid() || command.CommitmentVersionNo != 0 {
+		if command.ReplyClass != casesDomain.ReplyClassSales {
+			return casesAPI.WorkOutcome{}, fixtureWorkRule("send_client_reply", fmt.Errorf("Связь обязательства несёт только коммерческий ответ (sales): нейтральные и защищённые сообщения не предъявляют материальные условия."))
+		}
+		linked := false
+		for _, version := range f.commitments[command.CaseID] {
+			if version.CommitmentID == command.CommitmentID && version.VersionNo == command.CommitmentVersionNo {
+				linked = true
+				if version.Status != casesDomain.CommitmentStatusOffered {
+					return casesAPI.WorkOutcome{}, fixtureWorkRule("send_client_reply", fmt.Errorf("Черновик не считается предъявляемым обязательством: свяжите offered-версию (draft-not-presentable)."))
+				}
+				if version.WorkItemID != command.WorkItemID {
+					return casesAPI.WorkOutcome{}, fixtureWorkRule("send_client_reply", fmt.Errorf("Версия обязательства принадлежит другому элементу работы: связь возможна только в пределах одного элемента."))
+				}
+				break
+			}
+		}
+		if !linked {
+			return casesAPI.WorkOutcome{}, fixtureWorkRule("send_client_reply", fmt.Errorf("Версия обязательства не найдена: связь сообщения-предъявления требует существующей offered-версии этого элемента работы."))
+		}
+		f.presented[command.CaseID] = append(f.presented[command.CaseID], casesDomain.PresentedCommitment{
+			CommitmentID: command.CommitmentID, VersionNo: command.CommitmentVersionNo,
 		})
 	}
 	replyID := f.fixtureOwnershipID()

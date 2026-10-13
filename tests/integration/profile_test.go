@@ -569,7 +569,7 @@ func TestProfileWriteAuditAndGrants(t *testing.T) {
         }
         ctx := context.Background()
         var outcomes []string
-        rows, err := adminPool.Query(ctx, "select outcome from employee.audit where tenant_id=$1 and employee_id=$2 and outcome in ('profile_draft_saved','profile_approved','threshold_decided') order by occurred_at", w.tenant, employee)
+        rows, err := adminPool.Query(ctx, "select outcome from employee.audit where tenant_id=$1 and employee_id=$2 and outcome in ('profile_draft_saved','profile_approved','threshold_decided') order by occurred_at, resulting_version", w.tenant, employee)
         if err != nil {
                 t.Fatal(err)
         }

@@ -1752,3 +1752,179 @@ func TestObjectionContractIsHonest(t *testing.T) {
 		t.Errorf("CaseView must reference the ObjectionView section, got %v", objectionRef)
 	}
 }
+
+// TestCommitmentContractIsHonest pins the Story 2.9 contract honesty: the
+// three command paths carry the principal boundary and the idempotency
+// key; the request dictionaries are the fixed CHECK backstops of
+// migration 00009 (the statuses, the action words, the decline outcomes,
+// the unknown term words); the confirm request demands the verbatim
+// spans, the CAS expectation and the exact version; the view carries the
+// derived (never stored) readiness and validity words with the reserved
+// words of the dictionary; the honest 400/409/403 codes of the matrix
+// rows are documented on the exact paths.
+func TestCommitmentContractIsHonest(t *testing.T) {
+	content, err := os.ReadFile("staffy.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document map[string]any
+	if err := yaml.Unmarshal(content, &document); err != nil {
+		t.Fatal(err)
+	}
+	paths := mapping(t, document, "paths")
+	for _, path := range []string{
+		"/v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/commitments",
+		"/v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/commitments/{commitment_id}/confirm",
+		"/v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/commitments/{commitment_id}/decline",
+	} {
+		post := mapping(t, mapping(t, paths, path), "post")
+		if required, _ := post["x-staffy-principal-required"].(bool); !required {
+			t.Errorf("%s: the principal boundary is not documented", path)
+		}
+		parameters, _ := post["parameters"].([]any)
+		hasKey := false
+		for _, parameter := range parameters {
+			item, _ := parameter.(map[string]any)
+			if item == nil {
+				continue
+			}
+			if ref, _ := item["$ref"].(string); ref == "#/components/parameters/IdempotencyKey" {
+				hasKey = true
+			}
+		}
+		if !hasKey {
+			t.Errorf("%s: the Idempotency-Key parameter is missing", path)
+		}
+		// The honest refusal codes of the matrix rows: the dictionaries
+		// and the discipline refusals are 400; the scope gate is the 403
+		// BEFORE the guards; the duplicate subject, the stale ladder and
+		// the key conflict are the honest 409.
+		responses := mapping(t, post, "responses")
+		for _, code := range []string{"400", "403", "409"} {
+			if _, documented := responses[code]; !documented {
+				t.Errorf("%s: the honest %s refusal is not documented", path, code)
+			}
+		}
+	}
+
+	schemas := mapping(t, mapping(t, document, "components"), "schemas")
+	// The create request: the fixed dictionaries (the statuses, the
+	// actions, the unknown term words) and the typed terms.
+	create := mapping(t, schemas, "CommitmentCreateRequest")
+	createProperties := mapping(t, create, "properties")
+	if statusEnum, _ := mapping(t, createProperties, "status")["enum"].([]any); len(statusEnum) != 2 {
+		t.Errorf("the create status carries the two-word enum (draft, offered), got %v", statusEnum)
+	}
+	actions, _ := mapping(t, createProperties, "action_set")["items"].(map[string]any)
+	if actions != nil {
+		if actionsEnum, _ := actions["enum"].([]any); len(actionsEnum) != 3 {
+			t.Errorf("the action_set items carry the three action words, got %v", actionsEnum)
+		}
+	}
+	unknowns, _ := mapping(t, createProperties, "material_unknowns")["items"].(map[string]any)
+	if unknowns != nil {
+		if unknownsEnum, _ := unknowns["enum"].([]any); len(unknownsEnum) != 7 {
+			t.Errorf("the material_unknowns items carry the seven mandatory term words, got %v", unknownsEnum)
+		}
+	}
+	if limit, _ := mapping(t, createProperties, "consumption_limit")["maximum"].(int); limit != 10 {
+		t.Errorf("the consumption limit stays bounded by ten, got %v", limit)
+	}
+	terms := mapping(t, schemas, "MaterialTerms")
+	termsRequired, _ := terms["required"].([]any)
+	if len(termsRequired) != 7 {
+		t.Errorf("MaterialTerms requires the seven mandatory fields, got %v", termsRequired)
+	}
+	price := mapping(t, mapping(t, terms, "properties"), "price")
+	if priceRef, _ := price["$ref"].(string); priceRef != "#/components/schemas/CommitmentPriceTerm" {
+		t.Errorf("the price term is the typed CommitmentPriceTerm, got %v", price)
+	}
+	priceTerm := mapping(t, schemas, "CommitmentPriceTerm")
+	if kindEnum, _ := mapping(t, mapping(t, priceTerm, "properties"), "kind")["enum"].([]any); len(kindEnum) != 2 {
+		t.Errorf("the price kind carries the amount/range enum, got %v", kindEnum)
+	}
+
+	// The confirm request: the exact version, the CAS expectation, the
+	// subject dictionary and the verbatim spans (1..8 — the invented
+	// consent is impossible).
+	confirm := mapping(t, schemas, "CommitmentConfirmRequest")
+	confirmRequired, _ := confirm["required"].([]any)
+	if len(confirmRequired) != 6 {
+		t.Errorf("CommitmentConfirmRequest requires the six material fields (version, expectation, subject, turn, spans), got %v", confirmRequired)
+	}
+	confirmProperties := mapping(t, confirm, "properties")
+	if spans, _ := mapping(t, confirmProperties, "spans")["maxItems"].(int); spans != 8 {
+		t.Errorf("the confirm spans stay bounded by eight excerpts, got %v", spans)
+	}
+	if subjectEnum, _ := mapping(t, confirmProperties, "subject_kind")["enum"].([]any); len(subjectEnum) != 1 || subjectEnum[0] != "client" {
+		t.Errorf("the subject kind carries the client dictionary v1, got %v", subjectEnum)
+	}
+
+	// The decline request: the outcome dictionary.
+	decline := mapping(t, schemas, "CommitmentDeclineRequest")
+	if outcomeEnum, _ := mapping(t, mapping(t, decline, "properties"), "outcome")["enum"].([]any); len(outcomeEnum) != 2 {
+		t.Errorf("the decline outcome carries the two-word enum, got %v", outcomeEnum)
+	}
+
+	// The view: the derived words with the reserved ones (revoked and
+	// consumed never carry a producer in the slice — the honest
+	// reservation of the dictionary).
+	view := mapping(t, schemas, "CommitmentView")
+	viewProperties := mapping(t, view, "properties")
+	validity, _ := mapping(t, viewProperties, "validity_words")["items"].(map[string]any)
+	if validity != nil {
+		validityEnum, _ := validity["enum"].([]any)
+		if len(validityEnum) != 7 {
+			t.Errorf("the validity words carry the five produced and the two reserved words, got %v", validityEnum)
+		}
+		reserved := map[string]bool{}
+		for _, word := range validityEnum {
+			if text, _ := word.(string); text == "revoked" || text == "consumed" {
+				reserved[text] = true
+			}
+		}
+		if !reserved["revoked"] || !reserved["consumed"] {
+			t.Errorf("the reserved validity words (revoked, consumed) stay in the dictionary, got %v", validityEnum)
+		}
+	}
+	readiness, _ := mapping(t, viewProperties, "readiness_words")["items"].(map[string]any)
+	if readiness != nil {
+		if readinessEnum, _ := readiness["enum"].([]any); len(readinessEnum) != 4 {
+			t.Errorf("the readiness words carry the four-word enum, got %v", readinessEnum)
+		}
+	}
+	card := mapping(t, schemas, "CommitmentVersionCard")
+	cardRequired, _ := card["required"].([]any)
+	for _, word := range []string{"version", "readiness", "presented", "current"} {
+		found := false
+		for _, value := range cardRequired {
+			if text, _ := value.(string); text == word {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("CommitmentVersionCard must require %s", word)
+		}
+	}
+	confirmation := mapping(t, schemas, "CommitmentConfirmationCard")
+	if validityRef, _ := mapping(t, confirmation, "properties")["validity"].(map[string]any); validityRef != nil {
+		if methodEnum, _ := validityRef["enum"].([]any); len(methodEnum) != 5 {
+			t.Errorf("the confirmation validity carries the five produced words, got %v", methodEnum)
+		}
+	}
+	// The presentation link of the sales reply: the nullable pair (both
+	// or neither).
+	reply := mapping(t, schemas, "SendClientReplyRequest")
+	replyProperties := mapping(t, reply, "properties")
+	if _, hasLink := replyProperties["commitment_id"]; !hasLink {
+		t.Errorf("SendClientReplyRequest documents the presentation link pair (commitment_id)")
+	}
+	if _, hasVersion := replyProperties["commitment_version"]; !hasVersion {
+		t.Errorf("SendClientReplyRequest documents the presentation link pair (commitment_version)")
+	}
+	// The case view carries the commitments section.
+	caseView := mapping(t, schemas, "CaseView")
+	if _, hasSection := mapping(t, caseView, "properties")["commitments"]; !hasSection {
+		t.Errorf("CaseView documents the commitments section of Story 2.9")
+	}
+}

@@ -471,6 +471,16 @@ func (s *Postgres) ExecuteWorkCommand(ctx context.Context, p casesPort.WorkComma
 		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID), workLockKey(tenantID, p.WorkItemID))
 	case "record_objection":
 		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID), workLockKey(tenantID, p.WorkItemID))
+	case "create_commitment", "record_commitment_decline":
+		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID), workLockKey(tenantID, p.WorkItemID))
+	case "confirm_commitment":
+		// The price fact key joins the plan: the confirm re-derives the
+		// conflict badge against the confirmed exact price fact under the
+		// locks, so the fact writers (record_fact / confirm_fact_version of
+		// the price key) serialize with the confirmation — the badge is the
+		// commit-time truth, never a raced snapshot.
+		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID), workLockKey(tenantID, p.WorkItemID),
+			factKeyLockKey(tenantID, p.CaseID, casesDomain.MaterialFieldPrice))
 	}
 	sort.Strings(lockKeys)
 	for _, key := range lockKeys {
@@ -533,6 +543,12 @@ func (s *Postgres) ExecuteWorkCommand(ctx context.Context, p casesPort.WorkComma
 		err = s.execReadOwningSystem(ctx, tx, tenantID, p, now)
 	case "record_objection":
 		err = s.execRecordObjection(ctx, tx, tenantID, p, now)
+	case "create_commitment":
+		err = s.execCreateCommitment(ctx, tx, tenantID, p, now)
+	case "confirm_commitment":
+		err = s.execConfirmCommitment(ctx, tx, tenantID, p, now)
+	case "record_commitment_decline":
+		err = s.execRecordCommitmentDecline(ctx, tx, tenantID, p, now)
 	default:
 		err = fmt.Errorf("неизвестная команда %s", p.Command)
 	}
@@ -1011,6 +1027,15 @@ func nilText(value string) any {
 
 func nilID(value id.UUID) any {
 	if value.Valid() {
+		return value
+	}
+	return nil
+}
+
+// nilInt64 renders the nullable integer column (zero — the honest absence
+// of the Story 2.9 presentation pair half).
+func nilInt64(value int64) any {
+	if value != 0 {
 		return value
 	}
 	return nil

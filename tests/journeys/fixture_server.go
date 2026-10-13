@@ -8,6 +8,8 @@ import (
 	"log/slog"
 	"net/http"
 	"sort"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -923,6 +925,24 @@ func main() {
 	root.HandleFunc("POST /fixture/supervisor", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
 		cases.setSupervisor(r.FormValue("enabled") == "1")
+		w.WriteHeader(http.StatusNoContent)
+	})
+	// The fixture-only price scripting: the commitment journeys pin the
+	// synthetic owning system's price answer of ONE work item to the
+	// canonical price bytes of the version amount (the per-reference
+	// scenario of the adapter — the shared field default of the
+	// observation chain stays untouched; production never exposes it).
+	root.HandleFunc("POST /fixture/price-quote", func(w http.ResponseWriter, r *http.Request) {
+		r.ParseForm()
+		amount, err := strconv.ParseInt(strings.TrimSpace(r.FormValue("amount_cents")), 10, 64)
+		if err != nil || r.FormValue("work_item") == "" || amount <= 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		if err := cases.ScriptPriceQuote(r.FormValue("work_item"), amount); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 		w.WriteHeader(http.StatusNoContent)
 	})
 	root.Handle("/", server.Handler())
