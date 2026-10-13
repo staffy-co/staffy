@@ -2,7 +2,7 @@
 title: 'Story 2.9 — Версионированный Commitment и точное Confirmation (первый срез: versioned Commitment, material snapshot и exact-version Confirmation)'
 type: 'feature'
 created: '2026-10-13'
-status: 'ready-for-dev'
+status: 'done'
 route: 'dispatch'
 baseline_commit: 'b6d263e4a7fdecef995d42aa3a9fdca9d33a36b7'
 context:
@@ -101,3 +101,4 @@ context:
 
 - 2026-10-13, SM (первый срез): спека создана по форматам 2-6/2-7/2-8; статус backlog; ожидает CHECKPOINT 1 (предъявление владельцу в ответе сессии, прецедент 2-6/2-7/2-8).
 - 2026-10-13, SM: CHECKPOINT 1 закрыт — одобрение владельца в ответ на предъявление («продолжайте», чат 2026-10-13, прецедент 8449411); сопутствующие решения владельца: (1) флэйк TestProfileWriteAuditAndGrants — однострочный фикс order by occurred_at, audit_id первым шагом Dev-фазы; (2) токен публикации предоставлен в сессии (маска github_pat_***); спека+sprint-status → ready-for-dev; далее Dev step-01..05.
+- 2026-10-13, Dev (закрытие цикла ревью): шаги 01–05 закрыты (коммиты 632fb2d/77a68e5/6158cb1/0391f8a/27b539f/a064af1); QA R1 — Major M1 (свежесть пина цены под локами — окно «app-гейт → транзакция») закрыт зонда-прогоном с мутационной проверкой (a4c9ce4: commitmentPriceCurrencyOfTx + factKeyLockKey в lock-плане confirm; TestCommitmentStoreFreshnessPinRace); R2 по диффу фикса — PASS (зеркало app-гейтов, дедлок-безопасный сортированный lock-план, зонды обеих ног живые); journeys-цепь 19 z — 26/26; регресс ×2 TZ зелёный; CI закрытия зелёный; спека+sprint-status → done (замороженные секции не тронуты — дифф от CHECKPOINT 1 = только status + Change Log).

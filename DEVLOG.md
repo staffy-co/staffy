@@ -1852,3 +1852,17 @@ done:
 - Регресс после фикса: unit 23 пакета (×2 TZ ранее), интеграция 13.7s (включая новый зонд), journeys 26/26; CI закрытия a064af1 зелёный (полный конвейер Go+PG+Playwright на head без skip ci)
 next: R2 свежим контекстом по диффу фикса → закрытие среза (спека+sprint-status → done, union, closure-коммит) → CHECKPOINT 2 (PR/CI/merge, токен в руках)
 commit: a4c9ce4
+
+---
+date: 2026-10-13
+task: 53-close
+role: main (Super Z)
+story: 2-9
+summary: Closure среза 2-9 — R2 PASS (дифф фикса R1 просмотрен свежим контекстом: зеркало app-гейтов, сортированный lock-план без дедлоков, зонды обеих ног живые, мутация красит); спека+sprint-status → done (замороженные секции не тронуты); union main (325739f: DEVLOG 53-*); ветка готова к CHECKPOINT 2
+done:
+- R2 по диффу фикса (a4c9ce4): commitmentPriceCurrencyOfTx — фильтр price+WI, CurrentObservation (max observation_no), пин==текущему+ok; бейдж — ConfirmedFactView по materialKey price, ConflictBadgeOf(current.Value, confirmed) — точное зеркало app priceObservation; lock-план: factKeyLockKey добавлен в сортированный список (дедлок-свободный глобальный порядок сохранён); create-путь гейтится только при пине>0 (unknown-цена честно пропускает)
+- Спека → done: status + Change Log (+1 запись цикла ревью); замороженные секции не тронуты (дифф от CHECKPOINT 1 = status+Change Log); sprint-status 2-9 → done; Epic 2: 9/16
+- Полный регресс финальный: build/vet/unit 23 пакета, интеграция 160+161 (новый зонд) на живом PG, journeys 26/26, контракт зеркален, gofmt тронутых файлов чист
+- Дерево ветки: спека a5bf416 → CHECKPOINT 1 a1ece27 → флэйк cb1abbc → step-01..05 632fb2d/77a68e5/6158cb1/0391f8a/27b539f/a064af1 → R1-фикс a4c9ce4 → union 39263e0 → closure
+next: CHECKPOINT 2 — пуш closure (без [skip ci]) → CI на head → PR через GitHub API → CI (push+PR) → merge sha-pinned → синк main → DEVLOG 53-merge; токен владельца в руках (маска github_pat_***)
+commit: TBD
