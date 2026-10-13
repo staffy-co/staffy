@@ -581,6 +581,7 @@ type DisclosureCard struct {
 type CommitmentDeclineView struct {
 	TenantID     id.UUID
 	CaseID       id.UUID
+	WorkItemID   id.UUID
 	DeclineID    id.UUID
 	CommitmentID id.UUID
 	VersionNo    int64

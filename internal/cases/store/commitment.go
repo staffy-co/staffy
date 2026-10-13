@@ -145,7 +145,7 @@ func (s *Postgres) ReadConfirmations(ctx context.Context, scope tenancy.Context,
 // creation time (the panel history input).
 func readCommitmentDeclinesTx(ctx context.Context, tx pgx.Tx, tenantID, caseID id.UUID) ([]casesPort.CommitmentDeclineView, error) {
 	rows, err := tx.Query(ctx, `
-                select decline_id, commitment_id, version_no, outcome, turn_ref, actor_id, created_at
+                select decline_id, work_item_id, commitment_id, version_no, outcome, turn_ref, actor_id, created_at
                 from cases.commitment_declines
                 where tenant_id=$1 and case_id=$2 order by created_at`, tenantID, caseID)
 	if err != nil {
@@ -155,7 +155,7 @@ func readCommitmentDeclinesTx(ctx context.Context, tx pgx.Tx, tenantID, caseID i
 	declines := []casesPort.CommitmentDeclineView{}
 	for rows.Next() {
 		var decline casesPort.CommitmentDeclineView
-		if err := rows.Scan(&decline.DeclineID, &decline.CommitmentID, &decline.VersionNo,
+		if err := rows.Scan(&decline.DeclineID, &decline.WorkItemID, &decline.CommitmentID, &decline.VersionNo,
 			&decline.Outcome, &decline.TurnRef, &decline.ActorID, &decline.CreatedAt); err != nil {
 			return nil, err
 		}
@@ -382,6 +382,14 @@ func (s *Postgres) execCreateCommitment(ctx context.Context, tx pgx.Tx, tenantID
 		}
 	}
 	versionNo++
+	// The expected-number CAS of the monotonic ladder: the app resolved the
+	// version number for the content token BEFORE the transaction; a raced
+	// create moved the ladder — the honest 2.2 stale-version refusal (the
+	// operator retries with the fresh material; the token never binds the
+	// wrong version bytes).
+	if versionNo != p.VersionNo {
+		return casesDomain.ErrStaleVersion
+	}
 	if _, err = tx.Exec(ctx, `
                 insert into cases.commitments (tenant_id, case_id, work_item_id, commitment_id, version_no, status,
                         conditions, action_set, valid_until, consumption_limit, material_unknowns,

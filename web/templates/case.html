@@ -146,6 +146,11 @@
 <option value="">— без шага (возражений нет) —</option>
 {{range $.View.ObjectionStepOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}
 </select>
+<label for="reply-commitment">Связь обязательства (только sales-класс: предъявить материальные условия offered-версии)</label>
+<select id="reply-commitment" name="commitment_link">
+<option value="">— без связи обязательства —</option>
+{{range $.View.CommitmentLinkOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}
+</select>
 <label for="reply-workitem">Элемент работы ответа (необязательно — контекст режима)</label>
 <select id="reply-workitem" name="work_item_id">
 <option value="">— без привязки (режим диалога —</option>
@@ -533,6 +538,12 @@
 {{if .ObjCurrent.Stopped}}
 <p class="alert" role="status">{{.ObjCurrent.StoppedText}}.</p>
 {{end}}
+</div>
+<h4>Обязательства и подтверждения</h4>
+<p class="next-note">{{$.View.CommitmentsPanelText}}</p>
+<div id="commitments-{{.WorkItemID}}" aria-live="polite">
+<p role="status">Версий: {{if .CommitCount}}{{.CommitCount}}{{else}}0{{end}}. Подтверждений: {{if .CommitConfirmCount}}{{.CommitConfirmCount}}{{else}}0{{end}}. Отказов: {{if .CommitDeclineCount}}{{.CommitDeclineCount}}{{else}}0{{end}}.</p>
+<p><a href="{{.CommitReviewURL}}">Страница Commitment Review (версии, подтверждения, отказы, формы)</a></p>
 </div>
 {{if and $.View.CanManageWork (not .Terminal)}}
 <details class="connector-connect"><summary>Записать возражение клиента (record_objection)</summary>

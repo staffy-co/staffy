@@ -580,8 +580,9 @@ func (s *Service) SendClientReply(ctx context.Context, command casesAPI.SendClie
 		return casesAPI.WorkOutcome{}, err
 	}
 	// The request hash covers the whole command material INCLUDING the
-	// playbook step of the Story 2.8 extension (the same key with another
-	// step word is the honest key conflict).
+	// playbook step of the Story 2.8 extension and the presentation pair of
+	// the Story 2.9 extension (the same key with another material is the
+	// honest key conflict).
 	hash := requestHash(struct {
 		Case         string `json:"case"`
 		Conversation string `json:"conversation"`
@@ -589,8 +590,10 @@ func (s *Service) SendClientReply(ctx context.Context, command casesAPI.SendClie
 		Expected     int64  `json:"expected_epoch"`
 		Class        string `json:"reply_class"`
 		Step         string `json:"playbook_step"`
+		Commitment   string `json:"commitment_id"`
+		CVersion     int64  `json:"commitment_version"`
 		Content      string `json:"content"`
-	}{command.CaseID.String(), command.ConversationID.String(), command.WorkItemID.String(), command.ExpectedEpoch, command.ReplyClass, command.PlaybookStep, command.Content})
+	}{command.CaseID.String(), command.ConversationID.String(), command.WorkItemID.String(), command.ExpectedEpoch, command.ReplyClass, command.PlaybookStep, command.CommitmentID.String(), command.CommitmentVersionNo, command.Content})
 	if outcome, replay, err := s.lookupCommand(ctx, scope, "send_client_reply", command.IdempotencyKey, hash); replay || err != nil {
 		return outcome, err
 	}
@@ -760,6 +763,43 @@ func (s *Service) SendClientReply(ctx context.Context, command casesAPI.SendClie
 			return casesAPI.WorkOutcome{}, err
 		}
 	}
+	// The presentation link gate (Story 2.9, AFTER the objection gate — the
+	// frozen ladder: ownership 2-4 → mode 2-5 → disclosure 2-5 → policy 2-6 →
+	// objection 2-8 → commitment link 2-9 → write): the nullable pair is
+	// both or neither; ONLY the sales class carries the commercial material
+	// of the EXACT shown version (the neutral and the protected paths stay
+	// byte-identical); the linked version must exist and be offered — the
+	// draft never presents (AC-1); the store re-validates under the locks.
+	if err := rule("send_client_reply", casesDomain.GuardPresentedCommitment(casesDomain.PresentedCommitment{
+		CommitmentID: command.CommitmentID, VersionNo: command.CommitmentVersionNo,
+	})); err != nil {
+		return casesAPI.WorkOutcome{}, err
+	}
+	if command.CommitmentID.Valid() || command.CommitmentVersionNo != 0 {
+		if command.ReplyClass != casesDomain.ReplyClassSales {
+			return casesAPI.WorkOutcome{}, rule("send_client_reply", fmt.Errorf("Связь обязательства несёт только коммерческий ответ (sales): нейтральные и защищённые сообщения не предъявляют материальные условия."))
+		}
+		commitmentVersions, versionsErr := s.repository.ReadCommitments(ctx, scope, command.CaseID)
+		if versionsErr != nil {
+			return casesAPI.WorkOutcome{}, versionsErr
+		}
+		linked := false
+		for _, version := range commitmentVersions {
+			if version.CommitmentID == command.CommitmentID && version.VersionNo == command.CommitmentVersionNo {
+				linked = true
+				if version.Status != casesDomain.CommitmentStatusOffered {
+					return casesAPI.WorkOutcome{}, rule("send_client_reply", fmt.Errorf("Черновик не считается предъявляемым обязательством: свяжите offered-версию (draft-not-presentable)."))
+				}
+				if version.WorkItemID != command.WorkItemID {
+					return casesAPI.WorkOutcome{}, rule("send_client_reply", fmt.Errorf("Версия обязательства принадлежит другому элементу работы: связь возможна только в пределах одного элемента."))
+				}
+				break
+			}
+		}
+		if !linked {
+			return casesAPI.WorkOutcome{}, rule("send_client_reply", fmt.Errorf("Версия обязательства не найдена: связь сообщения-предъявления требует существующей offered-версии этого элемента работы."))
+		}
+	}
 	// The route snapshot and the lineage word of the acting decision.
 	conversationOfCase, err := s.caseConnection(ctx, scope, command.CaseID)
 	if err != nil {
@@ -797,6 +837,7 @@ func (s *Service) SendClientReply(ctx context.Context, command casesAPI.SendClie
 		RouteDirection: "outbound", LineageEmployeeID: employee, LineageDecisionNo: decisionNo,
 		LineageProfileVersion: profileVersion, OutboxEventID: outboxEventID,
 		ObjectionID: objectionID, PlaybookStep: command.PlaybookStep,
+		CommitmentID: command.CommitmentID, VersionNo: command.CommitmentVersionNo,
 		Outcome: outcomeJSON, Now: command.Now.UTC().Truncate(time.Microsecond),
 	}); err != nil {
 		return casesAPI.WorkOutcome{}, err

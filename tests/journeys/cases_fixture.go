@@ -116,6 +116,16 @@ type casesFixture struct {
 	replyLinks   map[id.UUID][]casesDomain.ReplyLink
 	objectionSeq int
 
+	// The Story 2.9 commitment material: the append-only version rows,
+	// the confirmations, the declines and the presentation links (the
+	// readiness, the validity and the freshness are the REAL derivations
+	// — never stored states).
+	commitments        map[id.UUID][]casesDomain.CommitmentVersion
+	confirmations      map[id.UUID][]casesDomain.ConfirmationRecord
+	commitmentDeclines map[id.UUID][]casesPort.CommitmentDeclineView
+	presented          map[id.UUID][]casesDomain.PresentedCommitment
+	commitmentSeq      int
+
 	caseNo, conversationNo int64
 	eventSeq               int
 	workSeq, exceptionSeq  int
@@ -181,6 +191,11 @@ func newCasesFixture() *casesFixture {
 		// The Story 2.8 material:
 		objections: map[id.UUID][]casesDomain.ObjectionRecord{},
 		replyLinks: map[id.UUID][]casesDomain.ReplyLink{},
+		// The Story 2.9 commitment material:
+		commitments:        map[id.UUID][]casesDomain.CommitmentVersion{},
+		confirmations:      map[id.UUID][]casesDomain.ConfirmationRecord{},
+		commitmentDeclines: map[id.UUID][]casesPort.CommitmentDeclineView{},
+		presented:          map[id.UUID][]casesDomain.PresentedCommitment{},
 	}
 }
 
@@ -595,6 +610,11 @@ func (f *casesFixture) CaseView(_ context.Context, _ domain.Principal, tenant, c
 		// persuasion budget and the stopped word over the REAL
 		// derivations.
 		Objections: f.fixtureObjectionView(caseID),
+		// The Story 2.9 section: the commitment versions with the
+		// readiness derivations, the confirmations with the
+		// validity derivations and the declines over the REAL
+		// derivations.
+		Commitments: f.fixtureCommitmentView(caseID),
 	}, nil
 }
 

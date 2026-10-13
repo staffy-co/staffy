@@ -113,6 +113,20 @@ func (f *fakeCases) RecordObjection(context.Context, casesAPI.RecordObjectionCom
 	return casesAPI.WorkOutcome{}, nil
 }
 
+// The Story 2.9 command stubs of the transport test fake (the honest
+// contract mapping is pinned by the integration and contract contours).
+func (f *fakeCases) CreateCommitment(context.Context, casesAPI.CreateCommitmentCommand) (casesAPI.WorkOutcome, error) {
+	return casesAPI.WorkOutcome{}, nil
+}
+
+func (f *fakeCases) ConfirmCommitment(context.Context, casesAPI.ConfirmCommitmentCommand) (casesAPI.WorkOutcome, error) {
+	return casesAPI.WorkOutcome{}, nil
+}
+
+func (f *fakeCases) RecordCommitmentDecline(context.Context, casesAPI.RecordCommitmentDeclineCommand) (casesAPI.WorkOutcome, error) {
+	return casesAPI.WorkOutcome{}, nil
+}
+
 func newCasesTestServer(t *testing.T, fake casesAPI.Service) *Server {
 	t.Helper()
 	identity := fakeIdentity{create: func(api.CreateTenantCommand) (api.CreateTenantResult, error) {

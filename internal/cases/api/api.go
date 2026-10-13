@@ -132,6 +132,10 @@ type CaseView struct {
 	// CURRENT objection, the lifetime persuasion budget and the stopped
 	// word with the allowed endings.
 	Objections ObjectionView `json:"objections"`
+	// The Story 2.9 section: the commitment versions per Work Item with
+	// the readiness derivations, the exact-version confirmations with
+	// the validity derivations and the honest declines.
+	Commitments CommitmentView `json:"commitments"`
 }
 
 // PayloadView is the sealed payload read under review/audit: the digest,
@@ -166,6 +170,7 @@ type Service interface {
 	PolicyService
 	ObservationService
 	ObjectionService
+	CommitmentService
 }
 
 // Clock and IDs follow the module conventions.
@@ -391,6 +396,18 @@ type WorkOutcome struct {
 	ObjectionType   string  `json:"objection_type,omitempty"`
 	ObjectionSignal string  `json:"objection_signal,omitempty"`
 	PlaybookStep    string  `json:"playbook_step,omitempty"`
+	// The Story 2.9 material: the commitment version of the command (the
+	// id, the monotonic number, the status word), the confirmation with
+	// its subject kind and the decline with its outcome word (the
+	// readiness and the validity are the read-time derivations — they
+	// never travel in the stored outcome).
+	CommitmentID      id.UUID `json:"commitment_id,omitempty"`
+	CommitmentVersion int64   `json:"commitment_version,omitempty"`
+	CommitmentStatus  string  `json:"commitment_status,omitempty"`
+	ConfirmationID    id.UUID `json:"confirmation_id,omitempty"`
+	SubjectKind       string  `json:"subject_kind,omitempty"`
+	DeclineID         id.UUID `json:"decline_id,omitempty"`
+	DeclineOutcome    string  `json:"decline_outcome,omitempty"`
 }
 
 // FactView is one fact of the facts view: the anchor, the derived status,

@@ -1024,6 +1024,15 @@ func nilID(value id.UUID) any {
 	return nil
 }
 
+// nilInt64 renders the nullable integer column (zero — the honest absence
+// of the Story 2.9 presentation pair half).
+func nilInt64(value int64) any {
+	if value != 0 {
+		return value
+	}
+	return nil
+}
+
 func itoa64(value int64) string {
 	if value == 0 {
 		return "0"

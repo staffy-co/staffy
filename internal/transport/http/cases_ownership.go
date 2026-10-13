@@ -535,14 +535,28 @@ func (s *Server) sendClientReplyForm(w http.ResponseWriter, r *http.Request) {
 	// optional form field: the SALES reply against a current objection
 	// MUST carry it — the refusal names the honest rule).
 	playbookStep := r.FormValue("playbook_step")
+	// The Story 2.9 presentation link: the optional pair (both or
+	// neither) — the SALES reply carries the commercial material of the
+	// EXACT shown offered version; the empty select keeps the old path.
+	commitmentID := id.UUID("")
+	commitmentVersion := int64(0)
+	if link := r.FormValue("commitment_link"); link != "" {
+		idPart, versionPart, linkErr := splitCommitmentLink(link)
+		if linkErr != nil {
+			ownershipFormError(w, r, tenant, caseID, casesDomain.WorkRuleError{Rule: "form", Reason: "Выберите существующую offered-версию обязательства для связи."})
+			return
+		}
+		commitmentID, commitmentVersion = idPart, versionPart
+	}
 	_, err = s.cases.SendClientReply(r.Context(), casesAPI.SendClientReplyCommand{
 		Actor: actor, TenantID: tenant, CaseID: caseID, ConversationID: conversationID,
-		WorkItemID:     workItemID,
-		ExpectedEpoch:  expected,
-		ReplyClass:     replyClass,
-		PlaybookStep:   playbookStep,
+		WorkItemID:    workItemID,
+		ExpectedEpoch: expected,
+		ReplyClass:    replyClass,
+		PlaybookStep:  playbookStep,
+		CommitmentID:  commitmentID, CommitmentVersionNo: commitmentVersion,
 		Content:        content,
-		IdempotencyKey: formCommandKey("send-client-reply", actor.ID.String(), caseID.String(), conversationID.String(), workItemID.String(), strconv.FormatInt(expected, 10), replyClass, playbookStep, content),
+		IdempotencyKey: formCommandKey("send-client-reply", actor.ID.String(), caseID.String(), conversationID.String(), workItemID.String(), strconv.FormatInt(expected, 10), replyClass, playbookStep, commitmentID.String(), strconv.FormatInt(commitmentVersion, 10), content),
 		Now:            s.clock.Now().UTC(),
 	})
 	if err != nil {

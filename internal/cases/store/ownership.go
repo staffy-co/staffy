@@ -661,6 +661,25 @@ func (s *Postgres) execSendClientReply(ctx context.Context, tx pgx.Tx, tenantID 
 	if err != nil {
 		return err
 	}
+	// The commitment link re-validation (Story 2.9, AFTER the objection
+	// gate — the frozen ladder: ... → objection 2-8 → commitment link 2-9 →
+	// write): the nullable pair is both or neither; ONLY the sales rows
+	// carry the commercial material of the EXACT shown version; the linked
+	// version must exist, belong to this Work Item of this case and be
+	// offered — the draft never presents (the app validated pre-transaction;
+	// the store re-validates the server-side truth under the locks).
+	if p.CommitmentID != id.UUID("") || p.VersionNo != 0 {
+		if p.ReplyClass != casesDomain.ReplyClassSales {
+			return casesDomain.WorkRuleError{Rule: p.Command, Reason: "Связь обязательства несёт только коммерческий ответ (sales): нейтральные и защищённые сообщения не предъявляют материальные условия."}
+		}
+		version, versionErr := commitmentVersionOfTx(ctx, tx, tenantID, p.CaseID, p.WorkItemID, p.CommitmentID, p.VersionNo)
+		if versionErr != nil {
+			return versionErr
+		}
+		if version.Status != casesDomain.CommitmentStatusOffered {
+			return casesDomain.WorkRuleError{Rule: p.Command, Reason: "Черновик не считается предъявляемым обязательством: свяжите offered-версию (draft-not-presentable)."}
+		}
+	}
 	// The route snapshot of the conversation: the channel and the
 	// direction of its latest accepted event (the honest live route).
 	channel, direction := p.RouteChannel, p.RouteDirection
@@ -677,12 +696,12 @@ func (s *Postgres) execSendClientReply(ctx context.Context, tx pgx.Tx, tenantID 
 		channel, direction = p.RouteChannel, p.RouteDirection
 	}
 	if _, err = tx.Exec(ctx, `
-                insert into cases.client_replies (tenant_id, case_id, conversation_id, reply_id, owner_kind, owner_ref, epoch, writable_surface, connection_id, provider, channel, direction, employee_id, decision_no, profile_version, content, actor_id, reply_class, work_item_id, policy_outcome_id, objection_id, playbook_step, created_at)
-                values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)`,
+                insert into cases.client_replies (tenant_id, case_id, conversation_id, reply_id, owner_kind, owner_ref, epoch, writable_surface, connection_id, provider, channel, direction, employee_id, decision_no, profile_version, content, actor_id, reply_class, work_item_id, policy_outcome_id, objection_id, playbook_step, commitment_id, commitment_version, created_at)
+                values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)`,
 		tenantID, p.CaseID, p.ConversationID, p.ReplyID, current.OwnerKind, current.OwnerRef,
 		current.Epoch, current.WritableSurface, conversation.ConnectionID, conversation.Provider,
 		channel, "outbound", p.LineageEmployeeID, p.LineageDecisionNo, p.LineageProfileVersion,
-		p.ReplyContent, p.Actor, nilText(p.ReplyClass), nilID(p.WorkItemID), nilID(policyOutcomeID), nilID(objectionID), nilText(p.PlaybookStep), now); err != nil {
+		p.ReplyContent, p.Actor, nilText(p.ReplyClass), nilID(p.WorkItemID), nilID(policyOutcomeID), nilID(objectionID), nilText(p.PlaybookStep), nilID(p.CommitmentID), nilInt64(p.VersionNo), now); err != nil {
 		return mapOwnershipInsertError(err)
 	}
 	// The prepared outbox event: the safe snapshot only.

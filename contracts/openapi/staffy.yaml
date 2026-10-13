@@ -2602,6 +2602,86 @@ paths:
         '403': { description: 'Гейт прав ДО стражей: команды записи возражений требуют review или configuration', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
         '404': { $ref: '#/components/responses/Problem' }
         '409': { description: 'Тот же ключ с иным материалом — command_key_conflict', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/commitments:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - $ref: '#/components/parameters/WorkItemID'
+    post:
+      operationId: createCommitment
+      summary: 'Создать версию обязательства (первый срез 2-9): словари статуса/действий, типизированные материальные условия, честные неизвестные; offered с известной ценой требует свежего ok-наблюдения price WI с байтовым равенством и без конфликта с фактом (пин observation_no, AC-3); монотонный version_no под advisory-локами; content-токен HMAC; append-only + outbox (метаданные без условий)'
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CommitmentCreateRequest' }
+      responses:
+        '201': { description: 'Версия создана (append-only, UNIQUE tenant+commitment+version_no)', content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { description: 'Словари/гварды терминов / терминальный WI / цена не совпадает с наблюдением или не свежая / конфликт с фактом (AC-3)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Гейт прав ДО стражей: команды обязательств требуют review или configuration', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { description: 'Лестница версий ушла (stale_version) / тот же ключ с иным материалом — command_key_conflict', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/commitments/{commitment_id}/confirm:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - $ref: '#/components/parameters/WorkItemID'
+      - name: commitment_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: confirmCommitment
+      summary: 'Подтвердить точную показанную версию (презентация sales-reply обязательна — not-presented честный 400): дословные выдержки согласия из payload принятого text-turn (побайтово — выдуманное согласие невозможно, AC-6), freshness-гейт пина наблюдения цены, authority-гейт (identity verified субъекта + mandate_note при цене>0), append-only подтверждение + транзит WI в confirmed (CAS expected_version), UNIQUE субъекта — повтор 409'
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CommitmentConfirmRequest' }
+      responses:
+        '201': { description: 'Подтверждение записано + WI переведён в confirmed (outbox commitment_confirmed — метаданные без условий и выдержек)', content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { description: 'Словари / терминальный WI или вне лестницы in_work/waiting / версия не найдена или draft или superseded / не предъявлена / turn не принят или голосовой / выдержка вне payload / freshness / assurance (step-up-слова)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Гейт прав ДО стражей', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { description: 'Подтверждение субъекта уже записано (commitment_duplicate) / stale_version / command_key_conflict', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/commitments/{commitment_id}/decline:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - $ref: '#/components/parameters/WorkItemID'
+      - name: commitment_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: recordCommitmentDecline
+      summary: 'Зафиксировать отказ или запрос изменения показанной версии: исход словарём, дословные выдержки слов клиента из payload принятого text-turn; append-only без мутаций (AC-11); ответ на change_requested — новая версия оператором'
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CommitmentDeclineRequest' }
+      responses:
+        '201': { description: 'Отказ записан (append-only, ничего не мутирует; outbox commitment_declined — метаданные)', content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { description: 'Словари исхода / выдержки / терминальный WI / turn не принят или голосовой', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Гейт прав ДО стражей', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { description: 'Тот же ключ с иным материалом — command_key_conflict', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
   /v1/tenants/{tenant_id}/cases/client-replies/drain:
     parameters:
       - $ref: '#/components/parameters/TenantID'
@@ -4312,6 +4392,7 @@ components:
         policy: { $ref: '#/components/schemas/PolicyView' }
         observations: { $ref: '#/components/schemas/ObservationView', description: 'Секция Owning System (Story 2.7): карточки материальных полей по WI со свежестью и конфликт-бейджем' }
         objections: { $ref: '#/components/schemas/ObjectionView', description: 'Секция «Возражения и бюджет убеждения» (Story 2.8): записи возражений по WI с производным состоянием останова убеждения' }
+        commitments: { $ref: '#/components/schemas/CommitmentView', description: 'Секция «Обязательства и подтверждения» (Story 2.9): версии по WI с производной готовности, подтверждения с производной действительности, отказы' }
     AssuranceView:
       type: object
       required: [state, records, allowed_methods, fallback_options, step_up_text]
@@ -4598,6 +4679,152 @@ components:
         reply_class: { type: string, enum: [sales, neutral, protected_request], description: 'Класс размечает продюсер: машина контент не классифицирует; sales требует эффективный режим sales + действующее раскрытие + действующий Policy Outcome commercial_answer (гейт 2-6 ПОСЛЕ раскрытия); protected_request требует действующее раскрытие' }
         content: { type: string, maxLength: 2000, minLength: 1, description: 'Слова оператора; контент живёт только в записи ответа' }
         playbook_step: { type: string, enum: [acknowledge_concern, present_evidence, honest_no_answer, offer_alternative, clarify_question], description: 'Шаг playbook sales-ответа (гейт 2-8 ПОСЛЕ Policy-гейта 2-6): при текущем возражении WI обязателен (первый связанный — только acknowledge_concern); без возражений поле пусто — путь байт-в-байт прежний' }
+        commitment_id: { type: string, format: uuid, description: 'Связь обязательства (Story 2-9, гейт ПОСЛЕ objection-гейта): только sales-класс; пара (commitment_id, commitment_version) оба-или-ни-один; версия обязана существовать и быть offered (draft-not-presentable — честный 400)' }
+        commitment_version: { type: integer, minimum: 1, description: 'Точная показанная offered-версия обязательства (пара со commitment_id)' }
+    CommitmentPriceTerm:
+      type: object
+      required: [kind]
+      additionalProperties: false
+      description: 'Цена материальных условий: сумма ЛИБО диапазон в копейках (гвард исключительности); положительная цена включает authority-гейт подтверждения'
+      properties:
+        kind: { type: string, enum: [amount, range] }
+        amount_cents: { type: integer, minimum: 1, description: 'Сумма в копейках (>0, только kind=amount)' }
+        min_cents: { type: integer, minimum: 1, description: 'Нижняя граница диапазона (только kind=range, min<max)' }
+        max_cents: { type: integer, minimum: 2, description: 'Верхняя граница диапазона (только kind=range)' }
+    MaterialTerms:
+      type: object
+      required: [scope, service_items, price, payee, warranty_role, next_step, consequences]
+      additionalProperties: false
+      description: 'Типизированные материальные условия версии (AC-2): каноническая детерминированная сериализация ≤4096 байт — байты и есть материал привязки контента'
+      properties:
+        scope: { type: string, minLength: 1, maxLength: 200, description: 'Предмет (что именно предлагается)' }
+        service_items: { type: array, minItems: 1, maxItems: 16, items: { type: string, minLength: 1, maxLength: 200 }, description: 'Позиции/услуги' }
+        price: { $ref: '#/components/schemas/CommitmentPriceTerm' }
+        payee: { type: string, minLength: 1, maxLength: 128, description: 'Получатель платежа' }
+        warranty_role: { type: string, minLength: 1, maxLength: 128, description: 'Гарантийная роль (кто и что гарантирует)' }
+        next_step: { type: string, minLength: 1, maxLength: 200, description: 'Следующий шаг после подтверждения' }
+        consequences: { type: string, minLength: 1, maxLength: 200, description: 'Последствия подтверждения' }
+    CommitmentCreateRequest:
+      type: object
+      required: [status, terms, action_set, valid_until, consumption_limit]
+      additionalProperties: false
+      description: 'Создание одной версии обязательства (первый срез 2-9): словари статуса/действий, типизированные условия, честные неизвестные дыры; offered с известной ценой требует свежего ok-наблюдения price с байтовым равенством (AC-3) — пин observation_no'
+      properties:
+        commitment_id: { type: string, format: uuid, description: 'Идентификатор связи (пусто — новая связь): та же связь = новая версия №+1 (прежние не мутируются — AC-8)' }
+        status: { type: string, enum: [draft, offered], description: 'Черновик не предъявляется и не подтверждается (AC-1)' }
+        terms: { $ref: '#/components/schemas/MaterialTerms' }
+        action_set: { type: array, minItems: 1, maxItems: 4, items: { type: string, enum: [prepare_order, schedule_appointment, issue_document] }, description: 'Слова действий v1 (слова без исполнения — Action Gateway Epic 3)' }
+        valid_until: { type: string, format: date-time, description: 'Срок действия версии (будущее)' }
+        consumption_limit: { type: integer, minimum: 1, maximum: 10, description: 'Лимит потребления подтверждения (потребление — Epic 3)' }
+        material_unknowns: { type: array, maxItems: 7, items: { type: string, enum: [scope, service_items, price, payee, warranty_role, next_step, consequences] }, description: 'Честные неизвестные обязательных терминов: неизвестный обязательный термин блокирует готовность (AC-2)' }
+    CommitmentConfirmRequest:
+      type: object
+      required: [version_no, expected_version, subject_kind, subject_ref, turn_ref, spans]
+      additionalProperties: false
+      description: 'Точное подтверждение показанной версии: предъявляющий sales-reply существует (not-presented — честный 400), выдержки — дословные подстроки payload принятого text-turn (выдуманное согласие невозможно — AC-6), freshness-гейт пина наблюдения, authority-гейт (verified identity + mandate_note при цене>0), транзит WI в confirmed (CAS expected_version)'
+      properties:
+        version_no: { type: integer, minimum: 1, description: 'Точная показанная версия (подтверждается только показанная)' }
+        expected_version: { type: integer, minimum: 0, description: 'Ожидаемая версия WI (CAS транзита 2-2)' }
+        subject_kind: { type: string, enum: [client] }
+        subject_ref: { type: string, minLength: 1, maxLength: 128, description: 'Ссылка субъекта (совпадает с проверенной личностью 2-3)' }
+        turn_ref: { type: string, format: uuid, description: 'Принятое текстовое событие кейса — источник слов согласия' }
+        spans: { type: array, minItems: 1, maxItems: 8, items: { type: string, minLength: 1, maxLength: 200 }, description: 'Дословные выдержки слов согласия клиента' }
+    CommitmentDeclineRequest:
+      type: object
+      required: [version_no, outcome, turn_ref, spans]
+      additionalProperties: false
+      description: 'Запись отказа/запроса изменения: append-only строка без мутаций (AC-11); ответ на change_requested — новая версия оператором'
+      properties:
+        version_no: { type: integer, minimum: 1 }
+        outcome: { type: string, enum: [declined, change_requested] }
+        turn_ref: { type: string, format: uuid, description: 'Принятое текстовое событие кейса — источник слов отказа' }
+        spans: { type: array, minItems: 1, maxItems: 8, items: { type: string, minLength: 1, maxLength: 200 }, description: 'Дословные выдержки слов отказа' }
+    CommitmentView:
+      type: object
+      required: [items, status_words, action_words, decline_words, validity_words, readiness_words, panel_text]
+      description: 'Секция «Обязательства и подтверждения» карточки: версии по WI с производной готовности; подтверждения с производной действительности (expired/superseded/owner_stale/release_stale — чтение, не хранение); отказы'
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/CommitmentWorkItemView' } }
+        status_words: { type: array, items: { type: string, enum: [draft, offered] } }
+        action_words: { type: array, items: { type: string, enum: [prepare_order, schedule_appointment, issue_document] } }
+        decline_words: { type: array, items: { type: string, enum: [declined, change_requested] } }
+        validity_words: { type: array, items: { type: string, enum: [valid, expired, superseded, owner_stale, release_stale, revoked, consumed] }, description: 'revoked/consumed — зарезервированные слова без продюсера срез' }
+        readiness_words: { type: array, items: { type: string, enum: [draft, offered_unknown_blocked, offered_confirmable, superseded] } }
+        panel_text: { type: string }
+    CommitmentWorkItemView:
+      type: object
+      required: [work_item_id, versions, confirmations, declines, presented]
+      description: 'Обязательства одного WI: история версий (текущая = максимальный номер), подтверждения с производной действительности, отказы, связи предъявления'
+      properties:
+        work_item_id: { type: string, format: uuid }
+        versions: { type: array, items: { $ref: '#/components/schemas/CommitmentVersionCard' } }
+        confirmations: { type: array, items: { $ref: '#/components/schemas/CommitmentConfirmationCard' } }
+        declines: { type: array, items: { $ref: '#/components/schemas/CommitmentDeclineRecord' } }
+        presented: { type: array, items: { $ref: '#/components/schemas/CommitmentPresentedLink' } }
+    CommitmentVersionCard:
+      type: object
+      required: [version, readiness, presented, current]
+      description: 'Карточка версии: запись (статус/условия/пины/токен-присутствие), производная готовности, связь предъявления, признак текущей'
+      properties:
+        version: { $ref: '#/components/schemas/CommitmentVersionRecord' }
+        readiness: { type: string, enum: [draft, offered_unknown_blocked, offered_confirmable, superseded] }
+        presented: { type: boolean, description: 'Существует предъявляющий sales-reply точной версии (AC-6)' }
+        current: { type: boolean, description: 'Максимальный номер версии связи' }
+    CommitmentVersionRecord:
+      type: object
+      required: [commitment_id, version_no, status, conditions, action_set, valid_until, consumption_limit, material_unknowns, content_token, created_at]
+      description: 'Append-only строка версии: полные условия, action_set, пины (owner epoch, lineage, policy outcome, пиннутый observation_no цены), content-токен (HMAC привязки контента — привязка записана, байты не расходятся)'
+      properties:
+        commitment_id: { type: string, format: uuid }
+        version_no: { type: integer, minimum: 1 }
+        status: { type: string, enum: [draft, offered] }
+        conditions: { type: object, description: 'Канонические JSON-байты условий (обзор-скоуп — контент кейса)' }
+        action_set: { type: array, items: { type: string, enum: [prepare_order, schedule_appointment, issue_document] } }
+        valid_until: { type: string, format: date-time }
+        consumption_limit: { type: integer, minimum: 1, maximum: 10 }
+        material_unknowns: { type: array, items: { type: string, enum: [scope, service_items, price, payee, warranty_role, next_step, consequences] } }
+        content_token: { type: string, minLength: 64, maxLength: 64, description: 'Привязка контента (токен-присутствие — панель)' }
+        created_at: { type: string, format: date-time }
+    CommitmentConfirmationCard:
+      type: object
+      required: [record, validity]
+      description: 'Карточка подтверждения: запись (субъект/метод/срок/снимок) + производная действительности чтения (replay старого события не восстанавливает)'
+      properties:
+        record: { $ref: '#/components/schemas/ConfirmationRecordView' }
+        validity: { type: string, enum: [valid, expired, superseded, owner_stale, release_stale] }
+    ConfirmationRecordView:
+      type: object
+      required: [commitment_id, version_no, confirmation_id, subject_kind, subject_ref, method, channel, expires_at, consumed_count, consumption_limit, confirmed_at]
+      description: 'Подтверждение точной версии: субъект UNIQUE (tenant+commitment+version+subject) — повтор субъекта 409'
+      properties:
+        commitment_id: { type: string, format: uuid }
+        version_no: { type: integer, minimum: 1 }
+        confirmation_id: { type: string, format: uuid }
+        subject_kind: { type: string, enum: [client] }
+        subject_ref: { type: string }
+        method: { type: string, enum: [explicit_text] }
+        channel: { type: string }
+        expires_at: { type: string, format: date-time }
+        consumed_count: { type: integer, minimum: 0, description: '0 в срезе (потребление — Epic 3)' }
+        consumption_limit: { type: integer, minimum: 1, maximum: 10 }
+        confirmed_at: { type: string, format: date-time }
+    CommitmentDeclineRecord:
+      type: object
+      required: [commitment_id, version_no, decline_id, outcome, created_at]
+      description: 'Отказ/запрос изменения (append-only, без мутаций — AC-11)'
+      properties:
+        commitment_id: { type: string, format: uuid }
+        version_no: { type: integer, minimum: 1 }
+        decline_id: { type: string, format: uuid }
+        outcome: { type: string, enum: [declined, change_requested] }
+        created_at: { type: string, format: date-time }
+    CommitmentPresentedLink:
+      type: object
+      required: [commitment_id, version_no]
+      description: 'Связь предъявления: пара (оба-или-ни-один) в sales-reply'
+      properties:
+        commitment_id: { type: string, format: uuid }
+        version_no: { type: integer, minimum: 1 }
     DrainRepliesResult:
       type: object
       required: [considered, dispatched, stale_needs_review]

@@ -106,8 +106,14 @@ type SendClientReplyCommand struct {
 	ReplyClass     string
 	PlaybookStep   string
 	Content        string
-	IdempotencyKey string
-	Now            time.Time
+	// The Story 2.9 presentation link: the SALES reply carries the
+	// commercial material of the EXACT shown version — the nullable pair
+	// (both or neither; the non-sales classes never carry it — the honest
+	// 400 of the dictionary).
+	CommitmentID        id.UUID
+	CommitmentVersionNo int64
+	IdempotencyKey      string
+	Now                 time.Time
 }
 
 // OwnershipView is the ownership section of the case view: the derived

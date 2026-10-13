@@ -158,6 +158,11 @@ type caseDetailPageView struct {
 	ObjectionTypeOptions   []workOption
 	ObjectionSignalOptions []workOption
 	ObjectionStepOptions   []workOption
+	// The Story 2.9 section: the Commitment panel words (the link options
+	// of the sales reply form — the offered current versions of the case
+	// Work Items).
+	CommitmentsPanelText  string
+	CommitmentLinkOptions []workOption
 }
 
 // assurancePanelView is the assurance section of the case page: the derived
@@ -661,6 +666,22 @@ func prepareCaseView(view casesAPI.CaseView, facts casesAPI.FactsView, flash str
 		out.ObjectionStepOptions = append(out.ObjectionStepOptions, workOption{Value: word, Text: objectionStepText(word)})
 	}
 
+	// The Story 2.9 section: the Commitment panel words and the presentation
+	// link options of the sales reply form (the offered CURRENT versions of
+	// the case Work Items — the draft never presents; the value carries the
+	// "<id>:<version>" pair of the link).
+	out.CommitmentsPanelText = view.Commitments.PanelText
+	for _, section := range view.Commitments.Items {
+		for _, card := range section.Versions {
+			if card.Current && card.Version.Status == casesDomain.CommitmentStatusOffered {
+				out.CommitmentLinkOptions = append(out.CommitmentLinkOptions, workOption{
+					Value: card.Version.CommitmentID.String() + ":" + strconv.FormatInt(card.Version.VersionNo, 10),
+					Text:  "обязательство " + card.Version.CommitmentID.String() + " · версия №" + strconv.FormatInt(card.Version.VersionNo, 10) + " (offered)",
+				})
+			}
+		}
+	}
+
 	for _, conversation := range view.Conversations {
 		stateText := "Активна"
 		if conversation.CaseID != view.Case.CaseID {
@@ -781,6 +802,13 @@ type workCardView struct {
 	// and the stopped word) and the objection anchor of the record form.
 	ObjCurrent objectionCardView
 	ObjCount   string
+	// The Story 2.9 section: the commitment counts of this item (the
+	// versions, the confirmations and the declines) with the review page
+	// link (the full cards live on the Commitment Review page).
+	CommitCount        string
+	CommitConfirmCount string
+	CommitDeclineCount string
+	CommitReviewURL    string
 	// The form options of this card (empty when the state refuses them).
 	AllowedTransitions []transitionOption
 	MergeSources       []mergeSourceOption
@@ -1045,6 +1073,12 @@ func prepareWorkCards(view casesAPI.CaseView, facts casesAPI.FactsView) []workCa
 	for _, section := range view.Objections.Items {
 		objSections[section.WorkItemID] = section
 	}
+	// The Story 2.9 commitment sections per Work Item (the counts and
+	// the review page link; the full cards live on the review page).
+	commitSections := map[id.UUID]casesAPI.CommitmentWorkItemView{}
+	for _, section := range view.Commitments.Items {
+		commitSections[section.WorkItemID] = section
+	}
 	for index, item := range view.WorkItems {
 		card := workCardView{
 			WorkItemID: item.WorkItemID.String(), IndexNo: strconv.Itoa(index + 1),
@@ -1061,6 +1095,14 @@ func prepareWorkCards(view casesAPI.CaseView, facts casesAPI.FactsView) []workCa
 		if section, known := objSections[item.WorkItemID]; known {
 			card.ObjCurrent = objectionCardOf(section)
 			card.ObjCount = strconv.Itoa(section.ObjectionCount)
+		}
+		// The Story 2.9 commitment counts of this item with the
+		// Commitment Review page link (the full cards live there).
+		card.CommitReviewURL = "/app/tenants/" + view.TenantID.String() + "/cases/" + view.Case.CaseID.String() + "/work-items/" + item.WorkItemID.String() + "/commitments"
+		if section, known := commitSections[item.WorkItemID]; known {
+			card.CommitCount = strconv.Itoa(len(section.Versions))
+			card.CommitConfirmCount = strconv.Itoa(len(section.Confirmations))
+			card.CommitDeclineCount = strconv.Itoa(len(section.Declines))
 		}
 		if item.Type == "" {
 			card.TypeText = "— не классифицирован —"
