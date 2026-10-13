@@ -417,6 +417,8 @@ type CommitmentVersion struct {
 	ValidUntil               time.Time
 	ConsumptionLimit         int
 	MaterialUnknowns         []string
+	OwnerKind                string
+	OwnerRef                 id.UUID
 	OwnerEpoch               int64
 	LineageWord              string
 	PolicyOutcomeNo          int64

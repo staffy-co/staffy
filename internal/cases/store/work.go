@@ -471,6 +471,8 @@ func (s *Postgres) ExecuteWorkCommand(ctx context.Context, p casesPort.WorkComma
 		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID), workLockKey(tenantID, p.WorkItemID))
 	case "record_objection":
 		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID), workLockKey(tenantID, p.WorkItemID))
+	case "create_commitment", "confirm_commitment", "record_commitment_decline":
+		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID), workLockKey(tenantID, p.WorkItemID))
 	}
 	sort.Strings(lockKeys)
 	for _, key := range lockKeys {
@@ -533,6 +535,12 @@ func (s *Postgres) ExecuteWorkCommand(ctx context.Context, p casesPort.WorkComma
 		err = s.execReadOwningSystem(ctx, tx, tenantID, p, now)
 	case "record_objection":
 		err = s.execRecordObjection(ctx, tx, tenantID, p, now)
+	case "create_commitment":
+		err = s.execCreateCommitment(ctx, tx, tenantID, p, now)
+	case "confirm_commitment":
+		err = s.execConfirmCommitment(ctx, tx, tenantID, p, now)
+	case "record_commitment_decline":
+		err = s.execRecordCommitmentDecline(ctx, tx, tenantID, p, now)
 	default:
 		err = fmt.Errorf("неизвестная команда %s", p.Command)
 	}

@@ -283,6 +283,27 @@ type Repository interface {
 	// of one case (the objection id with the playbook step word — the
 	// acknowledged derivation input; only the linked rows participate).
 	ReadLinkedReplies(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]casesDomain.ReplyLink, error)
+	// Story 2.9 — the commitment surface:
+	// ReadCommitments reads every commitment version of one case ordered
+	// by the commitment and the monotonic number (the derivation input of
+	// the CURRENT version, the readiness and the panel history).
+	ReadCommitments(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]casesDomain.CommitmentVersion, error)
+	// ReadConfirmations reads every confirmation of one case ordered by
+	// the confirmation time (the validity derivation input of the panel).
+	ReadConfirmations(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]casesDomain.ConfirmationRecord, error)
+	// ReadCommitmentDeclines reads every decline of one case ordered by
+	// the creation time (the panel history input).
+	ReadCommitmentDeclines(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]CommitmentDeclineView, error)
+	// ReadPresentedCommitments reads the presentation links of the
+	// outgoing sales replies of one case (the exact (commitment, version)
+	// pairs — the presentation gate input of the confirm command and the
+	// panel).
+	ReadPresentedCommitments(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]casesDomain.PresentedCommitment, error)
+	// ReadCommitmentKey reads (or creates on the first use) the per-tenant
+	// commitment key of the content binding (the ensure pattern of the
+	// identifier keys — the app computes the token before the command
+	// transaction).
+	ReadCommitmentKey(ctx context.Context, scope tenancy.Context, now time.Time) ([]byte, error)
 }
 
 // ---------------------------------------------------------------------------
@@ -478,6 +499,42 @@ type WorkCommandParams struct {
 	ClientSignal   string
 	ObjectionSpans []byte
 	PlaybookStep   string
+	// The Story 2.9 material (the command-specific fields of the three
+	// commitment commands and the presentation link extension of
+	// send_client_reply): the stable commitment id with the exact version
+	// number, the canonical conditions/action set/unknown words JSON, the
+	// pins of the relations (the owner kind/ref/epoch, the lineage word,
+	// the policy outcome number, the pinned price observation), the
+	// content token of the version, the confirmation subject and expiry,
+	// the evidence spans with the turn payload (the app verified the
+	// byte-exact containment BEFORE the transaction; the store re-validates
+	// the shape under the locks), the material snapshot of the
+	// confirmation and the decline outcome word. The presentation pair of
+	// send_client_reply reuses CommitmentID and VersionNo (both or
+	// neither — the table CHECK backstop).
+	CommitmentID                  id.UUID
+	ConfirmationID                id.UUID
+	DeclineID                     id.UUID
+	CommitmentStatus              string
+	CommitmentConditions          []byte
+	CommitmentActionSet           []byte
+	CommitmentMaterialUnknowns    []byte
+	CommitmentValidUntil          time.Time
+	CommitmentConsumptionLimit    int
+	CommitmentOwnerKind           string
+	CommitmentOwnerRef            id.UUID
+	CommitmentOwnerEpoch          int64
+	CommitmentLineageWord         string
+	CommitmentPolicyOutcomeNo     int64
+	CommitmentPinnedObservationNo int64
+	CommitmentContentToken        string
+	CommitmentSubjectKind         string
+	CommitmentSubjectRef          string
+	CommitmentExpiresAt           time.Time
+	CommitmentEvidenceSpans       []byte
+	CommitmentTurnPayload         []byte
+	CommitmentMaterialSnapshot    []byte
+	CommitmentDeclineOutcome      string
 }
 
 // ---------------------------------------------------------------------------
@@ -516,6 +573,21 @@ type DisclosureCard struct {
 	Record casesDomain.DisclosureRecord
 	Status string
 	Events []casesDomain.DisclosureDeliveryEvent
+}
+
+// CommitmentDeclineView is one append-only decline row of the commitment
+// surface (the panel history input — the spans stay in the row, the view
+// carries the metadata only).
+type CommitmentDeclineView struct {
+	TenantID     id.UUID
+	CaseID       id.UUID
+	DeclineID    id.UUID
+	CommitmentID id.UUID
+	VersionNo    int64
+	Outcome      string
+	TurnRef      id.UUID
+	ActorID      id.UUID
+	CreatedAt    time.Time
 }
 
 // OwnerMember is one active member option of the transfer forms: the
