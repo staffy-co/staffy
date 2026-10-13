@@ -1684,3 +1684,23 @@ done:
 - unpushed: main 3 docs (51-sm ac4f8af, 51-dev 1ca9286, 51-review-r1 329d897) + ветка 9 коммитов (d5302ff, 8449411, 8522a6a, 489d98a, acc15ec, 83f7314, 16e9a3f, 11fcf20, 533c32f + closure) — публикация батчем при следующем GitHub-токене владельца
 next: CHECKPOINT 2 — свежий токен владельца: ls-remote-валидация → батч-пуш (main docs + ветка) → PR через GitHub API → CI (push + PR) → merge sha-pinned → main-run CI → синк main → DEVLOG 51-merge
 commit: TBD
+
+---
+date: 2026-10-13
+task: 51-merge
+role: main (Super Z)
+story: 2-8
+summary: Story 2-8 влита в main — PR #23, merge-коммит 4cdf0ea; CI зелёный тремя полными прогонами (push/PR/main; push и main потребовали по одному re-run известного вне-срезового флэйка employee 1-13, PR-run зелёный с первой попытки); Epic 2: 8/16 stories done — контур получил запись возражений с дословными выдержками (выдуманные невозможны), versioned playbook v1 (acknowledge-first), бюджет убеждения lifetime (2 refusal) и честную остановку убеждения
+done:
+- Токен владельца (маска github_pat_***) — inline env STAFFY_GH_TOKEN per-invocation через helper git-credential-staffy.sh, на диск не попал; паттерн 46/47/48/49/50-merge соблюдён шестым CHECKPOINT подряд; окружение после рецикла песочницы поднято bootstrap-ом ДО публикации (Go 1.27.1, PG 16.4:54329, интеграция зелёная на дереве ветки)
+- ls-remote-валидация до пуша: origin/main = 214ef7e (remote-tracking не stale)
+- ci-trigger d085906: пустой коммит поверх closure 46922f4 (дерево байт-в-байт) — маркер [skip ci] на closure-коммите подавил бы CI-конвейер (отклонение от прецедента 2-7 «closure без [skip ci]» — закрыто прецедентом 1-11/1-12)
+- Батч-пуш: main 214ef7e→329d897 (3 docs [skip ci]: 51-sm ac4f8af, 51-dev 1ca9286, 51-review-r1 329d897 — CI не гонялся) + первая публикация ветки 2-8 (11 коммитов d5302ff..d085906; 533c32f — union DEVLOG с main, ветка понесла и main docs)
+- PR #23 через GitHub API (https://github.com/artemiosu/staffy/pull/23; title/body по спеке + review loop R1 PASS с Minor → R2 PASS)
+- CI до merge (NEED=2): push-run 38350534585 — первый прогон FAIL на известном вне-срезовом флэйке TestProfileWriteAuditAndGrants (employee 1-13, order by occurred_at без tie-breaker; задокументирован review 2-4 и R2 2-7; дифф 2-8 = 0 строк employee-контура) → rerun-failed-jobs → success; pull_request-run 38350679631 — success с первой попытки (то же дерево: интермитентность флэйка подтверждена)
+- Merge: PR #23, merge_method=merge, sha-pinned d085906 → merge-коммит 4cdf0ea; локальный main синхронизирован ff-only (32 файла, +3705/−24)
+- CI после merge (NEED=1): main-run 38351157918 (head 4cdf0ea) — первый прогон FAIL на том же флэйке → rerun-failed-jobs → success
+- Флэйк внесён в deferred-work.md (append-only, evidence 2026-10-13: 2 FAIL из 4 CI-прогонов; однострочный фикс order by occurred_at, audit_id — audit_id UUIDv7 реального времени, детерминированный tie-breaker) — решение следующей сессии
+- Локальный регресс в merge-фазе не перегонялся (не нужен): дерево ветки прогнано bootstrap-ом (интеграция на живом PG) и review R2 в независимой копии (157 ×2 TZ); CI ×3 прогнал контент независимо
+next: story 2-9 «Версионированный Commitment и точное Confirmation» (SM-фаза по решению владельца); свежий токен понадобится к следующему CHECKPOINT 2
+commit: 4cdf0ea
