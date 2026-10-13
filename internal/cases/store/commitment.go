@@ -390,6 +390,17 @@ func (s *Postgres) execCreateCommitment(ctx context.Context, tx pgx.Tx, tenantID
 	if versionNo != p.VersionNo {
 		return casesDomain.ErrStaleVersion
 	}
+	// The observation currency under the locks (the 2.7 race guard the
+	// store owns): the pinned price reading must remain the CURRENT
+	// observation of the field — a concurrent read_owning_system landed a
+	// newer reading between the app gate and this transaction, so the
+	// version would pin the old observation (the store never trusts the
+	// app's read of the ladder — the fail-closed discipline of the CAS).
+	if p.CommitmentPinnedObservationNo > 0 {
+		if err := commitmentPriceCurrencyOfTx(ctx, tx, tenantID, p.CaseID, p.WorkItemID, p.CommitmentPinnedObservationNo, false, p.Command, "повторите создание версии"); err != nil {
+			return err
+		}
+	}
 	if _, err = tx.Exec(ctx, `
                 insert into cases.commitments (tenant_id, case_id, work_item_id, commitment_id, version_no, status,
                         conditions, action_set, valid_until, consumption_limit, material_unknowns,
@@ -427,6 +438,59 @@ func (s *Postgres) execCreateCommitment(ctx context.Context, tx pgx.Tx, tenantID
 		p.CaseID, sourceConnection, p.CorrelationID, now, payload,
 		casesDomain.DedupKeyCommitmentVersionCreated(p.CommitmentID, versionNo), now); err != nil {
 		return mapCommitmentInsertError(err)
+	}
+	return nil
+}
+
+// commitmentPriceCurrencyOfTx re-validates the freshness pin under the
+// locks (the 2.7 race guard): the pinned price observation of one version
+// must remain the CURRENT ok reading of the price field of the Work Item —
+// a concurrent read_owning_system landed a newer observation between the
+// app gate and this transaction, so the version points at the old reading
+// and a NEW version is the honest path (fail-closed; the observation row
+// itself is immutable, so the app's value/freshness checks hold for its
+// bytes). The confirmed exact fact conflict badge is re-derived from the
+// lock-visible fact material when the caller demands it (the confirm
+// command — the price fact key is locked by the plan, the badge is the
+// commit-time truth).
+func commitmentPriceCurrencyOfTx(ctx context.Context, tx pgx.Tx, tenantID, caseID, workItemID id.UUID, pin int64, withBadge bool, command, pathText string) error {
+	observations, err := readObservationsTx(ctx, tx, tenantID, caseID)
+	if err != nil {
+		return err
+	}
+	observationsOfField := []casesDomain.Observation{}
+	for _, observation := range observations {
+		if observation.WorkItemID == workItemID && observation.MaterialKey == casesDomain.MaterialFieldPrice {
+			observationsOfField = append(observationsOfField, observation)
+		}
+	}
+	current := casesDomain.CurrentObservation(observationsOfField)
+	if current == nil || current.ObservationNo != pin || current.Status != casesDomain.ObservationStatusOk {
+		return casesDomain.WorkRuleError{Rule: command, Reason: "Наблюдение цены, на которое указывает версия, больше не является текущим: перечитайте поле (read_owning_system) и " + pathText + "."}
+	}
+	if !withBadge {
+		return nil
+	}
+	materials, err := readFactsOfCaseTx(ctx, tx, tenantID, caseID)
+	if err != nil {
+		return err
+	}
+	for _, material := range materials {
+		if material.Anchor.MaterialKey != casesDomain.MaterialFieldPrice {
+			continue
+		}
+		status, versionNo, _ := casesDomain.ConfirmedFactView(material.Versions, material.Confirmations)
+		if status != casesDomain.FactStatusConfirmed {
+			return nil // no confirmed price fact — the honest no_fact badge
+		}
+		for i := range material.Versions {
+			if material.Versions[i].VersionNo == versionNo {
+				if casesDomain.ConflictBadgeOf(current.Value, &material.Versions[i]) == casesDomain.ConflictBadgeDiffers {
+					return casesDomain.WorkRuleError{Rule: command, Reason: "Наблюдение цены расходится с подтверждённым фактом (badge differs): разрешите расхождение подтверждением факта и " + pathText + "."}
+				}
+				return nil
+			}
+		}
 	}
 	return nil
 }
@@ -504,6 +568,18 @@ func (s *Postgres) execConfirmCommitment(ctx context.Context, tx pgx.Tx, tenantI
 		TurnPayload: p.CommitmentTurnPayload, Spans: spans,
 	}); err != nil {
 		return casesDomain.WorkRuleError{Rule: p.Command, Reason: err.Error()}
+	}
+	// The freshness re-validation under the locks: the pinned price
+	// observation must remain the CURRENT ok reading of the field AND the
+	// conflict badge against the confirmed exact fact is re-derived from
+	// the lock-visible fact material (the price fact writers serialize on
+	// the fact key this command locks — the badge is the commit-time
+	// truth, not the app's read-time snapshot; a moved reading or a
+	// differs badge refuses — the new version is the honest path).
+	if !casesDomain.MaterialUnknownTerm(version.MaterialUnknowns, casesDomain.CommitmentTermPrice) {
+		if err := commitmentPriceCurrencyOfTx(ctx, tx, tenantID, p.CaseID, p.WorkItemID, version.PinnedPriceObservationNo, true, p.Command, "создайте новую версию обязательства"); err != nil {
+			return err
+		}
 	}
 	if _, err = tx.Exec(ctx, `
                 insert into cases.confirmations (tenant_id, case_id, work_item_id, commitment_id, version_no, confirmation_id,

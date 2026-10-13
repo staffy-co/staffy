@@ -14,8 +14,11 @@ import (
 	observationsyn "github.com/artemiosu/staffy/internal/adapters/observationsyn"
 	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
 	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
+	casesPort "github.com/artemiosu/staffy/internal/cases/port"
+	casesStore "github.com/artemiosu/staffy/internal/cases/store"
 	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
 	"github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/artemiosu/staffy/internal/platform/tenancy"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
@@ -800,4 +803,148 @@ func (w *casesWorld) classifyCommitmentItem(t *testing.T, caseID, workItemID id.
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+// TestCommitmentStoreFreshnessPinRace asserts the review R1 fix: the store
+// re-validates the freshness pin under the locks — the app gate reads
+// BEFORE the transaction, so a concurrent read_owning_system could land a
+// newer price observation in the window (the store never trusts the app's
+// read of the ladder; the stale pin refuses fail-closed, the new version
+// is the honest path); the conflict badge against the confirmed exact
+// price fact is re-derived from the lock-visible fact material (a fact
+// confirmation landing in the same window flips the badge — the confirm
+// refuses with the differs words). The direct store call carries the
+// params the app assembled against its pre-transaction reads — the race
+// simulation the sequential app path can not express (the app gate fires
+// first there); the probe worlds pin both legs live.
+func TestCommitmentStoreFreshnessPinRace(t *testing.T) {
+	w := commitmentWorld(t, 979)
+	ctx := context.Background()
+	caseID, workItemID := w.acceptedCase(t, "evt-commitment-race-1", "sess-commitment-race-1", `{"call":"inbound-call","from":"+79000000140"}`)
+	w.classifyCommitmentItem(t, caseID, workItemID, "commitment-classify-979")
+	conversationID := w.conversationFirst(t, caseID)
+	turn := w.modeTurnEvent(t, caseID, "sess-commitment-race-1", "evt-commitment-race-1-turn", `{"say":"согласен, подтверждаю условия"}`)
+	// The offered version №1 over the price reading №1.
+	w.observationReadOK(t, w.observationReadCommand(caseID, workItemID, casesDomain.MaterialFieldPrice, "commitment-race-obs-1"))
+	commitmentID := id.MustParse("019a2f4c-5000-7000-8000-000000000031")
+	if _, err := w.commitmentCreate(t, w.commitmentCreateCommand(caseID, workItemID, commitmentID, casesDomain.CommitmentStatusOffered, "commitment-race-create-1")); err != nil {
+		t.Fatal(err)
+	}
+	// The presentation link of №1 (the sales prelude + the linked reply):
+	// the live channel of the reply conversation is the LATEST accepted
+	// event — the voice turn of the prelude moment (phone), so the prelude
+	// disclosure of the phone channel acts.
+	w.policySalesPrelude(t, caseID, conversationID, turn, "commitment-race-sales")
+	w.policyPrelude(t, caseID, conversationID, workItemID, "commitment-race-policy")
+	if _, err := w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+		WorkItemID: workItemID, ExpectedEpoch: 1, ReplyClass: casesDomain.ReplyClassSales,
+		CommitmentID: commitmentID, CommitmentVersionNo: 1,
+		Content: "Предлагаем условия версии №1", IdempotencyKey: "commitment-race-reply-1", Now: ownershipNow,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	// The consent TEXT turn lands AFTER the first reply (the confirm
+	// evidence of the store probe); the live channel of the conversation
+	// becomes web_chat, so the second reply of LEG 2 needs the acting
+	// disclosure of THAT channel (the honest per-channel discipline).
+	textTurn := nextCommitmentProbeID()
+	consent := []byte(`{"say":"согласен, подтверждаю условия"}`)
+	if _, err := adminPool.Exec(ctx, `
+		insert into cases.channel_events (tenant_id,event_id,case_id,conversation_id,connection_id,provider,provider_event_id,provider_session_id,direction,modality,channel,correlation_id,idempotency_key,provider_timestamp,received_at,payload_digest,state,created_at)
+		values ($1,$2,$3,$4,$5,'staffy-synthetic-telephony',$6,$6,'inbound','text','web_chat',$7,$8,$9,$9,$10,'accepted',$9)`,
+		w.tenant, textTurn, caseID, conversationID, w.connection, "evt-commitment-race-text", nextCommitmentProbeID(), "probe-race-key", ownershipNow, casesDomain.PayloadDigest(consent)); err != nil {
+		t.Fatal(err)
+	}
+	webChatDisclosure, err := w.cases.RecordDisclosure(ctx, casesAPI.RecordDisclosureCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+		Channel: "web_chat", Text: "Я цифровой сотрудник компании. Человек подключится по вашему запросу.",
+		IdempotencyKey: "commitment-race-disclosure-web", Now: ownershipNow,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.cases.RecordDisclosureEvent(ctx, casesAPI.RecordDisclosureEventCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+		DisclosureID: webChatDisclosure.DisclosureID, Kind: casesDomain.DeliverySent,
+		IdempotencyKey: "commitment-race-disclosure-web-sent", Now: ownershipNow,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	// The store handle + the scope of the direct probe (the app-equivalent
+	// params: the app read the observation BEFORE the re-read below — the
+	// race window this direct call simulates).
+	store := casesStore.NewPostgres(runtimePool)
+	scope, err := tenancy.New(w.connection, w.tenant)
+	if err != nil {
+		t.Fatal(err)
+	}
+	conditions, err := casesDomain.MaterialTermsJSON(commitmentTerms())
+	if err != nil {
+		t.Fatal(err)
+	}
+	spansJSON, err := json.Marshal([]string{"согласен, подтверждаю условия"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	actionSetJSON, err := json.Marshal([]string{casesDomain.CommitmentActionPrepareOrder})
+	if err != nil {
+		t.Fatal(err)
+	}
+	storeConfirm := func(versionNo int64, key string) error {
+		return store.ExecuteWorkCommand(ctx, casesPort.WorkCommandParams{
+			Scope: scope, Command: "confirm_commitment", Key: key, RequestHash: strings.Repeat("b", 64),
+			Actor: w.ownershipActor().ID, CaseID: caseID, WorkItemID: workItemID,
+			CommitmentID: commitmentID, VersionNo: versionNo, ConfirmationID: nextCommitmentProbeID(),
+			ExpectedVersion: 2, CommitmentSubjectKind: "client", CommitmentSubjectRef: "client+79000000140",
+			Channel: "phone", TurnRef: textTurn,
+			CommitmentExpiresAt: ownershipNow.Add(24 * time.Hour), CommitmentConsumptionLimit: 1,
+			CommitmentEvidenceSpans: spansJSON, CommitmentTurnPayload: consent,
+			CommitmentMaterialSnapshot: conditions, CommitmentActionSet: actionSetJSON,
+			CommitmentContentToken: strings.Repeat("c", 64),
+			CorrelationID:          nextCommitmentProbeID(), OutboxEventID: nextCommitmentProbeID(),
+			Now: ownershipNow,
+		})
+	}
+	// LEG 1 (the moved reading): the re-read landed the price observation
+	// №2 AFTER the app resolved the pin of №1 (the create gate read №1) —
+	// the store refuses the stale pin under the locks (the new version is
+	// the honest path, never a silent confirm of the old reading).
+	w.observationReadOK(t, w.observationReadCommand(caseID, workItemID, casesDomain.MaterialFieldPrice, "commitment-race-obs-2"))
+	assertRuleError(t, storeConfirm(1, "commitment-race-probe-1"), "больше не является текущим")
+	// LEG 2 (the flipped badge): the version №2 pins the CURRENT reading
+	// №2 (the create gate passes over it), the presentation link follows;
+	// the price fact lands and confirms AFTER the create (the badge was
+	// no_fact at the create moment) — the store re-derives the badge under
+	// the locks and refuses the differs conflict.
+	createTwo := w.commitmentCreateCommand(caseID, workItemID, commitmentID, casesDomain.CommitmentStatusOffered, "commitment-race-create-2")
+	if _, err := w.commitmentCreate(t, createTwo); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+		WorkItemID: workItemID, ExpectedEpoch: 1, ReplyClass: casesDomain.ReplyClassSales,
+		CommitmentID: commitmentID, CommitmentVersionNo: 2,
+		Content: "Предлагаем условия версии №2", IdempotencyKey: "commitment-race-reply-2", Now: ownershipNow,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	fact, err := w.cases.RecordFact(ctx, casesAPI.RecordFactCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, WorkItemID: workItemID,
+		MaterialKey: casesDomain.MaterialFieldPrice, Value: []byte(`{"price_quote":"2900"}`),
+		SourceType: casesDomain.FactSourceOperator, SourceID: "commitment-race-operator",
+		Reason:         "оператор сверил счёт системы-владельца",
+		IdempotencyKey: "commitment-race-fact", Now: ownershipNow,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.cases.ConfirmFactVersion(ctx, casesAPI.ConfirmFactVersionCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, FactID: fact.FactID,
+		VersionNo: 1, ConfirmerType: casesDomain.ConfirmerOperatorRelay,
+		Note: "цена подтверждена по счёту", IdempotencyKey: "commitment-race-fact-confirm", Now: ownershipNow,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	assertRuleError(t, storeConfirm(2, "commitment-race-probe-2"), "расходится с подтверждённым фактом")
 }

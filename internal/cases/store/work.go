@@ -471,8 +471,16 @@ func (s *Postgres) ExecuteWorkCommand(ctx context.Context, p casesPort.WorkComma
 		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID), workLockKey(tenantID, p.WorkItemID))
 	case "record_objection":
 		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID), workLockKey(tenantID, p.WorkItemID))
-	case "create_commitment", "confirm_commitment", "record_commitment_decline":
+	case "create_commitment", "record_commitment_decline":
 		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID), workLockKey(tenantID, p.WorkItemID))
+	case "confirm_commitment":
+		// The price fact key joins the plan: the confirm re-derives the
+		// conflict badge against the confirmed exact price fact under the
+		// locks, so the fact writers (record_fact / confirm_fact_version of
+		// the price key) serialize with the confirmation — the badge is the
+		// commit-time truth, never a raced snapshot.
+		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID), workLockKey(tenantID, p.WorkItemID),
+			factKeyLockKey(tenantID, p.CaseID, casesDomain.MaterialFieldPrice))
 	}
 	sort.Strings(lockKeys)
 	for _, key := range lockKeys {
