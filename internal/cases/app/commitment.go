@@ -115,6 +115,15 @@ func (s *Service) guardOfferedPrice(ctx context.Context, scope tenancy.Context, 
 	if err != nil {
 		return 0, err
 	}
+	// The byte equality of the CANONICAL values: the observation value is
+	// the canonical JSON of the projection (the sorted-key form of
+	// CanonicalPayload); the price term renders its canonical form before
+	// the comparison (the spec word — the byte equality of canonical
+	// values, never the struct-field order).
+	canonicalValue, err := casesDomain.CanonicalPayload(value)
+	if err != nil {
+		return 0, err
+	}
 	current, badge, err := s.priceObservation(ctx, scope, command.CaseID, command.WorkItemID)
 	if err != nil {
 		return 0, err
@@ -127,7 +136,14 @@ func (s *Service) guardOfferedPrice(ctx context.Context, scope tenancy.Context, 
 	if state != casesDomain.ObservationStateFresh {
 		return 0, rule("create_commitment", fmt.Errorf("Наблюдение цены не свежее (статус: %s): перечитайте поле read_owning_system и повторите создание версии.", state))
 	}
-	if string(current.Value) != string(value) {
+	// The observation value renders through the PG jsonb normalization (the
+	// space-separated form); the comparison canonicalizes BOTH sides — the
+	// byte equality of the canonical values, never the storage rendering.
+	observedValue, err := casesDomain.CanonicalPayload(current.Value)
+	if err != nil {
+		return 0, err
+	}
+	if string(observedValue) != string(canonicalValue) {
 		return 0, rule("create_commitment", fmt.Errorf("Цена версии не совпадает с текущим наблюдением price: сверьте значение с системой-владельцем — требуется новое чтение либо другая цена."))
 	}
 	if badge == casesDomain.ConflictBadgeDiffers {
@@ -176,7 +192,11 @@ func (s *Service) CreateCommitment(ctx context.Context, command casesAPI.CreateC
 	if err != nil {
 		return casesAPI.WorkOutcome{}, err
 	}
-	unknownsJSON, err := json.Marshal(command.MaterialUnknowns)
+	unknowns := command.MaterialUnknowns
+	if unknowns == nil {
+		unknowns = []string{}
+	}
+	unknownsJSON, err := json.Marshal(unknowns)
 	if err != nil {
 		return casesAPI.WorkOutcome{}, err
 	}
@@ -468,14 +488,22 @@ func (s *Service) ConfirmCommitment(ctx context.Context, command casesAPI.Confir
 		if err != nil {
 			return casesAPI.WorkOutcome{}, err
 		}
+		canonicalValue, err := casesDomain.CanonicalPayload(value)
+		if err != nil {
+			return casesAPI.WorkOutcome{}, err
+		}
 		observation, badge, err := s.priceObservation(ctx, scope, command.CaseID, command.WorkItemID)
 		if err != nil {
 			return casesAPI.WorkOutcome{}, err
 		}
 		entry, _ := casesDomain.AuthorityEntryOf(casesDomain.MaterialFieldPrice)
+		observedValue, err := casesDomain.CanonicalPayload(observation.Value)
+		if err != nil {
+			return casesAPI.WorkOutcome{}, err
+		}
 		if observation == nil || observation.ObservationNo != version.PinnedPriceObservationNo ||
 			casesDomain.DeriveObservationState(observation.Status, command.Now.Sub(observation.ObservedAt), entry.FreshnessSeconds) != casesDomain.ObservationStateFresh ||
-			string(observation.Value) != string(value) || badge == casesDomain.ConflictBadgeDiffers {
+			string(observedValue) != string(canonicalValue) || badge == casesDomain.ConflictBadgeDiffers {
 			return casesAPI.WorkOutcome{}, rule("confirm_commitment", fmt.Errorf("%s", commitmentFreshnessGateText))
 		}
 	}

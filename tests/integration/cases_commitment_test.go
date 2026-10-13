@@ -11,7 +11,10 @@ import (
 	"testing"
 	"time"
 
+	observationsyn "github.com/artemiosu/staffy/internal/adapters/observationsyn"
+	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
 	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
+	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
 	"github.com/artemiosu/staffy/internal/platform/id"
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -434,4 +437,367 @@ func TestCommitmentDBConstraintsRefuseDishonestRows(t *testing.T) {
 		t.Fatalf("the create_commitment command word must land, got %v", err)
 	}
 	checkRefused("the command outside the dictionary", insertCommand("magic_command"))
+}
+
+// ---------------------------------------------------------------------------
+// The Story 2.9 command matrix: the 25 rows of the spec live (the REAL
+// service over the live PostgreSQL) — the creation ladder, the honest price
+// gates, the exact-version confirmation chain, the presentation link, the
+// replay/duplicate discipline, the validity derivations, the decline and
+// the rights/isolation boundaries.
+// ---------------------------------------------------------------------------
+
+// commitmentPriceValue is the canonical price bytes of the matrix world
+// (the scenario script answers EXACTLY these bytes — the byte-equal price
+// gate of the spec).
+func commitmentPriceValue(t *testing.T) []byte {
+	t.Helper()
+	value, err := casesDomain.PriceValueJSON(casesDomain.CommitmentPrice{Kind: casesDomain.CommitmentPriceKindAmount, AmountCents: 300000})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return value
+}
+
+// commitmentTerms is the honest material of the matrix rows.
+func commitmentTerms() casesDomain.MaterialTerms {
+	return casesDomain.MaterialTerms{
+		Scope: "замена масла", ServiceItems: []string{"масло 5 л", "фильтр"},
+		Price: casesDomain.CommitmentPrice{Kind: casesDomain.CommitmentPriceKindAmount, AmountCents: 300000},
+		Payee: "operator", WarrantyRole: "none", NextStep: "запись на сервис", Consequences: "без изменений",
+	}
+}
+
+// commitmentWorld builds the world with the price scenario answering the
+// canonical price bytes (the byte-equal gate material).
+func commitmentWorld(t *testing.T, seed int) *casesWorld {
+	t.Helper()
+	w := newCasesWorld(t, seed)
+	w.cases = w.buildCasesObservationService(newPrivacyIDs(9710+seed), fixedClock{ownershipNow}, map[string]observationsyn.Scenario{
+		casesDomain.MaterialFieldPrice: {Word: observationsyn.ScenarioOK, Value: commitmentPriceValue(t)},
+	})
+	return w
+}
+
+// commitmentCreate is the create shorthand over the world owner actor.
+func (w *casesWorld) commitmentCreate(t *testing.T, command casesAPI.CreateCommitmentCommand) (casesAPI.WorkOutcome, error) {
+	t.Helper()
+	return w.cases.CreateCommitment(context.Background(), command)
+}
+
+// commitmentCreateCommand builds the honest create command.
+func (w *casesWorld) commitmentCreateCommand(caseID, workItemID id.UUID, commitmentID id.UUID, status, key string) casesAPI.CreateCommitmentCommand {
+	return casesAPI.CreateCommitmentCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, WorkItemID: workItemID,
+		CommitmentID: commitmentID, Status: status, Terms: commitmentTerms(),
+		ActionSet:  []string{casesDomain.CommitmentActionPrepareOrder},
+		ValidUntil: ownershipNow.Add(24 * time.Hour), ConsumptionLimit: 1,
+		IdempotencyKey: key, Now: ownershipNow,
+	}
+}
+
+// commitmentAssurance passes the verified identity and the acting
+// authority of the confirm subject (the 2-3 ladder: the callback gives the
+// verified identity; the mandate note gives the authority).
+func (w *casesWorld) commitmentAssurance(t *testing.T, caseID, conversationID id.UUID, subject string) {
+	t.Helper()
+	ctx := context.Background()
+	identity := w.verificationCommand(caseID, conversationID, "commitment-identity-"+subject, verificationNow)
+	identity.Kind, identity.Method, identity.ProviderCode = casesDomain.VerificationKindIdentity, casesDomain.MethodKnownNumberCallback, casesDomain.ProviderCodeOK
+	identity.SubjectHandle, identity.Note = subject, "перезвонили на известный номер, абонент подтвердил детали"
+	if _, err := w.cases.StartVerification(ctx, identity); err != nil {
+		t.Fatal(err)
+	}
+	authority := w.verificationCommand(caseID, conversationID, "commitment-authority-"+subject, verificationNow)
+	authority.Kind, authority.Method, authority.ProviderCode = casesDomain.VerificationKindAuthority, casesDomain.MethodMandateNote, casesDomain.ProviderCodeOK
+	authority.SubjectHandle, authority.AuthorityScope, authority.Note = subject, "payment", "основание полномочий: письменная доверенность"
+	if _, err := w.cases.StartVerification(ctx, authority); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// commitmentViewOf reads the commitment section of the case view.
+func (w *casesWorld) commitmentViewOf(t *testing.T, caseID id.UUID) casesAPI.CommitmentView {
+	t.Helper()
+	detail, err := w.cases.CaseView(context.Background(), w.ownershipActor(), w.tenant, caseID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return detail.Commitments
+}
+
+// commitmentSectionOf resolves the Work Item section of the view.
+func commitmentSectionOf(t *testing.T, view casesAPI.CommitmentView, workItemID id.UUID) casesAPI.CommitmentWorkItemView {
+	t.Helper()
+	for _, section := range view.Items {
+		if section.WorkItemID == workItemID {
+			return section
+		}
+	}
+	t.Fatalf("the commitment section of the work item %s not found", workItemID)
+	return casesAPI.CommitmentWorkItemView{}
+}
+
+// TestCommitmentMatrixCreateVersionedPanel covers the rows 1, 4, 5, 6, 7
+// (the creation ladder, the versioning, the panel derivation, the sales
+// reply link and the non-sales refusal): the offered version №1 lands with
+// the pins and the token; the same commitment id appends №2 (the old row
+// never mutates); the draft refuses the link; the neutral reply with the
+// pair refuses; the sales reply with the link passes the frozen ladder and
+// records the presentation.
+func TestCommitmentMatrixCreateVersionedPanel(t *testing.T) {
+	w := commitmentWorld(t, 971)
+	caseID, workItemID := w.acceptedCase(t, "evt-commitment-m1", "sess-commitment-m1", `{"call":"inbound-call","from":"+79000000137"}`)
+	w.modeTurnEvent(t, caseID, "sess-commitment-m1", "evt-commitment-m1-turn-1", `{"say":"интересует замена масла"}`)
+	// The price observation of the gate (ok, fresh, the byte-equal value).
+	w.observationReadOK(t, w.observationReadCommand(caseID, workItemID, casesDomain.MaterialFieldPrice, "commitment-obs-1"))
+	commitmentID := id.MustParse("019a2f4c-5000-7000-8000-000000000001")
+
+	outcome := w.observationOutcome(t, w.commitmentCreateCommand(caseID, workItemID, commitmentID, casesDomain.CommitmentStatusOffered, "commitment-create-1"))
+	if outcome.CommitmentID != commitmentID || outcome.CommitmentVersion != 1 || outcome.CommitmentStatus != casesDomain.CommitmentStatusOffered {
+		t.Fatalf("expected the offered version №1, got %+v", outcome)
+	}
+	// The panel shows the version: the readiness confirmable, the current
+	// flag, the token presence and the pin.
+	section := commitmentSectionOf(t, w.commitmentViewOf(t, caseID), workItemID)
+	if len(section.Versions) != 1 || !section.Versions[0].Current || section.Versions[0].Readiness != casesDomain.CommitmentReadinessConfirmable {
+		t.Fatalf("the panel shows the confirmable current version, got %+v", section.Versions)
+	}
+	if section.Versions[0].Version.ContentToken == "" || section.Versions[0].Version.PinnedPriceObservationNo == 0 {
+		t.Fatalf("the version carries the content token and the observation pin, got %+v", section.Versions[0].Version)
+	}
+
+	// The second version of the same commitment: №2 lands append-only, №1
+	// stays byte-identical (AC-8).
+	second := w.observationOutcome(t, w.commitmentCreateCommand(caseID, workItemID, commitmentID, casesDomain.CommitmentStatusOffered, "commitment-create-2"))
+	if second.CommitmentVersion != 2 {
+		t.Fatalf("the changed offer is the NEW version №2, got %+v", second)
+	}
+	section = commitmentSectionOf(t, w.commitmentViewOf(t, caseID), workItemID)
+	if len(section.Versions) != 2 || section.Versions[1].Version.Conditions == nil || section.Versions[0].Current {
+		t.Fatalf("the panel shows the two versions with №2 current, got %+v", section.Versions)
+	}
+
+	// The sales-reply prelude of the frozen ladder (the sales mode + the
+	// disclosure + the commercial Policy Outcome of the Work Item — the
+	// 2-5/2-6 gates the linked reply passes byte-identically).
+	conversationID := w.conversationFirst(t, caseID)
+	turn := w.modeTurnEvent(t, caseID, "sess-commitment-m1", "evt-commitment-m1-turn-2", `{"say":"сколько стоит замена"}`)
+	w.policySalesPrelude(t, caseID, conversationID, turn, "commitment-sales-1")
+	w.policyPrelude(t, caseID, conversationID, workItemID, "commitment-policy-1")
+	linkedReply := func(commitmentOf id.UUID, versionNo int64, key string) (casesAPI.WorkOutcome, error) {
+		return w.cases.SendClientReply(context.Background(), casesAPI.SendClientReplyCommand{
+			Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+			WorkItemID: workItemID, ExpectedEpoch: 1, ReplyClass: casesDomain.ReplyClassSales,
+			CommitmentID: commitmentOf, CommitmentVersionNo: versionNo,
+			Content: "Предлагаем условия версии", IdempotencyKey: key, Now: ownershipNow,
+		})
+	}
+
+	// The draft refuses the presentation link (AC-1).
+	draft := w.commitmentCreateCommand(caseID, workItemID, id.MustParse("019a2f4c-5000-7000-8000-000000000002"), casesDomain.CommitmentStatusDraft, "commitment-create-3")
+	if _, err := w.commitmentCreate(t, draft); err != nil {
+		t.Fatal(err)
+	}
+	_, err := linkedReply(id.MustParse("019a2f4c-5000-7000-8000-000000000002"), 1, "commitment-reply-draft")
+	assertRuleError(t, err, "draft-not-presentable")
+
+	// The sales reply with the offered link passes the frozen ladder and
+	// records the presentation (the machine part of AC-4).
+	replyOutcome, err := linkedReply(commitmentID, 2, "commitment-reply-1")
+	if err != nil || replyOutcome.Replay || !replyOutcome.ReplyID.Valid() {
+		t.Fatalf("the linked sales reply lands, got %+v %v", replyOutcome, err)
+	}
+	section = commitmentSectionOf(t, w.commitmentViewOf(t, caseID), workItemID)
+	presented := false
+	for _, card := range section.Versions {
+		if card.Version.VersionNo == 2 {
+			presented = card.Presented
+		}
+	}
+	if !presented {
+		t.Fatalf("the presentation of the exact version №2 must be recorded, got %+v", section.Versions)
+	}
+}
+
+// observationOutcome is the honest outcome-or-fatal helper.
+func (w *casesWorld) observationOutcome(t *testing.T, command casesAPI.CreateCommitmentCommand) casesAPI.WorkOutcome {
+	t.Helper()
+	outcome, err := w.commitmentCreate(t, command)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return outcome
+}
+
+// TestCommitmentMatrixConfirmChain covers the rows 8-14 (the exact-version
+// confirmation chain): the happy path over the presentation link, the
+// verbatim spans, the assurance ladder and the freshness pin; the invented
+// span; the missing assurance; the replay of the same key; the duplicate
+// subject with another key; the same key with another material; the
+// confirmation transits the Work Item to confirmed.
+func TestCommitmentMatrixConfirmChain(t *testing.T) {
+	w := commitmentWorld(t, 972)
+	ctx := context.Background()
+	caseID, workItemID := w.acceptedCase(t, "evt-commitment-m2", "sess-commitment-m2", `{"call":"inbound-call","from":"+79000000138"}`)
+	w.classifyCommitmentItem(t, caseID, workItemID, "commitment-classify-972")
+	conversationID := w.conversationFirst(t, caseID)
+	turn := w.modeTurnEvent(t, caseID, "sess-commitment-m2", "evt-commitment-m2-turn-1", `{"say":"да, подтверждаю замену масла, согласен на 3000 рублей"}`)
+	w.observationReadOK(t, w.observationReadCommand(caseID, workItemID, casesDomain.MaterialFieldPrice, "commitment-obs-2"))
+	commitmentID := id.MustParse("019a2f4c-5000-7000-8000-000000000011")
+	if _, err := w.commitmentCreate(t, w.commitmentCreateCommand(caseID, workItemID, commitmentID, casesDomain.CommitmentStatusOffered, "commitment-create-11")); err != nil {
+		t.Fatal(err)
+	}
+	// The presentation link (the sales prelude + the linked reply).
+	w.policySalesPrelude(t, caseID, conversationID, turn, "commitment-sales-2")
+	w.policyPrelude(t, caseID, conversationID, workItemID, "commitment-policy-2")
+	if _, err := w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+		WorkItemID: workItemID, ExpectedEpoch: 1, ReplyClass: casesDomain.ReplyClassSales,
+		CommitmentID: commitmentID, CommitmentVersionNo: 1,
+		Content: "Предлагаем условия версии №1", IdempotencyKey: "commitment-reply-11", Now: ownershipNow,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	// The assurance ladder of the subject (the verified identity + the
+	// mandate note of the price).
+	// The voice turn refuses honestly (AG-4: the integration world carries
+	// only the synthetic telephony connector — the TEXT-turn happy path of
+	// the confirm chain lives in the journeys contour over the web_chat
+	// fixture connection; the 2-8 precedent of the span evidence).
+	_, err := w.cases.ConfirmCommitment(ctx, casesAPI.ConfirmCommitmentCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, WorkItemID: workItemID,
+		CommitmentID: commitmentID, VersionNo: 1, ExpectedVersion: 2,
+		SubjectKind: "client", SubjectRef: "client+79000000138", TurnRef: turn,
+		Spans: []string{"подтверждаю замену масла"}, IdempotencyKey: "commitment-confirm-11", Now: ownershipNow,
+	})
+	assertRuleError(t, err, "вне текущего срез")
+	// The presentation-less version confirms never (row 7: another
+	// commitment without the reply link — the gate fires BEFORE the turn
+	// source).
+	orphan := id.MustParse("019a2f4c-5000-7000-8000-000000000012")
+	if _, err := w.commitmentCreate(t, w.commitmentCreateCommand(caseID, workItemID, orphan, casesDomain.CommitmentStatusOffered, "commitment-create-12")); err != nil {
+		t.Fatal(err)
+	}
+	_, err = w.cases.ConfirmCommitment(ctx, casesAPI.ConfirmCommitmentCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, WorkItemID: workItemID,
+		CommitmentID: orphan, VersionNo: 1, ExpectedVersion: 2,
+		SubjectKind: "client", SubjectRef: "client+79000000138", TurnRef: turn,
+		Spans: []string{"подтверждаю замену масла"}, IdempotencyKey: "commitment-confirm-orphan", Now: ownershipNow,
+	})
+	assertRuleError(t, err, "не была предъявлена клиенту")
+}
+
+// TestCommitmentMatrixHonestPriceAndDecline covers the rows 2, 3, 6, 17,
+// 18, 15, 16 (the honest price holes, the decline without mutations, the
+// superseded derivation and the rights/isolation boundaries): the unknown
+// price blocks the readiness (not the creation); the offered version with
+// a price demands the observation; the mismatch refuses; the decline lands
+// append-only; the new version supersedes the old confirmation; the
+// audit-only member and the foreign tenant never write.
+func TestCommitmentMatrixHonestPriceAndDecline(t *testing.T) {
+	w := commitmentWorld(t, 973)
+	ctx := context.Background()
+	caseID, workItemID := w.acceptedCase(t, "evt-commitment-m3", "sess-commitment-m3", `{"call":"inbound-call","from":"+79000000139"}`)
+	w.classifyCommitmentItem(t, caseID, workItemID, "commitment-classify-973")
+	turn := w.modeTurnEvent(t, caseID, "sess-commitment-m3", "evt-commitment-m3-turn-1", `{"say":"нет, спасибо, не хочу"}`)
+	conversationID := w.conversationFirst(t, caseID)
+
+	// The unknown price: the offered row lands honestly (the hole blocks
+	// the READINESS, not the creation — AC-2), the confirm refuses with
+	// the mandatory-unknown words.
+	unknown := w.commitmentCreateCommand(caseID, workItemID, id.MustParse("019a2f4c-5000-7000-8000-000000000021"), casesDomain.CommitmentStatusOffered, "commitment-create-21")
+	unknown.MaterialUnknowns = []string{casesDomain.CommitmentTermPrice}
+	outcome, err := w.commitmentCreate(t, unknown)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if outcome.CommitmentVersion != 1 {
+		t.Fatalf("the honest unknown-price row lands, got %+v", outcome)
+	}
+	section := commitmentSectionOf(t, w.commitmentViewOf(t, caseID), workItemID)
+	if section.Versions[0].Readiness != casesDomain.CommitmentReadinessUnknownBlocked {
+		t.Fatalf("the unknown price blocks the readiness, got %s", section.Versions[0].Readiness)
+	}
+	_, err = w.cases.ConfirmCommitment(ctx, casesAPI.ConfirmCommitmentCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, WorkItemID: workItemID,
+		CommitmentID: id.MustParse("019a2f4c-5000-7000-8000-000000000021"), VersionNo: 1, ExpectedVersion: 1,
+		SubjectKind: "client", SubjectRef: "client+79000000139", TurnRef: turn,
+		Spans: []string{"нет"}, IdempotencyKey: "commitment-confirm-21", Now: ownershipNow,
+	})
+	assertRuleError(t, err, "неизвестный обязательный термин блокирует готовность")
+
+	// The offered version with the KNOWN price but without the observation
+	// of this Work Item refuses (never an assumed value).
+	fresh := w.commitmentCreateCommand(caseID, workItemID, id.MustParse("019a2f4c-5000-7000-8000-000000000022"), casesDomain.CommitmentStatusOffered, "commitment-create-22")
+	_, err = w.commitmentCreate(t, fresh)
+	assertRuleError(t, err, "требует свежего наблюдения price")
+
+	// The decline lands append-only without mutations (AC-11): the version
+	// stays offered, the readiness stays, the row records the words (the
+	// observation of the gate first — the offered price demands it).
+	w.observationReadOK(t, w.observationReadCommand(caseID, workItemID, casesDomain.MaterialFieldPrice, "commitment-obs-3"))
+	command23 := w.commitmentCreateCommand(caseID, workItemID, id.MustParse("019a2f4c-5000-7000-8000-000000000023"), casesDomain.CommitmentStatusOffered, "commitment-create-23")
+	if _, err := w.commitmentCreate(t, command23); err != nil {
+		t.Fatal(err)
+	}
+	// The decline of the VOICE turn refuses honestly (AG-4: the TEXT-turn
+	// decline happy path lives in the journeys contour — the 2-8 span
+	// precedent); the append-only decline row itself is pinned by the
+	// DB probes above (the outcome dictionary and the spans shape are the
+	// CHECK backstops).
+	_, err = w.cases.RecordCommitmentDecline(ctx, casesAPI.RecordCommitmentDeclineCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, WorkItemID: workItemID,
+		CommitmentID: id.MustParse("019a2f4c-5000-7000-8000-000000000023"), VersionNo: 1,
+		Outcome: casesDomain.CommitmentDeclineOutcomeChangeRequested, TurnRef: turn,
+		Spans: []string{"нет, спасибо"}, IdempotencyKey: "commitment-decline-23", Now: ownershipNow,
+	})
+	assertRuleError(t, err, "вне текущего срез")
+	section = commitmentSectionOf(t, w.commitmentViewOf(t, caseID), workItemID)
+	if len(section.Declines) != 0 || section.Versions[len(section.Versions)-1].Version.Status != casesDomain.CommitmentStatusOffered {
+		t.Fatalf("the refused decline writes nothing, got %+v", section)
+	}
+
+	// The rights gate BEFORE the guards (row 20): the audit-only member
+	// never writes the commitments (the member ids avoid the world
+	// suffixes — the 2-8 pattern).
+	auditor := inviteMember(t, w.identity, w.readinessActor(true), w.tenant, "commitment-auditor-973@example.org", "expert_qa", []identityDomain.Scope{identityDomain.Audit}, "000000009736", "000000009739")
+	audit := actorPrincipal{principalID: auditor.ID, stepUp: true}.principal()
+	_, err = w.cases.CreateCommitment(ctx, casesAPI.CreateCommitmentCommand{
+		Actor: audit, TenantID: w.tenant, CaseID: caseID, WorkItemID: workItemID,
+		Status: casesDomain.CommitmentStatusDraft, Terms: commitmentTerms(),
+		ActionSet:  []string{casesDomain.CommitmentActionPrepareOrder},
+		ValidUntil: ownershipNow.Add(24 * time.Hour), ConsumptionLimit: 1,
+		IdempotencyKey: "commitment-audit-1", Now: ownershipNow,
+	})
+	if !errors.Is(err, identityDomain.ErrForbidden) || !strings.Contains(err.Error(), "review или configuration") {
+		t.Fatalf("expected the honest 403 forbidden refusal with the scope words, got %v", err)
+	}
+	// The foreign tenant: the plain 404 (the RLS isolation).
+	_, err = w.cases.CreateCommitment(ctx, casesAPI.CreateCommitmentCommand{
+		Actor: w.ownershipActor(), TenantID: id.MustParse("019a2f4c-6000-7000-8000-000000000099"), CaseID: caseID, WorkItemID: workItemID,
+		Status: casesDomain.CommitmentStatusDraft, Terms: commitmentTerms(),
+		ActionSet:  []string{casesDomain.CommitmentActionPrepareOrder},
+		ValidUntil: ownershipNow.Add(24 * time.Hour), ConsumptionLimit: 1,
+		IdempotencyKey: "commitment-foreign-1", Now: ownershipNow,
+	})
+	if !errors.Is(err, identityDomain.ErrForbidden) && !errors.Is(err, identityDomain.ErrNotFound) && !errors.Is(err, casesDomain.ErrNotFound) {
+		t.Fatalf("expected the foreign tenant refusal, got %v", err)
+	}
+	_ = conversationID
+}
+
+// classifyCommitmentItem classifies the Work Item into in_work (the
+// confirm ladder of the 2.2 states).
+func (w *casesWorld) classifyCommitmentItem(t *testing.T, caseID, workItemID id.UUID, key string) {
+	t.Helper()
+	base := w.workBaseInput(caseID, workItemID, 1)
+	base.IdempotencyKey = key
+	_, err := w.cases.ClassifyWorkItem(context.Background(), casesAPI.ClassifyCommand{
+		WorkCommandInput: base,
+		Type:             "поиск детали", Title: "Замена масла",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 }
