@@ -1735,3 +1735,18 @@ done:
 - Публикация по токену (паттерн 51-merge, docs-only без CI): ls-remote-валидация origin/main = b6d263e → батч-пуш main (52-sm 04d4d5d + 53-sm, [skip ci]) + первая публикация ветки 2-9 (a5bf416 + a1ece27, [skip ci])
 next: Dev-фаза 2-9 — пре-шаг: однострочный фикс флэйка profile_test.go order by occurred_at, audit_id (решение владельца, deferred-work employee 1-13) + закрытие записи deferred-work; затем step-01..05 по спеке (домен/словари → миграция 00009+store → команды/гейты/транспорт/поверхности → интеграция+journeys → регресс+closure без [skip ci])
 commit: TBD
+
+---
+date: 2026-10-13
+task: 53-dev
+role: main (Super Z) — Dev-роль по BMAD-контуру
+story: 2-9
+summary: Dev пре-шаг закрыт — флэйк audit-order устранён детерминированным tie-breaker (order by occurred_at, resulting_version) по решению владельца из CHECKPOINT 1; проверка гипотезы deferred-work опровергла исходное предложение (audit_id) — зафиксировано честной append-only записью
+done:
+- Инцидент ресайкла окружения посреди сессии (~09:05): Go/PG из ~/.local исчезли (репозиторий и коммиты целы, публикация main+ветка успела пройти ДО ресайкла) — bootstrap перезапущен по протоколу AGENTS.md для чистого окружения
+- Первый bootstrap упал на флэйк-тесте с audit_id-фиксом в дереве — живое опровержение записи deferred-work: id.NewV7 = millisecond-префикс + 74 бита crypto-random (порядок внутри ms случаен), releaseWorld использует fixedClock (occurred_at идентичны) → audit_id-поряд = 50% лотерея (совпадает с evidence 2 FAIL/4 CI); единственный вхождение паттерна order by occurred_at в tests/ (rg-проверка)
+- Правильный однострочный детерминатор: resulting_version — причинно монотонен (profile_draft_saved→1, profile_approved→2, профильные releaseAudit-вызовы internal/employee/store/profile.go:148/212); продуктовый код не тронут (дифф = 1 строка теста + deferred-work append)
+- Верификация: bootstrap зелёный до конца; тест адресно 8/8 независимых прогонов зелёные (пояснение: -count=5 в одной инвокации не валиден — TestMain drop+re-apply миграций один раз, повторные миры коллизируют по сидам); verbose PASS подтверждает исполнение на живом PG
+- Коммит ветки cb1abbc [skip ci]: фикс + честная closure-запись deferred-work (исходное «audit_id» предложение откорректировано с evidence); DEVLOG 53-sm публикация уже на origin (main 563525f, ветка a1ece27)
+next: Dev step-01 по спеке 2-9 — домен и словари: internal/cases/domain/commitment.go (словари статусов/терминов/действий/метода/исходов/слов недействительности, MaterialTerms v1 канонизация+гварды, DeriveCommitmentReadiness, GuardCreate/Confirm/Decline, DeriveConfirmationValidity, CommitmentToken HMAC домен-сепарация), work.go +confirmed аддитивно (лестница 2-2, контрольная ветка), unit-тесты
+commit: TBD
