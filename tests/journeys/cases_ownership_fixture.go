@@ -327,8 +327,9 @@ func (f *casesFixture) SendClientReply(_ context.Context, command casesAPI.SendC
 		WorkItem     string `json:"work_item"`
 		Expected     int64  `json:"expected_epoch"`
 		Class        string `json:"reply_class"`
+		Step         string `json:"playbook_step"`
 		Content      string `json:"content"`
-	}{command.CaseID.String(), command.ConversationID.String(), command.WorkItemID.String(), command.ExpectedEpoch, command.ReplyClass, command.Content})
+	}{command.CaseID.String(), command.ConversationID.String(), command.WorkItemID.String(), command.ExpectedEpoch, command.ReplyClass, command.PlaybookStep, command.Content})
 	if err != nil || !fresh {
 		return outcome, err
 	}
@@ -404,6 +405,23 @@ func (f *casesFixture) SendClientReply(_ context.Context, command casesAPI.SendC
 	if err != nil {
 		return casesAPI.WorkOutcome{}, err
 	}
+	// The objection gate (Story 2.8, AFTER the policy gate — the frozen
+	// ladder: ownership 2-4 → mode 2-5 → disclosure 2-5 → policy 2-6 →
+	// objection 2-8 → write; the SALES class only — the neutral and the
+	// protected paths stay byte-identical): the stopped persuasion refuses
+	// with the allowed endings; a CURRENT objection of the Work Item makes
+	// the playbook step mandatory (the first linked answer — always
+	// acknowledge_concern). The passing gate resolves the objection id the
+	// reply link carries (the request never carries it).
+	objectionID, err := f.fixtureObjectionGate(command)
+	if err != nil {
+		return casesAPI.WorkOutcome{}, err
+	}
+	if objectionID.Valid() && command.PlaybookStep != "" {
+		f.replyLinks[command.CaseID] = append(f.replyLinks[command.CaseID], casesDomain.ReplyLink{
+			ObjectionID: objectionID, Step: command.PlaybookStep,
+		})
+	}
 	replyID := f.fixtureOwnershipID()
 	f.replies[command.CaseID] = append(f.replies[command.CaseID], casesDomain.ClientReply{
 		TenantID: f.tenant, CaseID: command.CaseID, ConversationID: command.ConversationID, ReplyID: replyID,
@@ -414,7 +432,7 @@ func (f *casesFixture) SendClientReply(_ context.Context, command casesAPI.SendC
 		Content: command.Content, ActorID: command.Actor.ID,
 		ReplyClass: command.ReplyClass, WorkItemID: command.WorkItemID, PolicyOutcomeID: policyOutcomeID, CreatedAt: command.Now,
 	})
-	outcome = casesAPI.WorkOutcome{Command: "send_client_reply", ReplyID: replyID, ReplyState: "prepared", Epoch: state.Current.Epoch, ReplyClass: command.ReplyClass, PolicyOutcomeID: policyOutcomeID}
+	outcome = casesAPI.WorkOutcome{Command: "send_client_reply", ReplyID: replyID, ReplyState: "prepared", Epoch: state.Current.Epoch, ReplyClass: command.ReplyClass, PolicyOutcomeID: policyOutcomeID, ObjectionID: objectionID, PlaybookStep: command.PlaybookStep}
 	f.storeOutcome("send_client_reply", command.IdempotencyKey, outcome)
 	return outcome, nil
 }

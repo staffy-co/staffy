@@ -273,6 +273,16 @@ type Repository interface {
 	// Work Item, the material field and the monotonic number (the
 	// derivation input of the CURRENT observation per field of the panel).
 	ReadObservations(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]casesDomain.Observation, error)
+	// Story 2.8 — the objection surface:
+	// ReadObjections reads every objection record of one case ordered by
+	// the Work Item and the monotonic number (the derivation input of the
+	// CURRENT objection, the refusal budget and the linked replies of the
+	// panel and the sales reply gate).
+	ReadObjections(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]casesDomain.ObjectionRecord, error)
+	// ReadLinkedReplies reads the objection links of the outgoing replies
+	// of one case (the objection id with the playbook step word — the
+	// acknowledged derivation input; only the linked rows participate).
+	ReadLinkedReplies(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]casesDomain.ReplyLink, error)
 }
 
 // ---------------------------------------------------------------------------
@@ -456,6 +466,18 @@ type WorkCommandParams struct {
 	ExternalID      string
 	ExternalVersion string
 	CorrelationID   id.UUID
+	// The Story 2.8 material (the command-specific fields of the
+	// record_objection command and the objection gate extension of
+	// send_client_reply): the objection id (the new record of the
+	// command, or the CURRENT objection the passing gate resolved for the
+	// reply row — the request never carries it, the server-side truth),
+	// the spans as the canonical JSON array (the verbatim client words of
+	// the turn source) and the playbook step word of the reply discipline.
+	ObjectionID    id.UUID
+	ObjectionType  string
+	ClientSignal   string
+	ObjectionSpans []byte
+	PlaybookStep   string
 }
 
 // ---------------------------------------------------------------------------

@@ -128,6 +128,10 @@ type CaseView struct {
 	// freshness derivation and the conflict badge against the confirmed
 	// fact of the case).
 	Observations ObservationView `json:"observations"`
+	// The Story 2.8 section: the objection records per Work Item with the
+	// CURRENT objection, the lifetime persuasion budget and the stopped
+	// word with the allowed endings.
+	Objections ObjectionView `json:"objections"`
 }
 
 // PayloadView is the sealed payload read under review/audit: the digest,
@@ -161,6 +165,7 @@ type Service interface {
 	ModeService
 	PolicyService
 	ObservationService
+	ObjectionService
 }
 
 // Clock and IDs follow the module conventions.
@@ -379,6 +384,13 @@ type WorkOutcome struct {
 	ObservationReason     string  `json:"observation_reason,omitempty"`
 	ObservationExternalID string  `json:"observation_external_id,omitempty"`
 	ObservationVersion    string  `json:"observation_external_version,omitempty"`
+	// The Story 2.8 material: the objection record of the command and the
+	// step word the sales reply passed through.
+	ObjectionID     id.UUID `json:"objection_id,omitempty"`
+	ObjectionNo     int64   `json:"objection_no,omitempty"`
+	ObjectionType   string  `json:"objection_type,omitempty"`
+	ObjectionSignal string  `json:"objection_signal,omitempty"`
+	PlaybookStep    string  `json:"playbook_step,omitempty"`
 }
 
 // FactView is one fact of the facts view: the anchor, the derived status,

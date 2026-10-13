@@ -149,6 +149,15 @@ type caseDetailPageView struct {
 	ObservationsPanelText string
 	ObservationMatrixText string
 	OwningFieldOptions    []workOption
+	// The Story 2.8 section: the Objection panel words (the objection
+	// cards live on the Work Control Cards of the work items; the record
+	// form selects carry the fixed dictionaries, never invented options).
+	ObjectionsPanelText    string
+	ObjectionVersionText   string
+	ObjectionBudgetText    string
+	ObjectionTypeOptions   []workOption
+	ObjectionSignalOptions []workOption
+	ObjectionStepOptions   []workOption
 }
 
 // assurancePanelView is the assurance section of the case page: the derived
@@ -635,6 +644,23 @@ func prepareCaseView(view casesAPI.CaseView, facts casesAPI.FactsView, flash str
 		})
 	}
 
+	// The Story 2.8 section: the Objection panel words — the fixed
+	// dictionaries of the record form and the reply step select (the
+	// type, the signal and the step words render honestly; the options
+	// never carry invented words).
+	out.ObjectionsPanelText = view.Objections.PanelText
+	out.ObjectionVersionText = view.Objections.PlaybookVersion
+	out.ObjectionBudgetText = "бюджет убеждения — " + strconv.Itoa(view.Objections.Threshold) + " отказ(а) на элемент, lifetime"
+	for _, word := range view.Objections.TypeWords {
+		out.ObjectionTypeOptions = append(out.ObjectionTypeOptions, workOption{Value: word, Text: objectionTypeText(word)})
+	}
+	for _, word := range view.Objections.SignalWords {
+		out.ObjectionSignalOptions = append(out.ObjectionSignalOptions, workOption{Value: word, Text: objectionSignalText(word)})
+	}
+	for _, word := range view.Objections.StepWords {
+		out.ObjectionStepOptions = append(out.ObjectionStepOptions, workOption{Value: word, Text: objectionStepText(word)})
+	}
+
 	for _, conversation := range view.Conversations {
 		stateText := "Активна"
 		if conversation.CaseID != view.Case.CaseID {
@@ -750,9 +776,40 @@ type workCardView struct {
 	// anchor of the read form.
 	ObsFields []observationFieldView
 	ObsCount  string
+	// The Story 2.8 section: the objection cards of this item (the
+	// CURRENT objection with the verbatim spans, the persuasion budget
+	// and the stopped word) and the objection anchor of the record form.
+	ObjCurrent objectionCardView
+	ObjCount   string
 	// The form options of this card (empty when the state refuses them).
 	AllowedTransitions []transitionOption
 	MergeSources       []mergeSourceOption
+}
+
+// objectionCardView is the CURRENT objection card of the «Возражения и
+// бюджет убеждения» panel of a Work Control Card: the record words (the
+// dictionary type and signal with the honest Russian texts, the spans as
+// the verbatim client words, the turn reference, the playbook version
+// snapshot, the time), the lifetime persuasion budget over the fixed
+// threshold and the stopped word with the allowed endings (stated is
+// never distinguished from active by the color alone — the badge word
+// carries the action).
+type objectionCardView struct {
+	HasCurrent       bool
+	No               string
+	TypeText         string
+	SignalText       string
+	Spans            []string
+	TurnRef          string
+	CreatedAt        string
+	PlaybookVersion  string
+	Refusals         string
+	Threshold        string
+	Stopped          bool
+	StoppedText      string
+	AcknowledgedText string
+	NextStepsText    string
+	LinkedCount      string
 }
 
 type transitionOption struct {
@@ -982,6 +1039,12 @@ func prepareWorkCards(view casesAPI.CaseView, facts casesAPI.FactsView) []workCa
 	for _, section := range view.Observations.Items {
 		obsSections[section.WorkItemID] = section
 	}
+	// The Story 2.8 objection sections per Work Item (the CURRENT
+	// objection card + the objection anchor of the record form).
+	objSections := map[id.UUID]casesAPI.ObjectionWorkItemView{}
+	for _, section := range view.Objections.Items {
+		objSections[section.WorkItemID] = section
+	}
 	for index, item := range view.WorkItems {
 		card := workCardView{
 			WorkItemID: item.WorkItemID.String(), IndexNo: strconv.Itoa(index + 1),
@@ -994,6 +1057,10 @@ func prepareWorkCards(view casesAPI.CaseView, facts casesAPI.FactsView) []workCa
 		if section, known := obsSections[item.WorkItemID]; known {
 			card.ObsFields = observationFieldRows(section)
 			card.ObsCount = strconv.Itoa(section.ObservationCount)
+		}
+		if section, known := objSections[item.WorkItemID]; known {
+			card.ObjCurrent = objectionCardOf(section)
+			card.ObjCount = strconv.Itoa(section.ObjectionCount)
 		}
 		if item.Type == "" {
 			card.TypeText = "— не классифицирован —"
@@ -1058,6 +1125,95 @@ func observationFieldRows(section casesAPI.ObservationWorkItemView) []observatio
 		rows = append(rows, row)
 	}
 	return rows
+}
+
+// objectionCardOf flattens one objection section of the case view into
+// the CURRENT objection card of the Work Control Card: the record words
+// with the honest Russian texts, the verbatim spans, the lifetime budget
+// and the stopped badge word (the aria-live region of the panel announces
+// the change without a focus move).
+func objectionCardOf(section casesAPI.ObjectionWorkItemView) objectionCardView {
+	card := objectionCardView{
+		Refusals:  strconv.Itoa(section.Refusals),
+		Threshold: strconv.Itoa(section.Threshold),
+		Stopped:   section.Stopped,
+	}
+	if section.Stopped {
+		card.StoppedText = "Убеждение остановлено — разрешены только: вежливое завершение, запрос приватности, передача человеку"
+	}
+	if section.Acknowledged {
+		card.AcknowledgedText = "подтверждено (acknowledge_concern отправлен)"
+	}
+	if section.Current != nil && section.Current.Record != nil {
+		record := section.Current.Record
+		card.HasCurrent = true
+		card.No = strconv.FormatInt(record.ObjectionNo, 10)
+		card.TypeText = objectionTypeText(record.ObjectionType)
+		card.SignalText = objectionSignalText(record.ClientSignal)
+		card.Spans = append([]string(nil), record.Spans...)
+		card.TurnRef = record.TurnRef.String()
+		card.CreatedAt = formatTime(record.CreatedAt)
+		card.PlaybookVersion = record.PlaybookVersion
+	}
+	if len(section.LinkedReplies) > 0 {
+		card.LinkedCount = strconv.Itoa(len(section.LinkedReplies))
+	}
+	if len(section.NextSteps) > 0 {
+		words := ""
+		for i, step := range section.NextSteps {
+			if i > 0 {
+				words += ", "
+			}
+			words += step
+		}
+		card.NextStepsText = words
+	}
+	return card
+}
+
+// objectionTypeText renders the objection type word honestly.
+func objectionTypeText(word string) string {
+	switch word {
+	case casesDomain.ObjectionTypeTrust:
+		return "trust (доверие)"
+	case casesDomain.ObjectionTypePriceComparison:
+		return "price_comparison (сравнение с более дешёвым)"
+	case casesDomain.ObjectionTypeGeneralDoubt:
+		return "general_doubt (общее сомнение)"
+	}
+	return word
+}
+
+// objectionSignalText renders the client signal word honestly.
+func objectionSignalText(word string) string {
+	switch word {
+	case casesDomain.ClientSignalConcern:
+		return "concern (опасение — убеждение продолжается)"
+	case casesDomain.ClientSignalRefusal:
+		return "refusal (отказ — считает бюджет)"
+	case casesDomain.ClientSignalStopIntent:
+		return "stop_intent (просьба прекратить — останов немедленно)"
+	case casesDomain.ClientSignalHumanRequest:
+		return "human_request (требование человека — останов немедленно)"
+	}
+	return word
+}
+
+// objectionStepText renders the playbook step word honestly.
+func objectionStepText(word string) string {
+	switch word {
+	case casesDomain.PlaybookStepAcknowledgeConcern:
+		return "acknowledge_concern (признать смысл опасения — первый ответ)"
+	case casesDomain.PlaybookStepPresentEvidence:
+		return "present_evidence (доказательство)"
+	case casesDomain.PlaybookStepHonestNoAnswer:
+		return "honest_no_answer (честное отсутствие ответа)"
+	case casesDomain.PlaybookStepOfferAlternative:
+		return "offer_alternative (предложить альтернативу)"
+	case casesDomain.PlaybookStepClarifyQuestion:
+		return "clarify_question (уточняющий вопрос)"
+	}
+	return word
 }
 
 // prepareOwnershipPanel flattens the ownership section into the template

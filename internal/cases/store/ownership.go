@@ -638,13 +638,26 @@ func (s *Postgres) execSendClientReply(ctx context.Context, tx pgx.Tx, tenantID 
 		}
 	}
 	// The policy gate (Story 2.6, AFTER the disclosure gate — the frozen
-	// order: ownership 2-4 → mode 2-5 → disclosure 2-5 → policy 2-6 →
-	// CAS): the sales reply needs the Work Item anchor and the CURRENT
-	// (the maximal number) outcome of that item to be commercial_answer;
-	// the refusal names the current outcome words and the permitted path.
+	// order: ownership 2-4 → mode 2-5 → disclosure 2-5 → policy 2-6 → CAS):
+	// the sales reply needs the Work Item anchor and the CURRENT (the
+	// maximal number) outcome of that item to be commercial_answer; the
+	// refusal names the current outcome words and the permitted path.
 	// The passing gate resolves the Policy Outcome id the reply record
 	// references (the request never carries it — the server-side truth).
 	policyOutcomeID, err := replyPolicyGateOfTx(ctx, tx, tenantID, p.CaseID, p)
+	if err != nil {
+		return err
+	}
+	// The objection gate (Story 2.8, AFTER the policy gate — the frozen
+	// ladder: ownership 2-4 → mode 2-5 → disclosure 2-5 → policy 2-6 →
+	// objection 2-8 → write; the SALES class only — the neutral and the
+	// protected paths stay byte-identical): the stopped persuasion refuses
+	// with the allowed endings; a CURRENT objection of the Work Item makes
+	// the playbook step mandatory (the first linked answer — always
+	// acknowledge_concern); no objection — the step must be empty (the old
+	// path). The passing gate resolves the objection id the reply record
+	// references (the request never carries it — the server-side truth).
+	objectionID, err := replyObjectionGateOfTx(ctx, tx, tenantID, p.CaseID, p)
 	if err != nil {
 		return err
 	}
@@ -664,12 +677,12 @@ func (s *Postgres) execSendClientReply(ctx context.Context, tx pgx.Tx, tenantID 
 		channel, direction = p.RouteChannel, p.RouteDirection
 	}
 	if _, err = tx.Exec(ctx, `
-                insert into cases.client_replies (tenant_id, case_id, conversation_id, reply_id, owner_kind, owner_ref, epoch, writable_surface, connection_id, provider, channel, direction, employee_id, decision_no, profile_version, content, actor_id, reply_class, work_item_id, policy_outcome_id, created_at)
-                values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)`,
+                insert into cases.client_replies (tenant_id, case_id, conversation_id, reply_id, owner_kind, owner_ref, epoch, writable_surface, connection_id, provider, channel, direction, employee_id, decision_no, profile_version, content, actor_id, reply_class, work_item_id, policy_outcome_id, objection_id, playbook_step, created_at)
+                values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)`,
 		tenantID, p.CaseID, p.ConversationID, p.ReplyID, current.OwnerKind, current.OwnerRef,
 		current.Epoch, current.WritableSurface, conversation.ConnectionID, conversation.Provider,
 		channel, "outbound", p.LineageEmployeeID, p.LineageDecisionNo, p.LineageProfileVersion,
-		p.ReplyContent, p.Actor, nilText(p.ReplyClass), nilID(p.WorkItemID), nilID(policyOutcomeID), now); err != nil {
+		p.ReplyContent, p.Actor, nilText(p.ReplyClass), nilID(p.WorkItemID), nilID(policyOutcomeID), nilID(objectionID), nilText(p.PlaybookStep), now); err != nil {
 		return mapOwnershipInsertError(err)
 	}
 	// The prepared outbox event: the safe snapshot only.

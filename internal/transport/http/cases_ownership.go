@@ -51,7 +51,12 @@ type sendClientReplyInput struct {
 	WorkItemID     *string `json:"work_item_id"`
 	ExpectedEpoch  *int64  `json:"expected_epoch"`
 	ReplyClass     *string `json:"reply_class"`
-	Content        *string `json:"content"`
+	// PlaybookStep is the optional Story 2.8 discipline word: the SALES
+	// reply against a CURRENT objection of the Work Item MUST carry a
+	// step of the playbook of the objection type; without an objection
+	// the empty word keeps the old path.
+	PlaybookStep *string `json:"playbook_step"`
+	Content      *string `json:"content"`
 }
 
 // ownershipProblem maps the ownership command errors onto the problem
@@ -66,6 +71,7 @@ func ownershipProblem(w http.ResponseWriter, r *http.Request, server *Server, er
 	var disclosureGate casesDomain.ReplyDisclosureError
 	var policyGate casesDomain.ReplyPolicyError
 	var modeConflict casesDomain.ModeConflictError
+	var objectionStop casesDomain.ObjectionStoppedError
 	switch {
 	case errors.As(err, &gate):
 		server.problem(w, r, http.StatusForbidden, "reply_gate", gate.Reason, false, map[string]string{
@@ -82,6 +88,16 @@ func ownershipProblem(w http.ResponseWriter, r *http.Request, server *Server, er
 		modeProblem(w, r, server, err)
 	case errors.As(err, &policyGate):
 		policyProblem(w, r, server, err)
+	case errors.As(err, &objectionStop):
+		// The Story 2.8 persuasion stop: the honest 400 with the budget
+		// words and the allowed endings (the neutral completion, the
+		// protected request, the human handoff).
+		server.problem(w, r, http.StatusBadRequest, "persuasion_stopped", objectionStop.Reason, false, map[string]string{
+			"refusals":              strconv.Itoa(objectionStop.Refusals),
+			"threshold":             strconv.Itoa(objectionStop.Threshold),
+			"current_client_signal": objectionStop.CurrentSignal,
+			"permitted_path":        "neutral_completion,protected_request,human_handoff",
+		})
 	case errors.As(err, &rule):
 		server.problem(w, r, http.StatusBadRequest, rule.Rule, rule.Reason, false, nil)
 	case errors.Is(err, casesDomain.ErrStaleVersion):
@@ -308,6 +324,7 @@ func (s *Server) sendClientReplyAPI(w http.ResponseWriter, r *http.Request) {
 		WorkItemID:    workItemID,
 		ExpectedEpoch: *input.ExpectedEpoch,
 		ReplyClass:    stringOrEmpty(input.ReplyClass),
+		PlaybookStep:  stringOrEmpty(input.PlaybookStep),
 		Content:       stringOrEmpty(input.Content), IdempotencyKey: key, Now: s.clock.Now().UTC(),
 	})
 	if err != nil {
@@ -514,13 +531,18 @@ func (s *Server) sendClientReplyForm(w http.ResponseWriter, r *http.Request) {
 		ownershipFormError(w, r, tenant, caseID, err)
 		return
 	}
+	// The playbook step word of the Story 2.8 reply discipline (the
+	// optional form field: the SALES reply against a current objection
+	// MUST carry it — the refusal names the honest rule).
+	playbookStep := r.FormValue("playbook_step")
 	_, err = s.cases.SendClientReply(r.Context(), casesAPI.SendClientReplyCommand{
 		Actor: actor, TenantID: tenant, CaseID: caseID, ConversationID: conversationID,
 		WorkItemID:     workItemID,
 		ExpectedEpoch:  expected,
 		ReplyClass:     replyClass,
+		PlaybookStep:   playbookStep,
 		Content:        content,
-		IdempotencyKey: formCommandKey("send-client-reply", actor.ID.String(), caseID.String(), conversationID.String(), workItemID.String(), strconv.FormatInt(expected, 10), replyClass, content),
+		IdempotencyKey: formCommandKey("send-client-reply", actor.ID.String(), caseID.String(), conversationID.String(), workItemID.String(), strconv.FormatInt(expected, 10), replyClass, playbookStep, content),
 		Now:            s.clock.Now().UTC(),
 	})
 	if err != nil {

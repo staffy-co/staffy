@@ -711,6 +711,13 @@ func (s *Service) CaseView(ctx context.Context, actor domain.Principal, tenantID
 	if err != nil {
 		return casesAPI.CaseView{}, err
 	}
+	// The Story 2.8 section: the objection records per Work Item with the
+	// persuasion budget and the stopped word (the reads degrade honestly —
+	// the same view scope).
+	objections, err := s.objectionView(ctx, scope, detail)
+	if err != nil {
+		return casesAPI.CaseView{}, err
+	}
 	return casesAPI.CaseView{
 		TenantID: tenantID, Case: detail.Case, Conversations: detail.Conversations,
 		Timeline: detail.Timeline, WorkItems: detail.WorkItems, Exceptions: detail.Exceptions,
@@ -729,7 +736,7 @@ func (s *Service) CaseView(ctx context.Context, actor domain.Principal, tenantID
 		Duplicates: duplicates,
 		Ownership:  ownership,
 		Mode:       mode, Policy: policy,
-		Observations: observations,
+		Observations: observations, Objections: objections,
 	}, nil
 }
 
