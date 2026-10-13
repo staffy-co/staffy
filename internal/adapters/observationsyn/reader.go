@@ -66,10 +66,14 @@ type Scenario struct {
 
 // Reader implements the cases OwningSystemReader port. The scenario script
 // is keyed by the material field; a field without a script row answers ok
-// (the honest default of the contour — the successful read path).
+// (the honest default of the contour — the successful read path). The
+// per-reference overrides (ScriptFor) win over the per-field script for ONE
+// request anchor — the journeys contour scripts the price answer of one
+// work item without touching the shared field default of the other chains.
 type Reader struct {
 	mu       sync.Mutex
 	script   map[string]Scenario
+	refs     map[string]Scenario
 	counters map[string]int64
 }
 
@@ -86,7 +90,24 @@ func New(script map[string]Scenario) *Reader {
 		}
 		copied[key] = scenario
 	}
-	return &Reader{script: copied, counters: map[string]int64{}}
+	return &Reader{script: copied, refs: map[string]Scenario{}, counters: map[string]int64{}}
+}
+
+// ScriptFor scripts the answer of ONE request anchor (the material field +
+// the external reference): the per-reference override wins over the per-field
+// script and the default of that field for the reads of exactly this anchor.
+// The fixture-only journeys toggle (the composition root owns the wiring —
+// production contours never wire this adapter); an unknown scenario word is
+// refused exactly like the constructor script.
+func (r *Reader) ScriptFor(materialKey, externalReference string, scenario Scenario) {
+	switch scenario.Word {
+	case ScenarioOK, ScenarioProviderTimeout, ScenarioMalformedResponse, ScenarioInsufficientScope, ScenarioReadError:
+	default:
+		panic(fmt.Sprintf("неизвестное слово сценария синтетического контура: %q", scenario.Word))
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.refs[materialKey+"\x1f"+externalReference] = scenario
 }
 
 // Read answers one typed request deterministically: the ok scenario counts
@@ -98,9 +119,13 @@ func New(script map[string]Scenario) *Reader {
 // class). One attempt — no retry exists in the contour.
 func (r *Reader) Read(ctx context.Context, request casesPort.OwningSystemReadRequest) (casesPort.OwningSystemReading, error) {
 	scenario := Scenario{Word: ScenarioOK}
-	if scripted, ok := r.script[request.MaterialKey]; ok {
+	r.mu.Lock()
+	if scripted, ok := r.refs[request.MaterialKey+"\x1f"+request.ExternalReference]; ok {
+		scenario = scripted
+	} else if scripted, ok := r.script[request.MaterialKey]; ok {
 		scenario = scripted
 	}
+	r.mu.Unlock()
 	if scenario.Word != ScenarioOK {
 		return casesPort.OwningSystemReading{
 			Status: scenarioStatus[scenario.Word],

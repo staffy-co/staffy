@@ -27,8 +27,8 @@
 </dl>
 <p class="next-note">Идентификатор обязательства: <span class="digest-block">{{.CommitmentID}}</span>.</p>
 {{if and $.View.CanManageWork (not $.View.Terminal)}}
-<details class="connector-connect"><summary>Подтвердить эту версию (confirm_commitment)</summary>
-<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/work-items/{{$.View.WorkItemID}}/commitments/{{.CommitmentID}}/confirm">
+<details class="connector-connect commitment-card-action"><summary>Подтвердить эту версию (confirm_commitment)</summary>
+<form class="commitment-form" method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/work-items/{{$.View.WorkItemID}}/commitments/{{.CommitmentID}}/confirm">
 <input type="hidden" name="version_no" value="{{.No}}">
 <input type="hidden" name="expected_version" value="{{$.View.Version}}">
 <label for="confirm-subject-{{.CommitmentID}}-{{.No}}">Субъект подтверждения (ссылка клиента — совпадает с проверенной личностью)</label>
@@ -45,8 +45,8 @@
 </form>
 <p class="next-note">Выдержки сверяются побайтово со словами клиента события-источника: выдуманное согласие невозможно. Подтверждение требует проверенной личности субъекта (verified) и — при цене больше нуля — действующей записи полномочий (mandate_note). Наблюдение цены должно оставаться текущим: перечитанное поле требует новой версии.</p>
 </details>
-<details class="connector-connect"><summary>Зафиксировать отказ или запрос изменения (record_commitment_decline)</summary>
-<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/work-items/{{$.View.WorkItemID}}/commitments/{{.CommitmentID}}/decline">
+<details class="connector-connect commitment-card-action"><summary>Зафиксировать отказ или запрос изменения (record_commitment_decline)</summary>
+<form class="commitment-form" method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/work-items/{{$.View.WorkItemID}}/commitments/{{.CommitmentID}}/decline">
 <input type="hidden" name="version_no" value="{{.No}}">
 <label for="decline-outcome-{{.CommitmentID}}-{{.No}}">Исход (словарь)</label>
 <select id="decline-outcome-{{.CommitmentID}}-{{.No}}" name="outcome" required>{{range $.View.DeclineOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}</select>
@@ -101,7 +101,7 @@
 {{if and .View.CanManageWork (not .View.Terminal)}}
 <h2>Создать версию обязательства</h2>
 <section class="panel" aria-label="Форма создания версии">
-<form method="post" action="/app/tenants/{{.TenantID}}/cases/{{.View.CaseID}}/work-items/{{.View.WorkItemID}}/commitments">
+<form class="commitment-form" method="post" action="/app/tenants/{{.TenantID}}/cases/{{.View.CaseID}}/work-items/{{.View.WorkItemID}}/commitments">
 <label for="create-commitment-id">Идентификатор обязательства (UUID — пустым для нового; та же связь = новая версия)</label>
 <input id="create-commitment-id" name="commitment_id" type="text" maxlength="36">
 <label for="create-status">Статус версии (словарь)</label>

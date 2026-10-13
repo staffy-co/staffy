@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/artemiosu/staffy/internal/adapters/observationsyn"
 	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
 	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
 	casesPort "github.com/artemiosu/staffy/internal/cases/port"
@@ -38,6 +39,33 @@ func repeatByte(fill byte, n int) []byte {
 func (f *casesFixture) fixtureCommitmentID() id.UUID {
 	f.commitmentSeq++
 	return id.MustParse("01994f64-6c00-7000-8000-" + digit12(int(92000+f.commitmentSeq)))
+}
+
+// ScriptPriceQuote scripts the synthetic owning system's price answer of
+// ONE work item reference: the per-reference scenario of the production
+// adapter (observationsyn) carries the canonical price bytes of the amount
+// — the journeys commitment chain walks the honest price gate (the fresh
+// observation with the byte-equal canonical value) without touching the
+// shared field default of the observation chain (the fixture-only toggle,
+// the /fixture/step-up precedent).
+func (f *casesFixture) ScriptPriceQuote(workItem string, amountCents int64) error {
+	workItemID, err := id.Parse(workItem)
+	if err != nil {
+		return err
+	}
+	if amountCents <= 0 {
+		return fmt.Errorf("цена — положительные копейки")
+	}
+	value, err := casesDomain.PriceValueJSON(casesDomain.CommitmentPrice{
+		Kind: casesDomain.CommitmentPriceKindAmount, AmountCents: amountCents,
+	})
+	if err != nil {
+		return err
+	}
+	f.owningReader.ScriptFor(casesDomain.MaterialFieldPrice, workItemID.String(), observationsyn.Scenario{
+		Word: observationsyn.ScenarioOK, Value: value,
+	})
+	return nil
 }
 
 // fixturePriceObservation resolves the CURRENT price observation of one
@@ -112,8 +140,20 @@ func (f *casesFixture) CreateCommitment(_ context.Context, command casesAPI.Crea
 		if casesDomain.DeriveObservationState(observation.Status, command.Now.Sub(observation.ObservedAt), entry.FreshnessSeconds) != casesDomain.ObservationStateFresh {
 			return casesAPI.WorkOutcome{}, fixtureWorkRule("create_commitment", fmt.Errorf("Наблюдение цены не свежее: перечитайте поле read_owning_system и повторите создание версии."))
 		}
-		if string(observation.Value) != string(value) {
+		// The byte equality of the CANONICAL values (the app mirror:
+		// the stored observation value is the canonical form, the
+		// price term renders its canonical form before the
+		// comparison — never the struct-field order).
+		observedValue, canonicalErr := casesDomain.CanonicalPayload(observation.Value)
+		termValue, termErr := casesDomain.CanonicalPayload(value)
+		if canonicalErr != nil || termErr != nil || string(observedValue) != string(termValue) {
 			return casesAPI.WorkOutcome{}, fixtureWorkRule("create_commitment", fmt.Errorf("Цена версии не совпадает с текущим наблюдением price: сверьте значение с системой-владельцем — требуется новое чтение либо другая цена."))
+		}
+		// The conflict badge against the confirmed exact fact (the
+		// app mirror: a differs badge refuses the creation).
+		confirmed := f.fixtureConfirmedFactValueOf(command.CaseID, casesDomain.MaterialFieldPrice)
+		if casesDomain.ConflictBadgeOf(observation.Value, confirmed) == casesDomain.ConflictBadgeDiffers {
+			return casesAPI.WorkOutcome{}, fixtureWorkRule("create_commitment", fmt.Errorf("Наблюдение цены расходится с подтверждённым фактом (badge differs): разрешите расхождение подтверждением факта и повторите создание версии."))
 		}
 		pinned = observation.ObservationNo
 	}
@@ -253,13 +293,24 @@ func (f *casesFixture) ConfirmCommitment(_ context.Context, command casesAPI.Con
 		return casesAPI.WorkOutcome{}, err
 	}
 	// The freshness gate: the pinned observation must remain the CURRENT
-	// ok+fresh reading with the byte-equal value.
+	// ok+fresh reading with the byte-equal canonical value and without
+	// the conflict with the confirmed fact (the app mirror).
 	if !casesDomain.MaterialUnknownTerm(version.MaterialUnknowns, casesDomain.CommitmentTermPrice) {
 		observation := f.fixturePriceObservation(command.CaseID, command.WorkItemID)
 		entry, _ := casesDomain.AuthorityEntryOf(casesDomain.MaterialFieldPrice)
-		if observation == nil || observation.ObservationNo != version.PinnedPriceObservationNo ||
-			casesDomain.DeriveObservationState(observation.Status, command.Now.Sub(observation.ObservedAt), entry.FreshnessSeconds) != casesDomain.ObservationStateFresh ||
-			!bytesEqual(observation.Value, versionPriceValue(version.Conditions)) {
+		freshMismatch := observation == nil || observation.ObservationNo != version.PinnedPriceObservationNo ||
+			casesDomain.DeriveObservationState(observation.Status, command.Now.Sub(observation.ObservedAt), entry.FreshnessSeconds) != casesDomain.ObservationStateFresh
+		if !freshMismatch {
+			// The byte equality of the CANONICAL values and the
+			// conflict badge (the nil observation short-circuits
+			// above — the value reads are safe here).
+			observedValue, observedErr := casesDomain.CanonicalPayload(observation.Value)
+			termValue, termErr := casesDomain.CanonicalPayload(versionPriceValue(version.Conditions))
+			confirmed := f.fixtureConfirmedFactValueOf(command.CaseID, casesDomain.MaterialFieldPrice)
+			freshMismatch = observedErr != nil || termErr != nil || string(observedValue) != string(termValue) ||
+				casesDomain.ConflictBadgeOf(observation.Value, confirmed) == casesDomain.ConflictBadgeDiffers
+		}
+		if freshMismatch {
 			return casesAPI.WorkOutcome{}, fixtureWorkRule("confirm_commitment", fmt.Errorf("Наблюдение цены, на которое указывает версия, больше не является текущим: перечитайте поле (read_owning_system) и создайте новую версию обязательства."))
 		}
 	}
@@ -470,17 +521,4 @@ func versionPricePositive(conditions []byte) bool {
 		return false
 	}
 	return terms.Price.PricePositive()
-}
-
-// bytesEqual is the honest byte comparison helper.
-func bytesEqual(a, b []byte) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
 }

@@ -969,6 +969,8 @@ func workItemStateText(state string) string {
 		return "В работе"
 	case "waiting":
 		return "Ожидание возврата клиента"
+	case "confirmed":
+		return "Подтверждено (согласие клиента записано)"
 	case "resolved":
 		return "Завершено"
 	case "cancelled":

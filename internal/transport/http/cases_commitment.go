@@ -182,6 +182,27 @@ func parseTimeLoose(value string) (time.Time, error) {
 	return time.Parse(time.RFC3339, value)
 }
 
+// parseFormTimeLoose parses the valid-until of the create FORM: the
+// datetime-local input of the browser submits «YYYY-MM-DDTHH:MM» (or with
+// seconds) without the zone word — the honest operator surface accepts it
+// as UTC (the fixture clock and the server truth are UTC); the explicit
+// RFC 3339 form with a zone stays the machine path of the API.
+func parseFormTimeLoose(value string) (time.Time, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return time.Time{}, errors.New("пустое время")
+	}
+	if parsed, err := time.Parse(time.RFC3339, value); err == nil {
+		return parsed, nil
+	}
+	for _, layout := range []string{"2006-01-02T15:04", "2006-01-02T15:04:05", "2006-01-02"} {
+		if parsed, err := time.Parse(layout, value); err == nil {
+			return parsed.UTC(), nil
+		}
+	}
+	return time.Time{}, errors.New("время не разобрано")
+}
+
 // formInt64Value parses the optional integer form field (empty — the
 // honest zero).
 func formInt64Value(r *http.Request, field string) (int64, error) {
@@ -376,9 +397,9 @@ func (s *Server) createCommitmentForm(w http.ResponseWriter, r *http.Request) {
 			actions = append(actions, field)
 		}
 	}
-	validUntil, err := parseTimeLoose(r.FormValue("valid_until"))
+	validUntil, err := parseFormTimeLoose(r.FormValue("valid_until"))
 	if err != nil {
-		commitmentFormError(w, r, tenant, caseID, workItemID, casesDomain.WorkRuleError{Rule: "form", Reason: "Срок действия обязателен (RFC 3339, будущее)."})
+		commitmentFormError(w, r, tenant, caseID, workItemID, casesDomain.WorkRuleError{Rule: "form", Reason: "Срок действия обязателен (дата и время; RFC 3339, будущее)."})
 		return
 	}
 	limit, err := formInt64(r, "consumption_limit")
