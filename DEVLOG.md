@@ -1883,3 +1883,19 @@ done:
 - Контур 2-9 в main: append-only версии (00009, RLS, гранты), 3 команды с гейт-лестницей, предъявление связкой sales-reply, подтверждение точной показанной версии (spans+assurance+свежесть пина под локами), транзит WI→confirmed, отказы append-only, Commitment Review + панель (a11y), OpenAPI +3/+11, journeys-цепь 19 z, контракт, зонды инвариантов и гонок
 next: story 2-10 «Защищённое мультимодальное продолжение» (SM-фаза по дисциплине BMAD: спека → CHECKPOINT 1 предъявлением в ответе сессии); решение владельца по флэйку sequenceIDs (deferred-work)
 commit: cef7360
+
+---
+date: 2026-10-14
+task: 54-flake
+role: main (Super Z)
+story: 2-10 (пре-шаг цикла)
+summary: Флэйк генератора sequenceIDs закрыт пре-шагом цикла 2-10 (решение владельца «почини флэйк генератора») — гонка данных харнесса устранена мьютексом, инвариант закреплён живым зондом и мутационно заверен; полный регресс зелёный; продуктовый код не тронут
+done:
+- Контекст-восстановление: bootstrap зелёный; git-факт вскрыл ресайкл песочницы (локальная копия отставала от origin на весь хвост 2-9 — step-02..05, review R1/R2, closure, merge PR #24; порядок доверия AGENTS.md — git(origin) — локал синхронизирован с 5567e4a, устаревший незапушенный WIP-черновик step-02 отброшен — актуальная реализация уже в main)
+- Флэйк (запись deferred-work, evidence PR #24): TestPolicyTerminalWorkItemAndRaces «duplicate key policy_outcomes_pkey» — гонка данных харнесса sequenceIDs (tenant_test.go: index++ без синхронизации; 4 конкурентных EvaluatePolicy читают один index → одинаковый outcome_id; PR-run FAIL / push-run success / rerun success 2026-10-13)
+- Фикс 3ff4d0a на ветке codex/story-2-10-protected-multimodal-continuation (пре-шаг цикла, прецедент cb1abbc): New горутин-безопасен — мьютекс выдаёт каждый UUID последовательности ровно один раз; порядок выдачи под конкурентностью произволен (вызывающие зависят только от уникальности)
+- Живой зонд TestSequenceIDsConcurrentHandoutStaysUnique (tenant_test.go): 8 горутин × 64 значения, tight-loop — детерминированное перекрытие там, где DB-тайминг policy-теста остаётся лотереей; живое воспроизведение ДО фикса — WARNING: DATA RACE + FAIL (дубликаты выдачи); мутационная верификация на финальном дереве: Lock/Unlock сняты — зонд красный, восстановлены — зелёный
+- Регресс: зонд ×10 -race зелёный; TestPolicyTerminalWorkItemAndRaces под -race зелёный; интеграция полная ×2 TZ (UTC + Europe/Moscow) зелёная; unit 21 ok; vet/build зелёные; gofmt файла чист; дифф +57/−0 (один файл харнесса, 0 строк продакшн-кода)
+- deferred-work.md: запись закрыта append-only (ЗАКРЫТО 2026-10-14, прецедент закрытия audit-flake)
+next: пункт 1 — SM-фаза story 2-10 «Защищённое мультимодальное продолжение» (спека первого среза по epics §2.10/PRD → CHECKPOINT 1 предъявлением в ответе сессии; Dev не стартует до явного одобрения владельца — дисциплина 52-sm)
+commit: 3ff4d0a
