@@ -191,14 +191,19 @@ func (f *casesFixture) EvaluatePolicy(_ context.Context, command casesAPI.Evalua
 	active := casesDomain.ActiveConversationMode(terms)
 	itemContext := casesDomain.WorkItemModeContext(terms, proposal.WorkItemID)
 	effective := casesDomain.EffectiveWorkModeWord(casesDomain.EffectiveWorkMode(active, itemContext))
-	// The deterministic decision (the REAL pure function).
-	decision := casesDomain.EvaluatePolicy(*proposal, world, effective, nil)
+	// The deterministic decision (the REAL pure function) over the CURRENT
+	// preferences of the case (the Story 2.11 fourth input — the honest
+	// alternatives trigger of the recorded no_photo; the snapshot stamps
+	// the canonical preferences map: the same state renders the same
+	// digest, a changed state is the honest supersede).
+	preferences := f.fixtureAccommodationCurrent(command.CaseID)
+	decision := casesDomain.EvaluatePolicy(*proposal, world, effective, preferences)
 	snapshot := casesDomain.PolicyInputSnapshot{
 		ProposalID: proposal.ProposalID, SchemaVersion: proposal.SchemaVersion,
 		ModeVersion: modeVersion, OwnerEpoch: f.epochOf(command.CaseID),
 		FactsDigest: digestMap, FactsDigestHash: digest,
 		WorkItemVersion: command.ExpectedWorkItemVersion, RuleVersion: casesDomain.PolicyRuleVersion,
-		Preferences: casesDomain.AccommodationSnapshotOf(nil),
+		Preferences: casesDomain.AccommodationSnapshotOf(preferences),
 	}
 	decisionDigest, err := casesDomain.DecisionDigest(snapshot, decision, proposal.Intent)
 	if err != nil {
@@ -220,7 +225,8 @@ func (f *casesFixture) EvaluatePolicy(_ context.Context, command casesAPI.Evalua
 		RuleVersion: casesDomain.PolicyRuleVersion, Intent: proposal.Intent,
 		MandatoryFacts: decision.MandatoryFacts, NextSteps: decision.NextSteps,
 		ReusedFacts: decision.ReusedFacts, SuppressedQuestions: decision.SuppressedQuestions,
-		InputSnapshot: snapshot, DecisionDigest: decisionDigest,
+		ActiveAlternatives: decision.ActiveAlternatives,
+		InputSnapshot:      snapshot, DecisionDigest: decisionDigest,
 		ActorID: command.Actor.ID, CreatedAt: command.Now,
 	})
 	outcome = casesAPI.WorkOutcome{Command: "evaluate_policy", ProposalID: command.ProposalID,

@@ -332,7 +332,8 @@ func (f *casesFixture) SendClientReply(_ context.Context, command casesAPI.SendC
 		CVersion     int64  `json:"commitment_version"`
 		Content      string `json:"content"`
 		Link         string `json:"link_id"`
-	}{command.CaseID.String(), command.ConversationID.String(), command.WorkItemID.String(), command.ExpectedEpoch, command.ReplyClass, command.PlaybookStep, command.CommitmentID.String(), command.CommitmentVersionNo, command.Content, command.LinkID.String()})
+		Qualifier    string `json:"accuracy_qualifier"`
+	}{command.CaseID.String(), command.ConversationID.String(), command.WorkItemID.String(), command.ExpectedEpoch, command.ReplyClass, command.PlaybookStep, command.CommitmentID.String(), command.CommitmentVersionNo, command.Content, command.LinkID.String(), command.AccuracyQualifier})
 	if err != nil || !fresh {
 		return outcome, err
 	}
@@ -420,6 +421,22 @@ func (f *casesFixture) SendClientReply(_ context.Context, command casesAPI.SendC
 	if err != nil {
 		return casesAPI.WorkOutcome{}, err
 	}
+	// The accuracy gate (Story 2.11, AFTER the objection gate — the frozen
+	// ladder: ownership 2.4 → mode 2.5 → disclosure 2.5 → policy 2.6 →
+	// objection 2.8 → accuracy 2.11 → write; the SALES class only — the
+	// neutral and the protected paths stay byte-identical): the CURRENT
+	// outcome of the Work Item decides which words are honest — an
+	// outcome with active alternatives REQUIRES the qualifier word of
+	// its active set (the absence of media never becomes an invented
+	// exact result); an outcome without alternatives requires the EMPTY
+	// word (the field has exactly one meaning).
+	if command.ReplyClass == casesDomain.ReplyClassSales {
+		if err := f.fixtureAccuracyGate(command); err != nil {
+			return casesAPI.WorkOutcome{}, err
+		}
+	} else if command.AccuracyQualifier != "" {
+		return casesAPI.WorkOutcome{}, fixtureWorkRule("send_client_reply", fmt.Errorf("Слово ограничения точности несёт только коммерческий ответ (sales): нейтральные и защищённые сообщения не заявляют ограничение точности."))
+	}
 	if objectionID.Valid() && command.PlaybookStep != "" {
 		f.replyLinks[command.CaseID] = append(f.replyLinks[command.CaseID], casesDomain.ReplyLink{
 			ObjectionID: objectionID, Step: command.PlaybookStep,
@@ -481,8 +498,9 @@ func (f *casesFixture) SendClientReply(_ context.Context, command casesAPI.SendC
 		EmployeeID: f.employee, DecisionNo: 1, ProfileVersion: 1,
 		Content: command.Content, ActorID: command.Actor.ID,
 		ReplyClass: command.ReplyClass, WorkItemID: command.WorkItemID, PolicyOutcomeID: policyOutcomeID, CreatedAt: command.Now,
+		AccuracyQualifier: command.AccuracyQualifier,
 	})
-	outcome = casesAPI.WorkOutcome{Command: "send_client_reply", ReplyID: replyID, ReplyState: "prepared", Epoch: state.Current.Epoch, ReplyClass: command.ReplyClass, PolicyOutcomeID: policyOutcomeID, ObjectionID: objectionID, PlaybookStep: command.PlaybookStep}
+	outcome = casesAPI.WorkOutcome{Command: "send_client_reply", ReplyID: replyID, ReplyState: "prepared", Epoch: state.Current.Epoch, ReplyClass: command.ReplyClass, PolicyOutcomeID: policyOutcomeID, ObjectionID: objectionID, PlaybookStep: command.PlaybookStep, AccuracyQualifier: command.AccuracyQualifier}
 	f.storeOutcome("send_client_reply", command.IdempotencyKey, outcome)
 	return outcome, nil
 }

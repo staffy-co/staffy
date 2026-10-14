@@ -144,6 +144,15 @@ func ownershipFormError(w http.ResponseWriter, r *http.Request, tenant, caseID i
 		message = modeFormMessage(err)
 	case errors.As(err, &policyGate):
 		message = policyFormMessage(err)
+	case errors.As(err, &rule) && rule.Rule == "accuracy_qualifier_required":
+		// The Story 2.11 accuracy gate: the full reason carries the
+		// active-set listing and exceeds the one-shot flash cookie bound
+		// (200 runes) — the generic refusal would lose the honest rule
+		// words. The form message names the rule; the active words live
+		// in the qualifier select of the form and the outcome panel.
+		message = "Продажный ответ обязан заявить ограничение точности: выберите слово активного множества исхода в поле «Ограничение точности»."
+	case errors.As(err, &rule) && rule.Rule == "accuracy_qualifier_foreign":
+		message = "Слово ограничения точности сверяется с активным множеством действующего исхода: выберите слово множества либо оставьте поле пустым, если альтернатив нет."
 	case errors.As(err, &rule):
 		message = rule.Reason
 	case errors.Is(err, casesDomain.ErrStaleVersion):
