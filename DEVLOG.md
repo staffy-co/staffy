@@ -2156,3 +2156,17 @@ done:
 - Инциденты: (1) journeys-прогон требовал PATH с go для playwright webServer (go run фикстуры) — export PATH до npx; (2) yaml-вложенность active_alternatives enum (items.enum, не свойство верхнего уровня) — первая версия теста читала не тот уровень, локализована красным прогоном, закрыта
 next: closure — спека+sprint-status → done (Change Log +1: QA-находки закрыты), DEVLOG 59-close, union main (прецедент 2-10 2d24278: main 56-sm/57-sm + ветка 58/59 расходятся по DEVLOG.md), CHECKPOINT 2 — PR + CI ×3 + merge (Epic 2: 11/16)
 commit: a75ac4e (feat-коммит выше; эта запись)
+---
+date: 2026-10-15
+task: 59-close
+role: main (Super Z)
+story: 2-11
+summary: Closure среза 2-11 — QA-саморевью PASS (Major: отсутствовавший TestAccommodationContractIsHonest написан и закрыт; Minor: гигиена scripts/ репо — 11 дев-скриптов удалены; пиннинг-контуры зелёные по ревью: лок-план под локами, лестница гейтов, контрольная ветка байт-в-байт, RLS/гранты, периметр outbox); спека+sprint-status → done (замороженные секции не тронуты); union main (a1f1f26); ветка готова к CHECKPOINT 2 (PR + CI ×3 + merge); Epic 2: 11/16
+done:
+- step-05 a75ac4e БЕЗ skip ci (CI-гейт закрытия): QA-саморевью свежим контекстом по диффу 01-04 — находки: (Major) контракт-тест TestAccommodationContractIsHonest был заявлен DEVLOG 58, но отсутствовал в коде — написан по прецеденту TestContinuationContractIsHonest (путь/полномочия/Idempotency-Key/коды 200-201-400-401-403-404-409, словарь 8 ключей, revision не поле, note ≤500, CaseView-секция, qualifier 4 слова, активные альтернативы 4 слова items.enum, WorkOutcome без value/note); (Minor) 11 дев-скриптов patch_step03_*.py удалены из scripts/ репо (канон = bootstrap/check-continuity/git-credential); продуктовый код 01-04 просмотрен против спеки: лок-план record_accommodation = case+conversation в tx ДО диспетчеризации, гейты/гварды/ревизия под локами; лестница send_client_reply: точность ПОСЛЕ возражения 2-8 ДО записи (app + стор-ревалидация replyAccuracyGateOfTx); контрольная ветка applyMediaAlternatives без триггера возвращает решение нетронутым; миграция 00011 RLS+FORCE INSERT/SELECT-only; периметр outbox key/revision/cleared; policy-wiring readAccommodationsTx под теми же advisory-локами; скоуп-гейт ДО материальных стражей
+- Финальный регресс всех контуров свежими прогонами: build, vet (модуль + integration-тег + contracts), unit 23 пакета ok, интеграция 174 ×2 TZ (UTC 15.7s / Europe/Moscow 13.5s, -count=1, живой PG), контракт ok (включая новый тест), journeys 28/28 (1.3m, chromium-1243), gofmt диффа чист (server.go — пре-существующие пробелы до ветки, проверено по 68b6d3a), дерево чистое
+- Спека → done (status + Change Log запись цикла; дифф от CHECKPOINT 1 = только status+Change Log); sprint-status 2-11 → done; Epic 2: 11/16
+- Дерево ветки: спека fb84257 → CHECKPOINT 1 68b6d3a (одобрение «одобряю»+токен) → step-01 c9dc6e7 → step-02 0180e21 → step-03 5c18c36 (+DEVLOG 7eda7f5) → step-04 f4513af (+DEVLOG 0255eed) → step-05 a75ac4e (без skip ci; +DEVLOG 3c8ea49) → union main a1f1f26 → closure (эта запись)
+- Публикация: ветка и main синхронны с origin на входе шага (0255eed / faf5487); check-continuity OK (fail=0, warn=1 транзиентный TBD-формат, самоисцелится записью closure с SHA)
+next: CHECKPOINT 2 — PR из ветки в main, CI ×3 зелёный (полный конвейер Go+PG+Playwright — коммиты step-05 и closure без skip ci), merge, DEVLOG 60-merge; далее SM-фаза story 2-12 (callback/degraded-контур тайминга) по epics.md
+commit: (closure — эта запись на ветке; спека/sprint-status/DEVLOG одним docs-коммитом)

@@ -2,7 +2,7 @@
 title: 'Story 2.11 — Равноправные альтернативные пути обслуживания (первый срез: записанные предпочтения связи и честные альтернативы Policy)'
 type: 'feature'
 created: '2026-10-14'
-status: 'ready-for-dev'
+status: 'done'
 route: 'dispatch'
 baseline_commit: 'aa7e9bcabb672416674f5c7e145000fd26196697'
 context:
@@ -105,3 +105,4 @@ context:
 - 2026-10-14, SM: CHECKPOINT 1 закрыт — явное одобрение владельца в чате («одобряю», 2026-10-14, со свежим токеном публикации); спека+sprint-status → ready-for-dev; далее Dev step-01..05; замороженные секции Intent/Boundaries/Matrix не тронуты (дифф = status + Решение владельца + Change Log).
 - 2026-10-15, Dev (step-03): механические расширения зеркал прежних срезов (дисциплина Boundaries «честная запись»): contract_test.go — reason enum 6→7 слов (+no_alternative_path), rule_version enum v1+v2, PolicyInputSnapshot required +preferences (словарь домена решает, контракт зеркалит); journeys zzzzzzzzzzzzzzzz-cases-policy.spec.ts — ассерт панели правил intake-policy-v1 → intake-policy-v2 (константа домена). Тестовые тела/логика не менялись — только словарные зеркала v2.
 - 2026-10-15, Dev (step-04): QA-находка journeys-цепи закрыта в срезе: одноразовый флэш-cookie формы продажного ответа отказывает сообщениям длиннее 200 рун (flashError), полный текст гейта точности (248 рун со списком активного множества) терял честные слова гейта — оператор видел безымянное «Действие не выполнено.». ownershipFormError: для правил accuracy_qualifier_required/foreign — фиксированные форм-тексты ≤200 рун, называющие правило (слова активного множества остаются в select квалификатора формы и панели исхода — оператор выбирает по видимым словам); машинный JSON-путь (problem) несёт полный текст домена без изменений. Замороженные секции не тронуты (дифф = transport cases_ownership.go + эта запись).
+- 2026-10-15, Dev (closure): срез закрыт — step-01..05 зелёные (домен+словари, миграция 00011+стор+зонды, команды/гейты/транспорт/поверхности/OpenAPI, матрица 26 строк поимённо, journeys-цепь 21z); QA-саморевью step-05 закрыло 2 находки (Major: заявленный DEVLOG 58 контракт-тест TestAccommodationContractIsHonest отсутствовал в коде — написан contracts/openapi/accommodation_contract_test.go по прецеденту 2-10; Minor: 11 дев-скриптов patch_step03_*.py удалены из scripts/ репо — канон = 3 операционных скрипта); регресс: build, vet ×3, unit 23 пакета, интеграция 174 ×2 TZ, контракт, journeys 28/28, gofmt диффа чист; спека+sprint-status → done (Epic 2: 11/16; замороженные секции не тронуты: дифф = status + Change Log).
