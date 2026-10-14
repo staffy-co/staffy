@@ -224,7 +224,16 @@ func (s *Service) EvaluatePolicy(ctx context.Context, command casesAPI.EvaluateP
 		}
 	}
 	effective := casesDomain.EffectiveWorkMode(active, itemContext)
-	decision := casesDomain.EvaluatePolicy(*proposal, snapshot.world, casesDomain.EffectiveWorkModeWord(effective))
+	// The 2.11 fourth input: the CURRENT preferences state of the case —
+	// the honest read before the transaction (the store re-derives the
+	// same truth under the SAME advisory locks; the snapshot carries the
+	// canonical preferences map — the digest determinism).
+	accommodationRecords, err := s.repository.ReadAccommodations(ctx, scope, command.CaseID)
+	if err != nil {
+		return casesAPI.WorkOutcome{}, err
+	}
+	currentAccommodations := casesDomain.DeriveCurrentAccommodations(accommodationRecords)
+	decision := casesDomain.EvaluatePolicy(*proposal, snapshot.world, casesDomain.EffectiveWorkModeWord(effective), currentAccommodations)
 	outcomeID, err := s.ids.New(command.Now)
 	if err != nil {
 		return casesAPI.WorkOutcome{}, err

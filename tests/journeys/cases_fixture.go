@@ -139,6 +139,14 @@ type casesFixture struct {
 	contDelivered   map[id.UUID]bool
 	continuationSeq int
 
+	// The Story 2.11 accommodation material: the append-only revision
+	// rows per case (the CURRENT set is the read-time derivation over
+	// the REAL domain function — never stored; the revision number is
+	// the fixture-owned monotonic truth of the key, the request never
+	// carries it).
+	accommodations   map[id.UUID][]casesDomain.AccommodationRecord
+	accommodationSeq int
+
 	caseNo, conversationNo int64
 	eventSeq               int
 	workSeq, exceptionSeq  int
@@ -214,6 +222,8 @@ func newCasesFixture() *casesFixture {
 		contRevokes:   map[id.UUID]casesDomain.ContinuationRevocation{},
 		contByHash:    map[string]id.UUID{},
 		contDelivered: map[id.UUID]bool{},
+		// The Story 2.11 material:
+		accommodations: map[id.UUID][]casesDomain.AccommodationRecord{},
 	}
 }
 
@@ -637,6 +647,10 @@ func (f *casesFixture) CaseView(_ context.Context, _ domain.Principal, tenant, c
 		// REAL read-time derivations (the states, the delivery binding
 		// and the event feed).
 		Continuations: f.fixtureContinuationView(caseID),
+		// The Story 2.11 section: the «Предпочтения связи» panel over
+		// the REAL read-time derivation (the current set, the honest
+		// append-only history, the dictionaries of the record form).
+		Accommodations: f.fixtureAccommodationView(caseID),
 	}, nil
 }
 

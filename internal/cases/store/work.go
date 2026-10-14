@@ -473,6 +473,14 @@ func (s *Postgres) ExecuteWorkCommand(ctx context.Context, p casesPort.WorkComma
 		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID), workLockKey(tenantID, p.WorkItemID))
 	case "create_commitment", "record_commitment_decline":
 		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID), workLockKey(tenantID, p.WorkItemID))
+	case "record_accommodation":
+		// The accommodation record: the case + conversation keys — the
+		// SAME sorted plan of the mode/policy commands (the preferences
+		// read of the evaluation and the record write serialize on the
+		// identical key set; the revision derivation is the lock-visible
+		// truth, the UNIQUE backstop catches the races the locks already
+		// serialize).
+		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID), conversationLockKey(tenantID, p.ConversationID))
 	case "issue_continuation_link", "revoke_continuation_link":
 		// The continuation commands: the case key serializes the owner
 		// epoch read of the issuance pin (the ownership writers hold the
@@ -560,6 +568,8 @@ func (s *Postgres) ExecuteWorkCommand(ctx context.Context, p casesPort.WorkComma
 		err = s.execIssueContinuationLink(ctx, tx, tenantID, p, now)
 	case "revoke_continuation_link":
 		err = s.execRevokeContinuationLink(ctx, tx, tenantID, p, now)
+	case "record_accommodation":
+		err = s.execRecordAccommodation(ctx, tx, tenantID, p, now)
 	default:
 		err = fmt.Errorf("неизвестная команда %s", p.Command)
 	}

@@ -44,6 +44,7 @@ type Server struct {
         privacy   privacyAPI.Service
         entitlement entitlementAPI.Service
         cases     casesAPI.Service
+        accommodations casesAPI.AccommodationService
         continuations casesAPI.ContinuationService
         tenantNamer   api.TenantNameService
         resolver  port.PrincipalResolver

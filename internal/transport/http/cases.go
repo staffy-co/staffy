@@ -101,6 +101,16 @@ func (s *Server) BindCases(service casesAPI.Service) {
 	// type-asserted of the cases service (the BindEmployee precedent: the
 	// composite Service stays untouched); the tenant-name reader of the
 	// public header asserts of the identity service the same way.
+	if accommodations, ok := service.(casesAPI.AccommodationService); ok {
+		// The Story 2.11 surfaces: the accommodation record command (machine
+		// JSON + the operator PRG form of the «Предпочтения связи» panel — the
+		// narrow interface is type-asserted of the cases service (the
+		// ContinuationService precedent: the composite Service and the test
+		// fakes stay untouched).
+		s.accommodations = accommodations
+		s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/accommodations", s.recordAccommodationAPI)
+		s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/accommodations", s.recordAccommodationForm)
+	}
 	if continuations, ok := service.(casesAPI.ContinuationService); ok {
 		s.continuations = continuations
 		s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/continuation-links", s.issueContinuationLinkAPI)

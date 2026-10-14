@@ -95,7 +95,11 @@ type ReassignOwnershipCommand struct {
 // word: the SALES reply against a CURRENT objection of the Work Item MUST
 // carry a step of the playbook of the objection type (the first linked
 // answer — always acknowledge_concern); without an objection the empty
-// word keeps the old path byte-identical.
+// word keeps the old path byte-identical. Story 2.11 extends the material
+// with the accuracy qualifier word: the SALES reply against an outcome
+// with active alternatives carries the honest limitation word of the
+// outcome's active set (a subset of the OUTCOME, never the dictionary in
+// general); without alternatives the word stays empty.
 type SendClientReplyCommand struct {
 	Actor          domain.Principal
 	TenantID       id.UUID
@@ -118,9 +122,15 @@ type SendClientReplyCommand struct {
 	// delivered»); the neutral and the protected classes never carry it
 	// (the honest 400 of the dictionary); the link must exist and belong
 	// to THIS case (the store re-validates under the locks).
-	LinkID         id.UUID
-	IdempotencyKey string
-	Now            time.Time
+	LinkID id.UUID
+	// The Story 2.11 accuracy qualifier: the SALES reply against an
+	// outcome with active alternatives MUST carry the qualifier word of
+	// the outcome's active set (the absence of media never becomes an
+	// invented exact result); without alternatives the word stays EMPTY
+	// (the field has exactly one meaning — the playbook_step mirror).
+	AccuracyQualifier string
+	IdempotencyKey    string
+	Now               time.Time
 }
 
 // OwnershipView is the ownership section of the case view: the derived

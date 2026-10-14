@@ -733,6 +733,14 @@ func (s *Service) CaseView(ctx context.Context, actor domain.Principal, tenantID
 	if err != nil {
 		return casesAPI.CaseView{}, err
 	}
+	// The Story 2.11 section: the recorded communication preferences — the
+	// CURRENT set (the read-time derivation), the append-only revision
+	// history and the dictionaries of the record form (the reads degrade
+	// honestly — the same view scope).
+	accommodations, err := s.accommodationView(ctx, scope, detail)
+	if err != nil {
+		return casesAPI.CaseView{}, err
+	}
 	return casesAPI.CaseView{
 		TenantID: tenantID, Case: detail.Case, Conversations: detail.Conversations,
 		Timeline: detail.Timeline, WorkItems: detail.WorkItems, Exceptions: detail.Exceptions,
@@ -752,7 +760,7 @@ func (s *Service) CaseView(ctx context.Context, actor domain.Principal, tenantID
 		Ownership:  ownership,
 		Mode:       mode, Policy: policy,
 		Observations: observations, Objections: objections, Commitments: commitments,
-		Continuations: continuations,
+		Continuations: continuations, Accommodations: accommodations,
 	}, nil
 }
 

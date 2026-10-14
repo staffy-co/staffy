@@ -62,6 +62,12 @@ type sendClientReplyInput struct {
 	// the operator wove into the text (the delivered badge of the FR-16);
 	// the neutral and the protected classes never carry it.
 	LinkID *string `json:"link_id"`
+	// AccuracyQualifier is the optional Story 2.11 honesty word: the
+	// SALES reply against an outcome with active alternatives MUST carry
+	// the qualifier word of the outcome's active set (a subset of the
+	// OUTCOME, never the dictionary in general); without alternatives
+	// the word stays empty — the field has exactly one meaning.
+	AccuracyQualifier *string `json:"accuracy_qualifier"`
 }
 
 // ownershipProblem maps the ownership command errors onto the problem
@@ -138,6 +144,15 @@ func ownershipFormError(w http.ResponseWriter, r *http.Request, tenant, caseID i
 		message = modeFormMessage(err)
 	case errors.As(err, &policyGate):
 		message = policyFormMessage(err)
+	case errors.As(err, &rule) && rule.Rule == "accuracy_qualifier_required":
+		// The Story 2.11 accuracy gate: the full reason carries the
+		// active-set listing and exceeds the one-shot flash cookie bound
+		// (200 runes) — the generic refusal would lose the honest rule
+		// words. The form message names the rule; the active words live
+		// in the qualifier select of the form and the outcome panel.
+		message = "Продажный ответ обязан заявить ограничение точности: выберите слово активного множества исхода в поле «Ограничение точности»."
+	case errors.As(err, &rule) && rule.Rule == "accuracy_qualifier_foreign":
+		message = "Слово ограничения точности сверяется с активным множеством действующего исхода: выберите слово множества либо оставьте поле пустым, если альтернатив нет."
 	case errors.As(err, &rule):
 		message = rule.Reason
 	case errors.Is(err, casesDomain.ErrStaleVersion):
@@ -336,12 +351,13 @@ func (s *Server) sendClientReplyAPI(w http.ResponseWriter, r *http.Request) {
 	}
 	outcome, err := s.cases.SendClientReply(r.Context(), casesAPI.SendClientReplyCommand{
 		Actor: actor, TenantID: tenant, CaseID: caseID, ConversationID: conversationID,
-		WorkItemID:    workItemID,
-		ExpectedEpoch: *input.ExpectedEpoch,
-		ReplyClass:    stringOrEmpty(input.ReplyClass),
-		PlaybookStep:  stringOrEmpty(input.PlaybookStep),
-		LinkID:        linkID,
-		Content:       stringOrEmpty(input.Content), IdempotencyKey: key, Now: s.clock.Now().UTC(),
+		WorkItemID:        workItemID,
+		ExpectedEpoch:     *input.ExpectedEpoch,
+		ReplyClass:        stringOrEmpty(input.ReplyClass),
+		PlaybookStep:      stringOrEmpty(input.PlaybookStep),
+		LinkID:            linkID,
+		AccuracyQualifier: stringOrEmpty(input.AccuracyQualifier),
+		Content:           stringOrEmpty(input.Content), IdempotencyKey: key, Now: s.clock.Now().UTC(),
 	})
 	if err != nil {
 		ownershipProblem(w, r, s, err)
@@ -574,6 +590,12 @@ func (s *Server) sendClientReplyForm(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	// The Story 2.11 accuracy qualifier word: the optional select of the
+	// form (the SALES reply against an outcome with active alternatives
+	// MUST carry it — the refusal names the honest rule and the active
+	// words; the select carries NO preselected option: the operator
+	// chooses the limitation consciously).
+	accuracyQualifier := r.FormValue("accuracy_qualifier")
 	_, err = s.cases.SendClientReply(r.Context(), casesAPI.SendClientReplyCommand{
 		Actor: actor, TenantID: tenant, CaseID: caseID, ConversationID: conversationID,
 		WorkItemID:    workItemID,
@@ -581,10 +603,11 @@ func (s *Server) sendClientReplyForm(w http.ResponseWriter, r *http.Request) {
 		ReplyClass:    replyClass,
 		PlaybookStep:  playbookStep,
 		CommitmentID:  commitmentID, CommitmentVersionNo: commitmentVersion,
-		LinkID:         linkID,
-		Content:        content,
-		IdempotencyKey: formCommandKey("send-client-reply", actor.ID.String(), caseID.String(), conversationID.String(), workItemID.String(), strconv.FormatInt(expected, 10), replyClass, playbookStep, commitmentID.String(), strconv.FormatInt(commitmentVersion, 10), linkID.String(), content),
-		Now:            s.clock.Now().UTC(),
+		LinkID:            linkID,
+		AccuracyQualifier: accuracyQualifier,
+		Content:           content,
+		IdempotencyKey:    formCommandKey("send-client-reply", actor.ID.String(), caseID.String(), conversationID.String(), workItemID.String(), strconv.FormatInt(expected, 10), replyClass, playbookStep, accuracyQualifier, commitmentID.String(), strconv.FormatInt(commitmentVersion, 10), linkID.String(), content),
+		Now:               s.clock.Now().UTC(),
 	})
 	if err != nil {
 		ownershipFormError(w, r, tenant, caseID, err)
