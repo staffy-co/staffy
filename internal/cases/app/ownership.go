@@ -582,9 +582,9 @@ func (s *Service) SendClientReply(ctx context.Context, command casesAPI.SendClie
 	// The request hash covers the whole command material INCLUDING the
 	// playbook step of the Story 2.8 extension, the presentation pair of
 	// the Story 2.9 extension, the continuation binding of the Story 2.10
-	// extension and the accuracy qualifier word of the Story 2.11
-	// extension (the same key with another material is the honest key
-	// conflict).
+	// extension, the accuracy qualifier word of the Story 2.11 extension
+	// and the update promise word of the Story 2.12 extension (the same
+	// key with another material is the honest key conflict).
 	hash := requestHash(struct {
 		Case         string `json:"case"`
 		Conversation string `json:"conversation"`
@@ -596,8 +596,9 @@ func (s *Service) SendClientReply(ctx context.Context, command casesAPI.SendClie
 		CVersion     int64  `json:"commitment_version"`
 		Link         string `json:"continuation_link_id"`
 		Qualifier    string `json:"accuracy_qualifier"`
+		Promise      string `json:"update_promise"`
 		Content      string `json:"content"`
-	}{command.CaseID.String(), command.ConversationID.String(), command.WorkItemID.String(), command.ExpectedEpoch, command.ReplyClass, command.PlaybookStep, command.CommitmentID.String(), command.CommitmentVersionNo, command.LinkID.String(), command.AccuracyQualifier, command.Content})
+	}{command.CaseID.String(), command.ConversationID.String(), command.WorkItemID.String(), command.ExpectedEpoch, command.ReplyClass, command.PlaybookStep, command.CommitmentID.String(), command.CommitmentVersionNo, command.LinkID.String(), command.AccuracyQualifier, command.UpdatePromise, command.Content})
 	if outcome, replay, err := s.lookupCommand(ctx, scope, "send_client_reply", command.IdempotencyKey, hash); replay || err != nil {
 		return outcome, err
 	}
@@ -848,6 +849,21 @@ func (s *Service) SendClientReply(ctx context.Context, command casesAPI.SendClie
 			return casesAPI.WorkOutcome{}, rule("send_client_reply", fmt.Errorf("Ссылка продолжения не найдена: связь возможна только со ссылкой этого обращения."))
 		}
 	}
+	// The honest timing gate (Story 2.12, AFTER the commitment link gates
+	// — the frozen ladder: ownership 2-4 → mode 2-5 → disclosure 2-5 →
+	// policy 2-6 → objection 2-8 → accuracy 2-11 → commitment link 2-9 →
+	// honest timing 2-12 → CAS; CLASSLESS — the sales, the neutral and
+	// the protected replies all check: a short failure message can be
+	// any class): the reply route (the conversation connection and the
+	// live channel word) is degraded → the update promise word of the
+	// approved policy dictionary is REQUIRED («время следующего
+	// обновления только в пределах утверждённой policy» — a word outside
+	// the dictionary never leaves the machine); the route is healthy →
+	// the word must stay EMPTY (the byte-identical old path; the field
+	// has exactly one meaning). The store re-validates under the locks.
+	if err := s.degradedTimingGate(ctx, scope, command.CaseID, command.ConversationID, command.UpdatePromise); err != nil {
+		return casesAPI.WorkOutcome{}, err
+	}
 	// The route snapshot and the lineage word of the acting decision.
 	conversationOfCase, err := s.caseConnection(ctx, scope, command.CaseID)
 	if err != nil {
@@ -869,7 +885,7 @@ func (s *Service) SendClientReply(ctx context.Context, command casesAPI.SendClie
 		Command: "send_client_reply", ReplyID: replyID,
 		ReplyState: "prepared", Epoch: current.Epoch, ReplyClass: command.ReplyClass,
 		PolicyOutcomeID: policyOutcomeID, ObjectionID: objectionID, PlaybookStep: command.PlaybookStep,
-		AccuracyQualifier: command.AccuracyQualifier,
+		AccuracyQualifier: command.AccuracyQualifier, UpdatePromise: command.UpdatePromise,
 	}
 	outcomeJSON, err := json.Marshal(outcome)
 	if err != nil {
@@ -889,6 +905,7 @@ func (s *Service) SendClientReply(ctx context.Context, command casesAPI.SendClie
 		CommitmentID: command.CommitmentID, VersionNo: command.CommitmentVersionNo,
 		LinkID:            command.LinkID,
 		AccuracyQualifier: command.AccuracyQualifier,
+		UpdatePromise:     command.UpdatePromise,
 		Outcome:           outcomeJSON, Now: command.Now.UTC().Truncate(time.Microsecond),
 	}); err != nil {
 		return casesAPI.WorkOutcome{}, err
@@ -999,6 +1016,12 @@ func (s *Service) ownershipView(ctx context.Context, scope tenancy.Context, deta
 	}
 	for _, member := range members {
 		view.Members = append(view.Members, member)
+	}
+	// The Story 2.12 delivery states: the derived honest state of every
+	// outgoing reply (the «Доставка» column of the reply panel — the
+	// reads degrade honestly, the same view scope).
+	if deliveries, err := s.replyDeliveriesView(ctx, scope, detail.Case.CaseID, replies); err == nil {
+		view.Deliveries = deliveries
 	}
 	return view, nil
 }

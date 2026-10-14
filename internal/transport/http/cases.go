@@ -111,6 +111,18 @@ func (s *Server) BindCases(service casesAPI.Service) {
 		s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/accommodations", s.recordAccommodationAPI)
 		s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/accommodations", s.recordAccommodationForm)
 	}
+	if degradations, ok := service.(casesAPI.DegradationService); ok {
+		// The Story 2.12 surfaces: the route degradation record command and
+		// the delivery evidence event command (machine JSON + the operator
+		// PRG forms — the narrow interface is type-asserted of the cases
+		// service, the AccommodationService/ContinuationService precedent:
+		// the composite Service and the test fakes stay untouched).
+		s.degradations = degradations
+		s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/route-degradations", s.recordRouteDegradationAPI)
+		s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/replies/{reply_id}/delivery-evidence", s.recordDeliveryEvidenceAPI)
+		s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/route-degradations", s.recordRouteDegradationForm)
+		s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/delivery-evidence", s.recordDeliveryEvidenceForm)
+	}
 	if continuations, ok := service.(casesAPI.ContinuationService); ok {
 		s.continuations = continuations
 		s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/continuation-links", s.issueContinuationLinkAPI)

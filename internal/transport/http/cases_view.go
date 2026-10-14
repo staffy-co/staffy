@@ -188,6 +188,25 @@ type caseDetailPageView struct {
 	AccommodationRecordsAnchor string
 	AccuracyQualifierOptions   []workOption
 	ContinuationSurfaceHint    string
+	// The Story 2.12 section: the route degradation panel words (the
+	// CURRENT set with the honest cause texts, the append-only revision
+	// history including the recovery rows, the dictionaries of the record
+	// form — the connection options of the case's conversations and the
+	// channel dictionary), the delivery states of the reply rows, the
+	// update promise options of the reply form (the approved policy
+	// dictionary — the select without a silent default) and the evidence
+	// kind options of the delivery observation form.
+	RouteDegradationsPanelText   string
+	RouteDegradationCurrentRows  []routeDegradationStateRow
+	RouteDegradationHistoryRows  []routeDegradationRecordRow
+	HasRouteDegradations         bool
+	DegradationCauseOptions      []workOption
+	DegradationConnectionOptions []workOption
+	DegradationChannelOptions    []workOption
+	DegradationRecordsAnchor     string
+	UpdatePromiseOptions         []workOption
+	EvidenceKindOptions          []workOption
+	ReplyEvidenceOptions         []workOption
 }
 
 // assurancePanelView is the assurance section of the case page: the derived
@@ -294,6 +313,15 @@ type ownershipPanelView struct {
 	// communication preferences BEFORE the ack (AC-1 «передаются каждому
 	// последующему Response Owner»).
 	AccommodationWords string
+	// DegradationWords is the current degraded route words of the Story
+	// 2.12 transfer card: the receiving operator reads the operational
+	// route state BEFORE the ack (the preferences 2.11 precedent).
+	DegradationWords string
+	// The Story 2.12 material: the derived honest delivery states keyed by
+	// the reply id (the «Доставка» column) and the reply options of the
+	// evidence observation form.
+	deliveries           map[string]casesAPI.ReplyDeliveryView
+	ReplyEvidenceOptions []workOption
 }
 
 // ownershipTermRow is one term row of the ownership history.
@@ -326,6 +354,39 @@ type replyRowView struct {
 	// (the honest limitation of the outcome's active set; empty when the
 	// outcome carried none).
 	QualifierText string
+	// DeliveryText is the derived honest delivery state of the Story 2.12
+	// reply (prepared / unknown / confirmed / failed — dispatched without
+	// evidence is the UNKNOWN, never the delivered); DeliveryDetail carries
+	// the last evidence anchor (the kind word with the time — the timeline
+	// of AC-9); PromiseText is the update promise word of the degraded
+	// route reply (empty on the healthy route — the field has exactly one
+	// meaning).
+	DeliveryText   string
+	DeliveryDetail string
+	PromiseText    string
+}
+
+// routeDegradationStateRow is one route slot of the CURRENT degraded set
+// of the panel.
+type routeDegradationStateRow struct {
+	ConnectionID string
+	Channel      string
+	Cause        string
+	CauseText    string
+	Revision     string
+}
+
+// routeDegradationRecordRow is one append-only revision row of the honest
+// history (including the recovery rows).
+type routeDegradationRecordRow struct {
+	ConnectionID string
+	Channel      string
+	Cause        string
+	Revision     string
+	Cleared      bool
+	Note         string
+	ActorID      string
+	RecordedAt   string
 }
 
 // modePanelView is the Conversation Mode panel projection: the badge word
@@ -784,6 +845,53 @@ func prepareCaseView(r *http.Request, view casesAPI.CaseView, facts casesAPI.Fac
 	}
 	if len(surfaceHints) > 0 {
 		out.ContinuationSurfaceHint = "Записаны предпочтения клиента: " + strings.Join(surfaceHints, "; ") + ". Ссылка продолжения — web-страница: сверьте, подходит ли эта поверхность клиенту (машина не блокирует — решение за оператором)."
+	}
+
+	// The Story 2.12 section: the route degradation panel — the CURRENT set
+	// (the read-time derivation with the honest cause texts), the
+	// append-only revision history including the recovery rows, the
+	// dictionaries of the record form (the connections of the case's
+	// conversations, the channel dictionary) and the reply form promise
+	// options (the approved policy dictionary).
+	out.RouteDegradationsPanelText = view.RouteDegradations.PanelText
+	out.HasRouteDegradations = len(view.RouteDegradations.History) > 0
+	out.DegradationRecordsAnchor = strconv.Itoa(view.RouteDegradations.RecordsCount)
+	for _, state := range view.RouteDegradations.Current {
+		out.RouteDegradationCurrentRows = append(out.RouteDegradationCurrentRows, routeDegradationStateRow{
+			ConnectionID: state.ConnectionID.String(), Channel: state.Channel,
+			Cause: state.Cause, CauseText: state.CauseText,
+			Revision: strconv.FormatInt(state.Revision, 10),
+		})
+	}
+	for _, record := range view.RouteDegradations.History {
+		out.RouteDegradationHistoryRows = append(out.RouteDegradationHistoryRows, routeDegradationRecordRow{
+			ConnectionID: record.ConnectionID.String(), Channel: record.Channel,
+			Cause: record.Cause, Revision: strconv.FormatInt(record.Revision, 10),
+			Cleared: record.Cleared, Note: record.Note,
+			ActorID: record.ActorID.String(), RecordedAt: formatTime(record.RecordedAt),
+		})
+	}
+	for _, word := range view.RouteDegradations.CauseWords {
+		out.DegradationCauseOptions = append(out.DegradationCauseOptions, workOption{Value: word, Text: degradationCauseText(word)})
+	}
+	connectionsSeen := map[string]bool{}
+	for _, conversation := range view.Conversations {
+		if !connectionsSeen[conversation.ConnectionID.String()] {
+			connectionsSeen[conversation.ConnectionID.String()] = true
+			out.DegradationConnectionOptions = append(out.DegradationConnectionOptions, workOption{
+				Value: conversation.ConnectionID.String(),
+				Text:  "подключение " + conversation.ConnectionID.String() + " (" + conversation.Provider + ")",
+			})
+		}
+	}
+	for _, word := range view.RouteDegradations.ChannelWords {
+		out.DegradationChannelOptions = append(out.DegradationChannelOptions, workOption{Value: word, Text: channelWordText(word)})
+	}
+	for _, word := range casesDomain.UpdatePromiseWords {
+		out.UpdatePromiseOptions = append(out.UpdatePromiseOptions, workOption{Value: word, Text: updatePromiseText(word)})
+	}
+	for _, word := range casesDomain.DeliveryEvidenceWords {
+		out.EvidenceKindOptions = append(out.EvidenceKindOptions, workOption{Value: word, Text: evidenceKindText(word)})
 	}
 
 	for _, conversation := range view.Conversations {
@@ -1440,12 +1548,15 @@ func prepareOwnershipPanel(view casesAPI.CaseView) ownershipPanelView {
 	ownership := view.Ownership
 	state := ownership.State
 	panel := ownershipPanelView{
-		OwnerName:     ownership.OwnerName,
-		CurrentEpoch:  strconv.FormatInt(0, 10),
-		HasTerms:      len(ownership.Terms) > 0,
-		TermRows:      make([]ownershipTermRow, 0, len(ownership.Terms)),
-		HasReplies:    len(ownership.Replies) > 0,
-		ReplyRows:     make([]replyRowView, 0, len(ownership.Replies)),
+		OwnerName:    ownership.OwnerName,
+		CurrentEpoch: strconv.FormatInt(0, 10),
+		HasTerms:     len(ownership.Terms) > 0,
+		TermRows:     make([]ownershipTermRow, 0, len(ownership.Terms)),
+		HasReplies:   len(ownership.Replies) > 0,
+		ReplyRows:    make([]replyRowView, 0, len(ownership.Replies)),
+		// The Story 2.12 delivery states keyed by the reply id (the honest
+		// derivation of the panel column — the LAST evidence event decides).
+		deliveries:    replyDeliveryIndex(ownership.Deliveries),
 		MemberOptions: make([]workOption, 0, len(ownership.Members)),
 		CanTake:       view.CanManageWork,
 		CanRequest:    view.CanManageWork,
@@ -1488,6 +1599,16 @@ func prepareOwnershipPanel(view casesAPI.CaseView) ownershipPanelView {
 		}
 		if len(preferenceWords) > 0 {
 			panel.AccommodationWords = strings.Join(preferenceWords, "; ")
+		}
+		// The Story 2.12 transfer card: the current degraded route words —
+		// the receiving operator reads the operational route state BEFORE
+		// the ack (the preferences precedent).
+		degradedWords := []string{}
+		for _, state := range view.RouteDegradations.Current {
+			degradedWords = append(degradedWords, state.Channel+" ("+state.CauseText+")")
+		}
+		if len(degradedWords) > 0 {
+			panel.DegradationWords = strings.Join(degradedWords, "; ")
 		}
 		remaining := state.Pending.DeadlineAt.Sub(timeNowHTTP()).Minutes()
 		if state.PendingTimedOut {
@@ -1540,7 +1661,31 @@ func prepareOwnershipPanel(view casesAPI.CaseView) ownershipPanelView {
 		if card.OutcomeKind != "" {
 			row.OutcomeAt = formatTime(card.OutcomeAt)
 		}
+		// The Story 2.12 columns: the derived honest delivery state with the
+		// last evidence anchor and the update promise word of the degraded
+		// route reply (the promise select of the form mirrors the options).
+		if delivery, known := panel.deliveries[card.Reply.ReplyID.String()]; known {
+			row.DeliveryText = deliveryStateText(delivery.State)
+			if delivery.State == casesDomain.ReplyDeliveryUnknown || delivery.State == casesDomain.ReplyDeliveryFailed {
+				row.DeliveryText = "неизвестна (квитанции нет)"
+				if delivery.State == casesDomain.ReplyDeliveryFailed {
+					row.DeliveryText = "отказ провайдера"
+				}
+			}
+			if delivery.LastEventNo > 0 {
+				row.DeliveryDetail = evidenceKindText(delivery.LastKind) + " · №" + strconv.FormatInt(delivery.LastEventNo, 10) + " · " + formatTime(delivery.LastEventAt)
+			}
+		}
+		if card.Reply.UpdatePromise != "" {
+			row.PromiseText = updatePromiseText(card.Reply.UpdatePromise)
+		}
 		panel.ReplyRows = append(panel.ReplyRows, row)
+	}
+	for _, card := range ownership.Replies {
+		panel.ReplyEvidenceOptions = append(panel.ReplyEvidenceOptions, workOption{
+			Value: card.Reply.ReplyID.String(),
+			Text:  "ответ " + card.Reply.ReplyID.String() + " (" + replyClassText(card.Reply.ReplyClass) + ", " + card.Reply.Channel + ")",
+		})
 	}
 	for _, member := range ownership.Members {
 		panel.MemberOptions = append(panel.MemberOptions, workOption{
@@ -2296,5 +2441,50 @@ func accuracyQualifierText(word string) string {
 	case casesDomain.AlternativeHumanHandoff:
 		return "human_handoff — продолжит человек"
 	}
+	return word
+}
+
+// replyDeliveryIndex indexes the derived delivery states by the reply id.
+func replyDeliveryIndex(deliveries []casesAPI.ReplyDeliveryView) map[string]casesAPI.ReplyDeliveryView {
+	index := map[string]casesAPI.ReplyDeliveryView{}
+	for _, delivery := range deliveries {
+		index[delivery.ReplyID.String()] = delivery
+	}
+	return index
+}
+
+// degradationCauseText renders the honest cause word text of the panel.
+func degradationCauseText(word string) string {
+	return casesDomain.DegradationCauseText(word)
+}
+
+// evidenceKindText renders the honest evidence word text of the panel.
+func evidenceKindText(word string) string {
+	return casesDomain.DeliveryEvidenceText(word)
+}
+
+// deliveryStateText renders the derived delivery state word of the reply
+// panel column.
+func deliveryStateText(state string) string {
+	switch state {
+	case casesDomain.ReplyDeliveryPrepared:
+		return "подготовлен (ещё не отправлен)"
+	case casesDomain.ReplyDeliveryConfirmed:
+		return "подтверждена (квитанция есть)"
+	case casesDomain.ReplyDeliveryFailed:
+		return "отказ провайдера"
+	default:
+		return "неизвестна (квитанции нет)"
+	}
+}
+
+// updatePromiseText renders the honest promise word text of the reply form
+// and the panel.
+func updatePromiseText(word string) string {
+	return casesDomain.UpdatePromiseText(word)
+}
+
+// channelWordText renders the channel word of the route options.
+func channelWordText(word string) string {
 	return word
 }

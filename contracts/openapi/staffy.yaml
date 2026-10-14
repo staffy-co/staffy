@@ -2625,6 +2625,56 @@ paths:
         '403': { description: 'Гейт прав ДО стражей: команды записи предпочтений требуют review или configuration', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
         '404': { $ref: '#/components/responses/Problem' }
         '409': { description: 'Гонка ревизии (stale_version) / тот же ключ с иным материалом — command_key_conflict', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/route-degradations:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+    post:
+      operationId: recordRouteDegradation
+      summary: 'Записать ревизию деградации маршрута (первый срез 2-12): маршрут = (connection_id, channel) обязан существовать в разговорах кейса (страж маршрута — деградация чужого маршрута невозможна), причина — словарь Domain Pack v0 (timeout/disconnect/rate_limited/capability_revoked/delivery_unknown), восстановление — своей ревизией (cleared); append-only строка + outbox route_degradation_recorded (route/cause/revision/cleared — note никогда); ревизия = следующий монотонный номер маршрута под advisory-локами (запрос не несёт); текущий слот — read-time деривация; независимый маршрут не объявляется недоступным без своей строки'
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RouteDegradationRecordRequest' }
+      responses:
+        '201': { description: 'Ревизия записана (append-only, UNIQUE tenant+case+connection+channel+revision) + outbox route_degradation_recorded (метаданные: route/cause/revision/cleared/actor — без note)', content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { description: 'Словарь причин / слово канала 2-1 / предел заметки 500 / терминальный кейс', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Гейт прав ДО стражей: команды записи деградации требуют review или configuration', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { description: 'Гонка ревизии (stale_version) / тот же ключ с иным материалом — command_key_conflict', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/replies/{reply_id}/delivery-evidence:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - name: reply_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: recordDeliveryEvidence
+      summary: 'Записать наблюдение доставки исходящего ответа (первый срез 2-12): оператор передаёт наблюдение коннектора (словарь delivered_confirmed/delivery_unknown/provider_failed — машина никогда не изобретает исход); ответ обязан принадлежать этому кейсу; append-only событие с монотонным event_no + outbox client_reply_delivery_evidence (reply/event_no/kind — content никогда); состояние доставки — read-time деривация: dispatched без событий = unknown (слово delivered только у квитанции), последнее событие решает; слепой повтор структурно невозможен (drain однозаписен, retry-команды нет — повторная отправка это новый ответ, решение человека)'
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DeliveryEvidenceRecordRequest' }
+      responses:
+        '201': { description: 'Наблюдение записано (append-only, UNIQUE tenant+reply+event_no) + outbox client_reply_delivery_evidence (метаданные: reply/event_no/kind/actor — без content)', content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { description: 'Словарь видов наблюдения / терминальный кейс', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Гейт прав ДО стражей: команды записи наблюдения требуют review или configuration', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { description: 'Гонка номера события (stale_version) / тот же ключ с иным материалом — command_key_conflict', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
   /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/commitments:
     parameters:
       - $ref: '#/components/parameters/TenantID'
@@ -4470,6 +4520,7 @@ components:
         commitments: { $ref: '#/components/schemas/CommitmentView', description: 'Секция «Обязательства и подтверждения» (Story 2.9): версии по WI с производной готовности, подтверждения с производной действительности, отказы' }
         continuations: { $ref: '#/components/schemas/ContinuationView', description: 'Секция «Ссылки продолжения» (Story 2.10): ссылки с read-time состояниями, delivered-связкой и лентой событий' }
         accommodations: { $ref: '#/components/schemas/AccommodationView', description: 'Секция «Предпочтения связи» (Story 2.11): текущий набор (read-time деривация), append-only история ревизий, словари формы записи' }
+        route_degradations: { $ref: '#/components/schemas/RouteDegradationView', description: 'Секция «Состояние маршрутов» (Story 2.12): текущие деградации (read-time деривация), append-only история включая восстановления, словари формы записи' }
     AssuranceView:
       type: object
       required: [state, records, allowed_methods, fallback_options, step_up_text]
@@ -4675,6 +4726,12 @@ components:
         accommodation_key: { type: string, enum: [no_photo, no_web, no_voice, text_first, slowed_pace, mandatory_readback, preferred_channel, available_time] }
         accommodation_cleared: { type: boolean }
         accuracy_qualifier: { type: string, enum: [text_description, range_estimate, callback, human_handoff], description: 'Слово ограничения точности продажного ответа (Story 2.11) — строка ответа несёт его' }
+        update_promise: { type: string, enum: [no_promise, within_1h, within_4h, within_next_business_day], description: 'Обещание времени следующего обновления (Story 2.12, гейт ПОСЛЕ commitment-link 2-9 ДО записи, БЕЗклассовый): маршрут ответа деградирован → слово ОБЯЗАТЕЛЬНО ∈ словарь утверждённой policy (400 update_promise_required со словами словаря); чужое слово → 400 update_promise_foreign; здоровый маршрут → поле обязано быть пустым — контрольная ветка байт-в-байт; слово словаря ≠ расписание: дедлайн не порождается' }
+        degradation_record_id: { type: string, format: uuid, description: 'Записанная ревизия деградации маршрута (Story 2.12); номер ревизии — серверная истина, в исходе не хранится' }
+        degradation_cause: { type: string, enum: [timeout, disconnect, rate_limited, capability_revoked, delivery_unknown], description: 'Причина деградации маршрута; заметка НИКОГДА не входит в исход — остаётся в строке' }
+        degradation_cleared: { type: boolean, description: 'Восстановление маршрута — своей ревизией' }
+        delivery_evidence_id: { type: string, format: uuid, description: 'Записанное наблюдение доставки (Story 2.12); номер события — серверная истина, в исходе не хранится; content реплая НИКОГДА не входит' }
+        delivery_evidence_kind: { type: string, enum: [delivered_confirmed, delivery_unknown, provider_failed], description: 'Слово наблюдения коннектора (передаёт оператор)' }
     StartVerificationRequest:
       type: object
       required: [conversation_id, kind, method, provider_code, subject_handle]
@@ -4767,6 +4824,7 @@ components:
         commitment_version: { type: integer, minimum: 1, description: 'Точная показанная offered-версия обязательства (пара со commitment_id)' }
         link_id: { type: string, format: uuid, description: 'Связь ссылки продолжения (Story 2-10, гейт ПОСЛЕ commitment-гейта): только sales-класс; ссылка обязана существовать в этом кейсе; связка = delivered-бейдж панели FR-16; URL живёт текстом ответа, токен — не поле' }
         accuracy_qualifier: { type: string, enum: [text_description, range_estimate, callback, human_handoff], description: 'Ограничение точности (Story 2-11, гейт ПОСЛЕ objection-гейта 2-8, ДО записи): только sales-класс; действующий исход с активными альтернативами ОБЯЗАН получить слово активного множества исхода (подмножество исхода, не словарь вообще — 400 accuracy_qualifier_required); без альтернатив поле обязано быть пустым (400 accuracy_qualifier_foreign); отсутствие media не становится выдуманным точным результатом' }
+        update_promise: { type: string, enum: [no_promise, within_1h, within_4h, within_next_business_day], description: 'Обещание времени следующего обновления (Story 2.12, гейт ПОСЛЕ commitment-link 2-9 ДО записи, БЕЗклассовый): маршрут ответа деградирован → слово ОБЯЗАТЕЛЬНО ∈ словарь утверждённой policy (400 update_promise_required со словами словаря); чужое слово → 400 update_promise_foreign; здоровый маршрут → поле обязано быть пустым — контрольная ветка байт-в-байт; слово словаря ≠ расписание: дедлайн не порождается' }
     CommitmentPriceTerm:
       type: object
       required: [kind]
@@ -5127,6 +5185,7 @@ components:
         reason: { type: string, enum: [ok_commercial, ok_informational, mandatory_missing, no_answer_basis, mode_blocks_commercial_path, unknown_intent, no_alternative_path], description: 'no_alternative_path (2-11): у media-ключа пакета нет разрешённых альтернатив — честная остановка с human_handoff' }
         rule_version: { type: string, enum: [intake-policy-v1, intake-policy-v2], description: 'v2 (Story 2.11): 4-й вход — текущие предпочтения связи; исторические строки v1 читаемы, не пересчитываются' }
         active_alternatives: { type: array, items: { type: string, enum: [text_description, range_estimate, callback, human_handoff] }, description: 'Активные альтернативы (Story 2.11): пара «media-usual факт не подтверждён ∧ no_photo активен» — весь словарь альтернатив пака; вопрос факта остаётся в next_steps; пустой словарь пака → fail_closed no_alternative_path' }
+        degraded_permitted_paths: { type: array, items: { type: string, enum: [accept_info_no_promise, verified_channel_switch, human_handoff, agree_callback, stop_path] }, description: 'Разрешённые пути degraded-режима (Story 2.12): маршрут диалога WI деградирован ∧ коммерческий интент → класс degraded_mode + reason degraded_route + весь словарь путей пака (5 слов AC-3 — набор не расширяется, модель не может расширить); вопрос-план остаётся; commercial_answer не выдаётся — гейт 2-6 закрывает продажный путь машинно; пустой словарь → fail_closed no_alternative_path' }
         intent: { type: string, description: 'Снимок намерения предложения' }
         mandatory_facts: { type: array, items: { type: object, required: [material_key, source, state], properties: { material_key: { type: string }, source: { type: string, enum: [rule, proposal] }, state: { type: string, enum: [reused, ask] } } } }
         next_steps: { type: array, items: { type: object, required: [step], properties: { step: { type: string, enum: [ask_fact, await_confirmation, human_handoff] }, material_key: { type: string } } } }
@@ -5226,6 +5285,45 @@ components:
         channel_words: { type: array, items: { type: string } }
         records_count: { type: integer, description: 'Число строк истории — якорь формы записи (защита двойного сабмита PRG)' }
         panel_text: { type: string }
+    RouteDegradationRecordRequest:
+      type: object
+      required: [connection_id, channel, cause]
+      additionalProperties: false
+      description: 'Запись одной ревизии деградации маршрута: маршрут (подключение + канал 2-1), причина словаря, восстановление своей ревизией; ревизия НЕ поле запроса — серверная истина под локами; заметка остаётся в строке — не покидает таблицу в outbox'
+      properties:
+        connection_id: { type: string, format: uuid, description: 'Подключение маршрута (обязан существовать в разговорах кейса — страж маршрута)' }
+        channel: { type: string, enum: [phone, web_chat, telegram, whatsapp, email, max, jivo, avito, mobile_app_chat], description: 'Канал маршрута (словарь 2-1)' }
+        cause: { type: string, enum: [timeout, disconnect, rate_limited, capability_revoked, delivery_unknown], description: 'Причина деградации (словарь AC-1: таймаут, обрыв, предел частоты, отзыв возможности, неоднозначный результат доставки)' }
+        cleared: { type: boolean, description: 'Восстановление маршрута — своей ревизией (маршрут покидает текущие деградации, история честно несёт строку восстановления)' }
+        note: { type: string, maxLength: 500, description: 'Заметка оператора (остаётся в строке — не покидает таблицу)' }
+    DeliveryEvidenceRecordRequest:
+      type: object
+      required: [kind]
+      additionalProperties: false
+      description: 'Запись одного наблюдения доставки: слово словаря наблюдений коннектора; event_no НЕ поле запроса — серверная истина под локами; content реплая никогда не покидает строку'
+      properties:
+        kind: { type: string, enum: [delivered_confirmed, delivery_unknown, provider_failed], description: 'Наблюдение коннектора (передаёт оператор): квитанция подтверждена / результат неизвестен / терминальный отказ провайдера' }
+    RouteDegradationView:
+      type: object
+      required: [current, history, cause_words, channel_words, records_count, panel_text]
+      description: 'Секция «Состояние маршрутов» (Story 2.12): текущие деградации — read-time деривация последней ревизии каждого маршрута (cleared восстанавливает маршрут); история — append-only, включая восстановления; операционная запись, не факт'
+      properties:
+        current: { type: array, items: { type: object, required: [connection_id, channel, cause, cause_text, revision], properties: { connection_id: { type: string, format: uuid }, channel: { type: string }, cause: { type: string, enum: [timeout, disconnect, rate_limited, capability_revoked, delivery_unknown] }, cause_text: { type: string, description: 'Честный текст причины — рендер панели, в БД/outbox только слова' }, revision: { type: integer } } } }
+        history: { type: array, items: { type: object, required: [connection_id, channel, cause, revision, cleared, actor_id, recorded_at], properties: { connection_id: { type: string, format: uuid }, channel: { type: string }, cause: { type: string }, revision: { type: integer }, cleared: { type: boolean }, note: { type: string }, actor_id: { type: string, format: uuid }, recorded_at: { type: string, format: date-time } } } }
+        cause_words: { type: array, items: { type: string, enum: [timeout, disconnect, rate_limited, capability_revoked, delivery_unknown] } }
+        channel_words: { type: array, items: { type: string } }
+        records_count: { type: integer, description: 'Число строк истории — якорь формы записи (защита двойного сабмита PRG)' }
+        panel_text: { type: string }
+    ReplyDeliveryView:
+      type: object
+      required: [reply_id, state]
+      description: 'Честное состояние доставки исходящего ответа (Story 2.12, read-time деривация): dispatched без событий = unknown — «результат становится unknown, а не delivered» (слово delivered только у evidence-наблюдения delivered_confirmed); без исхода drain = prepared (истина 2-4); последнее событие решает'
+      properties:
+        reply_id: { type: string, format: uuid }
+        state: { type: string, enum: [prepared, unknown, confirmed, failed], description: 'prepared — ещё не отправлен; unknown — отправлен без квитанции; confirmed — квитанция есть; failed — терминальный отказ провайдера' }
+        last_event_no: { type: integer, description: 'Номер последнего evidence-события (монотонная история наблюдений читаема)' }
+        last_kind: { type: string, enum: [delivered_confirmed, delivery_unknown, provider_failed] }
+        last_event_at: { type: string, format: date-time, description: 'Время последнего события — якорь таймлайна AC-9' }
     ObjectionRecordRequest:
       type: object
       required: [turn_ref, objection_type, client_signal, spans]

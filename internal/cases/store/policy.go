@@ -417,11 +417,21 @@ func (s *Postgres) execEvaluatePolicy(ctx context.Context, tx pgx.Tx, tenantID i
 		return err
 	}
 	currentAccommodations := casesDomain.DeriveCurrentAccommodations(accommodationRecords)
-	// The 2.12 fifth input is the route degradations map with the dialog
-	// route of the Work Item: the step-01 wiring keeps the control
-	// branch (nil + the zero route — the decision stays byte-identical);
-	// the real read under the same advisory locks arrives with step-03.
-	decision := casesDomain.EvaluatePolicy(*proposal, world, effective, currentAccommodations, nil, casesDomain.RouteKey{})
+	// The 2.12 fifth input: the route degradations map with the dialog
+	// route of the Work Item's conversation — the honest read under the
+	// SAME advisory locks (the degradation record command serializes on
+	// the identical key set — the derivation is the lock-visible truth,
+	// never a raced snapshot).
+	degradationRecords, err := readDegradationsTx(ctx, tx, tenantID, p.CaseID)
+	if err != nil {
+		return err
+	}
+	currentDegradations := casesDomain.DeriveCurrentDegradations(degradationRecords)
+	dialogRoute, err := dialogRouteOfTx(ctx, tx, tenantID, proposal.ConversationID)
+	if err != nil {
+		return err
+	}
+	decision := casesDomain.EvaluatePolicy(*proposal, world, effective, currentAccommodations, currentDegradations, dialogRoute)
 	_, digestMap, err := casesDomain.ComputeFactsDigest(confirmed)
 	if err != nil {
 		return err
@@ -432,7 +442,7 @@ func (s *Postgres) execEvaluatePolicy(ctx context.Context, tx pgx.Tx, tenantID i
 		FactsDigest: digestMap, FactsDigestHash: factsDigest,
 		WorkItemVersion: current.Version, RuleVersion: casesDomain.PolicyRuleVersion,
 		Preferences:  casesDomain.AccommodationSnapshotOf(currentAccommodations),
-		Degradations: casesDomain.DegradationSnapshotOf(nil),
+		Degradations: casesDomain.DegradationSnapshotOf(currentDegradations),
 	}
 	decisionDigest, err := casesDomain.DecisionDigest(snapshot, decision, proposal.Intent)
 	if err != nil {

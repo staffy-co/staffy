@@ -636,6 +636,11 @@ type WorkCommandParams struct {
 	// honest limitation word of the outcome's active set (the word lands
 	// in the reply row; the store re-validates the gate under the locks).
 	AccuracyQualifier string
+	// The Story 2.12 update promise word of the send_class reply
+	// extension: a reply on a DEGRADED route carries the promise word of
+	// the approved policy dictionary (the word lands in the reply row;
+	// the store re-validates the classless timing gate under the locks).
+	UpdatePromise string
 }
 
 // ContinuationCorrectionParams is the material of one public fact

@@ -352,3 +352,51 @@ func (s *Postgres) execRecordDeliveryEvidence(ctx context.Context, tx pgx.Tx, te
 	}
 	return nil
 }
+
+// dialogRouteOfTx resolves the route of the dialog of one conversation
+// under the locks: the connection of the conversation and the channel of
+// its latest accepted event (the honest live route word; the modality
+// fallback only for a conversation without accepted events — the mirror
+// of the app dialogRouteOf and the reply route snapshot resolution).
+func dialogRouteOfTx(ctx context.Context, tx pgx.Tx, tenantID, conversationID id.UUID) (casesDomain.RouteKey, error) {
+	var connection id.UUID
+	if err := tx.QueryRow(ctx, `
+		select connection_id from cases.conversations
+		where tenant_id=$1 and conversation_id=$2`,
+		tenantID, conversationID).Scan(&connection); err != nil {
+		return casesDomain.RouteKey{}, err
+	}
+	channel := "web_chat"
+	if err := tx.QueryRow(ctx, `
+		select channel from cases.channel_events
+		where tenant_id=$1 and conversation_id=$2 and state='accepted'
+		order by received_at desc limit 1`,
+		tenantID, conversationID).Scan(&channel); err != nil {
+		if !errors.Is(err, pgx.ErrNoRows) {
+			return casesDomain.RouteKey{}, err
+		}
+		// No accepted event (the defensive corner — the ingest creates the
+		// conversation WITH its first accepted event): the fallback mirrors
+		// the reply route snapshot word of the app (channelOfModality of the
+		// empty conversation word).
+		channel = "web_chat"
+	}
+	return casesDomain.RouteKey{ConnectionID: connection, Channel: channel}, nil
+}
+
+// replyUpdatePromiseGateOfTx re-validates the honest timing gate of the
+// reply under the locks (the Story 2.12 word of the frozen ladder —
+// CLASSLESS): the reply route (the connection of the conversation and the
+// resolved live channel) is degraded → the update promise word of the
+// approved dictionary is REQUIRED; healthy → the word must stay empty
+// (the app validated pre-transaction; the store re-validates the
+// server-side truth under the case + conversation locks).
+func replyUpdatePromiseGateOfTx(ctx context.Context, tx pgx.Tx, tenantID id.UUID, p casesPort.WorkCommandParams, connection id.UUID, channel string) error {
+	records, err := readDegradationsTx(ctx, tx, tenantID, p.CaseID)
+	if err != nil {
+		return err
+	}
+	current := casesDomain.DeriveCurrentDegradations(records)
+	route := casesDomain.RouteKey{ConnectionID: connection, Channel: channel}
+	return casesDomain.GuardUpdatePromise(current.RouteDegraded(route), p.UpdatePromise)
+}

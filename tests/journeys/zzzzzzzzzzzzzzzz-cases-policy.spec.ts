@@ -57,7 +57,8 @@ test('cases-policy: the proposal, the evaluation, the dedup and the sales gate a
     await expect(policyHeading).toBeVisible();
     const noOutcome = page.locator('p[role="status"]').filter({ hasText: /Действующего исхода нет/ });
     await expect(noOutcome).toBeVisible();
-    await expect(page.locator('#policy-panel-note')).toContainText('intake-policy-v2');
+    // The 2.12 mechanical extension: the rule word travels with the domain constant of the slice.
+    await expect(page.locator('#policy-panel-note')).toContainText('intake-policy-v3');
     await expect(page.locator('#policy-panel-note')).toContainText('commercial_answer');
 
     // 3. The sales prelude of the fixture world: the classification + the
