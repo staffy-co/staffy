@@ -256,6 +256,22 @@ func TestContinuationIssueFormRendersOneTimeURL(t *testing.T) {
 	if recorder.Header().Get("Cache-Control") != "no-store" || recorder.Header().Get("Referrer-Policy") != "no-referrer" {
 		t.Fatalf("the one-time card never caches and never leaks through a referrer")
 	}
+	// The replayed form issuance (the browser refresh of the same material
+	// — the same derived key): the honest mask — the re-render WITHOUT the
+	// one-time card (the token is never recoverable from the stored
+	// outcome; the page honestly says nothing about the URL).
+	server = newContinuationTestServer(t, &continuationCases{fakeCases: &fakeCases{}, issue: func(context.Context, casesAPI.IssueContinuationLinkCommand) (casesAPI.ContinuationIssuance, error) {
+		return casesAPI.ContinuationIssuance{Outcome: casesAPI.WorkOutcome{Command: "issue_continuation_link", Replay: true, ContinuationIssued: true}}, nil
+	}}, tenantNameIdentity{})
+	recorder = httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, continuationFormRequest(http.MethodPost,
+		"/app/tenants/01994f64-6c00-7000-8000-000000000011/cases/01994f64-6c00-7000-8000-00000000aa01/work-items/01994f64-6c00-7000-8000-00000000bb02/continuation-links", form))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("the replayed issuance re-renders the case page honestly, status = %d", recorder.Code)
+	}
+	if replayPage := recorder.Body.String(); strings.Contains(replayPage, "continuation-issued") || strings.Contains(replayPage, "Ссылка продолжения выдана") {
+		t.Fatalf("the replayed issuance must render NO one-time card (the honest mask), page = %s", replayPage)
+	}
 	// The honest error path: the flash + the PRG return to the case page.
 	server = newContinuationTestServer(t, &continuationCases{fakeCases: &fakeCases{}, issue: func(context.Context, casesAPI.IssueContinuationLinkCommand) (casesAPI.ContinuationIssuance, error) {
 		return casesAPI.ContinuationIssuance{}, domain.ErrForbidden

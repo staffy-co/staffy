@@ -1588,6 +1588,48 @@ func TestContinuationMatrixRowsBySpec(t *testing.T) {
 		assertRuleError(t, err, casesDomain.ContinuationAlreadyRevokedText)
 	})
 
+	// Row 17 — the operator panel: the aggregate of the moment — every
+	// link of the case with its read-time state, exactly ONE delivered
+	// binding, the uses/limit accounting and the event feed of the client
+	// actions (the FR-16 statuses are the derivations, never stored
+	// words). The panel reads BEFORE the ownership-take row (the states
+	// below are the truth of this moment: 8 links issued by the rows
+	// above — the refusals of rows 02..05 never landed rows).
+	t.Run("row-17 panel: states + delivered + uses + feed", func(t *testing.T) {
+		detail, err := w.cases.CaseView(ctx, w.ownershipActor(), w.tenant, caseID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		view := detail.Continuations
+		states := map[string]int{}
+		delivered := 0
+		for _, link := range view.Links {
+			states[link.State]++
+			if link.Delivered {
+				delivered++
+			}
+		}
+		if len(view.Links) != 8 || states[casesDomain.ContinuationStateValid] != 4 ||
+			states[casesDomain.ContinuationStateExpired] != 1 || states[casesDomain.ContinuationStateRevoked] != 2 ||
+			states[casesDomain.ContinuationStateConsumed] != 1 || delivered != 1 {
+			t.Fatalf("the panel must derive the 8 links of the rows (4 valid, 1 expired, 2 revoked, 1 consumed, exactly 1 delivered), got %+v", states)
+		}
+		if len(view.Uses) != 3 {
+			t.Fatalf("the event feed must carry the correction and the two free events, got %d rows", len(view.Uses))
+		}
+		kinds := map[string]int{}
+		for _, use := range view.Uses {
+			kinds[use.UseKind]++
+		}
+		if kinds[casesDomain.ContinuationUseFactCorrectionSubmitted] != 1 ||
+			kinds[casesDomain.ContinuationUseHumanRequested] != 1 || kinds[casesDomain.ContinuationUseReturnedToConversation] != 1 {
+			t.Fatalf("the feed kinds must mirror the rows 10/14, got %+v", kinds)
+		}
+		if view.PanelText == "" {
+			t.Fatal("the panel carries the honest one-time mask note")
+		}
+	})
+
 	// Row 16 — the ownership epoch: the take lands the term of the epoch 2
 	// — the link of the epoch-1 pin derives owner_stale and the client
 	// surface answers the same generic refusal.
