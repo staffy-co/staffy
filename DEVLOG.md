@@ -2048,6 +2048,35 @@ commit: 53dca45
 
 ---
 date: 2026-10-14
+task: 56-sm
+role: main (Super Z)
+story: 2-11
+summary: SM-фаза story 2-11 «Равноправные альтернативные пути обслуживания» — спека первого среза «записанные preferences связи + честные альтернативы Policy» написана и закоммичена на ветке codex/story-2-11-equal-access-alternative-paths (fb84257, [skip ci]); статус backlog; долги deferred-work, нацеленные на 2-11, отсутствуют (проверены перед стартом: последние два закрыты в цикле 2-10); токен публикации в сессии отсутствует — публикация спеки+DEVLOG батчем при CHECKPOINT 1/2 со свежим токеном (прецедент 52-sm)
+done:
+- Протокол возобновления: bootstrap зелёный (окружение ресайклилось — Go/PG восстановлены), git-факт чист (main = origin = aa7e9bc, 2-10 влита PR #25), check-continuity OK (fail=0, warn=0)
+- Входы SM прочитаны: epics.md §2.11 (11 AC-блоков), PRD FR-26, ARCH-SPINE (AD-9 same contract, AD-12 AG-2, AD-10/AD-11), механика 2-6 (EvaluatePolicy/исходы/гейт продажного ответа), 2-8 (record_objection + GuardSalesReplyAgainstObjections — зеркало для гейта точности), 2-10 (continuation/публичная страница), deferred-work (долгов на 2-11 нет), словари каналов/ModalityOfChannel, GuardSalesReplyAgainstObjections, client_replies/playbook_step, case.html секции
+- Границы первого среза: AC-блоки 1 (preferences, кроме расширенной передачи), 2 (альтернативы Policy text-контура), 8 (fail-closed no_alternative_path), 10 (причина в ленте/панели), 11 (a11y форм) — в срезе; AC-блоки 3/4/5/6/7/9 — честные Never (voice/DTMF/коннекторы/цены/timing/AG-2 — контуры отсутствуют или будущие)
+- Спека: словарь preferences (8 ключей: 6 флагов + preferred_channel/available_time), append-only case_accommodations с ревизиями и cleared, read-time DeriveCurrentAccommodations, Policy v2 (rule intake-policy-v2: 4-й вход, active_alternatives при отсутствующем media-usual факте + no_photo, контрольная ветка байт-в-байт), гейт точности accuracy_qualifier ∈ active_alternatives (зеркало 2-8, после возражения до CAS), миграция 00011 (+policy_outcomes.active_alternatives, +client_replies.accuracy_qualifier), панель/передача владения/формы/OpenAPI, матрица 25 строк, journeys-цепь
+- Коммит ветки fb84257 [skip ci]; DEVLOG-запись (эта) на main; push отложен до токена (unpushed: ветка 1 + main 1 — прецедент 56/57/58, том персистентен)
+next: CHECKPOINT 1 — предъявление спеки 2-11 владельцу нетехническим пересказом в ответе сессии (дисциплина 52-sm: явное одобрение отдельным ответом); при одобрении → спека+sprint-status → ready-for-dev, публикация батча свежим токеном, Dev step-01..05
+commit: (sm — спека fb84257 на ветке; DEVLOG — эта запись)
+
+---
+date: 2026-10-14
+task: 57-sm
+role: main (Super Z)
+story: 2-11
+summary: CHECKPOINT 1 по story 2-11 закрыт — владелец явно одобрил спеку первого среза «записанные preferences связи + честные альтернативы Policy» («одобряю», чат 2026-10-14, с передачей свежего токена публикации); спека+sprint-status → ready-for-dev; Dev-фаза стартует
+done:
+- Одобрение владельца: «одобряю» + свежий токен (чат 2026-10-14) — явное одобрение по дисциплине 52-sm (самопродолжение «продолжай» чекпоинт не закрывает; прецедент 2-7 df0ffbc / 2-8 8449411 / 2-9 a1ece27 / 2-10 6d8773f+e887e27)
+- Спека: status → ready-for-dev, поле «Решение владельца» заполнено, Change Log +1 (замороженные секции Intent/Boundaries/Matrix не тронуты — дифф = status + решение + Change Log); sprint-status 2-11 → ready-for-dev; коммит ветки 68b6d3a [skip ci]
+- Публикация батча свежим токеном: ветка codex/story-2-11-equal-access-alternative-paths fb84257→68b6d3a (спека SM + CHECKPOINT 1) запушена; main DEVLOG — этот коммит
+- Токен публикации в руках сессии (env, маска github_pat_***) — CHECKPOINT 2 (PR/CI ×3/merge) без паузы
+next: Dev step-01 — домен и словари (accommodation.go: словари 8 ключей flag/valued + слова альтернатив с честными текстами ограничений + карта usual-модальности v0, DeriveCurrentAccommodations read-time, GuardAccommodationRecord, GuardSalesReplyAccuracy required/foreign/подмножество исхода — зеркало 2-8; расширение EvaluatePolicy: 4-й вход preferences, active_alternatives, fail_closed no_alternative_path, rule_version intake-policy-v2, digest v2; unit-тесты включая контрольные ветки байт-в-байт и порядок деривации)
+commit: (checkpoint-1 — спека 68b6d3a на ветке; DEVLOG — эта запись)
+
+---
+date: 2026-10-14
 task: 57-dev-step-01
 role: main (Super Z)
 story: 2-11
