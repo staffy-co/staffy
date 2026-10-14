@@ -2032,3 +2032,16 @@ done:
 - Публикация батча шагов 02-04 свежим токеном владельца (чаты 2026-10-14): ветка 7d82088→0daecb4, main fd9076a→74b04d0; check-continuity OK до и после (fail=0, warn=0)
 next: CHECKPOINT 2 — PR из ветки в main, CI ×3 зелёный (полный конвейер Go+PG+Playwright — коммиты step-05 и closure без skip ci), merge, DEVLOG 55-merge; далее SM-фаза story 2-11 (равноправные альтернативные пути) по epics.md
 commit: (closure — эта запись на ветке; спека/sprint-status/DEVLOG одним docs-коммитом)
+
+---
+date: 2026-10-14
+task: 55-merge
+role: main (Super Z)
+story: 2-10
+summary: Story 2-10 влита — PR #25 (merge 53dca45, CI ×3 зелёный: push-run + PR-run + merge-run полного конвейера Go+PG+Playwright на коммитах без skip ci), Epic 2: 10/16; CHECKPOINT 2 закрыт без паузы (токен публикации в руках сессии — прецедент 2-9 PR #24); closure-коммит c453a7a
+done:
+- PR #25 создан и смержен (merge-commit, ветка codex/story-2-10-protected-multimodal-continuation → main); CI ×3: c453a7a push-run success, c453a7a PR-run success, 53dca45 merge-run success
+- Ветка несёт полный срез: флэк-фикс 3ff4d0a → step-01 2adf100 → step-02 de47763 → step-03 c4b6199+7d82088 → step-04 0daecb4 (матрица 21 строки поимённо + journeys 20z) → step-05 fd29c30 (QA-саморевью, без skip ci) → union 2d24278 → closure c453a7a (спека+sprint-status → done)
+- Локальный main синхронизирован с origin (53dca45); спека 2-10 и sprint-status → done синхронно
+next: SM-фаза story 2-11 «Равноправные альтернативные пути обслуживания» (epics.md §2.11) — входы: epics, PRD, ARCH-SPINE, механика 2-6/2-8/2-10; deferred-work: проверка открытых долгов перед стартом
+commit: 53dca45
