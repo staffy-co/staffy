@@ -2197,3 +2197,16 @@ done:
 - Коммит ветки 0eec40d [skip ci]; DEVLOG-запись (эта) на main; push отложен до токена (unpushed: ветка 1 + main 1 — прецедент 56-sm, том персистентен)
 next: CHECKPOINT 1 — предъявление спеки 2-12 владельцу нетехническим пересказом в ответе сессии (дисциплина 52-sm: явное одобрение отдельным ответом + свежий токен публикации); при одобрении → спека+sprint-status → ready-for-dev, публикация батча 2+1 коммитов, Dev step-01..05
 commit: (sm — спека 0eec40d на ветке; DEVLOG — эта запись)
+---
+date: 2026-10-15
+task: 62-sm
+role: main (Super Z)
+story: 2-12
+summary: CHECKPOINT 1 story 2-12 закрыт — спека первого среза «деградированные слоты маршрута + честный статус доставки + обещание времени обновления» одобрена владельцем явным ответом «одобряю» с передачей свежего токена публикации (чат 2026-10-15, дисциплина 52-sm соблюдена); спека+sprint-status → ready-for-dev (замороженные секции не тронуты: дифф = status + Решение владельца + Change Log — зеркало прецедента 68b6d3a); публикация батча выполнена токеном владельца: ветка 0eec40d..d111a0d (новая на origin), main 7d7ac1a + эта запись; check-continuity OK
+done:
+- Восстановление сессии с потерянным контекстом по протоколу AGENTS.md: worklog песочницы (Task 65) + git + DEVLOG 61-sm (next = CHECKPOINT 1); сообщение владельца «одобряю. токен: github_pat_***» = явное одобрение + свежий токен публикации — ровно предсказанный worklog-65 сценарий (дисциплина 52-sm: явное одобрение отдельным ответом, батч 2+1 коммитов)
+- Токен проверен API-вызовом /repos/artemiosu/staffy (200: private, push-права есть; в логах/артефактах маска github_pat_*** — протокол секретов AGENTS.md); урок 57-sm подтверждён повторно: env между вызовами шелла теряется → токен инлайном в каждой push-команде («Bad credentials» при пустом env = пустой пароль, не битый токен)
+- CHECKPOINT 1 (ветка d111a0d [skip ci], запушена): спека status backlog→ready-for-dev; «Решение владельца» заполнено (одобрено «одобряю», чат 2026-10-15; прецеденты 2-7 df0ffbc / 2-8 8449411 / 2-9 a1ece27 / 2-10 6d8773f / 2-11 68b6d3a); Change Log +1; sprint-status 2-12 → ready-for-dev; дифф 5/2 строк — замороженные секции Intent/Boundaries/Matrix не тронуты
+- Публикация: ветка codex/story-2-12-degraded-mode-callback 0eec40d..d111a0d (новая на origin, upstream установлен); main 7d7ac1a (DEVLOG 61-sm) + эта запись; check-continuity на ветке OK (fail=0, warn=1 транзиентный формат commit: — самоисцелится записью 62-sm с SHA)
+next: Dev step-01 — домен первого среза по Code Map спеки (словари причин/путей/обещаний/evidence Domain Pack v0, DeriveCurrentDegradations, DeriveReplyDeliveryState, гварды записи, механика Policy v3 5-го входа); далее step-02 (миграция 00012+стор), step-03 (команды/гейты/транспорт/поверхности/OpenAPI), step-04 (матрица 28 строк+journeys zzz(22)), step-05 (QA-саморевью+closure БЕЗ skip ci) → CHECKPOINT 2 (PR + CI ×3 + merge); спека: _bmad-output/implementation-artifacts/spec-2-12-degraded-mode-channel-failure-callback.md
+commit: d111a0d
