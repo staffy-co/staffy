@@ -725,6 +725,14 @@ func (s *Service) CaseView(ctx context.Context, actor domain.Principal, tenantID
 	if err != nil {
 		return casesAPI.CaseView{}, err
 	}
+	// The Story 2.10 section: the continuation links of the case with the
+	// read-time state derivations, the delivered binding of the outgoing
+	// replies, the use accounting against the limit and the event feed (the
+	// reads degrade honestly — the same view scope).
+	continuations, err := s.continuationView(ctx, scope, detail)
+	if err != nil {
+		return casesAPI.CaseView{}, err
+	}
 	return casesAPI.CaseView{
 		TenantID: tenantID, Case: detail.Case, Conversations: detail.Conversations,
 		Timeline: detail.Timeline, WorkItems: detail.WorkItems, Exceptions: detail.Exceptions,
@@ -744,6 +752,7 @@ func (s *Service) CaseView(ctx context.Context, actor domain.Principal, tenantID
 		Ownership:  ownership,
 		Mode:       mode, Policy: policy,
 		Observations: observations, Objections: objections, Commitments: commitments,
+		Continuations: continuations,
 	}, nil
 }
 

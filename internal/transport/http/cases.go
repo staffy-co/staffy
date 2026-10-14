@@ -10,6 +10,7 @@ import (
 
 	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
 	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
+	identityAPI "github.com/artemiosu/staffy/internal/identity/api"
 	"github.com/artemiosu/staffy/internal/identity/domain"
 	"github.com/artemiosu/staffy/internal/platform/id"
 )
@@ -93,6 +94,27 @@ func (s *Server) BindCases(service casesAPI.Service) {
 	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/commitments", s.createCommitmentAPI)
 	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/commitments/{commitment_id}/confirm", s.confirmCommitmentAPI)
 	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/commitments/{commitment_id}/decline", s.declineCommitmentAPI)
+	// The Story 2.10 surfaces: the two continuation commands (machine JSON
+	// + the operator forms — the issuance re-render with the one-time URL,
+	// the revoke PRG) and the public protected page (the opaque token IS
+	// the credential — no session, no principal). The narrow interface is
+	// type-asserted of the cases service (the BindEmployee precedent: the
+	// composite Service stays untouched); the tenant-name reader of the
+	// public header asserts of the identity service the same way.
+	if continuations, ok := service.(casesAPI.ContinuationService); ok {
+		s.continuations = continuations
+		s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/continuation-links", s.issueContinuationLinkAPI)
+		s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/continuation-links/{link_id}/revoke", s.revokeContinuationLinkAPI)
+		s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/continuation-links", s.issueContinuationLinkForm)
+		s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/continuation-links/{link_id}/revoke", s.revokeContinuationLinkForm)
+		s.mux.HandleFunc("GET /continue/{token}", s.continuationPage)
+		s.mux.HandleFunc("POST /continue/{token}/correct", s.continuationCorrectForm)
+		s.mux.HandleFunc("POST /continue/{token}/human", s.continuationHumanForm)
+		s.mux.HandleFunc("POST /continue/{token}/return", s.continuationReturnForm)
+		if namer, ok := s.identity.(identityAPI.TenantNameService); ok {
+			s.tenantNamer = namer
+		}
+	}
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/commitments", s.createCommitmentForm)
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/commitments/{commitment_id}/confirm", s.confirmCommitmentForm)
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/commitments/{commitment_id}/decline", s.declineCommitmentForm)
@@ -404,7 +426,7 @@ func (s *Server) caseDetailPage(w http.ResponseWriter, r *http.Request) {
 	}
 	s.render(w, "case", map[string]any{
 		"TenantID": tenant,
-		"View":     prepareCaseView(view, facts, flash),
+		"View":     prepareCaseView(r, view, facts, flash),
 	})
 }
 

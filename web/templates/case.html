@@ -6,6 +6,12 @@
 <p class="next-note">Сотрудник: <span class="digest-block">{{.View.EmployeeID}}</span>. Создано: {{.View.CreatedAt}}. Domain Pack: <span class="digest-block">{{.View.PackText}}</span>. Case ID: <span class="digest-block">{{.View.CaseID}}</span>.</p>
 <p class="next-note">Ваши полномочия на этой странице: {{.View.ScopeText}}.</p>
 {{if .View.Flash}}<p class="alert" role="alert" tabindex="-1" id="case-flash">{{.View.Flash}}</p><script>addEventListener('DOMContentLoaded', () => document.getElementById('case-flash').focus());</script>{{end}}
+{{if .Issuance}}<div class="invite-link" id="continuation-issued" tabindex="-1"><h2>Ссылка продолжения выдана</h2>
+<label for="continuation-url">Одноразовая ссылка (существует только здесь)</label>
+<input id="continuation-url" readonly value="{{.Issuance.URL}}" onclick="this.select()">
+<p>Срок действия: до {{.Issuance.ExpiresText}}. Скопируйте ссылку сейчас: после ухода со страницы она недоступна — повтор команды возвращает маску без URL. {{.Issuance.TokenHint}}</p>
+<p class="next-note">Вплетите ссылку в исходящий ответ клиенту (sales-класс, поле «Связь ссылки продолжения») — панель покажет доставку; клиент откроет защищённую страницу и исправит факт.</p>
+</div><script>addEventListener('DOMContentLoaded', () => document.getElementById('continuation-issued').focus());</script>{{end}}
 <p class="next-note" aria-live="polite" id="mode-badge">Режим диалога: <strong>{{.View.Mode.BadgeText}}</strong>. Отвечает: <strong>{{.View.Mode.BadgeRole}}</strong>.{{if .View.Mode.HasActive}} Причина: {{.View.Mode.ActiveReason}}. Источник сигнала: {{.View.Mode.ActiveSignal}}.{{end}}</p>
 
 <h2>Проверка личности и полномочий</h2>
@@ -150,6 +156,11 @@
 <select id="reply-commitment" name="commitment_link">
 <option value="">— без связи обязательства —</option>
 {{range $.View.CommitmentLinkOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}
+</select>
+<label for="reply-continuation">Связь ссылки продолжения (только sales-класс: delivered-бейдж панели FR-16)</label>
+<select id="reply-continuation" name="continuation_link_id">
+<option value="">— без ссылки продолжения —</option>
+{{range $.View.ContinuationLinkOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}
 </select>
 <label for="reply-workitem">Элемент работы ответа (необязательно — контекст режима)</label>
 <select id="reply-workitem" name="work_item_id">
@@ -545,6 +556,51 @@
 <p role="status">Версий: {{if .CommitCount}}{{.CommitCount}}{{else}}0{{end}}. Подтверждений: {{if .CommitConfirmCount}}{{.CommitConfirmCount}}{{else}}0{{end}}. Отказов: {{if .CommitDeclineCount}}{{.CommitDeclineCount}}{{else}}0{{end}}.</p>
 <p><a href="{{.CommitReviewURL}}">Страница Commitment Review (версии, подтверждения, отказы, формы)</a></p>
 </div>
+<h4>Ссылки продолжения</h4>
+<p class="next-note">{{$.View.ContinuationsPanelText}}</p>
+{{if $.View.ContinuationRevoked}}<p class="status" role="status">Ожидание прекращено: ссылка отозвана — панель показывает производные состояния чтения.</p>{{end}}
+<div id="continuations-{{.WorkItemID}}" aria-live="polite">
+{{if .ContLinks}}
+{{range .ContLinks}}<details class="connector-connect">
+<summary>Ссылка <span class="digest-block">{{.LinkID}}</span> — {{.StateText}}</summary>
+<p>Состояние: <strong>{{.StateText}}</strong>. Канал FR-16: <strong>{{.StatusText}}</strong>. Отправок: {{.UsesText}}. Цели: {{.PurposesText}}.</p>
+<p>Вопрос клиенту: {{.Question}}. Участник: <span class="digest-block">{{.ParticipantRef}}</span>. Действует до: {{.ExpiresText}}. Токен: выдан (маска — восстановление невозможно).</p>
+{{if .Revocable}}<form method="post" action="{{.RevokeURL}}">
+<label for="cont-revoke-{{.LinkID}}">Причина отзыва (до 200 символов)</label>
+<input id="cont-revoke-{{.LinkID}}" name="reason" type="text" required maxlength="200">
+<button class="primary" type="submit">Прекратить ожидание (revoke)</button>
+</form>{{end}}
+</details>{{end}}
+{{else}}
+<p role="status">Ссылок продолжения на элементе нет: клиенты получают их выдачей формы ниже.</p>
+{{end}}
+{{if .ContUses}}<p>События клиента по ссылкам этого элемента:</p>
+<ul class="member-list">
+{{range .ContUses}}<li><strong>{{.KindText}}</strong> · {{.SubmittedAt}}{{if .FactID}} · факт <span class="digest-block">{{.FactID}}</span> версия №{{.FactVersion}}{{end}} · use <span class="digest-block">{{.UseID}}</span></li>{{end}}
+</ul>
+{{end}}
+</div>
+{{if and $.View.CanManageWork (not .Terminal)}}
+<details class="connector-connect"><summary>Выдать ссылку продолжения (issue_continuation_link)</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/work-items/{{.WorkItemID}}/continuation-links">
+<fieldset><legend>Цели ссылки (словарь v1)</legend>
+{{range $.View.ContinuationPurposeOptions}}<label><input type="checkbox" name="purpose_{{.Value}}"> {{.Text}}</label>{{end}}
+</fieldset>
+<label for="cont-question-{{.WorkItemID}}">Открытый вопрос клиенту (до 500 рун)</label>
+<input id="cont-question-{{.WorkItemID}}" name="question" type="text" required maxlength="500">
+<label for="cont-explanation-{{.WorkItemID}}">Объяснение перехода (до 1000 рун)</label>
+<textarea id="cont-explanation-{{.WorkItemID}}" name="explanation" required rows="3" maxlength="1000"></textarea>
+<label for="cont-participant-{{.WorkItemID}}">Адрес участника (канал клиента, до 128 символов)</label>
+<input id="cont-participant-{{.WorkItemID}}" name="participant_ref" type="text" required maxlength="128">
+<label for="cont-ttl-{{.WorkItemID}}">Срок жизни (минуты 5..120)</label>
+<input id="cont-ttl-{{.WorkItemID}}" name="ttl_minutes" type="number" min="5" max="120" required value="30">
+<label for="cont-limit-{{.WorkItemID}}">Лимит отправок (1..10; 1 = ровно одна отправка)</label>
+<input id="cont-limit-{{.WorkItemID}}" name="consumption_limit" type="number" min="1" max="10" value="1">
+<button class="primary" type="submit">Выдать ссылку (одноразовый URL будет показан выше)</button>
+</form>
+<p class="next-note">Токен генерируется сервером один раз; в базе хранится только хеш. Потерянный URL не восстанавливается: отзовите ссылку и выдайте новую.</p>
+</details>
+{{end}}
 {{if and $.View.CanManageWork (not .Terminal)}}
 <details class="connector-connect"><summary>Записать возражение клиента (record_objection)</summary>
 <form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/work-items/{{.WorkItemID}}/objections">

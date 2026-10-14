@@ -468,3 +468,68 @@ func marshalPurposes(purposes []string) ([]byte, error) {
 func marshalOutcome(outcome casesAPI.WorkOutcome) ([]byte, error) {
 	return json.Marshal(outcome)
 }
+
+// continuationView assembles the operator panel section of the case view
+// (the 2.9 commitmentView precedent): the links of the case with the
+// read-time state derivations — the CURRENT owner epoch of the case feeds
+// the owner_stale word (the replay of an old event never resurrects a
+// dead link) — the delivered binding of the outgoing replies (the FR-16
+// «the main channel shows whether the link was delivered»), the use
+// accounting against the limit (the accepted corrections only — the
+// human/return events never consume) and the event feed. The token never
+// appears: the hash is the only stored trace, the panel shows the honest
+// «токен выдан» material of the row (the question, the participant, the
+// bounds).
+func (s *Service) continuationView(ctx context.Context, scope tenancy.Context, detail casesDomain.CaseDetail) (casesAPI.ContinuationView, error) {
+	material, err := s.repository.ReadContinuations(ctx, scope, detail.Case.CaseID)
+	if err != nil {
+		return casesAPI.ContinuationView{}, err
+	}
+	// The CURRENT owner epoch of the owner_stale derivation (the
+	// read-time truth — never a stored status word).
+	ownershipTerms, _, _, err := s.repository.ReadOwnershipMaterial(ctx, scope, detail.Case.CaseID)
+	if err != nil {
+		return casesAPI.ContinuationView{}, err
+	}
+	ownerEpoch := int64(0)
+	if owner := casesDomain.CurrentOwnership(ownershipTerms); owner != nil {
+		ownerEpoch = owner.Epoch
+	}
+	now := s.clock.Now()
+	revoked := map[id.UUID]bool{}
+	for _, row := range material.Revocations {
+		revoked[row.LinkID] = true
+	}
+	accepted := map[id.UUID]int{}
+	for _, use := range material.Uses {
+		if use.UseKind == casesDomain.ContinuationUseFactCorrectionSubmitted {
+			accepted[use.LinkID]++
+		}
+	}
+	view := casesAPI.ContinuationView{
+		PanelText: "Ссылка продолжения — одноразовая возможность клиента: токен существует только в ответе команды выдачи и повторно не показывается (потерянный URL = отзыв и новая ссылка). Состояния — производные чтения: действует, истёк срок, отозвана, отправка завершена, владение изменилось. Доставка — связка исходящего ответа; события клиента (исправление/позвать человека/вернуться) не расходуют лимит, кроме отправки исправления.",
+		Links:     make([]casesAPI.ContinuationLinkView, 0, len(material.Links)),
+		Uses:      make([]casesAPI.ContinuationUseView, 0, len(material.Uses)),
+	}
+	for _, link := range material.Links {
+		state := casesDomain.DeriveContinuationLinkState(casesDomain.ContinuationLinkStateInput{
+			Now: now, ExpiresAt: link.ExpiresAt, Revoked: revoked[link.LinkID],
+			AcceptedCorrections: accepted[link.LinkID], ConsumptionLimit: link.ConsumptionLimit,
+			OwnerEpochPinned: link.OwnerEpoch, OwnerEpochCurrent: ownerEpoch,
+		})
+		view.Links = append(view.Links, casesAPI.ContinuationLinkView{
+			LinkID: link.LinkID, WorkItemID: link.WorkItemID,
+			Purposes: append([]string(nil), link.Purposes...), State: state,
+			Delivered: material.Delivered[link.LinkID], AcceptedUses: accepted[link.LinkID],
+			ConsumptionLimit: link.ConsumptionLimit, Question: link.Question,
+			ParticipantRef: link.ParticipantRef, ExpiresAt: link.ExpiresAt,
+		})
+	}
+	for _, use := range material.Uses {
+		view.Uses = append(view.Uses, casesAPI.ContinuationUseView{
+			UseID: use.UseID, LinkID: use.LinkID, UseKind: use.UseKind,
+			FactID: use.FactID, FactVersion: use.FactVersionNo, SubmittedAt: use.SubmittedAt,
+		})
+	}
+	return view, nil
+}

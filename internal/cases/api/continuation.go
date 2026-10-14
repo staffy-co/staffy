@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"time"
 
 	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
@@ -63,10 +64,10 @@ type RevokeContinuationLinkCommand struct {
 // outcome with the empty URL and the honest mask word — the old link
 // never resurrects, a lost URL means a new link and a revocation.
 type ContinuationIssuance struct {
-	Outcome WorkOutcome
-	URL     string
-	Token   string
-	Expires time.Time
+	Outcome WorkOutcome `json:"outcome"`
+	URL     string      `json:"url,omitempty"`
+	Token   string      `json:"token,omitempty"`
+	Expires time.Time   `json:"expires_at,omitempty"`
 }
 
 // ContinuationSurface is the material of the protected continuation
@@ -108,8 +109,9 @@ type ContinuationFactView struct {
 // submission finished or the term expired» — are the read-time
 // derivations, never stored words).
 type ContinuationView struct {
-	Links []ContinuationLinkView `json:"links"`
-	Uses  []ContinuationUseView  `json:"uses"`
+	PanelText string                 `json:"panel_text"`
+	Links     []ContinuationLinkView `json:"links"`
+	Uses      []ContinuationUseView  `json:"uses"`
 }
 
 // ContinuationLinkView is one link of the operator panel: the
@@ -161,6 +163,22 @@ const (
 	ContinuationSurfaceConsumed = "consumed"
 	ContinuationSurfaceInvalid  = "invalid"
 )
+
+// ContinuationService is the command and surface interface of Story 2.10
+// (the two operator commands are idempotent by the tenant-scoped key with
+// the stored outcome — the token NEVER enters the stored material; the
+// public surface reads and writes carry the opaque token as the only
+// credential — no session, no principal; the transport type-asserts this
+// narrow interface of the cases service — the BindEmployee precedent, the
+// composite Service interface stays untouched).
+type ContinuationService interface {
+	IssueContinuationLink(context.Context, IssueContinuationLinkCommand) (ContinuationIssuance, error)
+	RevokeContinuationLink(context.Context, RevokeContinuationLinkCommand) (WorkOutcome, error)
+	ContinueSurface(context.Context, string, time.Time) (ContinuationSurface, error)
+	SubmitCorrection(context.Context, string, id.UUID, []byte, time.Time) (int64, error)
+	SubmitHuman(context.Context, string, time.Time) error
+	SubmitReturn(context.Context, string, time.Time) error
+}
 
 // continuationStateWordsOf keeps the dictionary honest for the view
 // rendering (the state words come from the domain derivation).

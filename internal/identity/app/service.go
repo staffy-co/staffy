@@ -32,6 +32,39 @@ func (s *Service) membershipRepo() (port.MembershipRepository, error) {
 	return repo, nil
 }
 
+// tenantNameRepo asserts the narrow principal-free repository of the
+// public surfaces (the membershipRepo() precedent — the composite
+// Repository interface stays untouched).
+func (s *Service) tenantNameRepo() (port.TenantNameRepository, error) {
+	repo, ok := s.repository.(port.TenantNameRepository)
+	if !ok {
+		return nil, domain.ErrNotFound
+	}
+	return repo, nil
+}
+
+// TenantName reads the display name of one tenant for the public surfaces
+// (the Story 2.10 continuation page header): NO principal — the anonymous
+// scope carries the tenant itself (the inert placeholder, the same shape
+// as the continuation public scope); the RLS tenant policy checks the
+// tenant only, so the read passes; a missing row is the honest
+// ErrNotFound (the page degrades without the header word — never a
+// disclosure beyond what the valid token already proves).
+func (s *Service) TenantName(ctx context.Context, tenantID id.UUID) (string, error) {
+	if !tenantID.Valid() {
+		return "", domain.ErrNotFound
+	}
+	scope, err := tenancy.New(tenantID, tenantID)
+	if err != nil {
+		return "", err
+	}
+	repo, err := s.tenantNameRepo()
+	if err != nil {
+		return "", err
+	}
+	return repo.TenantName(ctx, scope)
+}
+
 func membershipScope(actor domain.Principal, tenantID id.UUID) (tenancy.Context, error) {
 	if !actor.ID.Valid() || !tenantID.Valid() {
 		return tenancy.Context{}, domain.ErrNotFound

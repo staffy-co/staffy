@@ -155,6 +155,38 @@ func (s *Postgres) CreateTenant(ctx context.Context, params port.CreateTenantPar
 	return domain.Tenant{ID: params.TenantID, Name: params.Name, CreatedAt: params.OccurredAt}, false, nil
 }
 
+// TenantName reads the display name of one tenant under the anonymous
+// scope (the public continuation page header): the plain tenants read —
+// the RLS tenant policy checks staffy.tenant_id only, no principal; a
+// missing row is the honest ErrNotFound.
+func (s *Postgres) TenantName(ctx context.Context, scope tenancy.Context) (string, error) {
+	if !scope.Valid() {
+		return "", tenancy.ErrMissingContext
+	}
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{AccessMode: pgx.ReadOnly})
+	if err != nil {
+		return "", fmt.Errorf("begin tenant name read: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if err := setLocal(ctx, tx, "staffy.principal_id", scope.PrincipalID().String()); err != nil {
+		return "", err
+	}
+	if err := setLocal(ctx, tx, "staffy.tenant_id", scope.TenantID().String()); err != nil {
+		return "", err
+	}
+	var name string
+	err = tx.QueryRow(ctx, `select t.name from identity.tenants t where t.tenant_id = $1`,
+		scope.TenantID().String(),
+	).Scan(&name)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", domain.ErrNotFound
+	}
+	if err != nil {
+		return "", fmt.Errorf("read tenant name: %w", err)
+	}
+	return name, nil
+}
+
 func (s *Postgres) Workspace(ctx context.Context, scope tenancy.Context) (domain.Workspace, error) {
 	if !scope.Valid() {
 		return domain.Workspace{}, tenancy.ErrMissingContext

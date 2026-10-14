@@ -57,6 +57,11 @@ type sendClientReplyInput struct {
 	// the empty word keeps the old path.
 	PlaybookStep *string `json:"playbook_step"`
 	Content      *string `json:"content"`
+	// LinkID is the optional Story 2.10 delivery binding: the SALES
+	// reply carries ONE continuation link of the case whose token-URL
+	// the operator wove into the text (the delivered badge of the FR-16);
+	// the neutral and the protected classes never carry it.
+	LinkID *string `json:"link_id"`
 }
 
 // ownershipProblem maps the ownership command errors onto the problem
@@ -319,12 +324,23 @@ func (s *Server) sendClientReplyAPI(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	// The Story 2.10 delivery binding: the optional link id (the SALES
+	// class only — the honest 400 of the dictionary comes from the
+	// command ladder; a malformed uuid is the transport refusal).
+	linkID := id.UUID("")
+	if raw := stringOrEmpty(input.LinkID); raw != "" {
+		if linkID, err = id.Parse(raw); err != nil {
+			s.problem(w, r, http.StatusBadRequest, "invalid_request", "Поле link_id должно быть UUID ссылки продолжения этого обращения.", false, nil)
+			return
+		}
+	}
 	outcome, err := s.cases.SendClientReply(r.Context(), casesAPI.SendClientReplyCommand{
 		Actor: actor, TenantID: tenant, CaseID: caseID, ConversationID: conversationID,
 		WorkItemID:    workItemID,
 		ExpectedEpoch: *input.ExpectedEpoch,
 		ReplyClass:    stringOrEmpty(input.ReplyClass),
 		PlaybookStep:  stringOrEmpty(input.PlaybookStep),
+		LinkID:        linkID,
 		Content:       stringOrEmpty(input.Content), IdempotencyKey: key, Now: s.clock.Now().UTC(),
 	})
 	if err != nil {
@@ -548,6 +564,16 @@ func (s *Server) sendClientReplyForm(w http.ResponseWriter, r *http.Request) {
 		}
 		commitmentID, commitmentVersion = idPart, versionPart
 	}
+	// The Story 2.10 delivery binding: the optional link id of the reply
+	// form select (the SALES class only — the command ladder refuses the
+	// others honestly).
+	linkID := id.UUID("")
+	if raw := r.FormValue("continuation_link_id"); raw != "" {
+		if linkID, err = id.Parse(raw); err != nil {
+			ownershipFormError(w, r, tenant, caseID, casesDomain.WorkRuleError{Rule: "form", Reason: "Выберите существующую ссылку продолжения этого обращения для связи."})
+			return
+		}
+	}
 	_, err = s.cases.SendClientReply(r.Context(), casesAPI.SendClientReplyCommand{
 		Actor: actor, TenantID: tenant, CaseID: caseID, ConversationID: conversationID,
 		WorkItemID:    workItemID,
@@ -555,8 +581,9 @@ func (s *Server) sendClientReplyForm(w http.ResponseWriter, r *http.Request) {
 		ReplyClass:    replyClass,
 		PlaybookStep:  playbookStep,
 		CommitmentID:  commitmentID, CommitmentVersionNo: commitmentVersion,
+		LinkID:         linkID,
 		Content:        content,
-		IdempotencyKey: formCommandKey("send-client-reply", actor.ID.String(), caseID.String(), conversationID.String(), workItemID.String(), strconv.FormatInt(expected, 10), replyClass, playbookStep, commitmentID.String(), strconv.FormatInt(commitmentVersion, 10), content),
+		IdempotencyKey: formCommandKey("send-client-reply", actor.ID.String(), caseID.String(), conversationID.String(), workItemID.String(), strconv.FormatInt(expected, 10), replyClass, playbookStep, commitmentID.String(), strconv.FormatInt(commitmentVersion, 10), linkID.String(), content),
 		Now:            s.clock.Now().UTC(),
 	})
 	if err != nil {

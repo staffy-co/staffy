@@ -2682,6 +2682,58 @@ paths:
         '403': { description: 'Гейт прав ДО стражей', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
         '404': { $ref: '#/components/responses/Problem' }
         '409': { description: 'Тот же ключ с иным материалом — command_key_conflict', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/continuation-links:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - $ref: '#/components/parameters/WorkItemID'
+    post:
+      operationId: issueContinuationLink
+      summary: 'Выдать purpose-bound ссылку продолжения (первый срез 2-10): гейт скоупа review||configuration ДО стражей, словари целей v1, короткий ttl 5..120 мин, consumption_limit 1..10 (default 1 — «ровно одна отправка» FR-16), append-only строка с пинами case/WI/participant/owner_epoch и хешем токена (SHA-256 случайных 32B — preimage невосстановим); ответ несёт одноразовый URL/токен РОВНО один раз; replay — сохранённый исход с честной маской без URL (no-store/no-referrer)'
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ContinuationLinkIssueRequest' }
+      responses:
+        '201': { description: 'Ссылка выдана: append-only строка + outbox continuation_link_issued (метаданные БЕЗ токена); ответ несёт одноразовые url/token/expires_at', content: { application/json: { schema: { $ref: '#/components/schemas/ContinuationIssuance' } } } }
+        '200': { description: 'Повтор идемпотентного ключа — сохранённый исход с маской (url/token пусты: токен невосстановим из хеша; потерянная ссылка = отзыв + новая выдача)', content: { application/json: { schema: { $ref: '#/components/schemas/ContinuationIssuance' } } } }
+        '400': { description: 'Словари целей/границы ttl и limit/тексты вопрос-объяснение/участник/терминальный WI', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Гейт прав ДО стражей: команды ссылок продолжения требуют review или configuration', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { description: 'Тот же ключ с иным материалом — command_key_conflict', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/continuation-links/{link_id}/revoke:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - $ref: '#/components/parameters/WorkItemID'
+      - name: link_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: revokeContinuationLink
+      summary: 'Отозвать ссылку продолжения («прекратить ожидание», FR-16): append-only строка отзыва, ничего не мутирует; read-time деривация блокирует поверхность без раскрытия; второй отзыв отказан честно (ожидание прекращено один раз)'
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ContinuationLinkRevokeRequest' }
+      responses:
+        '201': { description: 'Отзыв записан (append-only; outbox-события нет — состояние никогда не конвертируется)', content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: 'Повтор идемпотентного ключа', content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { description: 'Причина вне границ 1..200 / ссылка уже отозвана', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Гейт прав ДО стражей', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { description: 'Тот же ключ с иным материалом — command_key_conflict', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
   /v1/tenants/{tenant_id}/cases/client-replies/drain:
     parameters:
       - $ref: '#/components/parameters/TenantID'
@@ -4393,6 +4445,7 @@ components:
         observations: { $ref: '#/components/schemas/ObservationView', description: 'Секция Owning System (Story 2.7): карточки материальных полей по WI со свежестью и конфликт-бейджем' }
         objections: { $ref: '#/components/schemas/ObjectionView', description: 'Секция «Возражения и бюджет убеждения» (Story 2.8): записи возражений по WI с производным состоянием останова убеждения' }
         commitments: { $ref: '#/components/schemas/CommitmentView', description: 'Секция «Обязательства и подтверждения» (Story 2.9): версии по WI с производной готовности, подтверждения с производной действительности, отказы' }
+        continuations: { $ref: '#/components/schemas/ContinuationView', description: 'Секция «Ссылки продолжения» (Story 2.10): ссылки с read-time состояниями, delivered-связкой и лентой событий' }
     AssuranceView:
       type: object
       required: [state, records, allowed_methods, fallback_options, step_up_text]
@@ -4542,7 +4595,7 @@ components:
       required: [command, replay]
       description: 'Материальный исход команды: сохранён и повторяется идемпотентным ключом'
       properties:
-        command: { type: string, enum: [create_work_item, classify_work_item, transition_work_item, split_work_item, merge_work_items, link_event, dispute_work_item, record_fact, confirm_fact_version, rescope_fact, start_verification, bind_channel, unlink_channel, resolve_duplicate, take_ownership, request_transfer, resolve_transfer, reassign_ownership, send_client_reply, propose_mode, exit_mode, record_disclosure, record_disclosure_event, submit_ai_proposal, evaluate_policy, read_owning_system, record_objection] }
+        command: { type: string, enum: [create_work_item, classify_work_item, transition_work_item, split_work_item, merge_work_items, link_event, dispute_work_item, record_fact, confirm_fact_version, rescope_fact, start_verification, bind_channel, unlink_channel, resolve_duplicate, take_ownership, request_transfer, resolve_transfer, reassign_ownership, send_client_reply, propose_mode, exit_mode, record_disclosure, record_disclosure_event, submit_ai_proposal, evaluate_policy, read_owning_system, record_objection, issue_continuation_link, revoke_continuation_link] }
         replay: { type: boolean }
         work_item_id: { type: string, format: uuid }
         version: { type: integer }
@@ -4591,6 +4644,9 @@ components:
         observation_reason: { type: string, enum: [provider_timeout, malformed_response, insufficient_scope, read_error] }
         observation_external_id: { type: string, description: 'Внешний ID носителя значения (только ok)' }
         observation_external_version: { type: string, description: 'Версия значения провайдера (только ok)' }
+        link_id: { type: string, format: uuid, description: 'Ссылка продолжения команды (Story 2.10)' }
+        continuation_issued: { type: boolean, description: 'Маска выдачи ссылок продолжения: токен никогда в исходе' }
+        continuation_expires_at: { type: string, format: date-time, description: 'Истечение выданной ссылки' }
     StartVerificationRequest:
       type: object
       required: [conversation_id, kind, method, provider_code, subject_handle]
@@ -4681,6 +4737,7 @@ components:
         playbook_step: { type: string, enum: [acknowledge_concern, present_evidence, honest_no_answer, offer_alternative, clarify_question], description: 'Шаг playbook sales-ответа (гейт 2-8 ПОСЛЕ Policy-гейта 2-6): при текущем возражении WI обязателен (первый связанный — только acknowledge_concern); без возражений поле пусто — путь байт-в-байт прежний' }
         commitment_id: { type: string, format: uuid, description: 'Связь обязательства (Story 2-9, гейт ПОСЛЕ objection-гейта): только sales-класс; пара (commitment_id, commitment_version) оба-или-ни-один; версия обязана существовать и быть offered (draft-not-presentable — честный 400)' }
         commitment_version: { type: integer, minimum: 1, description: 'Точная показанная offered-версия обязательства (пара со commitment_id)' }
+        link_id: { type: string, format: uuid, description: 'Связь ссылки продолжения (Story 2-10, гейт ПОСЛЕ commitment-гейта): только sales-класс; ссылка обязана существовать в этом кейсе; связка = delivered-бейдж панели FR-16; URL живёт текстом ответа, токен — не поле' }
     CommitmentPriceTerm:
       type: object
       required: [kind]
@@ -4825,6 +4882,68 @@ components:
       properties:
         commitment_id: { type: string, format: uuid }
         version_no: { type: integer, minimum: 1 }
+    ContinuationLinkIssueRequest:
+      type: object
+      required: [purposes, question, explanation, participant_ref, ttl_minutes]
+      additionalProperties: false
+      description: 'Команда выдачи ссылки продолжения: набор целей — подмножество словаря v1 (непуст, без повторов); короткий ttl; лимит accepted-коррекций (default 1 — «ровно одна отправка» FR-16); capability-токен генерируется сервером и НИКОГДА не поле запроса'
+      properties:
+        link_id: { type: string, format: uuid, description: 'Идентификатор ссылки (пусто — новая ссылка)' }
+        purposes: { type: array, items: { type: string, enum: [fact_correction] }, minItems: 1, description: 'Цели ссылки: словарь v1 (fact_correction); набор ⊆ словаря, непуст, без повторов' }
+        question: { type: string, minLength: 1, maxLength: 500, description: 'Открытый вопрос клиенту защищённой страницы (рунами 1..500)' }
+        explanation: { type: string, minLength: 1, maxLength: 1000, description: 'Объяснение перехода — зачем клиенту открыть защищённую страницу (рунами 1..1000)' }
+        participant_ref: { type: string, minLength: 1, maxLength: 128, description: 'Адрес участника (канал клиента, которому вплетается URL)' }
+        ttl_minutes: { type: integer, minimum: 5, maximum: 120, description: 'Срок жизни ссылки в минутах (короткоживущая: 5..120)' }
+        consumption_limit: { type: integer, minimum: 1, maximum: 10, default: 1, description: 'Сколько принятых исправлений потребляет ссылка (1..10; события human/return не расходуют)' }
+    ContinuationLinkRevokeRequest:
+      type: object
+      required: [reason]
+      additionalProperties: false
+      description: 'Команда отзыва ссылки: честная причина «прекратить ожидание»; строка append-only, мутаций нет'
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 200 }
+    ContinuationIssuance:
+      type: object
+      required: [outcome]
+      description: 'Ответ выдачи: сохранённый исход команды плюс одноразовый материал возможности — url/token существуют ТОЛЬКО в первом ответе (no-store/no-referrer); replay-ответ несёт пустые url/token с честной маской: preimage невосстановим из хеша'
+      properties:
+        outcome: { $ref: '#/components/schemas/WorkOutcome' }
+        url: { type: string, description: 'Путь публичной защищённой страницы /continue/{token} — только в свежем ответе' }
+        token: { type: string, description: 'base64url(tenant 16B ‖ random 32B), 64 символа, без padding — только в свежем ответе' }
+        expires_at: { type: string, format: date-time }
+    ContinuationView:
+      type: object
+      required: [panel_text, links, uses]
+      description: 'Секция «Ссылки продолжения» (Story 2.10): ссылки с read-time деривацией состояний, delivered-связкой исходящих ответов и учётом лимита + лента событий клиента; токен нигде — маска «выдан»'
+      properties:
+        panel_text: { type: string }
+        links: { type: array, items: { $ref: '#/components/schemas/ContinuationLinkView' } }
+        uses: { type: array, items: { $ref: '#/components/schemas/ContinuationUseView' } }
+    ContinuationLinkView:
+      type: object
+      required: [link_id, work_item_id, purposes, state, delivered, accepted_uses, consumption_limit, question, participant_ref, expires_at]
+      properties:
+        link_id: { type: string, format: uuid }
+        work_item_id: { type: string, format: uuid }
+        purposes: { type: array, items: { type: string, enum: [fact_correction] } }
+        state: { type: string, enum: [valid, expired, revoked, consumed, owner_stale], description: 'Read-time деривация (никогда хранимое слово): expired > revoked > consumed > owner_stale > valid' }
+        delivered: { type: boolean, description: 'FR-16 «доставлена»: существование связанной sales-reply (client_replies.link_id)' }
+        accepted_uses: { type: integer, minimum: 0, description: 'Принятые fact_correction-отправки (события human/return не считаются)' }
+        consumption_limit: { type: integer, minimum: 1, maximum: 10 }
+        question: { type: string }
+        participant_ref: { type: string }
+        expires_at: { type: string, format: date-time }
+    ContinuationUseView:
+      type: object
+      required: [use_id, link_id, use_kind, submitted_at]
+      description: 'Событие клиента ленты: исправление потребляет лимит; human/return — события без материала'
+      properties:
+        use_id: { type: string, format: uuid }
+        link_id: { type: string, format: uuid }
+        use_kind: { type: string, enum: [fact_correction_submitted, human_requested, returned_to_conversation] }
+        fact_id: { type: string, format: uuid, description: 'Только fact_correction_submitted' }
+        fact_version_no: { type: integer, minimum: 2, description: 'Номер новой неподтверждённой версии факта' }
+        submitted_at: { type: string, format: date-time }
     DrainRepliesResult:
       type: object
       required: [considered, dispatched, stale_needs_review]

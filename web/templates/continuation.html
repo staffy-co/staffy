@@ -1,0 +1,56 @@
+{{define "continuation"}}
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Продолжение разговора · Staffy</title><link rel="stylesheet" href="/assets/app.css"></head>
+<body><a class="skip-link" href="#main">К основному содержанию</a>
+<main class="setup-layout" id="main"><section class="panel" aria-label="Защищённая страница продолжения">
+{{if .View.Invalid}}
+<h1>Ссылка недействительна или истекла</h1>
+<p>Эта ссылка больше не открывается. Свяжитесь с нами по каналу обращения, в котором вы её получили, — мы продолжим разговор там.</p>
+<p class="next-note">Если вам неудобно ждать — попросите позвать человека в вашем исходном разговоре: для этого не нужны данные этой страницы.</p>
+{{if .View.Notice}}<p class="status" role="status" aria-live="polite" tabindex="-1" id="continuation-notice">{{.View.Notice}}</p><script>addEventListener('DOMContentLoaded', () => document.getElementById('continuation-notice').focus());</script>{{end}}
+{{else}}
+{{if .View.Consumed}}
+<h1>Материал отправлен</h1>
+<p>Исправление отправлено и записано. Ссылка завершена и не восстанавливается: повторная отправка по ней невозможна.</p>
+<p class="next-note">Оператор проверит отправленное и подтвердит его штатным путём — результат придёт в вашем разговоре. Если нужно что-то ещё, свяжитесь с нами по каналу обращения.</p>
+{{if .View.Notice}}<p class="status" role="status" aria-live="polite" tabindex="-1" id="continuation-notice">{{.View.Notice}}</p><script>addEventListener('DOMContentLoaded', () => document.getElementById('continuation-notice').focus());</script>{{end}}
+{{else}}
+{{if .View.Notice}}<p class="status" role="status" aria-live="polite" tabindex="-1" id="continuation-notice">{{.View.Notice}}</p><script>addEventListener('DOMContentLoaded', () => document.getElementById('continuation-notice').focus());</script>{{end}}
+<h1>Продолжение разговора</h1>
+<p id="continuation-status" class="next-note" role="status" aria-live="polite">{{if .View.Preserved.Error}}Сверьте поля формы — введённое сохранено.{{else}}Статусы действий появятся здесь.{{end}}</p>
+<p>{{if .View.HasTenantName}}<strong>{{.View.TenantName}}</strong> · {{end}}отвечает <strong>{{.View.RoleWord}}</strong>.</p>
+<p>{{.View.Explanation}}</p>
+<h2>Что уже известно</h2>
+{{if .View.FactOptions}}
+<ul class="continuation-facts">
+{{range .View.FactOptions}}<li><strong>{{.Text}}</strong></li>{{end}}
+</ul>
+{{else}}
+<p role="status">Подтверждённых фактов нет: исправлять пока нечего.</p>
+{{end}}
+<p class="next-note">Показаны только подтверждённые факты этого разговора. Исправление создаёт новую версию на проверку — до подтверждения оператором она не считается точной.</p>
+<h2>Открытый вопрос</h2>
+<p><strong>{{.View.Question}}</strong></p>
+{{if .View.Preserved.Error}}<p class="alert" role="alert" tabindex="-1" id="continuation-error">{{.View.Preserved.Error}}</p><script>addEventListener('DOMContentLoaded', () => document.getElementById('continuation-error').focus());</script>{{end}}
+<form method="post" action="{{.View.CorrectURL}}" class="continuation-form">
+<label for="continuation-fact">Факт, который нужно исправить</label>
+<select id="continuation-fact" name="fact_id" required>
+{{range .View.FactOptions}}<option value="{{.Value}}" {{if eq $.View.Preserved.FactID .Value}}selected{{end}}>{{.Text}}</option>{{end}}
+</select>
+<label for="continuation-value">Новое значение (текст, до 2000 символов)</label>
+<textarea id="continuation-value" name="value" required rows="3" maxlength="2000">{{.View.Preserved.Value}}</textarea>
+<button class="primary" type="submit">Отправить исправление</button>
+<p class="next-note">Осталось отправок по этой ссылке: {{.View.LimitLeft}}. Ссылка действует до {{.View.ExpiresText}}. Введённое сохраняется при ошибке проверки.</p>
+</form>
+<h2>Другие действия</h2>
+<form method="post" action="{{.View.HumanURL}}" class="continuation-action">
+<button class="primary" type="submit">Позвать человека</button>
+<p class="next-note">Передать, что вы хотите говорить с человеком: оператор свяжется с вами по каналу обращения.</p>
+</form>
+<form method="post" action="{{.View.ReturnURL}}" class="continuation-action">
+<button class="primary" type="submit">Вернуться в разговор</button>
+<p class="next-note">Вернуться в ваш разговор: обращение и всё сохранённое продолжаются, повторный набор вопросов не нужен.</p>
+</form>
+{{end}}
+{{end}}
+</section></main></body></html>
+{{end}}

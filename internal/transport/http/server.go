@@ -44,6 +44,8 @@ type Server struct {
         privacy   privacyAPI.Service
         entitlement entitlementAPI.Service
         cases     casesAPI.Service
+        continuations casesAPI.ContinuationService
+        tenantNamer   api.TenantNameService
         resolver  port.PrincipalResolver
         ids       IDGenerator
         clock     Clock

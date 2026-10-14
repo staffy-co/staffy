@@ -136,6 +136,11 @@ type CaseView struct {
 	// the readiness derivations, the exact-version confirmations with
 	// the validity derivations and the honest declines.
 	Commitments CommitmentView `json:"commitments"`
+	// The Story 2.10 section: the continuation links of the case with
+	// the read-time state derivations, the delivered binding of the
+	// outgoing replies, the use accounting against the limit and the
+	// event feed (the FR-16 statuses — never stored words).
+	Continuations ContinuationView `json:"continuations"`
 }
 
 // PayloadView is the sealed payload read under review/audit: the digest,
