@@ -165,7 +165,7 @@ func (f *casesFixture) fixtureObservationView(caseID id.UUID) casesAPI.Observati
 		MatrixVersion: casesDomain.AuthorityMatrixVersion,
 		PanelText:     "Наблюдение — снимок чтения системы-владельца, не подтверждённый факт: значение, источник, внешний ID и время; устаревшее поле перечитайте перед материальным ответом; расхождение с фактом решает человек.",
 	}
-	now := clockFixture{}.Now()
+	now := journeyClock.Now()
 	for _, anchor := range f.items[caseID] {
 		section := casesAPI.ObservationWorkItemView{WorkItemID: anchor.WorkItemID}
 		observationsOfItem := []casesDomain.Observation{}

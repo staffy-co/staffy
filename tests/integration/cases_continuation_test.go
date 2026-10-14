@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -1055,4 +1056,639 @@ func TestContinuationServiceCommandsSurface(t *testing.T) {
 	if strings.Contains(storedOutcome, issuance.Token) || strings.Contains(storedOutcome, "token") {
 		t.Fatalf("the stored outcome must never carry the capability token, got %s", storedOutcome)
 	}
+}
+
+// TestContinuationMatrixRowsBySpec runs the I/O & Edge-Case Matrix of the
+// spec BY NAME — the step-04 acceptance («полный матрикс-прогон (строки
+// поимённо)»): every frozen row lands as one named subtest over the REAL
+// service+store+PG world. The rows share one world; the ordering follows
+// the honest dependencies (the reply-binding row needs the epoch-1 owner,
+// so the ownership-take row runs last of the material rows; the panel row
+// reads BEFORE the take — the panel is the derivation of the moment of
+// the read). The deep invariants of every row stay pinned by the three
+// probe families above — this matrix is the traceable map: row → green
+// run. The service clock pins ownershipNow (the commitment-world
+// precedent) so the panel derivations and the command stamps share one
+// honest moment.
+func TestContinuationMatrixRowsBySpec(t *testing.T) {
+	if runtimePool == nil {
+		t.Skip("no runtime pool")
+	}
+	w := newCasesWorld(t, 980)
+	// The matrix world carries its own wide id sequence: the rows issue
+	// many links (every issuance consumes three ids of the generator) —
+	// the 64-value worlds of the single-row families would run dry.
+	matrixIDs := &sequenceIDs{values: make([]id.UUID, 512)}
+	for i := range matrixIDs.values {
+		matrixIDs.values[i] = id.MustParse(fmt.Sprintf("019a2f4c-6000-7000-8000-%012d", 991000+i))
+	}
+	w.cases = w.buildCasesServiceClock(matrixIDs, fixedClock{ownershipNow})
+	ctx := context.Background()
+	caseID, workItemID := w.acceptedCase(t, "evt-continuation-matrix-1", "sess-continuation-matrix-1", `{"call":"inbound-call","from":"+79000000180"}`)
+	conversationID := w.conversationFirst(t, caseID)
+	w.classifyCommitmentItem(t, caseID, workItemID, "matrix-classify-980")
+	now := ownershipNow
+
+	// The confirmed correctable fact of the Work Item (the DB-probe
+	// precedent of the service family): the select basis of the surface
+	// corrections.
+	factID := nextContinuationProbeID()
+	factValue, factDigest, factValueErr := casesDomain.FactValue([]byte(`"VIN0000000000180"`))
+	if factValueErr != nil {
+		t.Fatal(factValueErr)
+	}
+	if _, err := adminPool.Exec(ctx, `
+		insert into cases.facts (tenant_id, case_id, fact_id, material_key, created_at)
+		values ($1,$2,$3,'vin',$4)`, w.tenant, caseID, factID, now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := adminPool.Exec(ctx, `
+		insert into cases.fact_versions (tenant_id, case_id, fact_id, version_no, work_item_id, material_key,
+			value, value_digest, source_type, source_id, channel, actor_id, observed_at, received_at, created_at)
+		values ($1,$2,$3,1,$4,'vin',$5::jsonb,$6,'operator','matrix-operator','operator',$7,$8,$8,$8)`,
+		w.tenant, caseID, factID, workItemID, string(factValue), factDigest, w.ownershipActor().ID, now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := adminPool.Exec(ctx, `
+		insert into cases.fact_confirmations (tenant_id, fact_id, confirmation_id, version_no, confirmer_type,
+			evidence_event_id, note, actor_id, created_at)
+		values ($1,$2,$3,1,'operator_relay',null,'подтверждено перечиткой',$4,$5)`,
+		w.tenant, factID, nextContinuationProbeID(), w.ownershipActor().ID, now); err != nil {
+		t.Fatal(err)
+	}
+
+	// issueLink — the shared issuance shorthand of the rows (the honest
+	// template; the per-row knobs travel through the key, the question,
+	// the issuance moment and the ttl).
+	issueLink := func(key, question string, issuedAt time.Time, ttlMinutes int) casesAPI.ContinuationIssuance {
+		t.Helper()
+		issuance, err := w.cases.IssueContinuationLink(ctx, casesAPI.IssueContinuationLinkCommand{
+			Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, WorkItemID: workItemID,
+			Purposes: []string{casesDomain.ContinuationPurposeFactCorrection},
+			Question: question, Explanation: "Матричный переход: строка " + key,
+			ParticipantRef: "client+79000000180", TTLMinutes: ttlMinutes,
+			IdempotencyKey: "matrix-issue-" + key, Now: issuedAt,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if issuance.URL == "" || len(issuance.Token) != 64 {
+			t.Fatalf("the fresh issuance of %s must carry the one-time capability, got %+v", key, issuance)
+		}
+		return issuance
+	}
+	// panelLink reads the panel derivation of one link of the moment.
+	panelLink := func(linkID id.UUID) casesAPI.ContinuationLinkView {
+		t.Helper()
+		detail, err := w.cases.CaseView(ctx, w.ownershipActor(), w.tenant, caseID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, link := range detail.Continuations.Links {
+			if link.LinkID == linkID {
+				return link
+			}
+		}
+		t.Fatalf("the panel link %s not found", linkID)
+		return casesAPI.ContinuationLinkView{}
+	}
+	// surfaceKind reads the public surface word of one token at one moment.
+	surfaceKind := func(token string, at time.Time) string {
+		t.Helper()
+		surface, err := w.cases.ContinueSurface(ctx, token, at)
+		if err != nil {
+			t.Fatalf("the surface read of %q failed: %v", token, err)
+		}
+		return surface.Kind
+	}
+
+	issuedA := issueLink("a", "Какой верный VIN?", now, 30)
+	linkA := issuedA.Outcome.LinkID
+
+	// Row 1 — the fresh issuance: the append-only row with the pins, the
+	// one-time answer, the outbox metadata without the token and the panel
+	// «действует» derivation (AC-1).
+	t.Run("row-01 issue: append-only row + one-time URL + outbox without token + panel valid", func(t *testing.T) {
+		var epoch int64
+		var hashLen int
+		var purposes string
+		if err := adminPool.QueryRow(ctx, `
+			select owner_epoch, length(token_hash), purposes::text from cases.continuation_links
+			where tenant_id=$1 and link_id=$2`, w.tenant, linkA).Scan(&epoch, &hashLen, &purposes); err != nil {
+			t.Fatal(err)
+		}
+		if epoch != 1 || hashLen != 32 || !strings.Contains(purposes, "fact_correction") {
+			t.Fatalf("the append-only row must pin epoch 1, the 32-byte hash and the purpose word, got epoch=%d hash=%d purposes=%s", epoch, hashLen, purposes)
+		}
+		var payload string
+		if err := adminPool.QueryRow(ctx, `
+			select payload::text from cases.outbox_events
+			where tenant_id=$1 and aggregate_id=$2 and event_type='case.continuation_link_issued' limit 1`,
+			w.tenant, caseID).Scan(&payload); err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(payload, issuedA.Token) || strings.Contains(payload, "Какой верный VIN") || strings.Contains(payload, "Матричный переход") {
+			t.Fatalf("the issued envelope must never carry the token or the operator texts, got %s", payload)
+		}
+		link := panelLink(linkA)
+		if link.State != casesDomain.ContinuationStateValid || link.Delivered || link.AcceptedUses != 0 || link.ConsumptionLimit != 1 {
+			t.Fatalf("the fresh link must derive valid/undelivered/0-of-1 on the panel, got %+v", link)
+		}
+	})
+
+	// Row 2 — the rights gates BEFORE the material guards (the M1
+	// precedent): the audit-only member gets the honest scope words; the
+	// member of another tenant gets the plain 404 (no disclosure).
+	t.Run("row-02 gates: audit-only 403 BEFORE guards; foreign tenant 404", func(t *testing.T) {
+		auditor := inviteMember(t, w.identity, w.readinessActor(true), w.tenant, "matrix-audit-980@example.org", "expert_qa", []identityDomain.Scope{identityDomain.Audit}, "000000009801", "000000009802")
+		audit := actorPrincipal{principalID: auditor.ID, stepUp: true}.principal()
+		_, err := w.cases.IssueContinuationLink(ctx, casesAPI.IssueContinuationLinkCommand{
+			Actor: audit, TenantID: w.tenant, CaseID: caseID, WorkItemID: workItemID,
+			Purposes: []string{casesDomain.ContinuationPurposeFactCorrection},
+			Question: "Вопрос", Explanation: "Объяснение", ParticipantRef: "client", TTLMinutes: 30,
+			IdempotencyKey: "matrix-issue-audit", Now: now,
+		})
+		if !errors.Is(err, identityDomain.ErrForbidden) || !strings.Contains(err.Error(), "review или configuration") {
+			t.Fatalf("the audit-only member must be forbidden before the material guards, got %v", err)
+		}
+		foreignTenant := createForeignTenant(t, w)
+		foreign := inviteMember(t, w.identity, w.owner, foreignTenant, "matrix-foreign-980@example.org", "expert_qa", []identityDomain.Scope{identityDomain.Review}, "000000009803", "000000009804")
+		_, err = w.cases.IssueContinuationLink(ctx, casesAPI.IssueContinuationLinkCommand{
+			Actor: foreign, TenantID: w.tenant, CaseID: caseID, WorkItemID: workItemID,
+			Purposes: []string{casesDomain.ContinuationPurposeFactCorrection},
+			Question: "Вопрос", Explanation: "Объяснение", ParticipantRef: "client", TTLMinutes: 30,
+			IdempotencyKey: "matrix-issue-foreign", Now: now,
+		})
+		if !errors.Is(err, identityDomain.ErrNotFound) {
+			t.Fatalf("the member of another tenant must get the plain 404, got %v", err)
+		}
+	})
+
+	// Row 3 — the terminal Work Item never carries a continuation: the
+	// honest work-rule refusal of 2.2.
+	t.Run("row-03 terminal work item: 400 work-rule", func(t *testing.T) {
+		created, err := w.cases.CreateWorkItem(ctx, casesAPI.CreateWorkItemCommand{
+			Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+			Type: "уточнение аналога", Title: "Второе намерение", Reason: "Матричная строка 3", IdempotencyKey: "matrix-create-wi-2", Now: now,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		base := w.workBaseInput(caseID, created.WorkItemID, 1)
+		base.IdempotencyKey = "matrix-resolve-wi-2"
+		if _, err := w.cases.TransitionWorkItem(ctx, casesAPI.TransitionCommand{WorkCommandInput: base, ToState: casesDomain.WorkItemStateResolved}); err != nil {
+			t.Fatal(err)
+		}
+		_, err = w.cases.IssueContinuationLink(ctx, casesAPI.IssueContinuationLinkCommand{
+			Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, WorkItemID: created.WorkItemID,
+			Purposes: []string{casesDomain.ContinuationPurposeFactCorrection},
+			Question: "Вопрос", Explanation: "Объяснение", ParticipantRef: "client", TTLMinutes: 30,
+			IdempotencyKey: "matrix-issue-terminal", Now: now,
+		})
+		assertRuleError(t, err, casesDomain.TerminalWorkItemContinuationText)
+	})
+
+	// Row 4 — the dictionary and bound guards of the issuance: the ttl, the
+	// limit, the texts and the purpose set refuse with the honest domain
+	// words BEFORE any SQL.
+	t.Run("row-04 guards: ttl/limit/texts/purposes 400 by domain", func(t *testing.T) {
+		base := casesAPI.IssueContinuationLinkCommand{
+			Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, WorkItemID: workItemID,
+			Purposes: []string{casesDomain.ContinuationPurposeFactCorrection},
+			Question: "Вопрос", Explanation: "Объяснение", ParticipantRef: "client", Now: now,
+		}
+		for _, probe := range []struct {
+			name string
+			mut  func(*casesAPI.IssueContinuationLinkCommand)
+			word string
+		}{
+			{"ttl-below", func(c *casesAPI.IssueContinuationLinkCommand) { c.TTLMinutes = 4 }, "5..120 минут"},
+			{"ttl-above", func(c *casesAPI.IssueContinuationLinkCommand) { c.TTLMinutes = 121 }, "5..120 минут"},
+			{"limit-above", func(c *casesAPI.IssueContinuationLinkCommand) { c.TTLMinutes = 30; c.ConsumptionLimit = 11 }, "1..10"},
+			{"empty-question", func(c *casesAPI.IssueContinuationLinkCommand) { c.TTLMinutes = 30; c.Question = "" }, "вопрос"},
+			{"empty-purposes", func(c *casesAPI.IssueContinuationLinkCommand) { c.TTLMinutes = 30; c.Question = "В"; c.Purposes = nil }, "не может быть пустым"},
+		} {
+			command := base
+			probe.mut(&command)
+			command.IdempotencyKey = "matrix-guard-" + probe.name
+			_, err := w.cases.IssueContinuationLink(ctx, command)
+			assertRuleError(t, err, probe.word)
+		}
+	})
+
+	// Row 5 — the idempotent pair: the exact repeat replays the stored
+	// outcome with the honest mask; the same key with another material is
+	// the key conflict.
+	t.Run("row-05 replay mask + key conflict 409", func(t *testing.T) {
+		repeat := casesAPI.IssueContinuationLinkCommand{
+			Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, WorkItemID: workItemID,
+			Purposes: []string{casesDomain.ContinuationPurposeFactCorrection},
+			Question: "Какой верный VIN?", Explanation: "Матричный переход: строка a",
+			ParticipantRef: "client+79000000180", TTLMinutes: 30,
+			IdempotencyKey: "matrix-issue-a", Now: now,
+		}
+		replayed, err := w.cases.IssueContinuationLink(ctx, repeat)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if replayed.URL != "" || replayed.Token != "" || !replayed.Outcome.Replay || replayed.Outcome.LinkID != linkA {
+			t.Fatalf("the replay must answer the stored outcome with the empty capability, got %+v", replayed)
+		}
+		conflicting := repeat
+		conflicting.Question = "Другой вопрос той же команды"
+		_, err = w.cases.IssueContinuationLink(ctx, conflicting)
+		if !errors.Is(err, casesDomain.ErrCommandKeyConflict) {
+			t.Fatalf("the same key with another material must answer the key conflict, got %v", err)
+		}
+	})
+
+	// Row 6 — the delivery binding: the sales reply with the link passes
+	// the frozen ladder and lands the delivered badge; the neutral reply
+	// with the link and the binding of an unknown link refuse honestly.
+	t.Run("row-06 reply binding: sales+link delivered; neutral+link 400; unknown link 400", func(t *testing.T) {
+		turn := w.modeTurnEvent(t, caseID, "sess-continuation-matrix-1", "evt-continuation-matrix-turn-1", `{"say":"сколько стоит замена"}`)
+		w.recordConfirmedFact(t, caseID, workItemID, "service_kind", `"диагностика"`, "evt-continuation-matrix-1", "matrix")
+		w.policySalesPrelude(t, caseID, conversationID, turn, "matrix-sales")
+		w.policyPrelude(t, caseID, conversationID, workItemID, "matrix-policy")
+		if _, err := w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
+			Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+			WorkItemID: workItemID, ExpectedEpoch: 1, ReplyClass: casesDomain.ReplyClassSales,
+			LinkID: linkA, Content: "Продолжим по защищённой ссылке",
+			IdempotencyKey: "matrix-reply-1", Now: now,
+		}); err != nil {
+			t.Fatal(err)
+		}
+		link := panelLink(linkA)
+		if !link.Delivered || link.State != casesDomain.ContinuationStateValid {
+			t.Fatalf("the bound link must carry the delivered badge and stay valid, got %+v", link)
+		}
+		_, err := w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
+			Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+			ExpectedEpoch: 1, ReplyClass: casesDomain.ReplyClassNeutral, LinkID: linkA,
+			Content: "нейтральное со ссылкой", IdempotencyKey: "matrix-reply-neutral", Now: now,
+		})
+		assertRuleError(t, err, "только коммерческий ответ")
+		_, err = w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
+			Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+			WorkItemID: workItemID, ExpectedEpoch: 1, ReplyClass: casesDomain.ReplyClassSales,
+			LinkID: nextContinuationProbeID(), Content: "sales с чужой ссылкой",
+			IdempotencyKey: "matrix-reply-unknown-link", Now: now,
+		})
+		assertRuleError(t, err, "не найдена")
+	})
+
+	// Row 7 — the valid surface: the tenant texts, the confirmed facts of
+	// THIS work item only, the open question and the honest limit.
+	t.Run("row-07 valid surface: texts + confirmed facts + limit", func(t *testing.T) {
+		surface, err := w.cases.ContinueSurface(ctx, issuedA.Token, now)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if surface.Kind != casesAPI.ContinuationSurfaceValid {
+			t.Fatalf("the fresh link must open the valid surface, got %s", surface.Kind)
+		}
+		if surface.Question != "Какой верный VIN?" {
+			t.Fatalf("the open question must travel, got %q", surface.Question)
+		}
+		found := false
+		for _, fact := range surface.Facts {
+			if fact.FactID == factID && fact.MaterialKey == "vin" && fact.ValueText == `"VIN0000000000180"` {
+				found = true
+			}
+		}
+		if !found || surface.LimitLeft != 1 {
+			t.Fatalf("the surface must carry the confirmed fact of the link work item and the limit, got %+v", surface)
+		}
+	})
+
+	// Row 8 — the unknown and the malformed tokens: the SAME generic
+	// refusal (the fail-closed parse is indistinguishable from the
+	// unknown hash).
+	t.Run("row-08 unknown/malformed token: the single generic refusal", func(t *testing.T) {
+		for _, badToken := range []string{"not-a-token", strings.Repeat("a", 63), strings.Repeat("a", 65), ""} {
+			if kind := surfaceKind(badToken, now); kind != casesAPI.ContinuationSurfaceInvalid {
+				t.Fatalf("the malformed token %q must render the generic refusal, got %s", badToken, kind)
+			}
+		}
+		unknown := issuedA.Token[:len(issuedA.Token)-1]
+		if issuedA.Token[len(issuedA.Token)-1] != 'A' {
+			unknown += "A"
+		} else {
+			unknown += "B"
+		}
+		if kind := surfaceKind(unknown, now); kind != casesAPI.ContinuationSurfaceInvalid {
+			t.Fatalf("the unknown hash must render the generic refusal, got %s", kind)
+		}
+	})
+
+	// Row 9 — the dead-link uniformity: the expired and the revoked words
+	// render the SAME generic refusal to the client (the causes are the
+	// operator panel material only).
+	t.Run("row-09 expired/revoked: the same generic refusal", func(t *testing.T) {
+		issuedB := issueLink("b", "Истёкший переход?", now.Add(-10*time.Minute), 5)
+		if kind := surfaceKind(issuedB.Token, now); kind != casesAPI.ContinuationSurfaceInvalid {
+			t.Fatalf("the expired link must render the generic refusal, got %s", kind)
+		}
+		issuedC := issueLink("c", "Отзываемый переход?", now, 30)
+		if _, err := w.cases.RevokeContinuationLink(ctx, casesAPI.RevokeContinuationLinkCommand{
+			Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, WorkItemID: workItemID,
+			LinkID: issuedC.Outcome.LinkID, Reason: "матричная строка 9: ожидание прекращено",
+			IdempotencyKey: "matrix-revoke-c", Now: now,
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if kind := surfaceKind(issuedC.Token, now); kind != casesAPI.ContinuationSurfaceInvalid {
+			t.Fatalf("the revoked link must render the generic refusal, got %s", kind)
+		}
+	})
+
+	// Row 10 — the public correction: the append-only unverified version
+	// with the protected-continuation provenance, the use row consuming
+	// the limit, the terminal surface afterwards. The consumed token
+	// stays for row 11 (the repeat fires the state gate BEFORE the fact
+	// gates — the honest double-click refusal).
+	var consumedToken string
+	t.Run("row-10 correction: unverified version + use + consumed", func(t *testing.T) {
+		issuedE := issueLink("e", "Исправьте VIN?", now, 30)
+		consumedToken = issuedE.Token
+		versionNo, err := w.cases.SubmitCorrection(ctx, issuedE.Token, factID, []byte(`"VIN0000000000999"`), now)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if versionNo != 2 {
+			t.Fatalf("the correction must write the version 2, got %d", versionNo)
+		}
+		var sourceType, sourceID, channel string
+		if err := adminPool.QueryRow(ctx, `
+			select source_type, source_id, channel from cases.fact_versions
+			where tenant_id=$1 and fact_id=$2 and version_no=2`,
+			w.tenant, factID).Scan(&sourceType, &sourceID, &channel); err != nil {
+			t.Fatal(err)
+		}
+		if sourceType != casesDomain.ContinuationCorrectionSourceType || sourceID != issuedE.Outcome.LinkID.String() || channel != casesDomain.FactChannelProtectedContinuation {
+			t.Fatalf("the corrected version must carry the protected-continuation provenance, got source=%s ref=%s channel=%s", sourceType, sourceID, channel)
+		}
+		if kind := surfaceKind(issuedE.Token, now); kind != casesAPI.ContinuationSurfaceConsumed {
+			t.Fatalf("the default limit of one submission must consume the link, got %s", kind)
+		}
+		link := panelLink(issuedE.Outcome.LinkID)
+		if link.State != casesDomain.ContinuationStateConsumed || link.AcceptedUses != 1 {
+			t.Fatalf("the panel must derive the consumed link with the 1-of-1 accounting, got %+v", link)
+		}
+	})
+
+	// Row 11 — the repeat submission at the exhausted limit: the honest
+	// refusal of the terminal page (the double-click of the PRG; the
+	// state gate fires before the fact gates).
+	t.Run("row-11 repeat at consumed: honest refusal", func(t *testing.T) {
+		_, err := w.cases.SubmitCorrection(ctx, consumedToken, factID, []byte(`"VIN0000000000222"`), now)
+		assertRuleError(t, err, casesDomain.ContinuationNotUsableText)
+	})
+
+	// Row 12 — the value guard: the canonical value over the 2 KiB bound
+	// refuses with the preserved-input re-render word; the limit is NOT
+	// consumed.
+	t.Run("row-12 value guard: 400 + limit intact", func(t *testing.T) {
+		issuedF := issueLink("f", "Значение вне границ?", now, 30)
+		longValue := []byte(`"` + strings.Repeat("V", 2100) + `"`)
+		_, err := w.cases.SubmitCorrection(ctx, issuedF.Token, factID, longValue, now)
+		assertRuleError(t, err, "длиннее")
+		surface, err := w.cases.ContinueSurface(ctx, issuedF.Token, now)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if surface.Kind != casesAPI.ContinuationSurfaceValid || surface.LimitLeft != 1 {
+			t.Fatalf("the refused value must never consume the limit, got %+v", surface)
+		}
+	})
+
+	// Row 13 — the fact gates: only the CONFIRMED fact of the work item of
+	// the link is correctable; the unconfirmed draft and the fact of
+	// another work item refuse with the same honest word.
+	t.Run("row-13 non-confirmed/foreign-WI fact: 400 + limit intact", func(t *testing.T) {
+		issuedF := issueLink("f2", "Чужие факты?", now, 30)
+		unconfirmed, unconfirmedErr := w.cases.RecordFact(ctx, casesAPI.RecordFactCommand{
+			Actor: w.workActor(), TenantID: w.tenant, CaseID: caseID, WorkItemID: workItemID,
+			MaterialKey: "note", Value: []byte(`"без подтверждения"`), SourceType: casesDomain.FactSourceOperator,
+			SourceID: "matrix-note-1", Reason: "матричная строка 13", IdempotencyKey: "matrix-fact-note", Now: now,
+		})
+		if unconfirmedErr != nil {
+			t.Fatal(unconfirmedErr)
+		}
+		if !unconfirmed.FactID.Valid() || unconfirmed.FactStatus == casesDomain.FactStatusConfirmed {
+			t.Fatalf("the unconfirmed fact row must land first, got %+v", unconfirmed)
+		}
+		_, err := w.cases.SubmitCorrection(ctx, issuedF.Token, unconfirmed.FactID, []byte(`"чужое значение"`), now)
+		assertRuleError(t, err, casesDomain.ContinuationFactNotCorrectableText)
+		created, err := w.cases.CreateWorkItem(ctx, casesAPI.CreateWorkItemCommand{
+			Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+			Type: "уточнение аналога", Title: "Третье намерение", Reason: "Матричная строка 13", IdempotencyKey: "matrix-create-wi-3", Now: now,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		foreignFact, foreignFactErr := w.cases.RecordFact(ctx, casesAPI.RecordFactCommand{
+			Actor: w.workActor(), TenantID: w.tenant, CaseID: caseID, WorkItemID: created.WorkItemID,
+			MaterialKey: "service_kind", Value: []byte(`"замена"`), SourceType: casesDomain.FactSourceOperator,
+			SourceID: "matrix-foreign-fact-1", Reason: "факт другого элемента", IdempotencyKey: "matrix-fact-foreign", Now: now,
+		})
+		if foreignFactErr != nil {
+			t.Fatal(foreignFactErr)
+		}
+		if _, err := w.cases.ConfirmFactVersion(ctx, casesAPI.ConfirmFactVersionCommand{
+			Actor: w.workActor(), TenantID: w.tenant, CaseID: caseID, FactID: foreignFact.FactID,
+			VersionNo: foreignFact.FactVersion, ConfirmerType: casesDomain.ConfirmerOperatorRelay,
+			Note: "подтверждён для строки 13", IdempotencyKey: "matrix-confirm-foreign-fact", Now: now,
+		}); err != nil {
+			t.Fatal(err)
+		}
+		_, err = w.cases.SubmitCorrection(ctx, issuedF.Token, foreignFact.FactID, []byte(`"чужой элемент"`), now)
+		assertRuleError(t, err, casesDomain.ContinuationFactNotCorrectableText)
+		surface, err := w.cases.ContinueSurface(ctx, issuedF.Token, now)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if surface.LimitLeft != 1 {
+			t.Fatalf("the fact-gate refusals must never consume the limit, got %+v", surface)
+		}
+	})
+
+	// Row 14 — the free events: the human request and the return are the
+	// use rows WITHOUT material and WITHOUT consumption; the Work Item,
+	// the facts and the owner stay byte-identical.
+	t.Run("row-14 human/return events: no consumption, no mutation", func(t *testing.T) {
+		before, err := w.cases.CaseView(ctx, w.ownershipActor(), w.tenant, caseID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		beforeVersion := int64(0)
+		for _, item := range before.WorkItems {
+			if item.WorkItemID == workItemID {
+				beforeVersion = item.Version
+			}
+		}
+		issuedG := issueLink("g", "События без расхода?", now, 30)
+		if err := w.cases.SubmitHuman(ctx, issuedG.Token, now); err != nil {
+			t.Fatal(err)
+		}
+		if err := w.cases.SubmitReturn(ctx, issuedG.Token, now); err != nil {
+			t.Fatal(err)
+		}
+		after, err := w.cases.CaseView(ctx, w.ownershipActor(), w.tenant, caseID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		afterVersion := int64(0)
+		for _, item := range after.WorkItems {
+			if item.WorkItemID == workItemID {
+				afterVersion = item.Version
+			}
+		}
+		if beforeVersion != afterVersion || after.Ownership.State.Current.Epoch != before.Ownership.State.Current.Epoch {
+			t.Fatalf("the events must never mutate the work item or the owner, versions %d→%d epochs %d→%d",
+				beforeVersion, afterVersion, before.Ownership.State.Current.Epoch, after.Ownership.State.Current.Epoch)
+		}
+		link := panelLink(issuedG.Outcome.LinkID)
+		if link.AcceptedUses != 0 || link.State != casesDomain.ContinuationStateValid {
+			t.Fatalf("the events must never consume the limit, got %+v", link)
+		}
+		var events int
+		if err := adminPool.QueryRow(ctx, `
+			select count(*) from cases.continuation_link_uses
+			where tenant_id=$1 and link_id=$2`, w.tenant, issuedG.Outcome.LinkID).Scan(&events); err != nil {
+			t.Fatal(err)
+		}
+		if events != 2 {
+			t.Fatalf("the two event rows must land, got %d", events)
+		}
+	})
+
+	// Row 15 — the revocation: the append-only row, the client generic
+	// refusal, the panel word and the honest second-refusal.
+	t.Run("row-15 revoke: row + generic refusal + panel word", func(t *testing.T) {
+		issuedG := issueLink("g2", "Отзываем события?", now, 30)
+		if _, err := w.cases.RevokeContinuationLink(ctx, casesAPI.RevokeContinuationLinkCommand{
+			Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, WorkItemID: workItemID,
+			LinkID: issuedG.Outcome.LinkID, Reason: "матричная строка 15",
+			IdempotencyKey: "matrix-revoke-g2", Now: now,
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if kind := surfaceKind(issuedG.Token, now); kind != casesAPI.ContinuationSurfaceInvalid {
+			t.Fatalf("the revoked link must render the generic refusal, got %s", kind)
+		}
+		if link := panelLink(issuedG.Outcome.LinkID); link.State != casesDomain.ContinuationStateRevoked {
+			t.Fatalf("the panel must derive the revoked word, got %+v", link)
+		}
+		_, err := w.cases.RevokeContinuationLink(ctx, casesAPI.RevokeContinuationLinkCommand{
+			Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, WorkItemID: workItemID,
+			LinkID: issuedG.Outcome.LinkID, Reason: "повторный отзыв",
+			IdempotencyKey: "matrix-revoke-g2-again", Now: now,
+		})
+		assertRuleError(t, err, casesDomain.ContinuationAlreadyRevokedText)
+	})
+
+	// Row 16 — the ownership epoch: the take lands the term of the epoch 2
+	// — the link of the epoch-1 pin derives owner_stale and the client
+	// surface answers the same generic refusal.
+	t.Run("row-16 owner epoch+1: owner_stale without disclosure", func(t *testing.T) {
+		issuedD := issueLink("d", "Владение сменилось?", now, 30)
+		request, err := w.cases.RequestTransfer(ctx, casesAPI.RequestTransferCommand{
+			Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ExpectedEpoch: 1,
+			ToOwnerKind: casesDomain.OwnerKindHuman, ToOwnerRef: w.backup,
+			WritableSurface: casesDomain.WritableSurfaceInbox, Reason: "матричная строка 16: смена владельца",
+			IdempotencyKey: "matrix-transfer-1", Now: now,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		acknowledge, err := w.cases.ResolveTransfer(ctx, casesAPI.ResolveTransferCommand{
+			Actor: w.backupActor(), TenantID: w.tenant, CaseID: caseID, RequestID: request.TransferRequestID,
+			Decision: casesDomain.TransferResolutionAcknowledged, Reason: "принимаю владение",
+			IdempotencyKey: "matrix-transfer-ack-1", Now: now,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if acknowledge.Epoch != 2 {
+			t.Fatalf("the acknowledged transfer must land the epoch 2, got %+v", acknowledge)
+		}
+		if link := panelLink(issuedD.Outcome.LinkID); link.State != casesDomain.ContinuationStateOwnerStale {
+			t.Fatalf("the panel must derive the owner-stale word, got %+v", link)
+		}
+		if kind := surfaceKind(issuedD.Token, now); kind != casesAPI.ContinuationSurfaceInvalid {
+			t.Fatalf("the owner-stale link must render the generic refusal, got %s", kind)
+		}
+	})
+
+	// Row 18 — the OpenAPI contract mirrors the dictionaries and the
+	// honest codes of the two operator paths (the deep contract test runs
+	// in the contract family; this row pins the traceable mirror).
+	t.Run("row-18 OpenAPI: two paths mirror the dictionaries and codes", func(t *testing.T) {
+		contract, err := os.ReadFile("../../contracts/openapi/staffy.yaml")
+		if err != nil {
+			t.Fatal(err)
+		}
+		text := string(contract)
+		for _, word := range []string{
+			"/v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/continuation-links",
+			"issueContinuationLink", "revokeContinuationLink",
+			"ContinuationLinkIssueRequest", "ContinuationIssuance", "ContinuationLinkRevokeRequest",
+			"enum: [fact_correction]", "review или configuration", "command_key_conflict",
+		} {
+			if !strings.Contains(text, word) {
+				t.Fatalf("the contract must mirror %q", word)
+			}
+		}
+	})
+
+	// Row 19 — the RLS/grants discipline of the migration (the live probe
+	// of the family above; the row keeps the traceable core).
+	t.Run("row-19 RLS + INSERT/SELECT-only", func(t *testing.T) {
+		for _, table := range []string{"continuation_links", "continuation_link_uses", "continuation_link_revocations"} {
+			var rls, force bool
+			if err := runtimePool.QueryRow(ctx, `
+				select relrowsecurity, relforcerowsecurity from pg_class
+				where relnamespace='cases'::regnamespace and relname=$1`, table).Scan(&rls, &force); err != nil {
+				t.Fatal(err)
+			}
+			if !rls || !force {
+				t.Fatalf("%s must carry RLS + FORCE", table)
+			}
+			for _, grant := range []string{"UPDATE", "DELETE", "TRUNCATE"} {
+				var allowed bool
+				if err := runtimePool.QueryRow(ctx, `select has_table_privilege('staffy_app', $1, $2)`, "cases."+table, grant).Scan(&allowed); err != nil {
+					t.Fatal(err)
+				}
+				if allowed {
+					t.Fatalf("%s on cases.%s must never be granted", grant, table)
+				}
+			}
+		}
+	})
+
+	// Row 20 — the foreign tenant IN the token: the same random half with
+	// another tenant candidate finds no row under the honest scope (the
+	// AD-10 discipline — the hash verifies before any material).
+	t.Run("row-20 foreign tenant in token: empty lookup, generic refusal", func(t *testing.T) {
+		_, random, err := casesDomain.ParseContinuationToken(issuedA.Token)
+		if err != nil {
+			t.Fatal(err)
+		}
+		foreignTenant := id.MustParse("019a2f4c-6000-7000-8000-0000000000ee")
+		foreignToken, err := casesDomain.EncodeContinuationToken(foreignTenant, random)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if kind := surfaceKind(foreignToken, now); kind != casesAPI.ContinuationSurfaceInvalid {
+			t.Fatalf("the foreign tenant candidate must render the generic refusal, got %s", kind)
+		}
+	})
+
+	// Row 21 — the journeys chain: the row IS the spec.ts chain of the
+	// real transport (the acceptance of step-04 — the chain runs in the
+	// playwright contour, not here).
+	t.Run("row-21 journeys chain (the spec.ts run)", func(t *testing.T) {
+		t.Skip("the journeys chain zzz(20)-cases-continuation.spec.ts walks this row on the real transport")
+	})
 }
