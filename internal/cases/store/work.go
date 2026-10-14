@@ -481,6 +481,18 @@ func (s *Postgres) ExecuteWorkCommand(ctx context.Context, p casesPort.WorkComma
 		// truth, the UNIQUE backstop catches the races the locks already
 		// serialize).
 		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID), conversationLockKey(tenantID, p.ConversationID))
+	case "record_route_degradation":
+		// The Story 2.12 degradation record: the case + conversation keys —
+		// the same sorted plan (the readDegradationsTx read of the evaluation
+		// serializes on the identical key set; the route guard and the
+		// revision derivation are the lock-visible truth).
+		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID), conversationLockKey(tenantID, p.ConversationID))
+	case "record_delivery_evidence":
+		// The Story 2.12 delivery evidence: the case + the reply's
+		// conversation keys — the same sorted plan (the reply guard
+		// re-validates the conversation under the locks; the event number
+		// derivation is the lock-visible truth).
+		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID), conversationLockKey(tenantID, p.ConversationID))
 	case "issue_continuation_link", "revoke_continuation_link":
 		// The continuation commands: the case key serializes the owner
 		// epoch read of the issuance pin (the ownership writers hold the
@@ -570,6 +582,10 @@ func (s *Postgres) ExecuteWorkCommand(ctx context.Context, p casesPort.WorkComma
 		err = s.execRevokeContinuationLink(ctx, tx, tenantID, p, now)
 	case "record_accommodation":
 		err = s.execRecordAccommodation(ctx, tx, tenantID, p, now)
+	case "record_route_degradation":
+		err = s.execRecordRouteDegradation(ctx, tx, tenantID, p, now)
+	case "record_delivery_evidence":
+		err = s.execRecordDeliveryEvidence(ctx, tx, tenantID, p, now)
 	default:
 		err = fmt.Errorf("неизвестная команда %s", p.Command)
 	}
