@@ -2060,3 +2060,17 @@ done:
 - Коммит ветки fb84257 [skip ci]; DEVLOG-запись (эта) на main; push отложен до токена (unpushed: ветка 1 + main 1 — прецедент 56/57/58, том персистентен)
 next: CHECKPOINT 1 — предъявление спеки 2-11 владельцу нетехническим пересказом в ответе сессии (дисциплина 52-sm: явное одобрение отдельным ответом); при одобрении → спека+sprint-status → ready-for-dev, публикация батча свежим токеном, Dev step-01..05
 commit: (sm — спека fb84257 на ветке; DEVLOG — эта запись)
+
+---
+date: 2026-10-14
+task: 57-sm
+role: main (Super Z)
+story: 2-11
+summary: CHECKPOINT 1 по story 2-11 закрыт — владелец явно одобрил спеку первого среза «записанные preferences связи + честные альтернативы Policy» («одобряю», чат 2026-10-14, с передачей свежего токена публикации); спека+sprint-status → ready-for-dev; Dev-фаза стартует
+done:
+- Одобрение владельца: «одобряю» + свежий токен (чат 2026-10-14) — явное одобрение по дисциплине 52-sm (самопродолжение «продолжай» чекпоинт не закрывает; прецедент 2-7 df0ffbc / 2-8 8449411 / 2-9 a1ece27 / 2-10 6d8773f+e887e27)
+- Спека: status → ready-for-dev, поле «Решение владельца» заполнено, Change Log +1 (замороженные секции Intent/Boundaries/Matrix не тронуты — дифф = status + решение + Change Log); sprint-status 2-11 → ready-for-dev; коммит ветки 68b6d3a [skip ci]
+- Публикация батча свежим токеном: ветка codex/story-2-11-equal-access-alternative-paths fb84257→68b6d3a (спека SM + CHECKPOINT 1) запушена; main DEVLOG — этот коммит
+- Токен публикации в руках сессии (env, маска github_pat_***) — CHECKPOINT 2 (PR/CI ×3/merge) без паузы
+next: Dev step-01 — домен и словари (accommodation.go: словари 8 ключей flag/valued + слова альтернатив с честными текстами ограничений + карта usual-модальности v0, DeriveCurrentAccommodations read-time, GuardAccommodationRecord, GuardSalesReplyAccuracy required/foreign/подмножество исхода — зеркало 2-8; расширение EvaluatePolicy: 4-й вход preferences, active_alternatives, fail_closed no_alternative_path, rule_version intake-policy-v2, digest v2; unit-тесты включая контрольные ветки байт-в-байт и порядок деривации)
+commit: (checkpoint-1 — спека 68b6d3a на ветке; DEVLOG — эта запись)
