@@ -2017,3 +2017,18 @@ done:
 - Регресс: build/vet, unit все пакеты ok, интеграция 169 ×2 TZ (UTC+Europe/Moscow, -count=1, живой PG), контракт, journeys 27/27 (1.2m), gofmt диффа чист (базовые 3 не-gofmt файла фикстур entitlement/profile/release — пре-существующие, не мои)
 next: step-05 — финальный полный регресс (build/vet/unit/интеграция ×2 TZ/journeys/контракт/gofmt/diff-check) + closure коммит БЕЗ [skip ci]: спека+sprint-status → done (R-цикл ревью при необходимости), DEVLOG 55-close, union main; далее CHECKPOINT 2 — PR + CI ×3 + merge
 commit: 0daecb4 (ветка; main-devlog эта запись)
+
+---
+date: 2026-10-14
+task: 55-close
+role: main (Super Z)
+story: 2-10
+summary: Closure среза 2-10 — QA-саморевью PASS (2 пиннинг-пробела закрыты в step-05: row-17 панель собственным subtest, wire-маска form-replay; Major-находок нет — дисциплины 2-9 R1 применены с проектирования: сортированный lock-план, store-ревалидация под локами, AD-10 зондами); спека+sprint-status → done (замороженные секции не тронуты); union main (2d24278); ветка готова к CHECKPOINT 2 (PR + CI ×3 + merge); Epic 2: 10/16
+done:
+- step-05 fd29c30 БЕЗ skip ci (CI-гейт закрытия): QA-саморевью свежим контекстом по диффу шагов 01-04 — найдены и закрыты 2 пиннинг-пробела (не продукт): матричная row-17 агрегатом панели (8 ссылок/состояния/единственная delivered/лента/маска) и wire-нога honest-маски form-replay (re-render без карточки); продуктовый код шагов 01-04 просмотрен против спеки: lock-план SubmitContinuationCorrection глобально сортирован (урок 2-9 R1), состояние/факт/epoch ревалидируются store-стороны под локами, случайный токен никогда не входит в replay-материал/outbox/исход (зонды), AD-10 хеш-верификация tenant-кандидата до материала (row-20 + RLS-lookup), delivered-связка ревалидируется store exists (гейт после commitment — лестница 2-10→write)
+- Финальный регресс всех контуров свежими прогонами: build, vet (модуль+integration-тег), unit 23 пакета ok, интеграция 169 ×2 TZ (UTC 14.5s / Europe/Moscow 14.0s, -count=1, живой PG), контракт, journeys 27/27 (1.2m), gofmt диффа чист, дерево чистое
+- Спека → done (status + Change Log запись цикла; дифф от CHECKPOINT 1 = только status+Change Log); sprint-status 2-10 → done; Epic 2: 10/16
+- Дерево ветки: спека 77e174b → CHECKPOINT 1 6d8773f (одобрение «одобряю») → пре-шаг флэйка 3ff4d0a → step-01 2adf100 → step-02 de47763 → step-03 c4b6199 → step-03 хвост 7d82088 → step-04 0daecb4 (матрица+journeys, опубликован) → step-05 fd29c30 (без skip ci) → union 2d24278 → closure (эта запись)
+- Публикация батча шагов 02-04 свежим токеном владельца (чаты 2026-10-14): ветка 7d82088→0daecb4, main fd9076a→74b04d0; check-continuity OK до и после (fail=0, warn=0)
+next: CHECKPOINT 2 — PR из ветки в main, CI ×3 зелёный (полный конвейер Go+PG+Playwright — коммиты step-05 и closure без skip ci), merge, DEVLOG 55-merge; далее SM-фаза story 2-11 (равноправные альтернативные пути) по epics.md
+commit: (closure — эта запись на ветке; спека/sprint-status/DEVLOG одним docs-коммитом)
