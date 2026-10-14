@@ -1963,3 +1963,20 @@ decisions:
 - LookupContinuationByTokenHash принимает now от вызывающего (app инжектит свой клок — детерминизм зонда и производная честность момента)
 next: Dev step-03 — app-команды с гейтами и replay (IssueContinuationLink/RevokeContinuationLink: скоуп review ДО стражей по прецеденту M1), ContinueSurface (материал страницы: имя Tenant identity-сервисом, резюме подтверждённых фактов WI, вопрос), SubmitCorrection/SubmitHuman/SubmitReturn (public-гейты), транспорт: операторские POST /v1/.../continuation-links (+revoke JSON+PRG) и публичные GET/POST /continue/{token} (без аутентификации, generic-отказы единым кодом, PRG 303), панель case.html + continuation.html (a11y 320px/44px/aria-live/без preselect), OpenAPI +2 пути + контракт-тест
 commit: de47763
+
+---
+date: 2026-10-14
+task: 55-dev-step-03-core
+role: main (Super Z)
+story: 2-10
+summary: Dev step-03 ядро закрыто (c4b6199, без транспорта — поверхности следующим заходом): app-команды Issue/Revoke с гейт-лестницей и одноразовым токеном в ответе, публичная ContinueSurface с generic-отказами без различения причин, публичные сабмиты, api DTO, +4 метода репозитория, 4-й сервис-зонд (168 интеграционных ×2 TZ зелёные)
+done:
+- IssueContinuationLink: скоуп-гейт ДО стражей (M1), гварды, request-hash БЕЗ случайного токена (рандом один раз на исполнение), replay = маска «выдан» с пустым URL (токен невосстановим — потерянный URL = ревокация+новая выдача), ответ несёт URL+Token одноразово; гонка идентичной выдачи = replay-исход (токен этого исполнения отбрасывается)
+- RevokeContinuationLink: гейт+reason+replay; ContinueSurface: fail-closed парсинг неотличим от unknown-hash (kind=invalid единый для unknown/foreign/expired/revoked/owner_stale — клиент никогда не видит причину), consumed=терминальная страница, valid=материал (подтверждённые факты только этого WI, лимит); SubmitCorrection (гвард значения ДО транзакции — re-render с сохранённым вводом), SubmitHuman/SubmitReturn
+- Публичный скоуп: тенант из токена (hash-верификация ДО материала — AD-10), principal инертен, actor строк = резолвнутая ссылка
+- api: команды+ContinuationIssuance+ContinuationSurface+представления панели+ContinuationURLPath+роль-константа «ИИ-сотрудник» (employee-контур не читается публичной страницей — честная граница)
+- WorkOutcome +LinkID/ContinuationIssued/ContinuationExpires (токен никогда в хранимом исходе — зонд проверяет)
+- Сервис-зонды: одноразовый URL 64-символа, replay-маска, поверхность, потребление, мёртвые ссылки, битые токены fail-closed, ревокация+повтор, audit-only 403 скоуп-словами, stored-outcome без токена
+- Пуша нет (токен истёк — прецедент 52-sm): ветка 2 (de47763, c4b6199) + main 2 (66278f8, эта запись) ждут CHECKPOINT 2
+next: step-03 хвост — транспорт: cases_continuation.go (операторские POST /v1/tenants/{t}/cases/{c}/work-items/{wi}/continuation-links JSON + {id}/revoke, PRG-формы) и continuation_public.go (GET/POST /continue/{token}/{correct|human|return} без аутентификации, PRG 303, generic-страницы единым кодом, re-render с сохранённым вводом), шаблоны continuation.html + case.html секция (a11y: 320px/44px/aria-live/без preselect), регистрация маршрутов в server.go, OpenAPI +2 пути (схемы зеркальны словарям) + TestContinuationContractIsHonest, затем step-04 (матрица поимённо + journeys zzz(20)) и step-05 (полный регресс, closure-коммит БЕЗ [skip ci] — CI-гейт)
+commit: c4b6199
