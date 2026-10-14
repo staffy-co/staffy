@@ -11,9 +11,11 @@ import (
 	"testing"
 	"time"
 
+	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
 	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
 	casesPort "github.com/artemiosu/staffy/internal/cases/port"
 	casesStore "github.com/artemiosu/staffy/internal/cases/store"
+	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
 	"github.com/artemiosu/staffy/internal/platform/id"
 	"github.com/artemiosu/staffy/internal/platform/tenancy"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -843,5 +845,214 @@ func TestContinuationStoreIssueLookupSubmit(t *testing.T) {
 	if envelopes["case.continuation_link_issued"] != 2 || envelopes["case.continuation_submitted"] != 2 ||
 		envelopes["case.continuation_human_requested"] != 1 || envelopes["case.continuation_returned"] != 0 {
 		t.Fatalf("the continuation envelopes are wrong: %+v", envelopes)
+	}
+}
+
+// TestContinuationServiceCommandsSurface exercises the app layer of the
+// slice through the real service (the 2.9 matrix precedent): the fresh
+// issuance answer carries the one-time URL token, the replayed command
+// returns the honest mask (the token is never reconstructible — the old
+// link never resurrects), the public surface material reads the
+// confirmed facts of the Work Item of the link, the correction consumes
+// the limit through the service and the dead-link refusals stay generic
+// (the service answer never distinguishes the causes to the caller).
+func TestContinuationServiceCommandsSurface(t *testing.T) {
+	w := newCasesWorld(t, 978)
+	ctx := context.Background()
+	caseID, workItemID := w.acceptedCase(t, "evt-continuation-service-1", "sess-continuation-service-1", `{"call":"inbound-call","from":"+79000000137"}`)
+	now := ownershipNow
+
+	// The confirmed fact of the Work Item (the admin inserts — the
+	// DB-probe precedent): the correctable select of the surface.
+	factID := nextContinuationProbeID()
+	value, digest, valueErr := casesDomain.FactValue([]byte(`"VIN0000000000001"`))
+	if valueErr != nil {
+		t.Fatal(valueErr)
+	}
+	if _, err := adminPool.Exec(ctx, `
+                insert into cases.facts (tenant_id, case_id, fact_id, material_key, created_at)
+                values ($1,$2,$3,$4,$5)`, w.tenant, caseID, factID, "vin", now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := adminPool.Exec(ctx, `
+                insert into cases.fact_versions (tenant_id, case_id, fact_id, version_no, work_item_id, material_key,
+                        value, value_digest, source_type, source_id, channel, actor_id, observed_at, received_at, created_at)
+                values ($1,$2,$3,1,$4,'vin',$5::jsonb,$6,'operator','probe-command-key-service-1','operator',$7,$8,$9,$10)`,
+		w.tenant, caseID, factID, workItemID, string(value), digest, w.ownershipActor().ID, now, now, now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := adminPool.Exec(ctx, `
+                insert into cases.fact_confirmations (tenant_id, fact_id, confirmation_id, version_no, confirmer_type,
+                        evidence_event_id, note, actor_id, created_at)
+                values ($1,$2,$3,1,'operator_relay',null,$4,$5,$6)`,
+		w.tenant, factID, nextContinuationProbeID(), "подтверждено перечиткой", w.ownershipActor().ID, now); err != nil {
+		t.Fatal(err)
+	}
+
+	// The fresh issuance: the answer carries the one-time capability
+	// (the URL with the opaque token) and the expiry; the command
+	// record carries the masked outcome only.
+	issuance, err := w.cases.IssueContinuationLink(ctx, casesAPI.IssueContinuationLinkCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, WorkItemID: workItemID,
+		Purposes: []string{casesDomain.ContinuationPurposeFactCorrection},
+		Question: "Проверьте VIN автомобиля", Explanation: "Переход для исправления одного факта.",
+		ParticipantRef: "client+79000000137", TTLMinutes: 30,
+		IdempotencyKey: "continuation-service-issue-1", Now: now,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if issuance.URL == "" || issuance.Token == "" || !issuance.Outcome.ContinuationIssued || !issuance.Outcome.LinkID.Valid() {
+		t.Fatalf("the fresh issuance must carry the one-time capability material, got %+v", issuance)
+	}
+	if len(issuance.Token) != 64 || issuance.URL != casesAPI.ContinuationURLPath(issuance.Token) {
+		t.Fatalf("the capability token must be the opaque 64-char base64url half, got %q", issuance.Token)
+	}
+	if !issuance.Expires.After(now) {
+		t.Fatalf("the expiry must follow the issuance moment, got %v", issuance.Expires)
+	}
+
+	// The replay of the exact repeat: the honest mask — the token is
+	// never reconstructible from the storage (the stored hash is the
+	// only trace; a lost URL means a revocation and a fresh issuance).
+	replay, err := w.cases.IssueContinuationLink(ctx, casesAPI.IssueContinuationLinkCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, WorkItemID: workItemID,
+		Purposes: []string{casesDomain.ContinuationPurposeFactCorrection},
+		Question: "Проверьте VIN автомобиля", Explanation: "Переход для исправления одного факта.",
+		ParticipantRef: "client+79000000137", TTLMinutes: 30,
+		IdempotencyKey: "continuation-service-issue-1", Now: now,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if replay.URL != "" || replay.Token != "" || !replay.Outcome.Replay {
+		t.Fatalf("the replayed issuance must carry the honest mask and never the token, got %+v", replay)
+	}
+
+	// The public surface material: the token of the fresh answer opens
+	// the page — the confirmed fact of the Work Item appears in the
+	// correctable select, the operator texts travel, the limit is
+	// honest; the role word of the slice is the constant.
+	surface, err := w.cases.ContinueSurface(ctx, issuance.Token, now.Add(time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if surface.Kind != casesAPI.ContinuationSurfaceValid {
+		t.Fatalf("the fresh link must open the valid surface, got %s", surface.Kind)
+	}
+	if surface.Question != "Проверьте VIN автомобиля" || surface.Explanation != "Переход для исправления одного факта." {
+		t.Fatalf("the surface texts are wrong: %+v", surface)
+	}
+	if len(surface.Facts) != 1 || surface.Facts[0].FactID != factID || surface.Facts[0].MaterialKey != "vin" {
+		t.Fatalf("the correctable select must carry the confirmed fact of the work item, got %+v", surface.Facts)
+	}
+	if surface.Facts[0].ValueText != `"VIN0000000000001"` {
+		t.Fatalf("the fact rendering must show the confirmed value, got %q", surface.Facts[0].ValueText)
+	}
+	if surface.LimitLeft != 1 {
+		t.Fatalf("the limit of the default issuance is one submission, got %d", surface.LimitLeft)
+	}
+
+	// The public correction through the service: the new unverified
+	// version №2 lands, the surface turns consumed (the default limit
+	// of one), the landing announces the honest «отправлено».
+	versionNo, err := w.cases.SubmitCorrection(ctx, issuance.Token, factID, []byte(`"VIN0000000000009"`), now.Add(2*time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if versionNo != 2 {
+		t.Fatalf("the correction must write the version 2, got %d", versionNo)
+	}
+	surface, err = w.cases.ContinueSurface(ctx, issuance.Token, now.Add(3*time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if surface.Kind != casesAPI.ContinuationSurfaceConsumed {
+		t.Fatalf("the consumed link must render the terminal page, got %s", surface.Kind)
+	}
+
+	// The dead-link actions refuse with the same generic word (the
+	// client never sees the cause — the consumed, the expired, the
+	// revoked and the unknown token are one refusal).
+	_, err = w.cases.SubmitCorrection(ctx, issuance.Token, factID, []byte(`"VIN0000000000010"`), now.Add(4*time.Minute))
+	assertRuleError(t, err, "недоступна для действий")
+	if err := w.cases.SubmitHuman(ctx, issuance.Token, now.Add(5*time.Minute)); err == nil {
+		t.Fatal("the consumed link must refuse the event actions")
+	}
+	// The unknown token and the malformed token: the SAME generic
+	// surface refusal (the fail-closed parse is indistinguishable from
+	// the unknown hash).
+	for _, badToken := range []string{"not-a-token", strings.Repeat("a", 63), strings.Repeat("a", 65), ""} {
+		surface, err = w.cases.ContinueSurface(ctx, badToken, now.Add(6*time.Minute))
+		if err != nil {
+			t.Fatalf("the malformed token %q must answer the generic surface, got %v", badToken, err)
+		}
+		if surface.Kind != casesAPI.ContinuationSurfaceInvalid {
+			t.Fatalf("the malformed token %q must render the generic refusal, got %s", badToken, surface.Kind)
+		}
+	}
+
+	// The revocation through the service: the append-only row lands and
+	// the read-time derivation blocks the surface (the generic refusal
+	// of the client side; the exact word stays the operator panel
+	// material). The second revoke of the same link refuses honestly.
+	second, err := w.cases.IssueContinuationLink(ctx, casesAPI.IssueContinuationLinkCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, WorkItemID: workItemID,
+		Purposes: []string{casesDomain.ContinuationPurposeFactCorrection},
+		Question: "Проверьте марку", Explanation: "Второй переход.",
+		ParticipantRef: "client+79000000137", TTLMinutes: 15,
+		IdempotencyKey: "continuation-service-issue-2", Now: now,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = w.cases.RevokeContinuationLink(ctx, casesAPI.RevokeContinuationLinkCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, WorkItemID: workItemID,
+		LinkID: second.Outcome.LinkID, Reason: "клиент вернулся в разговор, ожидание прекращено",
+		IdempotencyKey: "continuation-service-revoke-1", Now: now,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	surface, err = w.cases.ContinueSurface(ctx, second.Token, now.Add(time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if surface.Kind != casesAPI.ContinuationSurfaceInvalid {
+		t.Fatalf("the revoked link must render the generic refusal, got %s", surface.Kind)
+	}
+	if _, err = w.cases.RevokeContinuationLink(ctx, casesAPI.RevokeContinuationLinkCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, WorkItemID: workItemID,
+		LinkID: second.Outcome.LinkID, Reason: "повторный отзыв",
+		IdempotencyKey: "continuation-service-revoke-2", Now: now,
+	}); err == nil {
+		t.Fatal("the second revocation of the same link must refuse")
+	}
+
+	// The scope gate: the audit-only member never issues (the honest
+	// forbidden word BEFORE every material guard — the M1 precedent).
+	auditor := inviteMember(t, w.identity, w.readinessActor(true), w.tenant, "continuation-auditor-978@example.org", "expert_qa", []identityDomain.Scope{identityDomain.Audit}, "000000009781", "000000009782")
+	audit := actorPrincipal{principalID: auditor.ID, stepUp: true}.principal()
+	_, err = w.cases.IssueContinuationLink(ctx, casesAPI.IssueContinuationLinkCommand{
+		Actor: audit, TenantID: w.tenant, CaseID: caseID, WorkItemID: workItemID,
+		Purposes: []string{casesDomain.ContinuationPurposeFactCorrection},
+		Question: "Вопрос", Explanation: "Объяснение",
+		ParticipantRef: "client+79000000137", TTLMinutes: 30,
+		IdempotencyKey: "continuation-service-issue-audit", Now: now,
+	})
+	if !errors.Is(err, identityDomain.ErrForbidden) || !strings.Contains(err.Error(), "review или configuration") {
+		t.Fatalf("the audit-only member must be forbidden before the material guards, got %v", err)
+	}
+
+	// The stored outcome never carries the token: the command record of
+	// the fresh issuance carries the link id and the mask word only.
+	var storedOutcome string
+	if err := adminPool.QueryRow(ctx, `
+                select outcome::text from cases.command_records
+                where tenant_id=$1 and command='issue_continuation_link' and idempotency_key=$2`,
+		w.tenant, "continuation-service-issue-1").Scan(&storedOutcome); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(storedOutcome, issuance.Token) || strings.Contains(storedOutcome, "token") {
+		t.Fatalf("the stored outcome must never carry the capability token, got %s", storedOutcome)
 	}
 }

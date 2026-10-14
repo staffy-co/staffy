@@ -407,7 +407,13 @@ type WorkOutcome struct {
 	ConfirmationID    id.UUID `json:"confirmation_id,omitempty"`
 	SubjectKind       string  `json:"subject_kind,omitempty"`
 	DeclineID         id.UUID `json:"decline_id,omitempty"`
-	DeclineOutcome    string  `json:"decline_outcome,omitempty"`
+	DeclineOutcome    string  `json:"decline_outcome,omitempty"` // The Story 2.10 material: the continuation link of the issued or
+	// revoked command (the token NEVER enters the stored outcome — the
+	// replay shows the honest «выдан» mask and the empty URL), the
+	// issuance flag with the expiry moment.
+	LinkID              id.UUID   `json:"link_id,omitempty"`
+	ContinuationIssued  bool      `json:"continuation_issued,omitempty"`
+	ContinuationExpires time.Time `json:"continuation_expires_at,omitempty"`
 }
 
 // FactView is one fact of the facts view: the anchor, the derived status,

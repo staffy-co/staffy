@@ -298,6 +298,30 @@ type Repository interface {
 	// outgoing sales replies of one case (the exact (commitment, version)
 	// pairs — the presentation gate input of the confirm command and the
 	// panel).
+	// Story 2.10 — the continuation surface:
+	// LookupContinuationByTokenHash resolves one continuation link by
+	// the SHA-256 of the opaque token half under the tenant scope (the
+	// AD-10 honesty: the hash is the ONLY lookup key — the scope
+	// candidate from the token is verified by the hash BEFORE any case
+	// material is read) and derives the read-time state of the given
+	// moment. ErrNotFound is the generic-refusal material of the public
+	// surface (the caller never distinguishes the causes to the client).
+	LookupContinuationByTokenHash(ctx context.Context, scope tenancy.Context, tokenHash []byte, now time.Time) (casesDomain.ContinuationLinkLookup, error)
+	// SubmitContinuationCorrection writes one public fact correction in
+	// a single transaction (the append-only fact version in the
+	// unverified state with the protected-continuation provenance, the
+	// limit-consuming use row and the metadata-only outbox event); the
+	// answer carries the new version number of the fact.
+	SubmitContinuationCorrection(ctx context.Context, p ContinuationCorrectionParams) (int64, error)
+	// SubmitContinuationEvent writes one public human/return event (the
+	// use row without material and without consumption + the outbox
+	// event; nothing is ever mutated).
+	SubmitContinuationEvent(ctx context.Context, p ContinuationEventParams) error
+	// ReadContinuations reads the whole continuation material of one
+	// case (the links, the use feed, the revocations and the delivered
+	// binding — the operator panel input; the states are derived
+	// read-time).
+	ReadContinuations(ctx context.Context, scope tenancy.Context, caseID id.UUID) (ContinuationPanelMaterial, error)
 	ReadPresentedCommitments(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]casesDomain.PresentedCommitment, error)
 	// ReadCommitmentKey reads (or creates on the first use) the per-tenant
 	// commitment key of the content binding (the ensure pattern of the
