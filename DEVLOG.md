@@ -2170,3 +2170,16 @@ done:
 - Публикация: ветка и main синхронны с origin на входе шага (0255eed / faf5487); check-continuity OK (fail=0, warn=1 транзиентный TBD-формат, самоисцелится записью closure с SHA)
 next: CHECKPOINT 2 — PR из ветки в main, CI ×3 зелёный (полный конвейер Go+PG+Playwright — коммиты step-05 и closure без skip ci), merge, DEVLOG 60-merge; далее SM-фаза story 2-12 (callback/degraded-контур тайминга) по epics.md
 commit: (closure — эта запись на ветке; спека/sprint-status/DEVLOG одним docs-коммитом)
+---
+date: 2026-10-15
+task: 60-merge
+role: main (Super Z)
+story: 2-11
+summary: Story 2-11 «Равноправные альтернативные пути обслуживания» (первый срез) ПОЛНОСТЬЮ ЗАКРЫТА и ВЛИТА: PR #26, merge 6996c02, CI ×3 зелёный (push + PR runs c34365e, merge-run 6996c02), Epic 2: 11/16
+done:
+- CHECKPOINT 2 выполнен без паузы (токен публикации в руках сессии с CHECKPOINT 1): push ветки 0255eed..c34365e (4 коммита: step-05 feat a75ac4e БЕЗ skip ci, DEVLOG 59-dev-step-05 3c8ea49, union main a1f1f26, closure c34365e БЕЗ skip ci); PR #26 создан API (base main, head ветка); CI ×2 (push+PR runs на c34365e) зелёные; merge 6996c02 (merge-метод merge — прецедент 53dca45); merge-run CI зелёный = CI ×3; локальный main синхронизирован с origin (pull)
+- Дерево ветки слито целиком: fb84257 (спека SM) → 68b6d3a (CHECKPOINT 1 «одобряю»+токен) → c9dc6e7 (step-01 домен) → 0180e21 (step-02 миграция 00011+стор) → 5c18c36 (step-03 команды/гейты/транспорт/поверхности) → f4513af (step-04 матрица+journeys) → a75ac4e (step-05 QA: TestAccommodationContractIsHonest написан, гигиена scripts/) → a1f1f26 (union main) → c34365e (closure: спека+sprint-status → done) → 6996c02 (merge PR #26)
+- Токен из чата использован по протоколу AGENTS.md (только env STAFFY_GH_TOKEN / инлайн push, в логах маска github_pat_***); проверка валидности API-вызовом user (200, artemiosu)
+- Merged tree проверен: scripts/ репо несёт ровно 3 операционных скрипта (bootstrap/check-continuity/git-credential) — гигиена step-05 влита
+next: SM-фаза story 2-12 «Callback и честный тайминг» (epics.md §2.12: таймлайн причины, деградированные слоты, обещание времени следующего обновления — AC-блок 7 PRD FR-27); перед стартом проверить deferred-work на открытые долги; входы: epics/PRD/ARCH-SPINE/механика 2-6 (исходы)/2-11 (preferences/альтернативы)
+commit: (merge-запись; PR #26 = 6996c02)
