@@ -1927,3 +1927,18 @@ done:
 - Токен публикации в руках сессии — CHECKPOINT 2 (PR/CI/merge) пройдёт без паузы
 next: Dev step-01 — домен и словари продолжения (continuation.go: словари целей/использования, гварды issuance, DeriveContinuationLinkState, токен-кодирование; unit-тесты включая opaque-инвариант и порядок деривации)
 commit: TBD
+
+---
+date: 2026-10-14
+task: 55-dev-step-01
+role: main (Super Z; dev-субагент исчерпал лимит ходов до коммита — ядро step-01 реализовано main-агентом)
+story: 2-10
+summary: Dev step-01 закрыт — домен и словари продолжения (continuation.go 420 строк + 11 юнит-тестов; +1 слово FactChannels аддитивно); регресс зелёный; ресайкл песочницы посреди шага отражён (bootstrap восстановил Go/PG, WIP пережил рецикл — файлы на my-project-томе выжили)
+done:
+- Dev-субагент (200 ходов) не оставил артефактов (исчерпал лимит на чтении — прецедент review-r1 2-8 «исчерпал лимит до отчёта»); ядро step-01 реализовано main-агентом по спеке
+- continuation.go: словари (цели v1, use_kinds, границы ttl/limit/текстов, state-слова с unknown = lookup-слой без продюсера деривации), гварды issuance (руны, бесповторный purpose-set), DeriveContinuationLinkState (порядок спеки: expired → revoked → consumed → owner_stale → valid), токен-кодек v1 (base64url tenant‖random, SHA-256(random) хеш, fail-closed парсинг, opaque-инвариант)
+- work.go: +protected_continuation в FactChannels (аддитивно, +5/−2, контрольная ветка: существующие тесты не тронуты)
+- Инциденты шага: (1) Edit-инструмент дважды переиндентировал файлы таб→пробелы (tenant_test.go-прецедент сессии) — work.go восстановлен из HEAD, правка переписана python-скриптом scripts/add_fact_channel_word.py с явными \t; новые файлы нормализованы gofmt -w; (2) РЕСАЙКЛ песочницы посреди шага (~/.local/go исчез) — bootstrap восстановил Go 1.27.1/PG 16.4, интеграция зелёная на дереве с WIP; uncommitted WIP пережил рецикл (my-project-том персистентен)
+- Регресс: build/vet зелёные; unit 20 пакетов ok (11 новых тестов continuation: словари/гварды-границы/руны/приоритет деривации/round-trip/отказы/непрозрачность/хеш-детерминизм/энтропия); gofmt всех тронутых файлов чист
+next: Dev step-02 — миграция 00010 (continuation_links/uses/revocations, RLS+гранты, +client_replies.link_id, +2 команды, +4 outbox, TestMain-список) + store/continuation.go + зонды; далее step-03..05
+commit: 2adf100
