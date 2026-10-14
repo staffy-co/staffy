@@ -197,13 +197,17 @@ func (f *casesFixture) EvaluatePolicy(_ context.Context, command casesAPI.Evalua
 	// the canonical preferences map: the same state renders the same
 	// digest, a changed state is the honest supersede).
 	preferences := f.fixtureAccommodationCurrent(command.CaseID)
-	decision := casesDomain.EvaluatePolicy(*proposal, world, effective, preferences)
+	// The 2.12 fifth input: the route degradations map with the dialog
+	// route (nil + the zero route keep the control branch — the honest
+	// wiring arrives with step-03; the fixture mirrors the store).
+	decision := casesDomain.EvaluatePolicy(*proposal, world, effective, preferences, nil, casesDomain.RouteKey{})
 	snapshot := casesDomain.PolicyInputSnapshot{
 		ProposalID: proposal.ProposalID, SchemaVersion: proposal.SchemaVersion,
 		ModeVersion: modeVersion, OwnerEpoch: f.epochOf(command.CaseID),
 		FactsDigest: digestMap, FactsDigestHash: digest,
 		WorkItemVersion: command.ExpectedWorkItemVersion, RuleVersion: casesDomain.PolicyRuleVersion,
-		Preferences: casesDomain.AccommodationSnapshotOf(preferences),
+		Preferences:  casesDomain.AccommodationSnapshotOf(preferences),
+		Degradations: casesDomain.DegradationSnapshotOf(nil),
 	}
 	decisionDigest, err := casesDomain.DecisionDigest(snapshot, decision, proposal.Intent)
 	if err != nil {

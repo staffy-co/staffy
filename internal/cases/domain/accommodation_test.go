@@ -254,7 +254,7 @@ func TestEvaluatePolicyMediaAlternativesAttach(t *testing.T) {
 	// and the question STAYS in the plan.
 	decision := EvaluatePolicy(AIProposal{
 		Intent: IntentPriceInquiry, CandidateAnswer: "Сориентирую по описанию",
-	}, confirmedWorld(), ModeSales, noPhotoCurrent(1, false))
+	}, confirmedWorld(), ModeSales, noPhotoCurrent(1, false), nil, RouteKey{})
 	if decision.OutcomeClass != OutcomeCommercialAnswer || decision.Reason != ReasonOkCommercial {
 		t.Fatalf("the commercial answer stays the commercial answer, got %+v", decision)
 	}
@@ -274,7 +274,7 @@ func TestEvaluatePolicyMediaAlternativesAttach(t *testing.T) {
 	// decision of the missing candidate).
 	clarify := EvaluatePolicy(AIProposal{
 		Intent: IntentPriceInquiry,
-	}, confirmedWorld(), ModeSales, noPhotoCurrent(1, false))
+	}, confirmedWorld(), ModeSales, noPhotoCurrent(1, false), nil, RouteKey{})
 	if clarify.OutcomeClass != OutcomeClarify || len(clarify.ActiveAlternatives) != 4 {
 		t.Fatalf("the clarify outcome carries the alternatives, got %+v", clarify)
 	}
@@ -284,46 +284,46 @@ func TestEvaluatePolicyAlternativesControlBranches(t *testing.T) {
 	proposal := AIProposal{Intent: IntentPriceInquiry, CandidateAnswer: "Сориентирую по описанию"}
 	// The control branch: no preferences — the decision stays byte-identical
 	// (no alternatives, the former class/reason/next_steps).
-	former := EvaluatePolicy(proposal, confirmedWorld(), ModeSales, nil)
+	former := EvaluatePolicy(proposal, confirmedWorld(), ModeSales, nil, nil, RouteKey{})
 	if former.OutcomeClass != OutcomeCommercialAnswer || len(former.ActiveAlternatives) != 0 {
 		t.Fatalf("no preferences — no alternatives, got %+v", former)
 	}
 	// The irrelevant preferences (no no_photo) change nothing.
 	other := CurrentAccommodations{AccommodationTextFirst: AccommodationState{Key: AccommodationTextFirst, Revision: 1}}
-	irrelevant := EvaluatePolicy(proposal, confirmedWorld(), ModeSales, other)
+	irrelevant := EvaluatePolicy(proposal, confirmedWorld(), ModeSales, other, nil, RouteKey{})
 	if irrelevant.OutcomeClass != former.OutcomeClass || irrelevant.Reason != former.Reason ||
 		len(irrelevant.NextSteps) != len(former.NextSteps) || len(irrelevant.ActiveAlternatives) != 0 {
 		t.Fatalf("the irrelevant preferences keep the control branch, got %+v vs %+v", irrelevant, former)
 	}
 	// The cleared no_photo is NOT active: the control branch.
-	cleared := EvaluatePolicy(proposal, confirmedWorld(), ModeSales, noPhotoCurrent(2, true))
+	cleared := EvaluatePolicy(proposal, confirmedWorld(), ModeSales, noPhotoCurrent(2, true), nil, RouteKey{})
 	if len(cleared.ActiveAlternatives) != 0 {
 		t.Fatalf("the cleared no_photo is not active, got %+v", cleared)
 	}
 	// The confirmed media fact: the fact is not missing — no alternatives.
-	confirmed := EvaluatePolicy(proposal, confirmedWorld("service_kind"), ModeSales, noPhotoCurrent(1, false))
+	confirmed := EvaluatePolicy(proposal, confirmedWorld("service_kind"), ModeSales, noPhotoCurrent(1, false), nil, RouteKey{})
 	if len(confirmed.ActiveAlternatives) != 0 {
 		t.Fatalf("the confirmed media fact carries no alternatives, got %+v", confirmed)
 	}
 	// The conflicting/unverified media fact: the fact is not confirmed — the
 	// alternatives attach (the question stays, the media basis is absent).
 	unverified := FactWorld{"service_kind": {Status: FactStatusUnverified}}
-	conflicting := EvaluatePolicy(proposal, unverified, ModeSales, noPhotoCurrent(1, false))
+	conflicting := EvaluatePolicy(proposal, unverified, ModeSales, noPhotoCurrent(1, false), nil, RouteKey{})
 	if len(conflicting.ActiveAlternatives) != 4 {
 		t.Fatalf("the unconfirmed media fact with the active no_photo attaches the alternatives, got %+v", conflicting)
 	}
 	// The text-usual mandatory key only (booking_request): no alternatives
 	// (the text path IS the usual path).
-	booking := EvaluatePolicy(AIProposal{Intent: IntentBookingRequest, CandidateAnswer: "Есть окно"}, confirmedWorld(), ModeSales, noPhotoCurrent(1, false))
+	booking := EvaluatePolicy(AIProposal{Intent: IntentBookingRequest, CandidateAnswer: "Есть окно"}, confirmedWorld(), ModeSales, noPhotoCurrent(1, false), nil, RouteKey{})
 	if len(booking.ActiveAlternatives) != 0 {
 		t.Fatalf("the text-usual key never triggers the alternatives, got %+v", booking)
 	}
 	// The non-commercial intent and the blocked mode never carry the offer.
-	general := EvaluatePolicy(AIProposal{Intent: IntentGeneralQuestion, CandidateAnswer: "Часы: 9-18"}, confirmedWorld(), ModeSales, noPhotoCurrent(1, false))
+	general := EvaluatePolicy(AIProposal{Intent: IntentGeneralQuestion, CandidateAnswer: "Часы: 9-18"}, confirmedWorld(), ModeSales, noPhotoCurrent(1, false), nil, RouteKey{})
 	if len(general.ActiveAlternatives) != 0 {
 		t.Fatalf("the informational answer carries no alternatives, got %+v", general)
 	}
-	blocked := EvaluatePolicy(proposal, confirmedWorld(), ModeSafety, noPhotoCurrent(1, false))
+	blocked := EvaluatePolicy(proposal, confirmedWorld(), ModeSafety, noPhotoCurrent(1, false), nil, RouteKey{})
 	if blocked.OutcomeClass != OutcomeModeBlocked || len(blocked.ActiveAlternatives) != 0 {
 		t.Fatalf("the blocked mode carries no alternatives, got %+v", blocked)
 	}

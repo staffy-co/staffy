@@ -54,12 +54,13 @@ import (
 const ProposalSchemaVersion = "ai-proposal-v1"
 
 // PolicyRuleVersion is the fixed rule dictionary word every outcome
-// carries (the deterministic policy of the slice). The v2 word of Story
-// 2.11: the evaluation input gains the fourth entry (the preferences
-// state) and the decision gains the active alternatives — the honest
-// form versioning (the historical v1 rows stay readable, never
+// carries (the deterministic policy of the slice). The v3 word of Story
+// 2.12: the evaluation input gains the fifth entry (the route
+// degradations map with the dialog route of the Work Item) and the
+// decision gains the degraded permitted paths — the honest form
+// versioning (the historical v1/v2 rows stay readable, never
 // recomputed).
-const PolicyRuleVersion = "intake-policy-v2"
+const PolicyRuleVersion = "intake-policy-v3"
 
 // The proposal intents: the fixed dictionary of the slice. The COMMERCIAL
 // words open the sales path; the rest are the safe words.
@@ -96,16 +97,22 @@ func IntentInDictionary(intent string) bool {
 
 // The outcome classes: the fixed dictionary of the deterministic policy.
 // commercial_answer is the ONLY class that permits the sales reply.
+// degraded_mode is the honest commercial stop of Story 2.12: the dialog
+// route of the Work Item is degraded — the commercial answer never
+// issues, the permitted continuation paths of the pack travel with the
+// outcome (the sales gate of 2.6 refuses the sales reply against the
+// class machine-wise).
 const (
 	OutcomeCommercialAnswer    = "commercial_answer"
 	OutcomeInformationalAnswer = "informational_answer"
 	OutcomeClarify             = "clarify"
 	OutcomeModeBlocked         = "mode_blocked"
+	OutcomeDegradedMode        = "degraded_mode"
 	OutcomeFailClosed          = "fail_closed"
 )
 
 // OutcomeClasses is the full dictionary.
-var OutcomeClasses = []string{OutcomeCommercialAnswer, OutcomeInformationalAnswer, OutcomeClarify, OutcomeModeBlocked, OutcomeFailClosed}
+var OutcomeClasses = []string{OutcomeCommercialAnswer, OutcomeInformationalAnswer, OutcomeClarify, OutcomeModeBlocked, OutcomeDegradedMode, OutcomeFailClosed}
 
 // The outcome reasons: the fixed dictionary. mandatory_missing is the
 // reserved word of the rich Domain Pack rules (Epic 5): the v1 table
@@ -115,7 +122,10 @@ var OutcomeClasses = []string{OutcomeCommercialAnswer, OutcomeInformationalAnswe
 // no_alternative_path is the honest fail-closed stop of Story 2.11: a
 // media-usual mandatory key whose pack data carries no permitted
 // alternative — the check never weakens, the path hands off to a
-// human.
+// human. degraded_route is the reason word of the degraded commercial
+// path of Story 2.12: the route (connection, channel) of the dialog is
+// degraded — the permitted continuation paths replace the commercial
+// answer.
 const (
 	ReasonOkCommercial         = "ok_commercial"
 	ReasonOkInformational      = "ok_informational"
@@ -123,11 +133,12 @@ const (
 	ReasonNoAnswerBasis        = "no_answer_basis"
 	ReasonModeBlocksCommercial = "mode_blocks_commercial_path"
 	ReasonNoAlternativePath    = "no_alternative_path"
+	ReasonDegradedRoute        = "degraded_route"
 	ReasonUnknownIntent        = "unknown_intent"
 )
 
 // OutcomeReasons is the full dictionary.
-var OutcomeReasons = []string{ReasonOkCommercial, ReasonOkInformational, ReasonMandatoryMissing, ReasonNoAnswerBasis, ReasonModeBlocksCommercial, ReasonNoAlternativePath, ReasonUnknownIntent}
+var OutcomeReasons = []string{ReasonOkCommercial, ReasonOkInformational, ReasonMandatoryMissing, ReasonNoAnswerBasis, ReasonModeBlocksCommercial, ReasonNoAlternativePath, ReasonDegradedRoute, ReasonUnknownIntent}
 
 // The next-step words of the outcome: the finite plan vocabulary.
 const (
@@ -303,7 +314,10 @@ type FactsDigestMap map[string]struct {
 // map (the advisory fourth input: key -> {revision, cleared} — never a
 // load-bearing material; a change between the evaluations is the honest
 // supersede while the fact, mode, ownership and Work Item anchors still
-// guard the load-bearing path). The same anchors produce the same
+// guard the load-bearing path). The v3 form of Story 2.12 adds the route
+// degradations map (the advisory fifth input: route -> {cause, revision,
+// cleared} — the same supersede honesty; the dialog route of the Work
+// Item travels beside the map). The same anchors produce the same
 // decision digest (the reproducibility, AC-3).
 type PolicyInputSnapshot struct {
 	ProposalID      id.UUID                  `json:"proposal_id"`
@@ -315,36 +329,40 @@ type PolicyInputSnapshot struct {
 	WorkItemVersion int64                    `json:"work_item_version"`
 	RuleVersion     string                   `json:"rule_version"`
 	Preferences     AccommodationSnapshotMap `json:"preferences"`
+	Degradations    DegradationSnapshotMap   `json:"degradations"`
 }
 
 // PolicyOutcome is one append-only decision: the class, the reason, the
 // rule version, the intent snapshot, the mandatory facts with their
 // states, the next steps, the reused facts with the provenance, the
 // suppressed questions, the active alternatives (the 2.11 extension),
-// the input snapshot, the decision digest, the
+// the degraded permitted paths (the 2.12 extension — the words of the
+// permitted continuation of a degraded route; the pre-migration rows
+// read as the empty set), the input snapshot, the decision digest, the
 // monotonic number and the actor. The CURRENT outcome of a Work Item is
 // the maximal outcome_no — a re-evaluation supersedes by a NEW row.
 type PolicyOutcome struct {
-	TenantID            id.UUID
-	CaseID              id.UUID
-	ConversationID      id.UUID
-	WorkItemID          id.UUID
-	ProposalID          id.UUID
-	OutcomeID           id.UUID
-	OutcomeNo           int64
-	OutcomeClass        string
-	Reason              string
-	RuleVersion         string
-	Intent              string
-	MandatoryFacts      []MandatoryFactStatus
-	NextSteps           []NextStep
-	ReusedFacts         []ReusedFact
-	SuppressedQuestions []SuppressedQuestion
-	ActiveAlternatives  []string
-	InputSnapshot       PolicyInputSnapshot
-	DecisionDigest      string
-	ActorID             id.UUID
-	CreatedAt           time.Time
+	TenantID               id.UUID
+	CaseID                 id.UUID
+	ConversationID         id.UUID
+	WorkItemID             id.UUID
+	ProposalID             id.UUID
+	OutcomeID              id.UUID
+	OutcomeNo              int64
+	OutcomeClass           string
+	Reason                 string
+	RuleVersion            string
+	Intent                 string
+	MandatoryFacts         []MandatoryFactStatus
+	NextSteps              []NextStep
+	ReusedFacts            []ReusedFact
+	SuppressedQuestions    []SuppressedQuestion
+	ActiveAlternatives     []string
+	DegradedPermittedPaths []string
+	InputSnapshot          PolicyInputSnapshot
+	DecisionDigest         string
+	ActorID                id.UUID
+	CreatedAt              time.Time
 }
 
 // CurrentPolicyOutcome resolves the CURRENT outcome of the Work Item: the
@@ -453,17 +471,20 @@ type FactWorld map[string]FactStatusWord
 
 // PolicyDecision is the pure result of the evaluation: the class, the
 // reason, the mandatory fact plan with the states, the next steps, the
-// reused facts with the provenance, the suppressed questions and the
+// reused facts with the provenance, the suppressed questions, the
 // active alternative words (the 2.11 extension: empty when the trigger
-// did not fire — the control branch decision stays byte-identical).
+// did not fire — the control branch decision stays byte-identical) and
+// the degraded permitted path words (the 2.12 extension: empty on every
+// non-degraded path — the control branch honesty).
 type PolicyDecision struct {
-	OutcomeClass        string
-	Reason              string
-	MandatoryFacts      []MandatoryFactStatus
-	NextSteps           []NextStep
-	ReusedFacts         []ReusedFact
-	SuppressedQuestions []SuppressedQuestion
-	ActiveAlternatives  []string `json:"active_alternatives,omitempty"`
+	OutcomeClass           string
+	Reason                 string
+	MandatoryFacts         []MandatoryFactStatus
+	NextSteps              []NextStep
+	ReusedFacts            []ReusedFact
+	SuppressedQuestions    []SuppressedQuestion
+	ActiveAlternatives     []string `json:"active_alternatives,omitempty"`
+	DegradedPermittedPaths []string `json:"degraded_permitted_paths,omitempty"`
 }
 
 // QuestionSource is the source word of one question of the plan: the rule
@@ -473,7 +494,7 @@ const (
 	QuestionSourceProposal = "proposal"
 )
 
-// EvaluatePolicy is the deterministic v2 rule: the unknown intent fails
+// EvaluatePolicy is the deterministic v3 rule: the unknown intent fails
 // closed with the human handoff; the commercial intent under a non-sales
 // effective mode is blocked with the mode words; the commercial intent
 // with an empty candidate is the clarify outcome (questions only); the
@@ -489,10 +510,17 @@ const (
 // leaves the plan — an alternative is a permitted path of the service,
 // never a replacement of the question); an empty pack dictionary of the
 // key's modality fails closed with the no_alternative_path reason and
-// the human handoff. The control branch stays honest: no preferences, a
-// confirmed media fact or a text-usual key produce the byte-identical
-// former decision.
-func EvaluatePolicy(proposal AIProposal, facts FactWorld, effectiveMode string, accommodations CurrentAccommodations) PolicyDecision {
+// the human handoff. The 2.12 fifth input is the route degradations map
+// of the case with the dialog route of the Work Item: a commercial
+// intent on a DEGRADED dialog route never issues the commercial answer —
+// the class degrades, the reason names the route, the permitted
+// continuation paths of the pack travel with the decision and the
+// question plan STAYS (questions are not promises); an empty path
+// dictionary fails closed with the no_alternative_path reason and the
+// human handoff (the 2.11 mirror — the check never weakens). The control
+// branch stays honest: no degradations, an untouched route or a
+// non-commercial intent produce the byte-identical former decision.
+func EvaluatePolicy(proposal AIProposal, facts FactWorld, effectiveMode string, accommodations CurrentAccommodations, degradations CurrentDegradations, dialogRoute RouteKey) PolicyDecision {
 	// The unknown intent fails closed: the proposal is saved (the claim
 	// audit), the outcome is the safe handoff — never a submission
 	// refusal (the model result is a proposal, not a Policy Outcome).
@@ -572,6 +600,31 @@ func EvaluatePolicy(proposal AIProposal, facts FactWorld, effectiveMode string, 
 	// plan, no offer).
 	alternativesTriggered, alternativesModality := mediaAlternativeTrigger(proposal.Intent, facts, accommodations)
 	if IntentIsCommercial(proposal.Intent) {
+		// The degraded commercial path (Story 2.12): the dialog route of
+		// the Work Item is degraded — no promises travel on a degraded
+		// route. The commercial answer never issues (the 2.6 sales gate
+		// refuses machine-wise); the question plan STAYS (questions are
+		// not promises — «принять информацию без обещания» is a permitted
+		// path); the permitted continuation words of the pack travel with
+		// the decision. An EMPTY pack dictionary fails closed with the
+		// human handoff — the honest stop, never a weakened check (the
+		// 2.11 mirror).
+		if degradations.RouteDegraded(dialogRoute) {
+			paths := append([]string(nil), DegradedPermittedPathWords...)
+			if len(paths) == 0 {
+				return PolicyDecision{
+					OutcomeClass: OutcomeFailClosed, Reason: ReasonNoAlternativePath,
+					NextSteps: []NextStep{{Step: StepHumanHandoff}},
+				}
+			}
+			decision.OutcomeClass = OutcomeDegradedMode
+			decision.Reason = ReasonDegradedRoute
+			decision.DegradedPermittedPaths = paths
+			for _, key := range questions {
+				decision.NextSteps = append(decision.NextSteps, NextStep{Step: StepAskFact, MaterialKey: key})
+			}
+			return applyMediaAlternatives(decision, alternativesTriggered, alternativesModality)
+		}
 		if strings.TrimSpace(proposal.CandidateAnswer) == "" {
 			// No answer basis: the clarify outcome — the questions only.
 			decision.OutcomeClass = OutcomeClarify

@@ -412,7 +412,11 @@ func (s *Postgres) execEvaluatePolicy(ctx context.Context, tx pgx.Tx, tenantID i
 		return err
 	}
 	currentAccommodations := casesDomain.DeriveCurrentAccommodations(accommodationRecords)
-	decision := casesDomain.EvaluatePolicy(*proposal, world, effective, currentAccommodations)
+	// The 2.12 fifth input is the route degradations map with the dialog
+	// route of the Work Item: the step-01 wiring keeps the control
+	// branch (nil + the zero route — the decision stays byte-identical);
+	// the real read under the same advisory locks arrives with step-03.
+	decision := casesDomain.EvaluatePolicy(*proposal, world, effective, currentAccommodations, nil, casesDomain.RouteKey{})
 	_, digestMap, err := casesDomain.ComputeFactsDigest(confirmed)
 	if err != nil {
 		return err
@@ -422,7 +426,8 @@ func (s *Postgres) execEvaluatePolicy(ctx context.Context, tx pgx.Tx, tenantID i
 		ModeVersion: modeVersion, OwnerEpoch: ownership.Epoch,
 		FactsDigest: digestMap, FactsDigestHash: factsDigest,
 		WorkItemVersion: current.Version, RuleVersion: casesDomain.PolicyRuleVersion,
-		Preferences: casesDomain.AccommodationSnapshotOf(currentAccommodations),
+		Preferences:  casesDomain.AccommodationSnapshotOf(currentAccommodations),
+		Degradations: casesDomain.DegradationSnapshotOf(nil),
 	}
 	decisionDigest, err := casesDomain.DecisionDigest(snapshot, decision, proposal.Intent)
 	if err != nil {

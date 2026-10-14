@@ -233,7 +233,11 @@ func (s *Service) EvaluatePolicy(ctx context.Context, command casesAPI.EvaluateP
 		return casesAPI.WorkOutcome{}, err
 	}
 	currentAccommodations := casesDomain.DeriveCurrentAccommodations(accommodationRecords)
-	decision := casesDomain.EvaluatePolicy(*proposal, snapshot.world, casesDomain.EffectiveWorkModeWord(effective), currentAccommodations)
+	// The 2.12 fifth input: the route degradations map with the dialog
+	// route (nil + the zero route keep the control branch here — the
+	// honest wiring arrives with step-03; the store re-derives the
+	// decision under the locks anyway).
+	decision := casesDomain.EvaluatePolicy(*proposal, snapshot.world, casesDomain.EffectiveWorkModeWord(effective), currentAccommodations, nil, casesDomain.RouteKey{})
 	outcomeID, err := s.ids.New(command.Now)
 	if err != nil {
 		return casesAPI.WorkOutcome{}, err
