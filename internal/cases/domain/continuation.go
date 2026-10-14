@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -350,3 +351,216 @@ func continuationTenantOf(raw []byte) string {
 	compact := hex.EncodeToString(raw)
 	return compact[0:8] + "-" + compact[8:12] + "-" + compact[12:16] + "-" + compact[16:20] + "-" + compact[20:32]
 }
+
+// ---------------------------------------------------------------------------
+// The row shapes (the store reads/writes; the states are derived, never
+// stored)
+// ---------------------------------------------------------------------------
+
+// ContinuationLink is one append-only link row: the relation pins (the
+// case, the work item, the participant reference, the response owner
+// epoch of the moment), the purpose set, the two operator texts, the
+// lifetime bounds and the token hash — the ONLY stored trace of the
+// capability (the preimage is not recoverable).
+type ContinuationLink struct {
+	TenantID         id.UUID
+	CaseID           id.UUID
+	WorkItemID       id.UUID
+	LinkID           id.UUID
+	ParticipantRef   string
+	OwnerEpoch       int64
+	Purposes         []string
+	Question         string
+	Explanation      string
+	TTLMinutes       int
+	IssuedAt         time.Time
+	ExpiresAt        time.Time
+	ConsumptionLimit int
+	TokenHash        []byte
+	ActorID          id.UUID
+	CreatedAt        time.Time
+}
+
+// ContinuationLinkUse is one append-only client-action row: an accepted
+// fact correction (the material pair — the corrected fact with its new
+// version number — consumes the link limit), a human request or a
+// return to the conversation (events, no material, no consumption).
+type ContinuationLinkUse struct {
+	TenantID      id.UUID
+	CaseID        id.UUID
+	WorkItemID    id.UUID
+	LinkID        id.UUID
+	UseID         id.UUID
+	UseKind       string
+	FactID        id.UUID
+	FactVersionNo int64
+	SubmittedAt   time.Time
+}
+
+// ContinuationRevocation is one append-only revocation row: the honest
+// operator «прекратить ожидание» — the row mutates nothing, the
+// read-time derivation reads it and blocks the surface without
+// disclosure.
+type ContinuationRevocation struct {
+	TenantID     id.UUID
+	CaseID       id.UUID
+	WorkItemID   id.UUID
+	LinkID       id.UUID
+	RevocationID id.UUID
+	Reason       string
+	ActorID      id.UUID
+	CreatedAt    time.Time
+}
+
+// ContinuationLinkLookup is the public-surface lookup answer: the link
+// row the verified hash found, its uses, the revocation existence, the
+// CURRENT owner epoch of the case and the derived state word (the
+// read-time truth of the moment — the derivation input, never a stored
+// status). The token itself is never part of the answer: the hash is
+// the lookup key, the row is the scope.
+type ContinuationLinkLookup struct {
+	Link              ContinuationLink
+	Uses              []ContinuationLinkUse
+	Revoked           bool
+	OwnerEpochCurrent int64
+	State             string
+}
+
+// ---------------------------------------------------------------------------
+// The honest refusal texts of the surface
+// ---------------------------------------------------------------------------
+
+// TerminalWorkItemContinuationText is the honest refusal of the link
+// issuance on a closed work item (the write-command boundary of 2.2 —
+// the continuation never extends a finished element).
+const TerminalWorkItemContinuationText = "Терминальный элемент работы не принимает ссылок продолжения: resolved и merged — финальные состояния; для merged создавайте ссылку на целевом элементе работы."
+
+// ContinuationAlreadyRevokedText is the honest refusal of the second
+// revocation of the same link (the UNIQUE backstop of the table — the
+// expectation ended once, the append-only history says so).
+const ContinuationAlreadyRevokedText = "Ссылка продолжения уже отозвана: ожидание прекращено; при новом заходе выпустите новую ссылку."
+
+// ContinuationNotUsableText is the honest refusal of the client action
+// on a non-valid link (the store-side reason of the generic public
+// refusal — the page never distinguishes the causes to the client; the
+// exact state word stays the operator panel material).
+const ContinuationNotUsableText = "Ссылка продолжения недоступна для действий: срок истёк, ссылка отозвана, лимит отправок исчерпан или владелец обращения изменился — клиенту показывается единая страница отказа без различения причин."
+
+// ContinuationFactNotCorrectableText is the honest refusal of the
+// correction against a fact that is not a CONFIRMED fact of the work
+// item of the link (the surface offers the confirmed facts only —
+// another work item, another participant or an unverified draft is not
+// correctable here).
+const ContinuationFactNotCorrectableText = "Исправлять можно только подтверждённый факт элемента работы этой ссылки: выберите факт из списка подтверждённых на странице продолжения."
+
+// ---------------------------------------------------------------------------
+// The outbox payloads (the safe canonical JSON — the token, the texts
+// and the fact values never leave the row)
+// ---------------------------------------------------------------------------
+
+// Outbox event types of the continuation surface (the 2.1 bounded
+// vocabulary; the revocation has NO event — the read-time derivation
+// of the panel reads the row, the state is never an envelope).
+const (
+	OutboxEventContinuationLinkIssued     = "case.continuation_link_issued"
+	OutboxEventContinuationSubmitted      = "case.continuation_submitted"
+	OutboxEventContinuationHumanRequested = "case.continuation_human_requested"
+	OutboxEventContinuationReturned       = "case.continuation_returned"
+	OutboxEventContinuationV1             = 1
+)
+
+// ContinuationLinkIssuedPayload is the safe canonical JSON of the issue
+// event: the identifiers, the purpose words and the expiry — the TOKEN
+// and the question/explanation texts never enter the envelope (the
+// token exists only in the command answer and on the operator side).
+type ContinuationLinkIssuedPayload struct {
+	TenantID   id.UUID   `json:"tenant_id"`
+	CaseID     id.UUID   `json:"case_id"`
+	WorkItemID id.UUID   `json:"work_item_id"`
+	LinkID     id.UUID   `json:"link_id"`
+	Purposes   []string  `json:"purposes"`
+	ExpiresAt  time.Time `json:"expires_at"`
+	ActorID    id.UUID   `json:"actor_id"`
+	OccurredAt time.Time `json:"occurred_at"`
+}
+
+// ContinuationSubmittedPayload is the safe canonical JSON of the
+// accepted fact correction: the identifiers, the use kind and the new
+// version number — the corrected VALUE never enters the envelope (the
+// «кандидат не покидает строку» precedent of 2.6/2.7/2.8).
+type ContinuationSubmittedPayload struct {
+	TenantID      id.UUID   `json:"tenant_id"`
+	CaseID        id.UUID   `json:"case_id"`
+	WorkItemID    id.UUID   `json:"work_item_id"`
+	LinkID        id.UUID   `json:"link_id"`
+	UseID         id.UUID   `json:"use_id"`
+	FactID        id.UUID   `json:"fact_id"`
+	FactVersionNo int64     `json:"fact_version_no"`
+	ActorID       id.UUID   `json:"actor_id"`
+	OccurredAt    time.Time `json:"occurred_at"`
+}
+
+// ContinuationEventPayload is the safe canonical JSON of the human
+// request and the return events: the identifiers and the use kind — no
+// material, no texts.
+type ContinuationEventPayload struct {
+	TenantID   id.UUID   `json:"tenant_id"`
+	CaseID     id.UUID   `json:"case_id"`
+	WorkItemID id.UUID   `json:"work_item_id"`
+	LinkID     id.UUID   `json:"link_id"`
+	UseID      id.UUID   `json:"use_id"`
+	UseKind    string    `json:"use_kind"`
+	ActorID    id.UUID   `json:"actor_id"`
+	OccurredAt time.Time `json:"occurred_at"`
+}
+
+// DedupKeyContinuationLinkIssued builds the dedup key of one issue event.
+func DedupKeyContinuationLinkIssued(linkID id.UUID) string {
+	return "case.continuation_link_issued:" + linkID.String()
+}
+
+// DedupKeyContinuationSubmitted builds the dedup key of one correction event.
+func DedupKeyContinuationSubmitted(useID id.UUID) string {
+	return "case.continuation_submitted:" + useID.String()
+}
+
+// DedupKeyContinuationEvent builds the dedup key of one human/return event.
+func DedupKeyContinuationEvent(useID id.UUID) string {
+	return "case.continuation_event:" + useID.String()
+}
+
+// ContinuationLinkIssuedPayloadJSON renders the safe canonical JSON.
+func ContinuationLinkIssuedPayloadJSON(payload ContinuationLinkIssuedPayload) ([]byte, error) {
+	return json.Marshal(payload)
+}
+
+// ContinuationSubmittedPayloadJSON renders the safe canonical JSON.
+func ContinuationSubmittedPayloadJSON(payload ContinuationSubmittedPayload) ([]byte, error) {
+	return json.Marshal(payload)
+}
+
+// ContinuationEventPayloadJSON renders the safe canonical JSON.
+func ContinuationEventPayloadJSON(payload ContinuationEventPayload) ([]byte, error) {
+	return json.Marshal(payload)
+}
+
+// ---------------------------------------------------------------------------
+// The correction provenance (the FR-82 source trace of the text
+// modality)
+// ---------------------------------------------------------------------------
+
+// ContinuationCorrectionSourceType is the writer class of the
+// correction fact version: the machine surface record. The correction
+// is NOT an operator command (no command key) and NOT a channel event
+// (the public page is not an ingress delivery) — the client material
+// flows through the protected continuation page, the server records it
+// verbatim as an UNVERIFIED new version. The channel word
+// protected_continuation carries the true origin story (the
+// pseudo-channel of the client-submitted corrections, the +1 word of
+// the FactChannels dictionary); the source ref is the link id (the
+// capability that authorized the write). The reserved system word of
+// the 2.2 source-type dictionary finds its first producer here — the
+// write path arrived with its own story, exactly as the 2.2 comment
+// promised (the domain record_fact guard still refuses it for the
+// operator path: the correction has its own gate, never GuardRecordFact).
+const ContinuationCorrectionSourceType = "system"
