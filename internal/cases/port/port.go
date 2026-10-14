@@ -322,6 +322,13 @@ type Repository interface {
 	// binding — the operator panel input; the states are derived
 	// read-time).
 	ReadContinuations(ctx context.Context, scope tenancy.Context, caseID id.UUID) (ContinuationPanelMaterial, error)
+	// Story 2.11 — the accommodation surface:
+	// ReadAccommodations reads every append-only revision record of
+	// the communication preferences of one case ordered by the key and
+	// the monotonic revision (the derivation input of the CURRENT set,
+	// the panel history and the transfer view; the states are derived
+	// read-time, never stored).
+	ReadAccommodations(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]casesDomain.AccommodationRecord, error)
 	ReadPresentedCommitments(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]casesDomain.PresentedCommitment, error)
 	// ReadCommitmentKey reads (or creates on the first use) the per-tenant
 	// commitment key of the content binding (the ensure pattern of the
@@ -579,6 +586,19 @@ type WorkCommandParams struct {
 	ContinuationLimit          int
 	ContinuationTokenHash      []byte
 	ContinuationReason         string
+	// The Story 2.11 material (the command-specific fields of the
+	// record_accommodation command): the record id of the append-only
+	// revision row, the preference key word, the valued material (the
+	// channel word of preferred_channel or the free availability line —
+	// the value and the note never enter the outbox), the clearing mark
+	// and the operator note. The revision number is the server-side
+	// truth: the store derives the next monotonic number of the key
+	// under the locks (the request never carries it).
+	AccommodationRecordID id.UUID
+	AccommodationKey      string
+	AccommodationValue    string
+	AccommodationCleared  bool
+	AccommodationNote     string
 }
 
 // ContinuationCorrectionParams is the material of one public fact

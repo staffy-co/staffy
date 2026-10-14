@@ -2062,3 +2062,18 @@ done:
 - Интеграция красна ОЖИДАЕМО до 00011: CHECK 00006 (reason/rule_version v1-словари) отказывает v2-строкам — миграция 00011 (step-02) обновляет словари БД (+active_alternatives, +accuracy_qualifier, case_accommodations, словарь команд/outbox); прецедент 2-10 step-01 — unit-регресс шага домена, интеграция со step-02
 next: step-02 — миграция 00011_accommodations.sql (cases.case_accommodations append-only RLS+FORCE INSERT/SELECT, CHECK словарь/флаг-значимость/пределы, UNIQUE ревизий; policy_outcomes +active_alternatives jsonb + CHECK v2 rule_version/reason; client_replies +accuracy_qualifier nullable; +1 команда record_accommodation; +1 outbox-тип; TestMain-регистрация) + store/accommodation.go (lock-план, record/replay, reads) + зонды pg_class/INSERT/периметр; затем интеграция зелёная ×2 TZ
 commit: TBD
+
+---
+date: 2026-10-14
+task: 57-dev-step-02
+role: main (Super Z)
+story: 2-11
+summary: Dev step-02 закрыт — миграция 00011 и хранилище предпочтений (case_accommodations append-only RLS+FORCE INSERT/SELECT с CHECK-словарями/флаг-значимостью/пределами/UNIQUE-ревизиями; policy_outcomes +active_alternatives jsonb + словари v2 (rule_version v1/v2, reason +no_alternative_path — исторические строки читаемы); client_replies +accuracy_qualifier nullable; +1 команда record_accommodation; +1 outbox-тип case.accommodation_recorded; TestMain-регистрация) + store accommodation.go (execRecordAccommodation: гейты под локами case+conversation сортированного плана — существование кейса/открытость/гварды домена; ревизия = следующий монотонный номер ключа под локами (запрос никогда не несёт); insert + outbox только метаданные key/revision/cleared; mapAccommodationInsertError: ревизия/record-PK → ErrStaleVersion, command → ErrCommandKeyConflict; ReadAccommodations все записи кейса ordered key+revision) + store/policy.go: чтение/запись active_alternatives (nil → [] канонизация — jsonb null ≠ array); port: +5 полей команды 2-11 + ReadAccommodations; privacy: case_accommodations → case-operations (TestPerimeterIntegrity синхронно); зонды: 3 семейства (pg_class/RLS/гранты; INSERT-бэкстопы словарей/форм/пределов/UNIQUE/v2-словарей исходов/qualifier/команд/outbox; стор-пробы: 4 ревизии/деривация текущего набора/гварды под локами/гонки обоих плеч/чужой-tenant-пуст/периметр фактов/честный конверт); интеграция 172 ×2 TZ зелёная (возврат к зелёному после миграции — v1-CHECK 00006 обновлён)
+done:
+- Миграция 00011 применена TestMain; контроль вектора Down
+- Словари БД синхронны домену v2 (причина красноты step-01 закрыта)
+- Инцидент: опечатка NULLIF(current_setting(...)'') в CREATE POLICY — локализована statement-by-statement зондом (scripts/probe_migration_step02.go, прецедент python-скриптов), исправлена
+- Инцидент: jsonb-рендер PG добавляет пробелы — конверт-зонд переведён на структурную проверку (Unmarshal в payload-тип), bytes-сравнение убрано
+- Регресс: build, vet, unit 23 ok, интеграция 172 ×2 TZ (UTC 15.0s / Europe/Moscow 13.4s, -count=1, живой PG), контракт, gofmt диффа чист
+next: step-03 — app-команда RecordAccommodation (гейты скоупа review ДО стражей, replay, идемпотентность), policy-wiring под локом (чтение preferences в EvaluatePolicy обоих плеч store+app, snapshot-штамп), гейт точности в лестнице send_client_reply (ПОСЛЕ возражения ДО CAS, sales-only, qualifier ∈ active_alternatives), api DTO + панель case.html секция preferences + карточка передачи владения + форма продажного ответа select квалификатора + подсказка continuation-формы, OpenAPI +1 путь + AccommodationView + расширения + контракт-тест; спека: _bmad-output/implementation-artifacts/spec-2-11-equal-access-alternative-paths.md (Code Map)
+commit: TBD

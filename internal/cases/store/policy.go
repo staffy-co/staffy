@@ -98,7 +98,7 @@ func readPolicyOutcomesTx(ctx context.Context, tx pgx.Tx, tenantID, caseID id.UU
 	rows, err := tx.Query(ctx, `
                 select outcome_id, case_id, conversation_id, work_item_id, proposal_id, outcome_no, outcome_class,
                        reason, rule_version, intent, mandatory_facts, next_steps, reused_facts, suppressed_questions,
-                       input_snapshot, decision_digest, actor_id, created_at
+                       active_alternatives, input_snapshot, decision_digest, actor_id, created_at
                 from cases.policy_outcomes
                 where tenant_id=$1 and case_id=$2 order by work_item_id, outcome_no`, tenantID, caseID)
 	if err != nil {
@@ -109,11 +109,17 @@ func readPolicyOutcomesTx(ctx context.Context, tx pgx.Tx, tenantID, caseID id.UU
 	for rows.Next() {
 		var outcome casesDomain.PolicyOutcome
 		var mandatoryJSON, nextJSON, reusedJSON, suppressedJSON, snapshotJSON []byte
+		var alternativesJSON []byte
 		if err := rows.Scan(&outcome.OutcomeID, &outcome.CaseID, &outcome.ConversationID, &outcome.WorkItemID,
 			&outcome.ProposalID, &outcome.OutcomeNo, &outcome.OutcomeClass, &outcome.Reason, &outcome.RuleVersion,
-			&outcome.Intent, &mandatoryJSON, &nextJSON, &reusedJSON, &suppressedJSON, &snapshotJSON,
+			&outcome.Intent, &mandatoryJSON, &nextJSON, &reusedJSON, &suppressedJSON, &alternativesJSON, &snapshotJSON,
 			&outcome.DecisionDigest, &outcome.ActorID, &outcome.CreatedAt); err != nil {
 			return nil, err
+		}
+		if len(alternativesJSON) > 0 {
+			if err := json.Unmarshal(alternativesJSON, &outcome.ActiveAlternatives); err != nil {
+				return nil, err
+			}
 		}
 		if len(mandatoryJSON) > 0 {
 			if err := json.Unmarshal(mandatoryJSON, &outcome.MandatoryFacts); err != nil {
@@ -444,6 +450,17 @@ func (s *Postgres) execEvaluatePolicy(ctx context.Context, tx pgx.Tx, tenantID i
 	if err != nil {
 		return err
 	}
+	// The nil slice marshals as the jsonb null — the column carries the
+	// honest empty array of the control branch (the pre-migration rows read
+	// as the empty array too).
+	alternatives := decision.ActiveAlternatives
+	if alternatives == nil {
+		alternatives = []string{}
+	}
+	alternativesJSON, err := json.Marshal(alternatives)
+	if err != nil {
+		return err
+	}
 	snapshotJSON, err := json.Marshal(snapshot)
 	if err != nil {
 		return err
@@ -451,11 +468,11 @@ func (s *Postgres) execEvaluatePolicy(ctx context.Context, tx pgx.Tx, tenantID i
 	if _, err = tx.Exec(ctx, `
                 insert into cases.policy_outcomes (tenant_id, case_id, conversation_id, work_item_id, proposal_id, outcome_id,
                         outcome_no, outcome_class, reason, rule_version, intent, mandatory_facts, next_steps, reused_facts,
-                        suppressed_questions, input_snapshot, decision_digest, actor_id, created_at)
-                values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
+                        suppressed_questions, active_alternatives, input_snapshot, decision_digest, actor_id, created_at)
+                values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
 		tenantID, p.CaseID, proposal.ConversationID, proposal.WorkItemID, proposal.ProposalID, p.OutcomeID,
 		outcomeNo, decision.OutcomeClass, decision.Reason, casesDomain.PolicyRuleVersion, proposal.Intent,
-		mandatoryJSON, nextJSON, reusedJSON, suppressedJSON, snapshotJSON, decisionDigest, p.Actor, now); err != nil {
+		mandatoryJSON, nextJSON, reusedJSON, suppressedJSON, alternativesJSON, snapshotJSON, decisionDigest, p.Actor, now); err != nil {
 		return mapPolicyInsertError(err)
 	}
 	var sourceConnection id.UUID
