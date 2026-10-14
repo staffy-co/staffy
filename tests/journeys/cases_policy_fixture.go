@@ -192,12 +192,13 @@ func (f *casesFixture) EvaluatePolicy(_ context.Context, command casesAPI.Evalua
 	itemContext := casesDomain.WorkItemModeContext(terms, proposal.WorkItemID)
 	effective := casesDomain.EffectiveWorkModeWord(casesDomain.EffectiveWorkMode(active, itemContext))
 	// The deterministic decision (the REAL pure function).
-	decision := casesDomain.EvaluatePolicy(*proposal, world, effective)
+	decision := casesDomain.EvaluatePolicy(*proposal, world, effective, nil)
 	snapshot := casesDomain.PolicyInputSnapshot{
 		ProposalID: proposal.ProposalID, SchemaVersion: proposal.SchemaVersion,
 		ModeVersion: modeVersion, OwnerEpoch: f.epochOf(command.CaseID),
 		FactsDigest: digestMap, FactsDigestHash: digest,
 		WorkItemVersion: command.ExpectedWorkItemVersion, RuleVersion: casesDomain.PolicyRuleVersion,
+		Preferences: casesDomain.AccommodationSnapshotOf(nil),
 	}
 	decisionDigest, err := casesDomain.DecisionDigest(snapshot, decision, proposal.Intent)
 	if err != nil {

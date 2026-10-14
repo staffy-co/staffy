@@ -54,8 +54,12 @@ import (
 const ProposalSchemaVersion = "ai-proposal-v1"
 
 // PolicyRuleVersion is the fixed rule dictionary word every outcome
-// carries (the deterministic policy of the slice).
-const PolicyRuleVersion = "intake-policy-v1"
+// carries (the deterministic policy of the slice). The v2 word of Story
+// 2.11: the evaluation input gains the fourth entry (the preferences
+// state) and the decision gains the active alternatives — the honest
+// form versioning (the historical v1 rows stay readable, never
+// recomputed).
+const PolicyRuleVersion = "intake-policy-v2"
 
 // The proposal intents: the fixed dictionary of the slice. The COMMERCIAL
 // words open the sales path; the rest are the safe words.
@@ -108,17 +112,22 @@ var OutcomeClasses = []string{OutcomeCommercialAnswer, OutcomeInformationalAnswe
 // never emits it — the progressive commercial answer carries the open
 // questions in next_steps instead of failing the class; the word stays in
 // the dictionary so the future rules never rename the vocabulary.
+// no_alternative_path is the honest fail-closed stop of Story 2.11: a
+// media-usual mandatory key whose pack data carries no permitted
+// alternative — the check never weakens, the path hands off to a
+// human.
 const (
 	ReasonOkCommercial         = "ok_commercial"
 	ReasonOkInformational      = "ok_informational"
 	ReasonMandatoryMissing     = "mandatory_missing"
 	ReasonNoAnswerBasis        = "no_answer_basis"
 	ReasonModeBlocksCommercial = "mode_blocks_commercial_path"
+	ReasonNoAlternativePath    = "no_alternative_path"
 	ReasonUnknownIntent        = "unknown_intent"
 )
 
 // OutcomeReasons is the full dictionary.
-var OutcomeReasons = []string{ReasonOkCommercial, ReasonOkInformational, ReasonMandatoryMissing, ReasonNoAnswerBasis, ReasonModeBlocksCommercial, ReasonUnknownIntent}
+var OutcomeReasons = []string{ReasonOkCommercial, ReasonOkInformational, ReasonMandatoryMissing, ReasonNoAnswerBasis, ReasonModeBlocksCommercial, ReasonNoAlternativePath, ReasonUnknownIntent}
 
 // The next-step words of the outcome: the finite plan vocabulary.
 const (
@@ -290,23 +299,29 @@ type FactsDigestMap map[string]struct {
 // PolicyInputSnapshot is the full anchored input material of one outcome:
 // the proposal identity with its schema word, the mode version, the owner
 // epoch, the confirmed fact map with its digest, the Work Item version
-// and the rule version. The same anchors produce the same decision
-// digest (the reproducibility, AC-3).
+// and the rule version. The v2 form of Story 2.11 adds the preferences
+// map (the advisory fourth input: key -> {revision, cleared} — never a
+// load-bearing material; a change between the evaluations is the honest
+// supersede while the fact, mode, ownership and Work Item anchors still
+// guard the load-bearing path). The same anchors produce the same
+// decision digest (the reproducibility, AC-3).
 type PolicyInputSnapshot struct {
-	ProposalID      id.UUID        `json:"proposal_id"`
-	SchemaVersion   string         `json:"schema_version"`
-	ModeVersion     int64          `json:"mode_version"`
-	OwnerEpoch      int64          `json:"owner_epoch"`
-	FactsDigest     FactsDigestMap `json:"facts_digest"`
-	FactsDigestHash string         `json:"facts_digest_hash"`
-	WorkItemVersion int64          `json:"work_item_version"`
-	RuleVersion     string         `json:"rule_version"`
+	ProposalID      id.UUID                  `json:"proposal_id"`
+	SchemaVersion   string                   `json:"schema_version"`
+	ModeVersion     int64                    `json:"mode_version"`
+	OwnerEpoch      int64                    `json:"owner_epoch"`
+	FactsDigest     FactsDigestMap           `json:"facts_digest"`
+	FactsDigestHash string                   `json:"facts_digest_hash"`
+	WorkItemVersion int64                    `json:"work_item_version"`
+	RuleVersion     string                   `json:"rule_version"`
+	Preferences     AccommodationSnapshotMap `json:"preferences"`
 }
 
 // PolicyOutcome is one append-only decision: the class, the reason, the
 // rule version, the intent snapshot, the mandatory facts with their
 // states, the next steps, the reused facts with the provenance, the
-// suppressed questions, the input snapshot, the decision digest, the
+// suppressed questions, the active alternatives (the 2.11 extension),
+// the input snapshot, the decision digest, the
 // monotonic number and the actor. The CURRENT outcome of a Work Item is
 // the maximal outcome_no — a re-evaluation supersedes by a NEW row.
 type PolicyOutcome struct {
@@ -325,6 +340,7 @@ type PolicyOutcome struct {
 	NextSteps           []NextStep
 	ReusedFacts         []ReusedFact
 	SuppressedQuestions []SuppressedQuestion
+	ActiveAlternatives  []string
 	InputSnapshot       PolicyInputSnapshot
 	DecisionDigest      string
 	ActorID             id.UUID
@@ -437,7 +453,9 @@ type FactWorld map[string]FactStatusWord
 
 // PolicyDecision is the pure result of the evaluation: the class, the
 // reason, the mandatory fact plan with the states, the next steps, the
-// reused facts with the provenance and the suppressed questions.
+// reused facts with the provenance, the suppressed questions and the
+// active alternative words (the 2.11 extension: empty when the trigger
+// did not fire — the control branch decision stays byte-identical).
 type PolicyDecision struct {
 	OutcomeClass        string
 	Reason              string
@@ -445,6 +463,7 @@ type PolicyDecision struct {
 	NextSteps           []NextStep
 	ReusedFacts         []ReusedFact
 	SuppressedQuestions []SuppressedQuestion
+	ActiveAlternatives  []string `json:"active_alternatives,omitempty"`
 }
 
 // QuestionSource is the source word of one question of the plan: the rule
@@ -454,7 +473,7 @@ const (
 	QuestionSourceProposal = "proposal"
 )
 
-// EvaluatePolicy is the deterministic v1 rule: the unknown intent fails
+// EvaluatePolicy is the deterministic v2 rule: the unknown intent fails
 // closed with the human handoff; the commercial intent under a non-sales
 // effective mode is blocked with the mode words; the commercial intent
 // with an empty candidate is the clarify outcome (questions only); the
@@ -463,8 +482,17 @@ const (
 // the non-commercial intent is the informational answer. The dedup
 // removes the questions of the confirmed facts (unless the proposal
 // claims an explicit readback) — the reuse carries the provenance and the
-// suppressed repeats the audit.
-func EvaluatePolicy(proposal AIProposal, facts FactWorld, effectiveMode string) PolicyDecision {
+// suppressed repeats the audit. The 2.11 fourth input is the preferences
+// state of the case: a mandatory media-usual key without a confirmed
+// fact AND the recorded active no_photo attach the active alternatives
+// of the pack dictionary to the commercial decision (the question NEVER
+// leaves the plan — an alternative is a permitted path of the service,
+// never a replacement of the question); an empty pack dictionary of the
+// key's modality fails closed with the no_alternative_path reason and
+// the human handoff. The control branch stays honest: no preferences, a
+// confirmed media fact or a text-usual key produce the byte-identical
+// former decision.
+func EvaluatePolicy(proposal AIProposal, facts FactWorld, effectiveMode string, accommodations CurrentAccommodations) PolicyDecision {
 	// The unknown intent fails closed: the proposal is saved (the claim
 	// audit), the outcome is the safe handoff — never a submission
 	// refusal (the model result is a proposal, not a Policy Outcome).
@@ -537,6 +565,12 @@ func EvaluatePolicy(proposal AIProposal, facts FactWorld, effectiveMode string) 
 		decision.MandatoryFacts = append(decision.MandatoryFacts, MandatoryFactStatus{MaterialKey: key, Source: source, State: MandatoryStateAsk})
 		questions = append(questions, key)
 	}
+	// The honest alternatives trigger (Story 2.11): computed before the
+	// class branches — the clarify and the commercial answer both carry
+	// the active alternatives when the trigger fires; the informational
+	// and the blocked paths never reach the attachment (no commercial
+	// plan, no offer).
+	alternativesTriggered, alternativesModality := mediaAlternativeTrigger(proposal.Intent, facts, accommodations)
 	if IntentIsCommercial(proposal.Intent) {
 		if strings.TrimSpace(proposal.CandidateAnswer) == "" {
 			// No answer basis: the clarify outcome — the questions only.
@@ -545,7 +579,7 @@ func EvaluatePolicy(proposal AIProposal, facts FactWorld, effectiveMode string) 
 			for _, key := range questions {
 				decision.NextSteps = append(decision.NextSteps, NextStep{Step: StepAskFact, MaterialKey: key})
 			}
-			return decision
+			return applyMediaAlternatives(decision, alternativesTriggered, alternativesModality)
 		}
 		// The progressive commercial answer: the short answer now, the
 		// minimal questions alongside, the confirmation at the end.
@@ -555,7 +589,7 @@ func EvaluatePolicy(proposal AIProposal, facts FactWorld, effectiveMode string) 
 			decision.NextSteps = append(decision.NextSteps, NextStep{Step: StepAskFact, MaterialKey: key})
 		}
 		decision.NextSteps = append(decision.NextSteps, NextStep{Step: StepAwaitConfirmation})
-		return decision
+		return applyMediaAlternatives(decision, alternativesTriggered, alternativesModality)
 	}
 	// The non-commercial intent: the informational answer. The human
 	// request carries the handoff step (the client asked for a human —
@@ -565,6 +599,53 @@ func EvaluatePolicy(proposal AIProposal, facts FactWorld, effectiveMode string) 
 	if proposal.Intent == IntentHumanRequest {
 		decision.NextSteps = append(decision.NextSteps, NextStep{Step: StepHumanHandoff})
 	}
+	return decision
+}
+
+// mediaAlternativeTrigger resolves the v1 trigger pair of the honest
+// alternatives: a rule-table MANDATORY key of the media-usual modality
+// whose fact is NOT confirmed (the 2-6 reuse basis did not happen — the
+// question stays in the plan) AND the recorded active no_photo. The
+// modality word of the first missing media key travels for the pack
+// alternatives resolution; the empty modality word means no trigger.
+func mediaAlternativeTrigger(intent string, facts FactWorld, accommodations CurrentAccommodations) (bool, string) {
+	if !accommodations.HasActive(AccommodationNoPhoto) {
+		return false, ""
+	}
+	for _, key := range ruleTableV1[intent] {
+		if !factConfirmed(facts, key) && UsualModalityOfMaterialKey(key) == UsualModalityMediaPhoto {
+			return true, UsualModalityMediaPhoto
+		}
+	}
+	return false, ""
+}
+
+// factConfirmed reports whether the fact of the key carries the
+// confirmed exact version (the reuse basis of the 2-6 dedup).
+func factConfirmed(facts FactWorld, key string) bool {
+	fact, known := facts[key]
+	return known && fact.Status == FactStatusConfirmed && fact.Confirmed != nil
+}
+
+// applyMediaAlternatives attaches the honest alternatives to the decision
+// of the fired trigger: the pack dictionary of the key's modality fills
+// the active words; an EMPTY pack dictionary is the honest fail-closed
+// stop (the no_alternative_path reason and the human handoff — the check
+// never weakens); the question plan stays untouched (an alternative is a
+// permitted path, never a replacement of the question).
+func applyMediaAlternatives(decision PolicyDecision, triggered bool, modality string) PolicyDecision {
+	if !triggered {
+		return decision
+	}
+	alternatives := AlternativesOfUsualModality(modality)
+	if len(alternatives) == 0 {
+		return PolicyDecision{
+			OutcomeClass: OutcomeFailClosed,
+			Reason:       ReasonNoAlternativePath,
+			NextSteps:    []NextStep{{Step: StepHumanHandoff}},
+		}
+	}
+	decision.ActiveAlternatives = alternatives
 	return decision
 }
 

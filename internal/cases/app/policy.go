@@ -224,7 +224,10 @@ func (s *Service) EvaluatePolicy(ctx context.Context, command casesAPI.EvaluateP
 		}
 	}
 	effective := casesDomain.EffectiveWorkMode(active, itemContext)
-	decision := casesDomain.EvaluatePolicy(*proposal, snapshot.world, casesDomain.EffectiveWorkModeWord(effective))
+	// The 2.11 fourth input: the preferences state (nil keeps the control
+	// branch here — the honest wiring arrives with step-03; the store
+	// re-derives the decision under the locks anyway).
+	decision := casesDomain.EvaluatePolicy(*proposal, snapshot.world, casesDomain.EffectiveWorkModeWord(effective), nil)
 	outcomeID, err := s.ids.New(command.Now)
 	if err != nil {
 		return casesAPI.WorkOutcome{}, err

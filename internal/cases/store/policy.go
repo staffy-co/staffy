@@ -397,7 +397,10 @@ func (s *Postgres) execEvaluatePolicy(ctx context.Context, tx pgx.Tx, tenantID i
 	effective := casesDomain.EffectiveWorkModeWord(casesDomain.EffectiveWorkMode(active, context))
 	// The deterministic evaluation over the re-read material (the pure
 	// function — the store never trusts the app bytes).
-	decision := casesDomain.EvaluatePolicy(*proposal, world, effective)
+	// The 2.11 fourth input is the preferences state: the step-01 wiring
+	// keeps the control branch (nil — the decision stays byte-identical);
+	// the real read under the same advisory locks arrives with step-03.
+	decision := casesDomain.EvaluatePolicy(*proposal, world, effective, nil)
 	_, digestMap, err := casesDomain.ComputeFactsDigest(confirmed)
 	if err != nil {
 		return err
@@ -407,6 +410,7 @@ func (s *Postgres) execEvaluatePolicy(ctx context.Context, tx pgx.Tx, tenantID i
 		ModeVersion: modeVersion, OwnerEpoch: ownership.Epoch,
 		FactsDigest: digestMap, FactsDigestHash: factsDigest,
 		WorkItemVersion: current.Version, RuleVersion: casesDomain.PolicyRuleVersion,
+		Preferences: casesDomain.AccommodationSnapshotOf(nil),
 	}
 	decisionDigest, err := casesDomain.DecisionDigest(snapshot, decision, proposal.Intent)
 	if err != nil {
