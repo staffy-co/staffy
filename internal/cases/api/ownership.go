@@ -112,8 +112,15 @@ type SendClientReplyCommand struct {
 	// 400 of the dictionary).
 	CommitmentID        id.UUID
 	CommitmentVersionNo int64
-	IdempotencyKey      string
-	Now                 time.Time
+	// The Story 2.10 delivery binding: the SALES reply may carry ONE
+	// continuation link of the case — the delivered badge of the operator
+	// panel (the FR-16 «the main channel shows whether the link was
+	// delivered»); the neutral and the protected classes never carry it
+	// (the honest 400 of the dictionary); the link must exist and belong
+	// to THIS case (the store re-validates under the locks).
+	LinkID         id.UUID
+	IdempotencyKey string
+	Now            time.Time
 }
 
 // OwnershipView is the ownership section of the case view: the derived

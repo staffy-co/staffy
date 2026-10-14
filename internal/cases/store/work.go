@@ -473,6 +473,13 @@ func (s *Postgres) ExecuteWorkCommand(ctx context.Context, p casesPort.WorkComma
 		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID), workLockKey(tenantID, p.WorkItemID))
 	case "create_commitment", "record_commitment_decline":
 		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID), workLockKey(tenantID, p.WorkItemID))
+	case "issue_continuation_link", "revoke_continuation_link":
+		// The continuation commands: the case key serializes the owner
+		// epoch read of the issuance pin (the ownership writers hold the
+		// same key), the work key fences the terminal-state boundary; the
+		// link itself needs no lock here — the command-record idempotency
+		// and the append-only UNIQUE backstops keep the raced paths honest.
+		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID), workLockKey(tenantID, p.WorkItemID))
 	case "confirm_commitment":
 		// The price fact key joins the plan: the confirm re-derives the
 		// conflict badge against the confirmed exact price fact under the
@@ -549,6 +556,10 @@ func (s *Postgres) ExecuteWorkCommand(ctx context.Context, p casesPort.WorkComma
 		err = s.execConfirmCommitment(ctx, tx, tenantID, p, now)
 	case "record_commitment_decline":
 		err = s.execRecordCommitmentDecline(ctx, tx, tenantID, p, now)
+	case "issue_continuation_link":
+		err = s.execIssueContinuationLink(ctx, tx, tenantID, p, now)
+	case "revoke_continuation_link":
+		err = s.execRevokeContinuationLink(ctx, tx, tenantID, p, now)
 	default:
 		err = fmt.Errorf("неизвестная команда %s", p.Command)
 	}

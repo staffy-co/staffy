@@ -592,8 +592,9 @@ func (s *Service) SendClientReply(ctx context.Context, command casesAPI.SendClie
 		Step         string `json:"playbook_step"`
 		Commitment   string `json:"commitment_id"`
 		CVersion     int64  `json:"commitment_version"`
+		Link         string `json:"continuation_link_id"`
 		Content      string `json:"content"`
-	}{command.CaseID.String(), command.ConversationID.String(), command.WorkItemID.String(), command.ExpectedEpoch, command.ReplyClass, command.PlaybookStep, command.CommitmentID.String(), command.CommitmentVersionNo, command.Content})
+	}{command.CaseID.String(), command.ConversationID.String(), command.WorkItemID.String(), command.ExpectedEpoch, command.ReplyClass, command.PlaybookStep, command.CommitmentID.String(), command.CommitmentVersionNo, command.LinkID.String(), command.Content})
 	if outcome, replay, err := s.lookupCommand(ctx, scope, "send_client_reply", command.IdempotencyKey, hash); replay || err != nil {
 		return outcome, err
 	}
@@ -800,6 +801,33 @@ func (s *Service) SendClientReply(ctx context.Context, command casesAPI.SendClie
 			return casesAPI.WorkOutcome{}, rule("send_client_reply", fmt.Errorf("Версия обязательства не найдена: связь сообщения-предъявления требует существующей offered-версии этого элемента работы."))
 		}
 	}
+	// The continuation link binding gate (Story 2.10, AFTER the commitment
+	// gate — the frozen ladder: ... → objection 2-8 → commitment link 2-9 →
+	// continuation link 2-10 → write): the nullable LinkID is carried ONLY
+	// by the sales class (the delivered badge of the FR-16); the linked row
+	// must exist and belong to THIS case (the app validates pre-transaction,
+	// the store re-validates under the locks). The state never matters here:
+	// the binding is the honest delivery record, a dead link may be bound
+	// after the fact (the panel derives the state read-time).
+	if command.LinkID.Valid() {
+		if command.ReplyClass != casesDomain.ReplyClassSales {
+			return casesAPI.WorkOutcome{}, rule("send_client_reply", fmt.Errorf("Связь ссылки продолжения несёт только коммерческий ответ (sales): нейтральные и защищённые сообщения не вплетают ссылку продолжения."))
+		}
+		links, linksErr := s.repository.ReadContinuations(ctx, scope, command.CaseID)
+		if linksErr != nil {
+			return casesAPI.WorkOutcome{}, linksErr
+		}
+		found := false
+		for _, link := range links.Links {
+			if link.LinkID == command.LinkID {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return casesAPI.WorkOutcome{}, rule("send_client_reply", fmt.Errorf("Ссылка продолжения не найдена: связь возможна только со ссылкой этого обращения."))
+		}
+	}
 	// The route snapshot and the lineage word of the acting decision.
 	conversationOfCase, err := s.caseConnection(ctx, scope, command.CaseID)
 	if err != nil {
@@ -838,6 +866,7 @@ func (s *Service) SendClientReply(ctx context.Context, command casesAPI.SendClie
 		LineageProfileVersion: profileVersion, OutboxEventID: outboxEventID,
 		ObjectionID: objectionID, PlaybookStep: command.PlaybookStep,
 		CommitmentID: command.CommitmentID, VersionNo: command.CommitmentVersionNo,
+		LinkID:  command.LinkID,
 		Outcome: outcomeJSON, Now: command.Now.UTC().Truncate(time.Microsecond),
 	}); err != nil {
 		return casesAPI.WorkOutcome{}, err

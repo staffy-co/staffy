@@ -298,6 +298,30 @@ type Repository interface {
 	// outgoing sales replies of one case (the exact (commitment, version)
 	// pairs — the presentation gate input of the confirm command and the
 	// panel).
+	// Story 2.10 — the continuation surface:
+	// LookupContinuationByTokenHash resolves one continuation link by
+	// the SHA-256 of the opaque token half under the tenant scope (the
+	// AD-10 honesty: the hash is the ONLY lookup key — the scope
+	// candidate from the token is verified by the hash BEFORE any case
+	// material is read) and derives the read-time state of the given
+	// moment. ErrNotFound is the generic-refusal material of the public
+	// surface (the caller never distinguishes the causes to the client).
+	LookupContinuationByTokenHash(ctx context.Context, scope tenancy.Context, tokenHash []byte, now time.Time) (casesDomain.ContinuationLinkLookup, error)
+	// SubmitContinuationCorrection writes one public fact correction in
+	// a single transaction (the append-only fact version in the
+	// unverified state with the protected-continuation provenance, the
+	// limit-consuming use row and the metadata-only outbox event); the
+	// answer carries the new version number of the fact.
+	SubmitContinuationCorrection(ctx context.Context, p ContinuationCorrectionParams) (int64, error)
+	// SubmitContinuationEvent writes one public human/return event (the
+	// use row without material and without consumption + the outbox
+	// event; nothing is ever mutated).
+	SubmitContinuationEvent(ctx context.Context, p ContinuationEventParams) error
+	// ReadContinuations reads the whole continuation material of one
+	// case (the links, the use feed, the revocations and the delivered
+	// binding — the operator panel input; the states are derived
+	// read-time).
+	ReadContinuations(ctx context.Context, scope tenancy.Context, caseID id.UUID) (ContinuationPanelMaterial, error)
 	ReadPresentedCommitments(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]casesDomain.PresentedCommitment, error)
 	// ReadCommitmentKey reads (or creates on the first use) the per-tenant
 	// commitment key of the content binding (the ensure pattern of the
@@ -535,6 +559,71 @@ type WorkCommandParams struct {
 	CommitmentTurnPayload         []byte
 	CommitmentMaterialSnapshot    []byte
 	CommitmentDeclineOutcome      string
+	// The Story 2.10 material (the command-specific fields of the two
+	// continuation commands): the link id with the purpose set (the
+	// canonical JSON array — the dictionary subset), the two operator
+	// texts, the lifetime bounds, the token hash (the ONLY stored trace
+	// of the capability — the token itself never travels through the
+	// params), the participant reference (the channel address of the
+	// client) and the revocation material (the append-only row with the
+	// honest reason). The owner epoch pin is the server-side truth: the
+	// store reads the CURRENT epoch under the locks, the request never
+	// carries it.
+	LinkID                     id.UUID
+	RevocationID               id.UUID
+	ContinuationPurposes       []byte
+	ContinuationQuestion       string
+	ContinuationExplanation    string
+	ContinuationParticipantRef string
+	ContinuationTTLMinutes     int
+	ContinuationLimit          int
+	ContinuationTokenHash      []byte
+	ContinuationReason         string
+}
+
+// ContinuationCorrectionParams is the material of one public fact
+// correction through the protected surface: the tenant scope (the
+// principal is the inert anonymous scope — the RLS checks the tenant
+// only; the write rows carry the resolved link id as their actor), the
+// token hash (the verified credential half — the lookup key; the token
+// itself never enters the store), the corrected fact with its raw value
+// bytes (the store canonicalizes through the domain value guard under
+// the locks) and the ids of the use row and the outbox event.
+type ContinuationCorrectionParams struct {
+	Scope         tenancy.Context
+	TokenHash     []byte
+	FactID        id.UUID
+	Value         []byte
+	UseID         id.UUID
+	OutboxEventID id.UUID
+	CorrelationID id.UUID
+	Now           time.Time
+}
+
+// ContinuationEventParams is the material of one public human/return
+// event: the scope, the token hash, the use kind word and the ids of
+// the use row and the outbox event. The event mutates nothing: the use
+// row and the envelope only.
+type ContinuationEventParams struct {
+	Scope         tenancy.Context
+	TokenHash     []byte
+	UseKind       string
+	UseID         id.UUID
+	OutboxEventID id.UUID
+	CorrelationID id.UUID
+	Now           time.Time
+}
+
+// ContinuationPanelMaterial is the operator panel read of the
+// continuation surface: the links of the case with their uses, the
+// revocations and the delivered binding set (the link ids the outgoing
+// reply rows carry — the FR-16 «the main channel shows whether the link
+// was delivered»).
+type ContinuationPanelMaterial struct {
+	Links       []casesDomain.ContinuationLink
+	Uses        []casesDomain.ContinuationLinkUse
+	Revocations []casesDomain.ContinuationRevocation
+	Delivered   map[id.UUID]bool
 }
 
 // ---------------------------------------------------------------------------

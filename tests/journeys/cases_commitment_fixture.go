@@ -427,7 +427,7 @@ func (f *casesFixture) fixtureCommitmentView(caseID id.UUID) casesAPI.Commitment
 		PanelText:      "Обязательство — версия с материальными условиями: новая версия = новая строка, прежние не меняются. Подтверждается только показанная версия с дословными выдержками согласия; отказ и изменение фиксируются отдельно, ничего не ломая.",
 	}
 	ownerEpoch := int64(1)
-	if state := f.fixtureState(caseID, clockFixture{}.Now()); state.Current != nil {
+	if state := f.fixtureState(caseID, journeyClock.Now()); state.Current != nil {
 		ownerEpoch = state.Current.Epoch
 	}
 	lineageCurrent := fmt.Sprintf("employee/%s/1/1", f.employee)
@@ -463,7 +463,7 @@ func (f *casesFixture) fixtureCommitmentView(caseID id.UUID) casesAPI.Commitment
 			section.Confirmations = append(section.Confirmations, casesAPI.ConfirmationCard{
 				Record: confirmation,
 				Validity: casesDomain.DeriveConfirmationValidity(casesDomain.ConfirmationValidityInput{
-					Now: clockFixture{}.Now(), ExpiresAt: confirmation.ExpiresAt,
+					Now: journeyClock.Now(), ExpiresAt: confirmation.ExpiresAt,
 					MaxVersionNo: maxVersionNo[confirmation.CommitmentID], ConfirmedVersion: confirmation.VersionNo,
 					OwnerEpochPinned: ownerPinned, OwnerEpochCurrent: ownerEpoch,
 					LineagePinned: lineagePinned, LineageCurrent: lineageCurrent,

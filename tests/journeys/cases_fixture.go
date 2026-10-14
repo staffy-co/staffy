@@ -126,6 +126,19 @@ type casesFixture struct {
 	presented          map[id.UUID][]casesDomain.PresentedCommitment
 	commitmentSeq      int
 
+	// The Story 2.10 continuation material: the append-only links, the
+	// uses and the revocations with the token-hash lookup (the state of
+	// every link, the delivery binding and the panel accounting derive
+	// read-time over the REAL domain functions; the full token exists
+	// ONLY in the issuance answer — the fixture keeps the hash, the
+	// honest mirror of the store).
+	contLinks       map[id.UUID]casesDomain.ContinuationLink
+	contUses        []casesDomain.ContinuationLinkUse
+	contRevokes     map[id.UUID]casesDomain.ContinuationRevocation
+	contByHash      map[string]id.UUID
+	contDelivered   map[id.UUID]bool
+	continuationSeq int
+
 	caseNo, conversationNo int64
 	eventSeq               int
 	workSeq, exceptionSeq  int
@@ -196,6 +209,11 @@ func newCasesFixture() *casesFixture {
 		confirmations:      map[id.UUID][]casesDomain.ConfirmationRecord{},
 		commitmentDeclines: map[id.UUID][]casesPort.CommitmentDeclineView{},
 		presented:          map[id.UUID][]casesDomain.PresentedCommitment{},
+		// The Story 2.10 material:
+		contLinks:     map[id.UUID]casesDomain.ContinuationLink{},
+		contRevokes:   map[id.UUID]casesDomain.ContinuationRevocation{},
+		contByHash:    map[string]id.UUID{},
+		contDelivered: map[id.UUID]bool{},
 	}
 }
 
@@ -615,6 +633,10 @@ func (f *casesFixture) CaseView(_ context.Context, _ domain.Principal, tenant, c
 		// validity derivations and the declines over the REAL
 		// derivations.
 		Commitments: f.fixtureCommitmentView(caseID),
+		// The Story 2.10 section: the continuation panel over the
+		// REAL read-time derivations (the states, the delivery binding
+		// and the event feed).
+		Continuations: f.fixtureContinuationView(caseID),
 	}, nil
 }
 

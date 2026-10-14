@@ -26,6 +26,16 @@ type Service interface {
 	Workspace(context.Context, domain.Principal, id.UUID) (domain.Workspace, error)
 }
 
+// TenantNameService is the principal-free tenant name read of the public
+// surfaces (the Story 2.10 continuation page header — the page honestly
+// shows whose conversation it is; the token IS the credential, no session
+// exists). The transport type-asserts this narrow interface (the
+// BindEmployee precedent): the composite Service stays untouched and the
+// anonymous scope never reads the membership material.
+type TenantNameService interface {
+	TenantName(context.Context, id.UUID) (string, error)
+}
+
 type MembershipService interface {
 	ListMembers(context.Context, domain.Principal, id.UUID) ([]domain.Membership, error)
 	InviteMember(context.Context, MembershipCommand) (domain.Membership, string, error)

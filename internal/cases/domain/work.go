@@ -224,8 +224,11 @@ var ConfirmerTypes = []string{"client", "owning_system", ConfirmerOperatorRelay}
 
 // FactChannels is the channel dictionary of the fact provenance: the nine
 // profile channels (a channel_event fact inherits the channel of its
-// event) plus the operator pseudo-channel of the operator-recorded facts.
-var FactChannels = append([]string{"operator"}, ChannelOrder...)
+// event) plus the operator pseudo-channel of the operator-recorded facts
+// and the protected-continuation pseudo-channel of the client-submitted
+// corrections (the +1 word of story 2.10 — the provenance channel of the
+// protected continuation surface).
+var FactChannels = append([]string{"operator", FactChannelProtectedContinuation}, ChannelOrder...)
 
 // Fact material limits (the fixed dictionary of the slice).
 const (

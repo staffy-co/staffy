@@ -331,7 +331,8 @@ func (f *casesFixture) SendClientReply(_ context.Context, command casesAPI.SendC
 		Commitment   string `json:"commitment_id"`
 		CVersion     int64  `json:"commitment_version"`
 		Content      string `json:"content"`
-	}{command.CaseID.String(), command.ConversationID.String(), command.WorkItemID.String(), command.ExpectedEpoch, command.ReplyClass, command.PlaybookStep, command.CommitmentID.String(), command.CommitmentVersionNo, command.Content})
+		Link         string `json:"link_id"`
+	}{command.CaseID.String(), command.ConversationID.String(), command.WorkItemID.String(), command.ExpectedEpoch, command.ReplyClass, command.PlaybookStep, command.CommitmentID.String(), command.CommitmentVersionNo, command.Content, command.LinkID.String()})
 	if err != nil || !fresh {
 		return outcome, err
 	}
@@ -451,6 +452,25 @@ func (f *casesFixture) SendClientReply(_ context.Context, command casesAPI.SendC
 		f.presented[command.CaseID] = append(f.presented[command.CaseID], casesDomain.PresentedCommitment{
 			CommitmentID: command.CommitmentID, VersionNo: command.CommitmentVersionNo,
 		})
+	}
+	// The Story 2.10 continuation link binding gate (AFTER the
+	// commitment gate — the frozen ladder: ownership 2.4 → mode 2.5
+	// → disclosure 2.5 → policy 2.6 → objection 2.8 → commitment
+	// link 2.9 → continuation link 2.10 → write): the nullable LinkID
+	// is carried ONLY by the sales class (the delivered badge of the
+	// FR-16); the linked row must exist and belong to THIS case. The
+	// state never matters here: the binding is the honest delivery
+	// record, a dead link may be bound after the fact (the panel
+	// derives the state read-time).
+	if command.LinkID.Valid() {
+		if command.ReplyClass != casesDomain.ReplyClassSales {
+			return casesAPI.WorkOutcome{}, fixtureWorkRule("send_client_reply", fmt.Errorf("Связь ссылки продолжения несёт только коммерческий ответ (sales): нейтральные и защищённые сообщения не вплетают ссылку продолжения."))
+		}
+		link, known := f.contLinks[command.LinkID]
+		if !known || link.CaseID != command.CaseID {
+			return casesAPI.WorkOutcome{}, fixtureWorkRule("send_client_reply", fmt.Errorf("Ссылка продолжения не найдена: связь возможна только со ссылкой этого обращения."))
+		}
+		f.contDelivered[command.LinkID] = true
 	}
 	replyID := f.fixtureOwnershipID()
 	f.replies[command.CaseID] = append(f.replies[command.CaseID], casesDomain.ClientReply{

@@ -136,6 +136,11 @@ type CaseView struct {
 	// the readiness derivations, the exact-version confirmations with
 	// the validity derivations and the honest declines.
 	Commitments CommitmentView `json:"commitments"`
+	// The Story 2.10 section: the continuation links of the case with
+	// the read-time state derivations, the delivered binding of the
+	// outgoing replies, the use accounting against the limit and the
+	// event feed (the FR-16 statuses — never stored words).
+	Continuations ContinuationView `json:"continuations"`
 }
 
 // PayloadView is the sealed payload read under review/audit: the digest,
@@ -407,7 +412,13 @@ type WorkOutcome struct {
 	ConfirmationID    id.UUID `json:"confirmation_id,omitempty"`
 	SubjectKind       string  `json:"subject_kind,omitempty"`
 	DeclineID         id.UUID `json:"decline_id,omitempty"`
-	DeclineOutcome    string  `json:"decline_outcome,omitempty"`
+	DeclineOutcome    string  `json:"decline_outcome,omitempty"` // The Story 2.10 material: the continuation link of the issued or
+	// revoked command (the token NEVER enters the stored outcome — the
+	// replay shows the honest «выдан» mask and the empty URL), the
+	// issuance flag with the expiry moment.
+	LinkID              id.UUID   `json:"link_id,omitempty"`
+	ContinuationIssued  bool      `json:"continuation_issued,omitempty"`
+	ContinuationExpires time.Time `json:"continuation_expires_at,omitempty"`
 }
 
 // FactView is one fact of the facts view: the anchor, the derived status,

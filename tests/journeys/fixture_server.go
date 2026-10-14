@@ -107,9 +107,34 @@ func (r *resolverFixture) setStepUp(enabled bool) {
 	r.stepUp = enabled
 }
 
-type clockFixture struct{}
+// clockFixture is the shiftable fixture clock: the base moment of
+// the fixture world plus the fixture-only offset (the /fixture/clock
+// toggle of the continuation journeys — the ttl expiry legs advance
+// the world time without touching the host clock; the offset resets
+// to zero; the other journeys start at the base moment byte-identically).
+type clockFixture struct {
+	mu     sync.Mutex
+	offset time.Duration
+}
 
-func (clockFixture) Now() time.Time { return time.Date(2026, 9, 16, 12, 0, 0, 0, time.UTC) }
+// journeyClock is the single clock of the fixture server (the fixture
+// views derive the continuation states from it — the honest mirror of
+// the transport clock of the real app).
+var journeyClock = &clockFixture{}
+
+func (c *clockFixture) Now() time.Time {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return time.Date(2026, 9, 16, 12, 0, 0, 0, time.UTC).Add(c.offset)
+}
+
+// setOffsetMinutes shifts the fixture clock (negative values rewind —
+// the honest reset of the expiry legs).
+func (c *clockFixture) setOffsetMinutes(minutes int) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.offset = time.Duration(minutes) * time.Minute
+}
 
 type idsFixture struct{}
 
@@ -886,7 +911,7 @@ func (f *employeeFixture) RetireKnowledge(_ context.Context, c employeeAPI.Knowl
 
 func main() {
 	resolver := &resolverFixture{}
-	server, err := httptransport.New(identityFixture{}, resolver, idsFixture{}, clockFixture{}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	server, err := httptransport.New(identityFixture{}, resolver, idsFixture{}, journeyClock, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {
 		panic(err)
 	}
@@ -943,6 +968,19 @@ func main() {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
+		w.WriteHeader(http.StatusNoContent)
+	})
+	// The fixture-only clock shift: the continuation journeys walk the
+	// expired derivation of a short-lived link (the ttl is the honest
+	// server-side time window; production never exposes the toggle).
+	root.HandleFunc("POST /fixture/clock", func(w http.ResponseWriter, r *http.Request) {
+		r.ParseForm()
+		minutes, err := strconv.Atoi(strings.TrimSpace(r.FormValue("minutes")))
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		journeyClock.setOffsetMinutes(minutes)
 		w.WriteHeader(http.StatusNoContent)
 	})
 	root.Handle("/", server.Handler())

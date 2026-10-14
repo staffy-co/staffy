@@ -163,6 +163,15 @@ type caseDetailPageView struct {
 	// Work Items).
 	CommitmentsPanelText  string
 	CommitmentLinkOptions []workOption
+
+	// The Story 2.10 section: the continuation panel words (the link
+	// options of the sales reply form — the VALID links of the case; the
+	// purpose options of the issue form — the fixed v1 dictionary) and
+	// the revoked announcement flag of the PRG landing.
+	ContinuationsPanelText     string
+	ContinuationLinkOptions    []workOption
+	ContinuationPurposeOptions []workOption
+	ContinuationRevoked        bool
 }
 
 // assurancePanelView is the assurance section of the case page: the derived
@@ -474,7 +483,7 @@ func materialKeyHints(criticalEntities []string) string {
 	return "Материальный ключ (до 64 символов; словарь закреплённого пака: " + strings.Join(criticalEntities, ", ") + ")"
 }
 
-func prepareCaseView(view casesAPI.CaseView, facts casesAPI.FactsView, flash string) caseDetailPageView {
+func prepareCaseView(r *http.Request, view casesAPI.CaseView, facts casesAPI.FactsView, flash string) caseDetailPageView {
 	out := caseDetailPageView{
 		ScopeText:        casesScopeText(true),
 		CaseNo:           strconv.FormatInt(view.Case.CaseNo, 10),
@@ -666,6 +675,24 @@ func prepareCaseView(view casesAPI.CaseView, facts casesAPI.FactsView, flash str
 		out.ObjectionStepOptions = append(out.ObjectionStepOptions, workOption{Value: word, Text: objectionStepText(word)})
 	}
 
+	// The Story 2.10 section: the continuation panel words, the link
+	// options of the sales reply form (the VALID undelivered links of the
+	// case — the FR-16 binding is one reply of one link) and the purpose
+	// options of the issue form (the fixed v1 dictionary, never invented
+	// options).
+	out.ContinuationsPanelText = view.Continuations.PanelText
+	out.ContinuationRevoked = r.URL.Query().Get("continuation_revoked") == "1"
+	for _, word := range casesDomain.ContinuationPurposes {
+		out.ContinuationPurposeOptions = append(out.ContinuationPurposeOptions, workOption{Value: word, Text: continuationPurposeText(word)})
+	}
+	for _, link := range view.Continuations.Links {
+		if link.State == casesDomain.ContinuationStateValid && !link.Delivered {
+			out.ContinuationLinkOptions = append(out.ContinuationLinkOptions, workOption{
+				Value: link.LinkID.String(),
+				Text:  "ссылка " + link.LinkID.String() + " · " + continuationLinkStateText(link.State) + " · " + link.Question,
+			})
+		}
+	}
 	// The Story 2.9 section: the Commitment panel words and the presentation
 	// link options of the sales reply form (the offered CURRENT versions of
 	// the case Work Items — the draft never presents; the value carries the
@@ -809,6 +836,12 @@ type workCardView struct {
 	CommitConfirmCount string
 	CommitDeclineCount string
 	CommitReviewURL    string
+	// The Story 2.10 section: the continuation link cards of this item
+	// (the read-time state derivation, the FR-16 delivery word, the use
+	// accounting against the limit) and the client event feed of the
+	// links of this item.
+	ContLinks []continuationLinkCardView
+	ContUses  []continuationUseCardView
 	// The form options of this card (empty when the state refuses them).
 	AllowedTransitions []transitionOption
 	MergeSources       []mergeSourceOption
@@ -840,6 +873,35 @@ type objectionCardView struct {
 	LinkedCount      string
 }
 
+// continuationLinkCardView is one continuation link of the operator
+// panel: the identifiers, the purpose words, the read-time state
+// derivation (never a stored status), the FR-16 delivery word, the use
+// accounting against the limit, the operator texts and the expiry. The
+// token never appears — the hash is the only stored trace.
+type continuationLinkCardView struct {
+	LinkID         string
+	PurposesText   string
+	StateText      string
+	StatusText     string
+	UsesText       string
+	Question       string
+	ParticipantRef string
+	ExpiresText    string
+	Revocable      bool
+	RevokeURL      string
+}
+
+// continuationUseCardView is one client action of the event feed (the
+// accepted correction consumes the limit; the human and return events
+// are free).
+type continuationUseCardView struct {
+	UseID       string
+	LinkID      string
+	KindText    string
+	FactID      string
+	FactVersion string
+	SubmittedAt string
+}
 type transitionOption struct {
 	Value string
 	Text  string
@@ -1105,6 +1167,39 @@ func prepareWorkCards(view casesAPI.CaseView, facts casesAPI.FactsView) []workCa
 			card.CommitCount = strconv.Itoa(len(section.Versions))
 			card.CommitConfirmCount = strconv.Itoa(len(section.Confirmations))
 			card.CommitDeclineCount = strconv.Itoa(len(section.Declines))
+		}
+		// The Story 2.10 continuation cards of this item: the links with
+		// the read-time state derivations and the FR-16 delivery words,
+		// the event feed of their uses (the token never appears).
+		linksOfItem := map[id.UUID]bool{}
+		for _, link := range view.Continuations.Links {
+			if link.WorkItemID != item.WorkItemID {
+				continue
+			}
+			linksOfItem[link.LinkID] = true
+			card.ContLinks = append(card.ContLinks, continuationLinkCardView{
+				LinkID:         link.LinkID.String(),
+				PurposesText:   continuationPurposesText(link.Purposes),
+				StateText:      continuationLinkStateText(link.State),
+				StatusText:     continuationLinkStatusText(link, usesOfLink(view.Continuations.Uses, link.LinkID)),
+				UsesText:       strconv.Itoa(link.AcceptedUses) + " / " + strconv.Itoa(link.ConsumptionLimit),
+				Question:       link.Question,
+				ParticipantRef: link.ParticipantRef,
+				ExpiresText:    formatTime(link.ExpiresAt),
+				Revocable:      link.State == casesDomain.ContinuationStateValid && !item.Terminal,
+				RevokeURL:      "/app/tenants/" + view.TenantID.String() + "/cases/" + view.Case.CaseID.String() + "/work-items/" + item.WorkItemID.String() + "/continuation-links/" + link.LinkID.String() + "/revoke",
+			})
+		}
+		for _, use := range view.Continuations.Uses {
+			if !linksOfItem[use.LinkID] {
+				continue
+			}
+			card.ContUses = append(card.ContUses, continuationUseCardView{
+				UseID: use.UseID.String(), LinkID: use.LinkID.String(),
+				KindText: continuationUseKindText(use.UseKind),
+				FactID:   use.FactID.String(), FactVersion: strconv.FormatInt(use.FactVersion, 10),
+				SubmittedAt: formatTime(use.SubmittedAt),
+			})
 		}
 		if item.Type == "" {
 			card.TypeText = "— не классифицирован —"
@@ -1925,4 +2020,92 @@ func policyExtractedText(extracted []casesDomain.ExtractedFact) string {
 		parts = append(parts, fact.MaterialKey+" = "+fact.ValueDigest+" (событие "+fact.SourceEventID.String()+")")
 	}
 	return strings.Join(parts, ", ")
+}
+
+// continuationLinkStateText renders the honest state word of the panel
+// (the read-time derivation — never a stored status).
+func continuationLinkStateText(state string) string {
+	switch state {
+	case casesDomain.ContinuationStateValid:
+		return "действует"
+	case casesDomain.ContinuationStateExpired:
+		return "истёк срок"
+	case casesDomain.ContinuationStateRevoked:
+		return "отозвана (ожидание прекращено)"
+	case casesDomain.ContinuationStateConsumed:
+		return "отправка завершена"
+	case casesDomain.ContinuationStateOwnerStale:
+		return "владение изменилось"
+	}
+	return state
+}
+
+// continuationLinkStatusText renders the FR-16 delivery word of the
+// panel: the delivered binding of the outgoing reply, the expected
+// answer of a fresh valid link, the finished submission, the expired
+// term or the stopped expectation (the statuses are derivations, never
+// stored words — stated in text, never by the color alone).
+func continuationLinkStatusText(link casesAPI.ContinuationLinkView, useCount int) string {
+	switch {
+	case link.Delivered:
+		return "доставлена (связана с исходящим ответом)"
+	case link.State == casesDomain.ContinuationStateValid && useCount == 0:
+		return "ожидается ответ"
+	case link.State == casesDomain.ContinuationStateConsumed:
+		return "отправка завершена"
+	case link.State == casesDomain.ContinuationStateExpired:
+		return "истёк срок"
+	case link.State == casesDomain.ContinuationStateRevoked:
+		return "ожидание прекращено"
+	case link.State == casesDomain.ContinuationStateOwnerStale:
+		return "владение изменилось — ссылка недействительна"
+	}
+	return "действует"
+}
+
+// continuationPurposesText renders the purpose words of the panel card.
+func continuationPurposesText(purposes []string) string {
+	if len(purposes) == 0 {
+		return "—"
+	}
+	words := make([]string, 0, len(purposes))
+	for _, word := range purposes {
+		words = append(words, continuationPurposeText(word))
+	}
+	return strings.Join(words, ", ")
+}
+
+// continuationPurposeText renders the honest purpose word (the v1
+// dictionary).
+func continuationPurposeText(purpose string) string {
+	switch purpose {
+	case casesDomain.ContinuationPurposeFactCorrection:
+		return "исправление факта (fact_correction)"
+	}
+	return purpose
+}
+
+// continuationUseKindText renders the honest event word of the feed.
+func continuationUseKindText(kind string) string {
+	switch kind {
+	case casesDomain.ContinuationUseFactCorrectionSubmitted:
+		return "исправление отправлено"
+	case casesDomain.ContinuationUseHumanRequested:
+		return "позвать человека"
+	case casesDomain.ContinuationUseReturnedToConversation:
+		return "вернулся в разговор"
+	}
+	return kind
+}
+
+// usesOfLink counts the use rows of one link (the events included — the
+// FR-16 «ожидается ответ» is the valid link with no rows at all).
+func usesOfLink(uses []casesAPI.ContinuationUseView, linkID id.UUID) int {
+	count := 0
+	for _, use := range uses {
+		if use.LinkID == linkID {
+			count++
+		}
+	}
+	return count
 }

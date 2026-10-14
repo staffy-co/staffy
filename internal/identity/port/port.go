@@ -26,6 +26,14 @@ type Repository interface {
 	Workspace(context.Context, tenancy.Context) (domain.Workspace, error)
 }
 
+// TenantNameRepository is the principal-free tenant name read (the
+// anonymous scope of the public surfaces — the RLS tenant policy checks
+// the tenant only). The app asserts it of the repository (the
+// membershipRepo() precedent); the composite Repository stays untouched.
+type TenantNameRepository interface {
+	TenantName(context.Context, tenancy.Context) (string, error)
+}
+
 type PrincipalResolver interface {
 	Resolve(context.Context) (domain.Principal, error)
 }
