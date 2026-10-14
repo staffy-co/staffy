@@ -2045,3 +2045,18 @@ done:
 - Локальный main синхронизирован с origin (53dca45); спека 2-10 и sprint-status → done синхронно
 next: SM-фаза story 2-11 «Равноправные альтернативные пути обслуживания» (epics.md §2.11) — входы: epics, PRD, ARCH-SPINE, механика 2-6/2-8/2-10; deferred-work: проверка открытых долгов перед стартом
 commit: 53dca45
+
+---
+date: 2026-10-14
+task: 56-sm
+role: main (Super Z)
+story: 2-11
+summary: SM-фаза story 2-11 «Равноправные альтернативные пути обслуживания» — спека первого среза «записанные preferences связи + честные альтернативы Policy» написана и закоммичена на ветке codex/story-2-11-equal-access-alternative-paths (fb84257, [skip ci]); статус backlog; долги deferred-work, нацеленные на 2-11, отсутствуют (проверены перед стартом: последние два закрыты в цикле 2-10); токен публикации в сессии отсутствует — публикация спеки+DEVLOG батчем при CHECKPOINT 1/2 со свежим токеном (прецедент 52-sm)
+done:
+- Протокол возобновления: bootstrap зелёный (окружение ресайклилось — Go/PG восстановлены), git-факт чист (main = origin = aa7e9bc, 2-10 влита PR #25), check-continuity OK (fail=0, warn=0)
+- Входы SM прочитаны: epics.md §2.11 (11 AC-блоков), PRD FR-26, ARCH-SPINE (AD-9 same contract, AD-12 AG-2, AD-10/AD-11), механика 2-6 (EvaluatePolicy/исходы/гейт продажного ответа), 2-8 (record_objection + GuardSalesReplyAgainstObjections — зеркало для гейта точности), 2-10 (continuation/публичная страница), deferred-work (долгов на 2-11 нет), словари каналов/ModalityOfChannel, GuardSalesReplyAgainstObjections, client_replies/playbook_step, case.html секции
+- Границы первого среза: AC-блоки 1 (preferences, кроме расширенной передачи), 2 (альтернативы Policy text-контура), 8 (fail-closed no_alternative_path), 10 (причина в ленте/панели), 11 (a11y форм) — в срезе; AC-блоки 3/4/5/6/7/9 — честные Never (voice/DTMF/коннекторы/цены/timing/AG-2 — контуры отсутствуют или будущие)
+- Спека: словарь preferences (8 ключей: 6 флагов + preferred_channel/available_time), append-only case_accommodations с ревизиями и cleared, read-time DeriveCurrentAccommodations, Policy v2 (rule intake-policy-v2: 4-й вход, active_alternatives при отсутствующем media-usual факте + no_photo, контрольная ветка байт-в-байт), гейт точности accuracy_qualifier ∈ active_alternatives (зеркало 2-8, после возражения до CAS), миграция 00011 (+policy_outcomes.active_alternatives, +client_replies.accuracy_qualifier), панель/передача владения/формы/OpenAPI, матрица 25 строк, journeys-цепь
+- Коммит ветки fb84257 [skip ci]; DEVLOG-запись (эта) на main; push отложен до токена (unpushed: ветка 1 + main 1 — прецедент 56/57/58, том персистентен)
+next: CHECKPOINT 1 — предъявление спеки 2-11 владельцу нетехническим пересказом в ответе сессии (дисциплина 52-sm: явное одобрение отдельным ответом); при одобрении → спека+sprint-status → ready-for-dev, публикация батча свежим токеном, Dev step-01..05
+commit: (sm — спека fb84257 на ветке; DEVLOG — эта запись)
