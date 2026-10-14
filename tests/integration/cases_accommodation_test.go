@@ -10,9 +10,11 @@ import (
 	"strings"
 	"testing"
 
+	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
 	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
 	casesPort "github.com/artemiosu/staffy/internal/cases/port"
 	casesStore "github.com/artemiosu/staffy/internal/cases/store"
+	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
 	"github.com/artemiosu/staffy/internal/platform/id"
 	"github.com/artemiosu/staffy/internal/platform/tenancy"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -450,5 +452,229 @@ func TestAccommodationStoreRecordReads(t *testing.T) {
 	}
 	if len(foreign) != 0 {
 		t.Fatalf("the foreign-tenant read finds no rows, got %d", len(foreign))
+	}
+}
+
+// TestAccommodationServiceCycleCoversDemoPath covers the Story 2.11 demo
+// path through the REAL service: the record command (the scope gate
+// BEFORE the guards — the audit-only member and the foreign tenant
+// probes; the honest record cycle with the revision derivation; the
+// replay idempotency and the command key conflict), the policy wiring
+// (the recorded no_photo + the missing mandatory media-usual fact → the
+// outcome carries the active alternatives of the pack and the preferences
+// map of the input snapshot; the same anchors + the same preferences →
+// the same digest; the clearing revision → the honest supersede without
+// the alternatives), the accuracy gate of the sales reply (the missing
+// qualifier against the alternatives — the honest required; the foreign
+// word — the subset of the OUTCOME; the honest pass with the reply row
+// carrying the word; the control branch — the empty word of the outcome
+// without alternatives passes, the non-empty refuses), and the case view
+// section (the current set, the honest history, the transfer card
+// material of the receiving operator).
+func TestAccommodationServiceCycleCoversDemoPath(t *testing.T) {
+	w := newCasesWorld(t, 988)
+	ctx := context.Background()
+	caseID, workItemID := w.acceptedCase(t, "evt-accommodation-svc-1", "sess-accommodation-svc-1", `{"call":"inbound-call","from":"+79000000141"}`)
+	conversationID := w.conversationFirst(t, caseID)
+	turn := w.modeTurnEvent(t, caseID, "sess-accommodation-svc-1", "evt-accommodation-svc-1-turn-1", `{"say":"не могу отправлять фото, сколько стоит деталь"}`)
+	w.policySalesPrelude(t, caseID, conversationID, turn, "accommodation-sales-1")
+
+	record := func(key, value, note string, cleared bool, keyNo string, actor identityDomain.Principal, tenant id.UUID) (casesAPI.WorkOutcome, error) {
+		return w.cases.RecordAccommodation(ctx, casesAPI.RecordAccommodationCommand{
+			Actor: actor, TenantID: tenant, CaseID: caseID,
+			AccommodationKey: key, AccommodationValue: value, Cleared: cleared, Note: note,
+			IdempotencyKey: keyNo, Now: ownershipNow,
+		})
+	}
+
+	// The scope gate BEFORE the material guards: the audit-only member and
+	// the foreign tenant never write (the honest 403/404 words; the
+	// dictionary violation never masks the scope refusal — the M1 gate
+	// order).
+	auditor := inviteMember(t, w.identity, w.readinessActor(true), w.tenant, "accommodation-auditor-988@example.org", "expert_qa", []identityDomain.Scope{identityDomain.Audit}, "000000009886", "000000009889")
+	auditOnly := actorPrincipal{principalID: auditor.ID, stepUp: true}.principal()
+	if _, err := record(casesDomain.AccommodationNoPhoto, "", "", false, "accommodation-audit-1", auditOnly, w.tenant); !errors.Is(err, identityDomain.ErrForbidden) || !strings.Contains(err.Error(), "review или configuration") {
+		t.Fatalf("expected the honest 403 scope refusal, got %v", err)
+	}
+	if _, err := record("magic_key", "", "", false, "accommodation-audit-2", auditOnly, w.tenant); !errors.Is(err, identityDomain.ErrForbidden) {
+		t.Fatalf("the dictionary violation never masks the scope refusal, got %v", err)
+	}
+	if _, err := record(casesDomain.AccommodationNoPhoto, "", "", false, "accommodation-foreign-1", w.ownershipActor(), id.MustParse("01994f64-6c00-7000-8000-0000000000f1")); !errors.Is(err, casesDomain.ErrNotFound) && !errors.Is(err, identityDomain.ErrNotFound) {
+		t.Fatalf("expected the honest 404 of the foreign tenant, got %v", err)
+	}
+
+	// The honest record cycle: the client says «не могу отправлять фото» —
+	// the operator records no_photo (the revision 1).
+	first, err := record(casesDomain.AccommodationNoPhoto, "", "клиент сказал: не могу фото", false, "accommodation-record-1", w.ownershipActor(), w.tenant)
+	if err != nil || first.Command != "record_accommodation" || !first.AccommodationRecordID.Valid() || first.AccommodationKey != casesDomain.AccommodationNoPhoto {
+		t.Fatalf("the honest record must land, got %+v %v", first, err)
+	}
+	// The exact repeat: the replay of the stored outcome (the idempotency).
+	replayed, err := record(casesDomain.AccommodationNoPhoto, "", "клиент сказал: не могу фото", false, "accommodation-record-1", w.ownershipActor(), w.tenant)
+	if err != nil || !replayed.Replay || replayed.AccommodationRecordID != first.AccommodationRecordID {
+		t.Fatalf("the exact repeat replays the stored outcome, got %+v %v", replayed, err)
+	}
+	// The same key with ANOTHER material: the honest command key conflict.
+	if _, err := record(casesDomain.AccommodationNoVoice, "", "", false, "accommodation-record-1", w.ownershipActor(), w.tenant); !errors.Is(err, casesDomain.ErrCommandKeyConflict) {
+		t.Fatalf("the same key with another material must refuse with the command key conflict, got %v", err)
+	}
+	// The dictionary guard of the service: the unknown key and the flag with
+	// a value refuse honestly (the domain truth before SQL).
+	if _, err := record("magic_key", "", "", false, "accommodation-guard-1", w.ownershipActor(), w.tenant); err == nil || !strings.Contains(err.Error(), "не входит в словарь") {
+		t.Fatalf("the unknown key refuses with the dictionary words, got %v", err)
+	}
+	if _, err := record(casesDomain.AccommodationNoWeb, "yes", "", false, "accommodation-guard-2", w.ownershipActor(), w.tenant); err == nil || !strings.Contains(err.Error(), "не несёт значение") {
+		t.Fatalf("the flag with a value refuses honestly, got %v", err)
+	}
+
+	// The view: the current set carries no_photo; the history carries the
+	// honest revision 1 (the transfer card material of the receiving
+	// operator — the same view scope).
+	view, err := w.cases.CaseView(ctx, w.ownershipActor(), w.tenant, caseID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(view.Accommodations.Current) != 1 || view.Accommodations.Current[0].Key != casesDomain.AccommodationNoPhoto || view.Accommodations.Current[0].Cleared {
+		t.Fatalf("the current set carries the active no_photo, got %+v", view.Accommodations.Current)
+	}
+	if len(view.Accommodations.History) != 1 || view.Accommodations.RecordsCount != 1 {
+		t.Fatalf("the history carries the one honest revision, got %+v", view.Accommodations.History)
+	}
+
+	// The policy wiring: the port submits the proposal (the mandatory
+	// media-usual service_kind fact is NOT confirmed) and the evaluation
+	// runs with the recorded no_photo — the outcome carries the active
+	// alternatives of the pack and the preferences map of the snapshot.
+	firstOutcome := w.policyPrelude(t, caseID, conversationID, workItemID, "accommodation-policy-1")
+	if firstOutcome.OutcomeClass != casesDomain.OutcomeCommercialAnswer {
+		t.Fatalf("expected the commercial outcome of the prelude, got %+v", firstOutcome)
+	}
+	currentOf := func() *casesDomain.PolicyOutcome {
+		view, viewErr := w.cases.CaseView(ctx, w.ownershipActor(), w.tenant, caseID)
+		if viewErr != nil {
+			t.Fatal(viewErr)
+		}
+		for _, section := range view.Policy.Items {
+			if section.WorkItemID == workItemID {
+				return section.Current
+			}
+		}
+		return nil
+	}
+	withPreferences := currentOf()
+	if withPreferences == nil || len(withPreferences.ActiveAlternatives) != len(casesDomain.AlternativePathWords) {
+		t.Fatalf("the outcome carries the full pack alternatives, got %+v", withPreferences)
+	}
+	if _, known := withPreferences.InputSnapshot.Preferences[casesDomain.AccommodationNoPhoto]; !known {
+		t.Fatalf("the input snapshot carries the preferences map, got %+v", withPreferences.InputSnapshot.Preferences)
+	}
+
+	// The reproducibility: the SAME proposal + the same anchors + the same
+	// preferences state → the same decision digest (the honest second row
+	// supersedes by the number, never the digest).
+	digestFirst := withPreferences.DecisionDigest
+	repeatedEvaluate := func() {
+		t.Helper()
+		fresh, viewErr := w.cases.CaseView(ctx, w.ownershipActor(), w.tenant, caseID)
+		if viewErr != nil {
+			t.Fatal(viewErr)
+		}
+		proposalID := id.UUID("")
+		version := int64(0)
+		for _, section := range fresh.Policy.Items {
+			if section.WorkItemID != workItemID {
+				continue
+			}
+			for _, proposal := range section.Proposals {
+				proposalID = proposal.ProposalID
+			}
+		}
+		for _, item := range fresh.WorkItems {
+			if item.WorkItemID == workItemID {
+				version = item.Version
+			}
+		}
+		if _, err := w.cases.EvaluatePolicy(ctx, casesAPI.EvaluatePolicyCommand{
+			Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ProposalID: proposalID,
+			ExpectedModeVersion: fresh.Policy.ModeVersion, ExpectedOwnerEpoch: fresh.Policy.OwnerEpoch,
+			ExpectedFactsDigest: fresh.Policy.FactsDigest, ExpectedWorkItemVersion: version,
+			IdempotencyKey: fmt.Sprintf("accommodation-reevaluate-%d", fresh.Policy.ModeVersion), Now: ownershipNow,
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	repeatedEvaluate()
+	if repeated := currentOf(); repeated.DecisionDigest != digestFirst || repeated.OutcomeNo <= withPreferences.OutcomeNo {
+		t.Fatalf("the same inputs produce the same digest with the grown number, got %+v", repeated)
+	}
+
+	// The accuracy gate of the sales reply: the CURRENT outcome carries the
+	// active alternatives — the reply without the qualifier refuses with
+	// the honest required words.
+	reply := func(qualifier, keyNo string) (casesAPI.WorkOutcome, error) {
+		return w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
+			Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+			WorkItemID: workItemID, ExpectedEpoch: 1, ReplyClass: casesDomain.ReplyClassSales,
+			AccuracyQualifier: qualifier, Content: "Сориентирую по описанию", IdempotencyKey: keyNo, Now: ownershipNow,
+		})
+	}
+	if _, err := reply("", "accommodation-reply-required-1"); err == nil || !strings.Contains(err.Error(), casesDomain.AccuracyQualifierRequiredText[:40]) {
+		t.Fatalf("the reply without the qualifier refuses with the required words, got %v", err)
+	}
+	// The word outside the active set of the outcome: the honest foreign
+	// (the subset of the OUTCOME, never the dictionary in general — the
+	// word IS a dictionary word but the outcome's set decides).
+	if _, err := reply("magic_word", "accommodation-reply-foreign-1"); err == nil || !strings.Contains(err.Error(), "не входит в активные альтернативы") {
+		t.Fatalf("the word outside the active set refuses honestly, got %v", err)
+	}
+	// The honest pass: the reply carries the qualifier word; the row keeps
+	// it (the panel truth).
+	qualified, err := reply(casesDomain.AlternativeTextDescription, "accommodation-reply-pass-1")
+	if err != nil || qualified.ReplyState != "prepared" || qualified.AccuracyQualifier != casesDomain.AlternativeTextDescription {
+		t.Fatalf("the qualified sales reply passes carrying the word, got %+v %v", qualified, err)
+	}
+	// The non-sales class with the qualifier word: the honest 400 of the
+	// dictionary (the field has exactly one meaning).
+	if _, err := w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+		WorkItemID: workItemID, ExpectedEpoch: 1, ReplyClass: casesDomain.ReplyClassNeutral,
+		AccuracyQualifier: casesDomain.AlternativeTextDescription, Content: "Нейтральное сообщение", IdempotencyKey: "accommodation-reply-neutral-1", Now: ownershipNow,
+	}); err == nil || !strings.Contains(err.Error(), "несёт только коммерческий ответ") {
+		t.Fatalf("the neutral class with the qualifier refuses with the dictionary words, got %v", err)
+	}
+
+	// The clearing revision: the client learned to send photos — the no_photo
+	// leaves the current set (the honest history keeps both rows).
+	cleared, err := record(casesDomain.AccommodationNoPhoto, "", "клиент научился присылать фото", true, "accommodation-record-2", w.ownershipActor(), w.tenant)
+	if err != nil || cleared.AccommodationKey != casesDomain.AccommodationNoPhoto || !cleared.AccommodationCleared {
+		t.Fatalf("the clearing revision must land, got %+v %v", cleared, err)
+	}
+	view, err = w.cases.CaseView(ctx, w.ownershipActor(), w.tenant, caseID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(view.Accommodations.Current) != 0 || len(view.Accommodations.History) != 2 {
+		t.Fatalf("the cleared key leaves the current set, the history keeps both rows, got %+v", view.Accommodations)
+	}
+
+	// The honest supersede: the re-evaluation over the cleared preferences
+	// produces the outcome WITHOUT the alternatives and a NEW digest (the
+	// changed preferences are the honest input change); the control branch
+	// returns — the sales reply of the alternatives-free outcome passes
+	// with the EMPTY word and refuses with any word.
+	w.policyPrelude(t, caseID, conversationID, workItemID, "accommodation-policy-3")
+	without := currentOf()
+	if without == nil || len(without.ActiveAlternatives) != 0 {
+		t.Fatalf("the cleared preferences produce the outcome without the alternatives, got %+v", without)
+	}
+	if without.DecisionDigest == digestFirst {
+		t.Fatalf("the changed preferences change the digest (the honest supersede), got %s", without.DecisionDigest)
+	}
+	if _, err := reply(casesDomain.AlternativeTextDescription, "accommodation-reply-control-1"); err == nil || !strings.Contains(err.Error(), casesDomain.AccuracyQualifierForeignText[:40]) {
+		t.Fatalf("the word against the alternatives-free outcome refuses with the foreign words, got %v", err)
+	}
+	control, err := reply("", "accommodation-reply-control-2")
+	if err != nil || control.ReplyState != "prepared" || control.AccuracyQualifier != "" {
+		t.Fatalf("the empty word of the alternatives-free outcome passes the old path, got %+v %v", control, err)
 	}
 }

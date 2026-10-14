@@ -141,6 +141,12 @@ type CaseView struct {
 	// outgoing replies, the use accounting against the limit and the
 	// event feed (the FR-16 statuses — never stored words).
 	Continuations ContinuationView `json:"continuations"`
+	// The Story 2.11 section: the recorded communication preferences
+	// of the case — the CURRENT set (the read-time derivation), the
+	// append-only revision history, the key dictionary of the record
+	// form and the channel dictionary of the preferred_channel value
+	// (an OPERATIONAL setting, never a fact).
+	Accommodations AccommodationView `json:"accommodations"`
 }
 
 // PayloadView is the sealed payload read under review/audit: the digest,
@@ -419,6 +425,16 @@ type WorkOutcome struct {
 	LinkID              id.UUID   `json:"link_id,omitempty"`
 	ContinuationIssued  bool      `json:"continuation_issued,omitempty"`
 	ContinuationExpires time.Time `json:"continuation_expires_at,omitempty"`
+	// The Story 2.11 material: the accommodation record of the command
+	// (the record id, the key word and the clearing mark — the revision
+	// is the server-side truth of the store, the stored outcome never
+	// carries it) and the accuracy qualifier word the sales reply
+	// passed through (the row of the reply carries it — the honest
+	// limitation word of the outcome's active set).
+	AccommodationRecordID id.UUID `json:"accommodation_record_id,omitempty"`
+	AccommodationKey      string  `json:"accommodation_key,omitempty"`
+	AccommodationCleared  bool    `json:"accommodation_cleared,omitempty"`
+	AccuracyQualifier     string  `json:"accuracy_qualifier,omitempty"`
 }
 
 // FactView is one fact of the facts view: the anchor, the derived status,

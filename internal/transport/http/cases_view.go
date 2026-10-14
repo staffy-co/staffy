@@ -172,6 +172,22 @@ type caseDetailPageView struct {
 	ContinuationLinkOptions    []workOption
 	ContinuationPurposeOptions []workOption
 	ContinuationRevoked        bool
+	// The Story 2.11 section: the accommodation panel words (the CURRENT
+	// set, the append-only revision history, the key options of the record
+	// form — the dictionaries are fixed, never invented options), the
+	// accuracy qualifier options of the sales reply form (the active
+	// alternative words of the CURRENT outcomes: the form hint — the
+	// server gate resolves the exact set of the selected Work Item) and
+	// the continuation issue form hint (the honest no_web/no_voice words —
+	// the operator decides the surface, the machine never blocks).
+	AccommodationsPanelText    string
+	AccommodationCurrentRows   []accommodationStateRow
+	AccommodationHistoryRows   []accommodationRecordRow
+	HasAccommodations          bool
+	AccommodationKeyOptions    []workOption
+	AccommodationRecordsAnchor string
+	AccuracyQualifierOptions   []workOption
+	ContinuationSurfaceHint    string
 }
 
 // assurancePanelView is the assurance section of the case page: the derived
@@ -273,6 +289,11 @@ type ownershipPanelView struct {
 	HasReplies       bool
 	ReplyRows        []replyRowView
 	MemberOptions    []workOption
+	// AccommodationWords is the current preference words of the Story 2.11
+	// transfer card: the receiving operator reads the client's
+	// communication preferences BEFORE the ack (AC-1 «передаются каждому
+	// последующему Response Owner»).
+	AccommodationWords string
 }
 
 // ownershipTermRow is one term row of the ownership history.
@@ -301,6 +322,10 @@ type replyRowView struct {
 	OutcomeAt string
 	Epoch     string
 	OwnerText string
+	// QualifierText is the accuracy qualifier word of the Story 2.11 reply
+	// (the honest limitation of the outcome's active set; empty when the
+	// outcome carried none).
+	QualifierText string
 }
 
 // modePanelView is the Conversation Mode panel projection: the badge word
@@ -707,6 +732,58 @@ func prepareCaseView(r *http.Request, view casesAPI.CaseView, facts casesAPI.Fac
 				})
 			}
 		}
+	}
+
+	// The Story 2.11 section: the accommodation panel — the CURRENT set
+	// (the read-time derivation: the cleared keys stay visible with the
+	// honest mark), the append-only revision history, the key options of
+	// the record form (the fixed dictionary) and the accuracy qualifier
+	// options of the sales reply form (the active words of the CURRENT
+	// outcomes — the union over the case items; the server gate resolves
+	// the exact set of the selected item, the form shows the hint).
+	out.AccommodationsPanelText = view.Accommodations.PanelText
+	out.HasAccommodations = len(view.Accommodations.History) > 0
+	out.AccommodationRecordsAnchor = strconv.Itoa(view.Accommodations.RecordsCount)
+	for _, state := range view.Accommodations.Current {
+		out.AccommodationCurrentRows = append(out.AccommodationCurrentRows, accommodationStateRow{
+			Key: state.Key, KeyText: accommodationKeyText(state.Key),
+			Revision: strconv.FormatInt(state.Revision, 10), Cleared: state.Cleared, Value: state.Value,
+		})
+	}
+	for _, record := range view.Accommodations.History {
+		out.AccommodationHistoryRows = append(out.AccommodationHistoryRows, accommodationRecordRow{
+			Key: record.Key, KeyText: accommodationKeyText(record.Key),
+			Revision: strconv.FormatInt(record.Revision, 10), Value: record.Value, Cleared: record.Cleared,
+			Note: record.Note, ActorID: record.ActorID.String(), RecordedAt: formatTime(record.RecordedAt),
+		})
+	}
+	for _, word := range view.Accommodations.KeyWords {
+		out.AccommodationKeyOptions = append(out.AccommodationKeyOptions, workOption{Value: word, Text: accommodationKeyText(word)})
+	}
+	qualifierWords := map[string]bool{}
+	for _, section := range view.Policy.Items {
+		if section.Current != nil {
+			for _, word := range section.Current.ActiveAlternatives {
+				qualifierWords[word] = true
+			}
+		}
+	}
+	for _, word := range casesDomain.AlternativePathWords {
+		if qualifierWords[word] {
+			out.AccuracyQualifierOptions = append(out.AccuracyQualifierOptions, workOption{Value: word, Text: accuracyQualifierText(word)})
+		}
+	}
+	// The continuation issue form hint: the honest no_web/no_voice words of
+	// the current set (the link IS a web page — the operator decides the
+	// surface; the machine never blocks without a capability registry).
+	surfaceHints := []string{}
+	for _, state := range view.Accommodations.Current {
+		if !state.Cleared && (state.Key == casesDomain.AccommodationNoWeb || state.Key == casesDomain.AccommodationNoVoice) {
+			surfaceHints = append(surfaceHints, accommodationKeyText(state.Key))
+		}
+	}
+	if len(surfaceHints) > 0 {
+		out.ContinuationSurfaceHint = "Записаны предпочтения клиента: " + strings.Join(surfaceHints, "; ") + ". Ссылка продолжения — web-страница: сверьте, подходит ли эта поверхность клиенту (машина не блокирует — решение за оператором)."
 	}
 
 	for _, conversation := range view.Conversations {
@@ -1395,6 +1472,23 @@ func prepareOwnershipPanel(view casesAPI.CaseView) ownershipPanelView {
 		panel.PendingTarget = ownership.PendingTargetName
 		panel.PendingDeadline = formatTime(state.Pending.DeadlineAt)
 		panel.PendingRequestID = state.Pending.RequestID.String()
+		// The Story 2.11 transfer card: the current preference words the
+		// receiving operator reads BEFORE the ack (AC-1 «передаются
+		// каждому последующему Response Owner»); an empty word set stays
+		// empty — the honest absence, never an invented default.
+		preferenceWords := []string{}
+		for _, pref := range view.Accommodations.Current {
+			if !pref.Cleared {
+				word := accommodationKeyText(pref.Key)
+				if pref.Value != "" {
+					word += " = " + pref.Value
+				}
+				preferenceWords = append(preferenceWords, word)
+			}
+		}
+		if len(preferenceWords) > 0 {
+			panel.AccommodationWords = strings.Join(preferenceWords, "; ")
+		}
 		remaining := state.Pending.DeadlineAt.Sub(timeNowHTTP()).Minutes()
 		if state.PendingTimedOut {
 			panel.PendingTimedOut = true
@@ -1439,6 +1533,9 @@ func prepareOwnershipPanel(view casesAPI.CaseView) ownershipPanelView {
 			State:     card.OutcomeKind,
 			StateText: replyStateText(card.OutcomeKind),
 			OwnerText: card.Reply.OwnerRef.String(),
+		}
+		if card.Reply.AccuracyQualifier != "" {
+			row.QualifierText = accuracyQualifierText(card.Reply.AccuracyQualifier)
 		}
 		if card.OutcomeKind != "" {
 			row.OutcomeAt = formatTime(card.OutcomeAt)
@@ -1793,9 +1890,20 @@ type policyOutcomeRow struct {
 	Reused         []string
 	ReusedSigs     []string
 	Suppressed     []string
+	Alternatives   []policyAlternativeRow
 	PermittedText  string
 	DecisionDigest string
 	CreatedAt      string
+}
+
+// policyAlternativeRow is one active alternative word of the outcome:
+// the word with its honest limitation text (the dictionary of the
+// Domain Pack — the panel renders the text, the database carries the
+// words only).
+type policyAlternativeRow struct {
+	Word           string
+	WordText       string
+	LimitationText string
 }
 
 // policyMandatoryRow is one mandatory fact of the outcome plan: the
@@ -1974,6 +2082,7 @@ func preparePolicyOutcomeRow(outcome casesDomain.PolicyOutcome) policyOutcomeRow
 		Reused:         make([]string, 0, len(outcome.ReusedFacts)),
 		ReusedSigs:     make([]string, 0, len(outcome.ReusedFacts)),
 		Suppressed:     make([]string, 0, len(outcome.SuppressedQuestions)),
+		Alternatives:   make([]policyAlternativeRow, 0, len(outcome.ActiveAlternatives)),
 		PermittedText:  "Разрешённый путь: " + casesDomain.OutcomePermittedPath(outcome.OutcomeClass),
 		DecisionDigest: outcome.DecisionDigest,
 		CreatedAt:      formatTime(outcome.CreatedAt),
@@ -1993,6 +2102,17 @@ func preparePolicyOutcomeRow(outcome casesDomain.PolicyOutcome) policyOutcomeRow
 	}
 	for _, suppressed := range outcome.SuppressedQuestions {
 		row.Suppressed = append(row.Suppressed, suppressed.MaterialKey+" (источник: "+suppressed.Source+")")
+	}
+	// The active alternatives of the outcome (Story 2.11): every word
+	// carries its honest limitation text — the panel renders the word
+	// with the text and the next steps of the outcome (AC-11: the
+	// variants describe the result, the limitations and the next step
+	// in plain words).
+	for _, word := range outcome.ActiveAlternatives {
+		row.Alternatives = append(row.Alternatives, policyAlternativeRow{
+			Word: word, WordText: accuracyQualifierText(word),
+			LimitationText: casesDomain.AlternativeLimitationText(word),
+		})
 	}
 	return row
 }
@@ -2108,4 +2228,73 @@ func usesOfLink(uses []casesAPI.ContinuationUseView, linkID id.UUID) int {
 		}
 	}
 	return count
+}
+
+// accommodationStateRow is one key of the CURRENT preferences set of the
+// «Предпочтения связи» panel: the key word with the honest text, the
+// latest revision number, the clearing mark (a cleared key stays visible
+// with the honest mark — the history truth) and the valued material (the
+// channel word or the availability line; empty for the flags).
+type accommodationStateRow struct {
+	Key      string
+	KeyText  string
+	Revision string
+	Cleared  bool
+	Value    string
+}
+
+// accommodationRecordRow is one append-only revision row of the honest
+// history: the key word, the monotonic revision, the valued material, the
+// clearing mark, the operator note and the actor with the time.
+type accommodationRecordRow struct {
+	Key        string
+	KeyText    string
+	Revision   string
+	Value      string
+	Cleared    bool
+	Note       string
+	ActorID    string
+	RecordedAt string
+}
+
+// accommodationKeyText renders the honest text of one preference key word
+// (the fixed dictionary of the Domain Pack v0 — the panel and the forms
+// never invent options).
+func accommodationKeyText(key string) string {
+	switch key {
+	case casesDomain.AccommodationNoPhoto:
+		return "no_photo — клиент не может присылать фото"
+	case casesDomain.AccommodationNoWeb:
+		return "no_web — клиент не пользуется web"
+	case casesDomain.AccommodationNoVoice:
+		return "no_voice — клиент не может говорить голосом"
+	case casesDomain.AccommodationTextFirst:
+		return "text_first — клиент просит писать текстом"
+	case casesDomain.AccommodationSlowedPace:
+		return "slowed_pace — клиенту нужен замедленный темп"
+	case casesDomain.AccommodationMandatoryReadback:
+		return "mandatory_readback — клиенту нужно явное повторение вслух"
+	case casesDomain.AccommodationPreferredChannel:
+		return "preferred_channel — предпочтительный канал связи"
+	case casesDomain.AccommodationAvailableTime:
+		return "available_time — доступное время для связи"
+	}
+	return key
+}
+
+// accuracyQualifierText renders the honest word of one alternative path
+// word (the qualifier select of the sales reply form and the reply rows of
+// the panel; the limitation text renders beside it — AC-11).
+func accuracyQualifierText(word string) string {
+	switch word {
+	case casesDomain.AlternativeTextDescription:
+		return "text_description — точность ниже фото"
+	case casesDomain.AlternativeRangeEstimate:
+		return "range_estimate — только диапазон, не точный результат"
+	case casesDomain.AlternativeCallback:
+		return "callback — уточнение голосом с человеком"
+	case casesDomain.AlternativeHumanHandoff:
+		return "human_handoff — продолжит человек"
+	}
+	return word
 }

@@ -403,10 +403,16 @@ func (s *Postgres) execEvaluatePolicy(ctx context.Context, tx pgx.Tx, tenantID i
 	effective := casesDomain.EffectiveWorkModeWord(casesDomain.EffectiveWorkMode(active, context))
 	// The deterministic evaluation over the re-read material (the pure
 	// function — the store never trusts the app bytes).
-	// The 2.11 fourth input is the preferences state: the step-01 wiring
-	// keeps the control branch (nil — the decision stays byte-identical);
-	// the real read under the same advisory locks arrives with step-03.
-	decision := casesDomain.EvaluatePolicy(*proposal, world, effective, nil)
+	// The 2.11 fourth input is the CURRENT preferences state: the honest
+	// read under the SAME advisory locks (the record command of the
+	// preferences serializes on the identical key set — the derivation
+	// is the lock-visible truth, never a raced snapshot).
+	accommodationRecords, err := readAccommodationsTx(ctx, tx, tenantID, p.CaseID)
+	if err != nil {
+		return err
+	}
+	currentAccommodations := casesDomain.DeriveCurrentAccommodations(accommodationRecords)
+	decision := casesDomain.EvaluatePolicy(*proposal, world, effective, currentAccommodations)
 	_, digestMap, err := casesDomain.ComputeFactsDigest(confirmed)
 	if err != nil {
 		return err
@@ -416,7 +422,7 @@ func (s *Postgres) execEvaluatePolicy(ctx context.Context, tx pgx.Tx, tenantID i
 		ModeVersion: modeVersion, OwnerEpoch: ownership.Epoch,
 		FactsDigest: digestMap, FactsDigestHash: factsDigest,
 		WorkItemVersion: current.Version, RuleVersion: casesDomain.PolicyRuleVersion,
-		Preferences: casesDomain.AccommodationSnapshotOf(nil),
+		Preferences: casesDomain.AccommodationSnapshotOf(currentAccommodations),
 	}
 	decisionDigest, err := casesDomain.DecisionDigest(snapshot, decision, proposal.Intent)
 	if err != nil {
@@ -554,4 +560,51 @@ func replyPolicyGateOfTx(ctx context.Context, tx pgx.Tx, tenantID, caseID id.UUI
 		}
 	}
 	return current.OutcomeID, nil
+}
+
+// replyAccuracyGateOfTx re-validates the accuracy qualifier gate of the
+// sales reply under the locks (Story 2.11, AFTER the objection gate — the
+// frozen ladder: ... → objection 2.8 → accuracy 2.11 → write; the SALES
+// class only — the neutral and the protected paths stay byte-identical):
+// the CURRENT (the maximal number) outcome of the Work Item decides which
+// words are honest in this context — an outcome with active alternatives
+// REQUIRES the qualifier word of its active set (the absence of media
+// never becomes an invented exact result — the structural honesty of
+// AC-2); an outcome without alternatives requires the EMPTY word (the
+// field has exactly one meaning — the objection_step_foreign mirror of
+// 2.8). The non-sales reply with the qualifier word is the honest 400 of
+// the dictionary (the commitment/link precedent).
+func replyAccuracyGateOfTx(ctx context.Context, tx pgx.Tx, tenantID, caseID id.UUID, p casesPort.WorkCommandParams) error {
+	if p.ReplyClass != casesDomain.ReplyClassSales {
+		if p.AccuracyQualifier != "" {
+			return casesDomain.WorkRuleError{Rule: p.Command, Reason: "Слово ограничения точности несёт только коммерческий ответ (sales): нейтральные и защищённые сообщения не заявляют ограничение точности."}
+		}
+		return nil
+	}
+	outcomes, err := readPolicyOutcomesTx(ctx, tx, tenantID, caseID)
+	if err != nil {
+		return err
+	}
+	outcomesOfItem := []casesDomain.PolicyOutcome{}
+	for _, outcome := range outcomes {
+		if outcome.WorkItemID == p.WorkItemID {
+			outcomesOfItem = append(outcomesOfItem, outcome)
+		}
+	}
+	current := casesDomain.CurrentPolicyOutcome(outcomesOfItem)
+	if current == nil {
+		// The policy gate fires EARLIER and refuses the missing outcome
+		// with its own words; the accuracy gate of the empty outcome
+		// demands the empty word (the control branch).
+		return casesDomain.GuardSalesReplyAccuracy(nil, p.AccuracyQualifier)
+	}
+	if err := casesDomain.GuardSalesReplyAccuracy(current.ActiveAlternatives, p.AccuracyQualifier); err != nil {
+		var ruleErr casesDomain.WorkRuleError
+		if errors.As(err, &ruleErr) {
+			ruleErr.Rule = p.Command
+			return ruleErr
+		}
+		return err
+	}
+	return nil
 }

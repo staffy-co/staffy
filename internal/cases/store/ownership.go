@@ -191,7 +191,7 @@ func (s *Postgres) ReadClientReplies(ctx context.Context, scope tenancy.Context,
 	rows, err := tx.Query(ctx, `
                 select r.reply_id, r.case_id, r.conversation_id, r.owner_kind, r.owner_ref, r.epoch, r.writable_surface,
                        r.connection_id, r.provider, r.channel, r.direction, r.employee_id, r.decision_no, r.profile_version,
-                       r.content, r.actor_id, r.created_at, o.kind, o.created_at
+                       r.content, r.accuracy_qualifier, r.actor_id, r.created_at, o.kind, o.created_at
                 from cases.client_replies r
                 left join cases.client_reply_outcomes o on o.tenant_id = r.tenant_id and o.reply_id = r.reply_id
                 where r.tenant_id=$1 and r.case_id=$2 order by r.created_at, r.reply_id`,
@@ -203,13 +203,17 @@ func (s *Postgres) ReadClientReplies(ctx context.Context, scope tenancy.Context,
 	cards := []casesPort.ReplyCard{}
 	for rows.Next() {
 		var reply casesDomain.ClientReply
+		var qualifier *string
 		var outcomeKind *string
 		var outcomeAt *time.Time
 		if err = rows.Scan(&reply.ReplyID, &reply.CaseID, &reply.ConversationID, &reply.OwnerKind, &reply.OwnerRef,
 			&reply.Epoch, &reply.WritableSurface, &reply.ConnectionID, &reply.Provider, &reply.Channel,
 			&reply.Direction, &reply.EmployeeID, &reply.DecisionNo, &reply.ProfileVersion, &reply.Content,
-			&reply.ActorID, &reply.CreatedAt, &outcomeKind, &outcomeAt); err != nil {
+			&qualifier, &reply.ActorID, &reply.CreatedAt, &outcomeKind, &outcomeAt); err != nil {
 			return nil, err
+		}
+		if qualifier != nil {
+			reply.AccuracyQualifier = *qualifier
 		}
 		reply.TenantID = scope.TenantID()
 		reply.CreatedAt = reply.CreatedAt.UTC()
@@ -661,6 +665,17 @@ func (s *Postgres) execSendClientReply(ctx context.Context, tx pgx.Tx, tenantID 
 	if err != nil {
 		return err
 	}
+	// The accuracy gate re-validation (Story 2.11, AFTER the objection gate
+	// — the frozen ladder: ... → objection 2.8 → accuracy 2.11 → write;
+	// the SALES class only — the neutral and the protected paths stay
+	// byte-identical): the CURRENT outcome of the Work Item decides the
+	// honest words — active alternatives REQUIRE the qualifier of the
+	// active set; no alternatives demand the empty word (the app validated
+	// pre-transaction; the store re-validates the server-side truth under
+	// the locks).
+	if err := replyAccuracyGateOfTx(ctx, tx, tenantID, p.CaseID, p); err != nil {
+		return err
+	}
 	// The commitment link re-validation (Story 2.9, AFTER the objection
 	// gate — the frozen ladder: ... → objection 2-8 → commitment link 2-9 →
 	// write): the nullable pair is both or neither; ONLY the sales rows
@@ -718,12 +733,12 @@ func (s *Postgres) execSendClientReply(ctx context.Context, tx pgx.Tx, tenantID 
 		channel, direction = p.RouteChannel, p.RouteDirection
 	}
 	if _, err = tx.Exec(ctx, `
-                insert into cases.client_replies (tenant_id, case_id, conversation_id, reply_id, owner_kind, owner_ref, epoch, writable_surface, connection_id, provider, channel, direction, employee_id, decision_no, profile_version, content, actor_id, reply_class, work_item_id, policy_outcome_id, objection_id, playbook_step, commitment_id, commitment_version, link_id, created_at)
-                values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26)`,
+                insert into cases.client_replies (tenant_id, case_id, conversation_id, reply_id, owner_kind, owner_ref, epoch, writable_surface, connection_id, provider, channel, direction, employee_id, decision_no, profile_version, content, actor_id, reply_class, work_item_id, policy_outcome_id, objection_id, playbook_step, commitment_id, commitment_version, link_id, accuracy_qualifier, created_at)
+                values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27)`,
 		tenantID, p.CaseID, p.ConversationID, p.ReplyID, current.OwnerKind, current.OwnerRef,
 		current.Epoch, current.WritableSurface, conversation.ConnectionID, conversation.Provider,
 		channel, "outbound", p.LineageEmployeeID, p.LineageDecisionNo, p.LineageProfileVersion,
-		p.ReplyContent, p.Actor, nilText(p.ReplyClass), nilID(p.WorkItemID), nilID(policyOutcomeID), nilID(objectionID), nilText(p.PlaybookStep), nilID(p.CommitmentID), nilInt64(p.VersionNo), nilID(p.LinkID), now); err != nil {
+		p.ReplyContent, p.Actor, nilText(p.ReplyClass), nilID(p.WorkItemID), nilID(policyOutcomeID), nilID(objectionID), nilText(p.PlaybookStep), nilID(p.CommitmentID), nilInt64(p.VersionNo), nilID(p.LinkID), nilText(p.AccuracyQualifier), now); err != nil {
 		return mapOwnershipInsertError(err)
 	}
 	// The prepared outbox event: the safe snapshot only.

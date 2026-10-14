@@ -580,9 +580,11 @@ func (s *Service) SendClientReply(ctx context.Context, command casesAPI.SendClie
 		return casesAPI.WorkOutcome{}, err
 	}
 	// The request hash covers the whole command material INCLUDING the
-	// playbook step of the Story 2.8 extension and the presentation pair of
-	// the Story 2.9 extension (the same key with another material is the
-	// honest key conflict).
+	// playbook step of the Story 2.8 extension, the presentation pair of
+	// the Story 2.9 extension, the continuation binding of the Story 2.10
+	// extension and the accuracy qualifier word of the Story 2.11
+	// extension (the same key with another material is the honest key
+	// conflict).
 	hash := requestHash(struct {
 		Case         string `json:"case"`
 		Conversation string `json:"conversation"`
@@ -593,8 +595,9 @@ func (s *Service) SendClientReply(ctx context.Context, command casesAPI.SendClie
 		Commitment   string `json:"commitment_id"`
 		CVersion     int64  `json:"commitment_version"`
 		Link         string `json:"continuation_link_id"`
+		Qualifier    string `json:"accuracy_qualifier"`
 		Content      string `json:"content"`
-	}{command.CaseID.String(), command.ConversationID.String(), command.WorkItemID.String(), command.ExpectedEpoch, command.ReplyClass, command.PlaybookStep, command.CommitmentID.String(), command.CommitmentVersionNo, command.LinkID.String(), command.Content})
+	}{command.CaseID.String(), command.ConversationID.String(), command.WorkItemID.String(), command.ExpectedEpoch, command.ReplyClass, command.PlaybookStep, command.CommitmentID.String(), command.CommitmentVersionNo, command.LinkID.String(), command.AccuracyQualifier, command.Content})
 	if outcome, replay, err := s.lookupCommand(ctx, scope, "send_client_reply", command.IdempotencyKey, hash); replay || err != nil {
 		return outcome, err
 	}
@@ -764,6 +767,23 @@ func (s *Service) SendClientReply(ctx context.Context, command casesAPI.SendClie
 			return casesAPI.WorkOutcome{}, err
 		}
 	}
+	// The accuracy gate (Story 2.11, AFTER the objection gate — the frozen
+	// ladder: ownership 2.4 → mode 2.5 → disclosure 2.5 → policy 2.6 →
+	// objection 2.8 → accuracy 2.11 → write; the SALES class only — the
+	// neutral and the protected paths stay byte-identical): the CURRENT
+	// outcome of the Work Item decides which words are honest — an
+	// outcome with active alternatives REQUIRES the qualifier word of its
+	// active set (the absence of media never becomes an invented exact
+	// result — the structural honesty of AC-2); an outcome without
+	// alternatives requires the EMPTY word (the field has exactly one
+	// meaning). The store re-validates under the locks.
+	if command.ReplyClass == casesDomain.ReplyClassSales {
+		if err := s.salesAccuracyGate(ctx, scope, command.CaseID, command.WorkItemID, command.AccuracyQualifier); err != nil {
+			return casesAPI.WorkOutcome{}, err
+		}
+	} else if command.AccuracyQualifier != "" {
+		return casesAPI.WorkOutcome{}, rule("send_client_reply", fmt.Errorf("Слово ограничения точности несёт только коммерческий ответ (sales): нейтральные и защищённые сообщения не заявляют ограничение точности."))
+	}
 	// The presentation link gate (Story 2.9, AFTER the objection gate — the
 	// frozen ladder: ownership 2-4 → mode 2-5 → disclosure 2-5 → policy 2-6 →
 	// objection 2-8 → commitment link 2-9 → write): the nullable pair is
@@ -849,6 +869,7 @@ func (s *Service) SendClientReply(ctx context.Context, command casesAPI.SendClie
 		Command: "send_client_reply", ReplyID: replyID,
 		ReplyState: "prepared", Epoch: current.Epoch, ReplyClass: command.ReplyClass,
 		PolicyOutcomeID: policyOutcomeID, ObjectionID: objectionID, PlaybookStep: command.PlaybookStep,
+		AccuracyQualifier: command.AccuracyQualifier,
 	}
 	outcomeJSON, err := json.Marshal(outcome)
 	if err != nil {
@@ -866,8 +887,9 @@ func (s *Service) SendClientReply(ctx context.Context, command casesAPI.SendClie
 		LineageProfileVersion: profileVersion, OutboxEventID: outboxEventID,
 		ObjectionID: objectionID, PlaybookStep: command.PlaybookStep,
 		CommitmentID: command.CommitmentID, VersionNo: command.CommitmentVersionNo,
-		LinkID:  command.LinkID,
-		Outcome: outcomeJSON, Now: command.Now.UTC().Truncate(time.Microsecond),
+		LinkID:            command.LinkID,
+		AccuracyQualifier: command.AccuracyQualifier,
+		Outcome:           outcomeJSON, Now: command.Now.UTC().Truncate(time.Microsecond),
 	}); err != nil {
 		return casesAPI.WorkOutcome{}, err
 	} else if replay {

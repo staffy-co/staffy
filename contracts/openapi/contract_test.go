@@ -1437,15 +1437,15 @@ func TestPolicyContractIsHonest(t *testing.T) {
 	if classEnum, _ := mapping(t, outcomeProperties, "outcome_class")["enum"].([]any); len(classEnum) != 5 {
 		t.Errorf("outcome_class must carry the five-word enum, got %v", classEnum)
 	}
-	if reasonEnum, _ := mapping(t, outcomeProperties, "reason")["enum"].([]any); len(reasonEnum) != 6 {
-		t.Errorf("reason must carry the six-word enum (mandatory_missing is the reserved pack word), got %v", reasonEnum)
+	if reasonEnum, _ := mapping(t, outcomeProperties, "reason")["enum"].([]any); len(reasonEnum) != 7 {
+		t.Errorf("reason must carry the seven-word enum (no_alternative_path is the Story 2.11 honest stop), got %v", reasonEnum)
 	}
-	if ruleEnum, _ := mapping(t, outcomeProperties, "rule_version")["enum"].([]any); len(ruleEnum) != 1 || ruleEnum[0] != "intake-policy-v1" {
-		t.Errorf("rule_version is the fixed intake-policy-v1 word, got %v", ruleEnum)
+	if ruleEnum, _ := mapping(t, outcomeProperties, "rule_version")["enum"].([]any); len(ruleEnum) != 2 || ruleEnum[0] != "intake-policy-v1" || ruleEnum[1] != "intake-policy-v2" {
+		t.Errorf("rule_version carries the v1/v2 words (the historical rows stay readable), got %v", ruleEnum)
 	}
 	snapshot := mapping(t, schemas, "PolicyInputSnapshot")
 	snapshotRequired, _ := snapshot["required"].([]any)
-	for _, word := range []string{"proposal_id", "schema_version", "mode_version", "owner_epoch", "facts_digest", "work_item_version", "rule_version"} {
+	for _, word := range []string{"proposal_id", "schema_version", "mode_version", "owner_epoch", "facts_digest", "work_item_version", "rule_version", "preferences"} {
 		found := false
 		for _, value := range snapshotRequired {
 			if text, _ := value.(string); text == word {

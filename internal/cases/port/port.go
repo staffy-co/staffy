@@ -599,6 +599,11 @@ type WorkCommandParams struct {
 	AccommodationValue    string
 	AccommodationCleared  bool
 	AccommodationNote     string
+	// The accuracy qualifier word of the send_client_reply extension: the
+	// SALES reply against an outcome with active alternatives carries the
+	// honest limitation word of the outcome's active set (the word lands
+	// in the reply row; the store re-validates the gate under the locks).
+	AccuracyQualifier string
 }
 
 // ContinuationCorrectionParams is the material of one public fact

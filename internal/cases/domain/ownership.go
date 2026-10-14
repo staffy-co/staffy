@@ -197,7 +197,12 @@ type ClientReply struct {
 	// The Story 2.6 material: the Policy Outcome the sales reply passed
 	// through (the zero id of the pre-migration and non-sales rows).
 	PolicyOutcomeID id.UUID
-	CreatedAt       time.Time
+	// The Story 2.11 material: the accuracy qualifier word of the sales
+	// reply against an outcome with active alternatives (the honest
+	// limitation word of the outcome's active set; empty when the outcome
+	// carries none — the field has exactly one meaning).
+	AccuracyQualifier string
+	CreatedAt         time.Time
 }
 
 // ClientReplyOutcome is the append-only execute-time revalidation verdict
