@@ -147,6 +147,16 @@ type casesFixture struct {
 	accommodations   map[id.UUID][]casesDomain.AccommodationRecord
 	accommodationSeq int
 
+	// The Story 2.12 degradation material: the append-only route revision
+	// rows and the append-only delivery evidence events per case (the
+	// CURRENT slots and the delivery states are the read-time derivations
+	// over the REAL domain functions — never stored; the revision and the
+	// event numbers are the fixture-owned monotonic truths, the requests
+	// never carry them).
+	degradations        map[id.UUID][]casesDomain.RouteDegradationRecord
+	replyDeliveryEvents map[id.UUID][]casesDomain.ReplyDeliveryEvent
+	degradationSeq      int
+
 	caseNo, conversationNo int64
 	eventSeq               int
 	workSeq, exceptionSeq  int
@@ -224,6 +234,9 @@ func newCasesFixture() *casesFixture {
 		contDelivered: map[id.UUID]bool{},
 		// The Story 2.11 material:
 		accommodations: map[id.UUID][]casesDomain.AccommodationRecord{},
+		// The Story 2.12 material:
+		degradations:        map[id.UUID][]casesDomain.RouteDegradationRecord{},
+		replyDeliveryEvents: map[id.UUID][]casesDomain.ReplyDeliveryEvent{},
 	}
 }
 
@@ -650,7 +663,8 @@ func (f *casesFixture) CaseView(_ context.Context, _ domain.Principal, tenant, c
 		// The Story 2.11 section: the «Предпочтения связи» panel over
 		// the REAL read-time derivation (the current set, the honest
 		// append-only history, the dictionaries of the record form).
-		Accommodations: f.fixtureAccommodationView(caseID),
+		Accommodations:    f.fixtureAccommodationView(caseID),
+		RouteDegradations: f.fixtureDegradationView(caseID),
 	}, nil
 }
 

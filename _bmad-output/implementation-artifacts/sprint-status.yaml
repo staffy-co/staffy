@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-16-2026 16:47
-last_updated: 10-13-2026
+last_updated: 10-15-2026
 project: staffy
 project_key: NOKEY
 tracking_system: file-system
@@ -64,7 +64,7 @@ development_status:
   2-9-версионированный-commitment-и-точное-confirmation: done
   2-10-защищённое-мультимодальное-продолжение: done
   2-11-равноправные-альтернативные-пути-обслуживания: done
-  2-12-degraded-mode-сбой-канала-и-согласованный-callback: backlog
+  2-12-degraded-mode-сбой-канала-и-согласованный-callback: done
   2-13-безусловный-запрос-человека-и-lifecycle-handoff: backlog
   2-14-decision-ready-контекст-и-операторская-поверхность: backlog
   2-15-исправление-и-оспаривание-ai-резюме: backlog

@@ -147,6 +147,12 @@ type CaseView struct {
 	// form and the channel dictionary of the preferred_channel value
 	// (an OPERATIONAL setting, never a fact).
 	Accommodations AccommodationView `json:"accommodations"`
+	// The Story 2.12 section: the degraded route slots of the case —
+	// the CURRENT set (the read-time derivation with the honest cause
+	// texts), the append-only revision history including the recovery
+	// rows and the dictionaries of the record form (an OPERATIONAL
+	// record, never a fact).
+	RouteDegradations RouteDegradationView `json:"route_degradations"`
 }
 
 // PayloadView is the sealed payload read under review/audit: the digest,
@@ -435,6 +441,19 @@ type WorkOutcome struct {
 	AccommodationKey      string  `json:"accommodation_key,omitempty"`
 	AccommodationCleared  bool    `json:"accommodation_cleared,omitempty"`
 	AccuracyQualifier     string  `json:"accuracy_qualifier,omitempty"`
+	// The Story 2.12 material: the degradation record of the command
+	// (the record id with the cause word and the clearing mark — the
+	// revision is the server-side truth of the store, the stored outcome
+	// never carries it), the delivery evidence event (the event id with
+	// the kind word — the event number is the server-side truth too) and
+	// the update promise word the reply passed through (the row of the
+	// reply carries it — the honest timing word of the approved policy).
+	DegradationRecordID id.UUID `json:"degradation_record_id,omitempty"`
+	DegradationCause    string  `json:"degradation_cause,omitempty"`
+	DegradationCleared  bool    `json:"degradation_cleared,omitempty"`
+	DeliveryEvidenceID  id.UUID `json:"delivery_evidence_id,omitempty"`
+	DeliveryKindWord    string  `json:"delivery_evidence_kind,omitempty"`
+	UpdatePromise       string  `json:"update_promise,omitempty"`
 }
 
 // FactView is one fact of the facts view: the anchor, the derived status,

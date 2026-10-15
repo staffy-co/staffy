@@ -129,8 +129,16 @@ type SendClientReplyCommand struct {
 	// invented exact result); without alternatives the word stays EMPTY
 	// (the field has exactly one meaning — the playbook_step mirror).
 	AccuracyQualifier string
-	IdempotencyKey    string
-	Now               time.Time
+	// The Story 2.12 update promise: a reply on a DEGRADED route MUST
+	// promise the time of the next update with one word of the approved
+	// policy dictionary (no_promise / within_1h / within_4h /
+	// within_next_business_day — «время следующего обновления только в
+	// пределах утверждённой policy»); on a healthy route the word stays
+	// EMPTY (exactly one meaning). The gate is CLASSLESS: a short
+	// failure message can be sales, neutral or protected.
+	UpdatePromise  string
+	IdempotencyKey string
+	Now            time.Time
 }
 
 // OwnershipView is the ownership section of the case view: the derived
@@ -145,6 +153,11 @@ type OwnershipView struct {
 	Terms             []casesDomain.OwnershipTerm `json:"terms"`
 	Replies           []casesPort.ReplyCard       `json:"replies"`
 	Members           []casesPort.OwnerMember     `json:"members"`
+	// The Story 2.12 delivery states: the derived honest state of every
+	// outgoing reply (prepared / unknown / confirmed / failed with the
+	// last evidence anchor — the «Доставка» column of the reply panel;
+	// dispatched without evidence is the UNKNOWN, never the delivered).
+	Deliveries []ReplyDeliveryView `json:"deliveries"`
 }
 
 // DrainRepliesResult is the outcome of the idempotent reply drain

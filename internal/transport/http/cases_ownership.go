@@ -68,6 +68,12 @@ type sendClientReplyInput struct {
 	// OUTCOME, never the dictionary in general); without alternatives
 	// the word stays empty — the field has exactly one meaning.
 	AccuracyQualifier *string `json:"accuracy_qualifier"`
+	// UpdatePromise is the optional Story 2.12 honesty word: a reply
+	// on a DEGRADED route MUST promise the time of the next update with
+	// one word of the approved policy dictionary (classless — a short
+	// failure message can be any class); on a healthy route the field
+	// stays empty (exactly one meaning — the honest 400 of the gate).
+	UpdatePromise *string `json:"update_promise"`
 }
 
 // ownershipProblem maps the ownership command errors onto the problem
@@ -357,6 +363,7 @@ func (s *Server) sendClientReplyAPI(w http.ResponseWriter, r *http.Request) {
 		PlaybookStep:      stringOrEmpty(input.PlaybookStep),
 		LinkID:            linkID,
 		AccuracyQualifier: stringOrEmpty(input.AccuracyQualifier),
+		UpdatePromise:     stringOrEmpty(input.UpdatePromise),
 		Content:           stringOrEmpty(input.Content), IdempotencyKey: key, Now: s.clock.Now().UTC(),
 	})
 	if err != nil {
@@ -596,6 +603,11 @@ func (s *Server) sendClientReplyForm(w http.ResponseWriter, r *http.Request) {
 	// words; the select carries NO preselected option: the operator
 	// chooses the limitation consciously).
 	accuracyQualifier := r.FormValue("accuracy_qualifier")
+	// The Story 2.12 update promise word: the optional select of the
+	// form (a reply on a DEGRADED route MUST carry it — the classless
+	// honest timing gate; the select carries NO preselected option: the
+	// operator chooses the timing word consciously).
+	updatePromise := r.FormValue("update_promise")
 	_, err = s.cases.SendClientReply(r.Context(), casesAPI.SendClientReplyCommand{
 		Actor: actor, TenantID: tenant, CaseID: caseID, ConversationID: conversationID,
 		WorkItemID:    workItemID,
@@ -605,8 +617,9 @@ func (s *Server) sendClientReplyForm(w http.ResponseWriter, r *http.Request) {
 		CommitmentID:  commitmentID, CommitmentVersionNo: commitmentVersion,
 		LinkID:            linkID,
 		AccuracyQualifier: accuracyQualifier,
+		UpdatePromise:     updatePromise,
 		Content:           content,
-		IdempotencyKey:    formCommandKey("send-client-reply", actor.ID.String(), caseID.String(), conversationID.String(), workItemID.String(), strconv.FormatInt(expected, 10), replyClass, playbookStep, accuracyQualifier, commitmentID.String(), strconv.FormatInt(commitmentVersion, 10), linkID.String(), content),
+		IdempotencyKey:    formCommandKey("send-client-reply", actor.ID.String(), caseID.String(), conversationID.String(), workItemID.String(), strconv.FormatInt(expected, 10), replyClass, playbookStep, accuracyQualifier, updatePromise, commitmentID.String(), strconv.FormatInt(commitmentVersion, 10), linkID.String(), content),
 		Now:               s.clock.Now().UTC(),
 	})
 	if err != nil {

@@ -202,7 +202,12 @@ type ClientReply struct {
 	// limitation word of the outcome's active set; empty when the outcome
 	// carries none — the field has exactly one meaning).
 	AccuracyQualifier string
-	CreatedAt         time.Time
+	// The Story 2.12 material: the update promise word of the reply on a
+	// degraded route (the honest timing word of the approved policy
+	// dictionary; empty on a healthy route — the field has exactly one
+	// meaning).
+	UpdatePromise string
+	CreatedAt     time.Time
 }
 
 // ClientReplyOutcome is the append-only execute-time revalidation verdict

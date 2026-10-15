@@ -34,7 +34,7 @@ func confirmedWorld(keys ...string) FactWorld {
 }
 
 func TestEvaluatePolicyUnknownIntentFailsClosed(t *testing.T) {
-	decision := EvaluatePolicy(AIProposal{Intent: "urgent_magic"}, confirmedWorld(), ModeSales, nil)
+	decision := EvaluatePolicy(AIProposal{Intent: "urgent_magic"}, confirmedWorld(), ModeSales, nil, nil, RouteKey{})
 	if decision.OutcomeClass != OutcomeFailClosed || decision.Reason != ReasonUnknownIntent {
 		t.Fatalf("expected the fail-closed unknown-intent outcome, got %+v", decision)
 	}
@@ -48,7 +48,7 @@ func TestEvaluatePolicyUnknownIntentFailsClosed(t *testing.T) {
 
 func TestEvaluatePolicyCommercialUnderNonSalesModeBlocked(t *testing.T) {
 	for _, mode := range []string{ModeSafety, ModeClaim, ModeCancellation, ModePrivacyNoContact, ModeHumanRequested, ModeUnclassified, ""} {
-		decision := EvaluatePolicy(AIProposal{Intent: IntentPriceInquiry, CandidateAnswer: "Диагностика от 3000"}, confirmedWorld(), mode, nil)
+		decision := EvaluatePolicy(AIProposal{Intent: IntentPriceInquiry, CandidateAnswer: "Диагностика от 3000"}, confirmedWorld(), mode, nil, nil, RouteKey{})
 		if decision.OutcomeClass != OutcomeModeBlocked || decision.Reason != ReasonModeBlocksCommercial {
 			t.Fatalf("mode %q: expected the blocked outcome, got %+v", mode, decision)
 		}
@@ -64,7 +64,7 @@ func TestEvaluatePolicyCommercialNoCandidateClarify(t *testing.T) {
 	decision := EvaluatePolicy(AIProposal{
 		Intent:       IntentPriceInquiry,
 		MissingFacts: []MissingFact{{MaterialKey: "service_kind", Reason: MissingReasonMandatory}},
-	}, confirmedWorld(), ModeSales, nil)
+	}, confirmedWorld(), ModeSales, nil, nil, RouteKey{})
 	if decision.OutcomeClass != OutcomeClarify || decision.Reason != ReasonNoAnswerBasis {
 		t.Fatalf("expected the clarify outcome, got %+v", decision)
 	}
@@ -90,7 +90,7 @@ func TestEvaluatePolicyCommercialAnswerProgressive(t *testing.T) {
 		Intent:          IntentPriceInquiry,
 		CandidateAnswer: "Диагностика от 3000",
 		MissingFacts:    []MissingFact{{MaterialKey: "urgency", Reason: MissingReasonMandatory}},
-	}, world, ModeSales, nil)
+	}, world, ModeSales, nil, nil, RouteKey{})
 	if decision.OutcomeClass != OutcomeCommercialAnswer || decision.Reason != ReasonOkCommercial {
 		t.Fatalf("expected the progressive commercial answer, got %+v", decision)
 	}
@@ -134,7 +134,7 @@ func TestEvaluatePolicyConflictAndUnverifiedKeepQuestion(t *testing.T) {
 		"service_kind": {Status: FactStatusConflicting},
 		"urgency":      {Status: FactStatusUnverified},
 	}
-	decision := EvaluatePolicy(AIProposal{Intent: IntentPriceInquiry, CandidateAnswer: "Есть вариант"}, world, ModeSales, nil)
+	decision := EvaluatePolicy(AIProposal{Intent: IntentPriceInquiry, CandidateAnswer: "Есть вариант"}, world, ModeSales, nil, nil, RouteKey{})
 	asked := map[string]bool{}
 	for _, step := range decision.NextSteps {
 		if step.Step == StepAskFact {
@@ -155,7 +155,7 @@ func TestEvaluatePolicyExplicitReadbackStaysConfirmed(t *testing.T) {
 		Intent:          IntentPriceInquiry,
 		CandidateAnswer: "Диагностика от 3000",
 		MissingFacts:    []MissingFact{{MaterialKey: "service_kind", Reason: MissingReasonReadback}},
-	}, world, ModeSales, nil)
+	}, world, ModeSales, nil, nil, RouteKey{})
 	asked := false
 	for _, step := range decision.NextSteps {
 		if step.Step == StepAskFact && step.MaterialKey == "service_kind" {
@@ -171,11 +171,11 @@ func TestEvaluatePolicyExplicitReadbackStaysConfirmed(t *testing.T) {
 }
 
 func TestEvaluatePolicyNonCommercialInformational(t *testing.T) {
-	decision := EvaluatePolicy(AIProposal{Intent: IntentGeneralQuestion, CandidateAnswer: "Часы работы: 9-18"}, confirmedWorld(), ModeSafety, nil)
+	decision := EvaluatePolicy(AIProposal{Intent: IntentGeneralQuestion, CandidateAnswer: "Часы работы: 9-18"}, confirmedWorld(), ModeSafety, nil, nil, RouteKey{})
 	if decision.OutcomeClass != OutcomeInformationalAnswer || decision.Reason != ReasonOkInformational {
 		t.Fatalf("expected the informational answer, got %+v", decision)
 	}
-	human := EvaluatePolicy(AIProposal{Intent: IntentHumanRequest}, confirmedWorld(), ModeSafety, nil)
+	human := EvaluatePolicy(AIProposal{Intent: IntentHumanRequest}, confirmedWorld(), ModeSafety, nil, nil, RouteKey{})
 	handoff := false
 	for _, step := range human.NextSteps {
 		if step.Step == StepHumanHandoff {
@@ -193,7 +193,7 @@ func TestEvaluatePolicyProposalMandatoryJoinsRulePlan(t *testing.T) {
 		Intent:          IntentBookingRequest,
 		CandidateAnswer: "Есть окно в четверг",
 		MissingFacts:    []MissingFact{{MaterialKey: "preferred_time", Reason: MissingReasonMandatory}},
-	}, world, ModeSales, nil)
+	}, world, ModeSales, nil, nil, RouteKey{})
 	asked := map[string]bool{}
 	for _, step := range decision.NextSteps {
 		if step.Step == StepAskFact {

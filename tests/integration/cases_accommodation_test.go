@@ -248,7 +248,11 @@ func TestAccommodationDBConstraintsRefuseDishonestRows(t *testing.T) {
 	checkRefused("foreign alternative word", w.insertPolicyOutcomeRow(t, caseID, workItemID, result.EventID, 43, "intake-policy-v2", "no_alternative_path", `["text_description","made_up_path"]`))
 	checkRefused("five alternatives", w.insertPolicyOutcomeRow(t, caseID, workItemID, result.EventID, 44, "intake-policy-v2", "no_alternative_path", `["text_description","range_estimate","callback","human_handoff","text_description"]`))
 	checkRefused("null alternatives", w.insertPolicyOutcomeRow(t, caseID, workItemID, result.EventID, 45, "intake-policy-v2", "no_alternative_path", `null`))
-	checkRefused("v3 rule version", w.insertPolicyOutcomeRow(t, caseID, workItemID, result.EventID, 46, "intake-policy-v3", "no_alternative_path", `[]`))
+	// The 2.12 mechanical extension: the v3 word is the honest rule of the
+	// CURRENT slice (the constant) — the probe pins the FUTURE word refusal
+	// instead (the historical v1/v2/v3 rows coexist, a next version word
+	// never lands before its story).
+	checkRefused("the future rule version word", w.insertPolicyOutcomeRow(t, caseID, workItemID, result.EventID, 46, "intake-policy-v4", "no_alternative_path", `[]`))
 	checkRefused("foreign reason", w.insertPolicyOutcomeRow(t, caseID, workItemID, result.EventID, 47, "intake-policy-v2", "made_up_reason", `[]`))
 
 	// The accuracy qualifier word of the outgoing replies: the honest word
@@ -1090,8 +1094,11 @@ func TestAccommodationMatrixRowsBySpec(t *testing.T) {
 		if !serviceKind {
 			t.Fatalf("the service_kind question never leaves the plan, got %+v", outcome.MandatoryFacts)
 		}
-		if casesDomain.PolicyRuleVersion != "intake-policy-v2" || outcome.RuleVersion != casesDomain.PolicyRuleVersion {
-			t.Fatalf("the rule version is the honest v2 word, got %s (constant %s)", outcome.RuleVersion, casesDomain.PolicyRuleVersion)
+		// The 2.12 mechanical extension: the rule word assert goes through the
+		// DOMAIN CONSTANT (the honest current word — v3 after 2.12; the stored
+		// outcome always carries the constant of its evaluation moment).
+		if outcome.RuleVersion != casesDomain.PolicyRuleVersion {
+			t.Fatalf("the rule version is the honest current word, got %s (constant %s)", outcome.RuleVersion, casesDomain.PolicyRuleVersion)
 		}
 		snapshot, known := outcome.InputSnapshot.Preferences[casesDomain.AccommodationNoPhoto]
 		if !known || snapshot.Revision != 1 || snapshot.Cleared {

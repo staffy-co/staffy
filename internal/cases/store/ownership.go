@@ -191,7 +191,7 @@ func (s *Postgres) ReadClientReplies(ctx context.Context, scope tenancy.Context,
 	rows, err := tx.Query(ctx, `
                 select r.reply_id, r.case_id, r.conversation_id, r.owner_kind, r.owner_ref, r.epoch, r.writable_surface,
                        r.connection_id, r.provider, r.channel, r.direction, r.employee_id, r.decision_no, r.profile_version,
-                       r.content, r.accuracy_qualifier, r.actor_id, r.created_at, o.kind, o.created_at
+                       r.content, r.accuracy_qualifier, r.update_promise, r.actor_id, r.created_at, o.kind, o.created_at
                 from cases.client_replies r
                 left join cases.client_reply_outcomes o on o.tenant_id = r.tenant_id and o.reply_id = r.reply_id
                 where r.tenant_id=$1 and r.case_id=$2 order by r.created_at, r.reply_id`,
@@ -204,16 +204,20 @@ func (s *Postgres) ReadClientReplies(ctx context.Context, scope tenancy.Context,
 	for rows.Next() {
 		var reply casesDomain.ClientReply
 		var qualifier *string
+		var promise *string
 		var outcomeKind *string
 		var outcomeAt *time.Time
 		if err = rows.Scan(&reply.ReplyID, &reply.CaseID, &reply.ConversationID, &reply.OwnerKind, &reply.OwnerRef,
 			&reply.Epoch, &reply.WritableSurface, &reply.ConnectionID, &reply.Provider, &reply.Channel,
 			&reply.Direction, &reply.EmployeeID, &reply.DecisionNo, &reply.ProfileVersion, &reply.Content,
-			&qualifier, &reply.ActorID, &reply.CreatedAt, &outcomeKind, &outcomeAt); err != nil {
+			&qualifier, &promise, &reply.ActorID, &reply.CreatedAt, &outcomeKind, &outcomeAt); err != nil {
 			return nil, err
 		}
 		if qualifier != nil {
 			reply.AccuracyQualifier = *qualifier
+		}
+		if promise != nil {
+			reply.UpdatePromise = *promise
 		}
 		reply.TenantID = scope.TenantID()
 		reply.CreatedAt = reply.CreatedAt.UTC()
@@ -732,13 +736,24 @@ func (s *Postgres) execSendClientReply(ctx context.Context, tx pgx.Tx, tenantID 
 		// modality channel).
 		channel, direction = p.RouteChannel, p.RouteDirection
 	}
+	// The honest timing gate re-validation (Story 2.12, AFTER the
+	// commitment link gates and the live route resolution — the frozen
+	// ladder: ... → commitment link 2-9 → honest timing 2-12 → CAS;
+	// CLASSLESS): the reply route (the conversation connection and the
+	// resolved live channel) is degraded → the promise word of the
+	// approved dictionary is REQUIRED; healthy → the word must stay
+	// empty (the app validated pre-transaction; the store re-validates
+	// the server-side truth under the locks).
+	if err := replyUpdatePromiseGateOfTx(ctx, tx, tenantID, p, conversation.ConnectionID, channel); err != nil {
+		return err
+	}
 	if _, err = tx.Exec(ctx, `
-                insert into cases.client_replies (tenant_id, case_id, conversation_id, reply_id, owner_kind, owner_ref, epoch, writable_surface, connection_id, provider, channel, direction, employee_id, decision_no, profile_version, content, actor_id, reply_class, work_item_id, policy_outcome_id, objection_id, playbook_step, commitment_id, commitment_version, link_id, accuracy_qualifier, created_at)
-                values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27)`,
+                insert into cases.client_replies (tenant_id, case_id, conversation_id, reply_id, owner_kind, owner_ref, epoch, writable_surface, connection_id, provider, channel, direction, employee_id, decision_no, profile_version, content, actor_id, reply_class, work_item_id, policy_outcome_id, objection_id, playbook_step, commitment_id, commitment_version, link_id, accuracy_qualifier, update_promise, created_at)
+                values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28)`,
 		tenantID, p.CaseID, p.ConversationID, p.ReplyID, current.OwnerKind, current.OwnerRef,
 		current.Epoch, current.WritableSurface, conversation.ConnectionID, conversation.Provider,
 		channel, "outbound", p.LineageEmployeeID, p.LineageDecisionNo, p.LineageProfileVersion,
-		p.ReplyContent, p.Actor, nilText(p.ReplyClass), nilID(p.WorkItemID), nilID(policyOutcomeID), nilID(objectionID), nilText(p.PlaybookStep), nilID(p.CommitmentID), nilInt64(p.VersionNo), nilID(p.LinkID), nilText(p.AccuracyQualifier), now); err != nil {
+		p.ReplyContent, p.Actor, nilText(p.ReplyClass), nilID(p.WorkItemID), nilID(policyOutcomeID), nilID(objectionID), nilText(p.PlaybookStep), nilID(p.CommitmentID), nilInt64(p.VersionNo), nilID(p.LinkID), nilText(p.AccuracyQualifier), nilText(p.UpdatePromise), now); err != nil {
 		return mapOwnershipInsertError(err)
 	}
 	// The prepared outbox event: the safe snapshot only.

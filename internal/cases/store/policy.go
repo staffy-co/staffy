@@ -98,7 +98,7 @@ func readPolicyOutcomesTx(ctx context.Context, tx pgx.Tx, tenantID, caseID id.UU
 	rows, err := tx.Query(ctx, `
                 select outcome_id, case_id, conversation_id, work_item_id, proposal_id, outcome_no, outcome_class,
                        reason, rule_version, intent, mandatory_facts, next_steps, reused_facts, suppressed_questions,
-                       active_alternatives, input_snapshot, decision_digest, actor_id, created_at
+                       active_alternatives, degraded_permitted_paths, input_snapshot, decision_digest, actor_id, created_at
                 from cases.policy_outcomes
                 where tenant_id=$1 and case_id=$2 order by work_item_id, outcome_no`, tenantID, caseID)
 	if err != nil {
@@ -109,15 +109,20 @@ func readPolicyOutcomesTx(ctx context.Context, tx pgx.Tx, tenantID, caseID id.UU
 	for rows.Next() {
 		var outcome casesDomain.PolicyOutcome
 		var mandatoryJSON, nextJSON, reusedJSON, suppressedJSON, snapshotJSON []byte
-		var alternativesJSON []byte
+		var alternativesJSON, degradedPathsJSON []byte
 		if err := rows.Scan(&outcome.OutcomeID, &outcome.CaseID, &outcome.ConversationID, &outcome.WorkItemID,
 			&outcome.ProposalID, &outcome.OutcomeNo, &outcome.OutcomeClass, &outcome.Reason, &outcome.RuleVersion,
-			&outcome.Intent, &mandatoryJSON, &nextJSON, &reusedJSON, &suppressedJSON, &alternativesJSON, &snapshotJSON,
+			&outcome.Intent, &mandatoryJSON, &nextJSON, &reusedJSON, &suppressedJSON, &alternativesJSON, &degradedPathsJSON, &snapshotJSON,
 			&outcome.DecisionDigest, &outcome.ActorID, &outcome.CreatedAt); err != nil {
 			return nil, err
 		}
 		if len(alternativesJSON) > 0 {
 			if err := json.Unmarshal(alternativesJSON, &outcome.ActiveAlternatives); err != nil {
+				return nil, err
+			}
+		}
+		if len(degradedPathsJSON) > 0 {
+			if err := json.Unmarshal(degradedPathsJSON, &outcome.DegradedPermittedPaths); err != nil {
 				return nil, err
 			}
 		}
@@ -412,7 +417,21 @@ func (s *Postgres) execEvaluatePolicy(ctx context.Context, tx pgx.Tx, tenantID i
 		return err
 	}
 	currentAccommodations := casesDomain.DeriveCurrentAccommodations(accommodationRecords)
-	decision := casesDomain.EvaluatePolicy(*proposal, world, effective, currentAccommodations)
+	// The 2.12 fifth input: the route degradations map with the dialog
+	// route of the Work Item's conversation — the honest read under the
+	// SAME advisory locks (the degradation record command serializes on
+	// the identical key set — the derivation is the lock-visible truth,
+	// never a raced snapshot).
+	degradationRecords, err := readDegradationsTx(ctx, tx, tenantID, p.CaseID)
+	if err != nil {
+		return err
+	}
+	currentDegradations := casesDomain.DeriveCurrentDegradations(degradationRecords)
+	dialogRoute, err := dialogRouteOfTx(ctx, tx, tenantID, proposal.ConversationID)
+	if err != nil {
+		return err
+	}
+	decision := casesDomain.EvaluatePolicy(*proposal, world, effective, currentAccommodations, currentDegradations, dialogRoute)
 	_, digestMap, err := casesDomain.ComputeFactsDigest(confirmed)
 	if err != nil {
 		return err
@@ -422,7 +441,8 @@ func (s *Postgres) execEvaluatePolicy(ctx context.Context, tx pgx.Tx, tenantID i
 		ModeVersion: modeVersion, OwnerEpoch: ownership.Epoch,
 		FactsDigest: digestMap, FactsDigestHash: factsDigest,
 		WorkItemVersion: current.Version, RuleVersion: casesDomain.PolicyRuleVersion,
-		Preferences: casesDomain.AccommodationSnapshotOf(currentAccommodations),
+		Preferences:  casesDomain.AccommodationSnapshotOf(currentAccommodations),
+		Degradations: casesDomain.DegradationSnapshotOf(currentDegradations),
 	}
 	decisionDigest, err := casesDomain.DecisionDigest(snapshot, decision, proposal.Intent)
 	if err != nil {
@@ -467,6 +487,17 @@ func (s *Postgres) execEvaluatePolicy(ctx context.Context, tx pgx.Tx, tenantID i
 	if err != nil {
 		return err
 	}
+	// The degraded permitted paths: the same nil→[] canonicalization (the
+	// control branch rows and the pre-migration rows read as the honest
+	// empty array).
+	degradedPaths := decision.DegradedPermittedPaths
+	if degradedPaths == nil {
+		degradedPaths = []string{}
+	}
+	degradedPathsJSON, err := json.Marshal(degradedPaths)
+	if err != nil {
+		return err
+	}
 	snapshotJSON, err := json.Marshal(snapshot)
 	if err != nil {
 		return err
@@ -474,11 +505,11 @@ func (s *Postgres) execEvaluatePolicy(ctx context.Context, tx pgx.Tx, tenantID i
 	if _, err = tx.Exec(ctx, `
                 insert into cases.policy_outcomes (tenant_id, case_id, conversation_id, work_item_id, proposal_id, outcome_id,
                         outcome_no, outcome_class, reason, rule_version, intent, mandatory_facts, next_steps, reused_facts,
-                        suppressed_questions, active_alternatives, input_snapshot, decision_digest, actor_id, created_at)
-                values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
+                        suppressed_questions, active_alternatives, degraded_permitted_paths, input_snapshot, decision_digest, actor_id, created_at)
+                values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)`,
 		tenantID, p.CaseID, proposal.ConversationID, proposal.WorkItemID, proposal.ProposalID, p.OutcomeID,
 		outcomeNo, decision.OutcomeClass, decision.Reason, casesDomain.PolicyRuleVersion, proposal.Intent,
-		mandatoryJSON, nextJSON, reusedJSON, suppressedJSON, alternativesJSON, snapshotJSON, decisionDigest, p.Actor, now); err != nil {
+		mandatoryJSON, nextJSON, reusedJSON, suppressedJSON, alternativesJSON, degradedPathsJSON, snapshotJSON, decisionDigest, p.Actor, now); err != nil {
 		return mapPolicyInsertError(err)
 	}
 	var sourceConnection id.UUID

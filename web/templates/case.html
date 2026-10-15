@@ -73,6 +73,7 @@
 <table class="datamap-table">
 <caption>Запрос передачи: цель, дедлайн, remaining — назначено (assigned) ≠ подтверждено (acknowledged)</caption>
 {{if .View.Ownership.AccommodationWords}}<p class="next-note" role="note">Предпочтения связи клиента (видны принимающему до подтверждения): {{.View.Ownership.AccommodationWords}}.</p>{{end}}
+{{if .View.Ownership.DegradationWords}}<p class="next-note" role="note">Деградированные маршруты обращения (видны принимающему до подтверждения): {{.View.Ownership.DegradationWords}}.</p>{{end}}
 <thead><tr><th scope="col">Запрос</th><th scope="col">Цель</th><th scope="col">Дедлайн</th><th scope="col">Осталось</th><th scope="col">Состояние</th></tr></thead>
 <tbody><tr><th scope="row"><span class="digest-block">{{.View.Ownership.PendingRequestID}}</span></th><td>{{.View.Ownership.PendingTarget}}</td><td>{{.View.Ownership.PendingDeadline}}</td><td>{{.View.Ownership.PendingRemaining}}</td><td>{{if .View.Ownership.PendingTimedOut}}истёк без решения{{else}}назначен, ждёт подтверждения{{end}}</td></tr></tbody>
 </table>
@@ -157,6 +158,11 @@
 <select id="reply-qualifier" name="accuracy_qualifier">
 <option value="">— без ограничения (альтернатив в исходе нет) —</option>
 {{range $.View.AccuracyQualifierOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}
+</select>
+<label for="reply-promise">Обещание времени обновления (обязательно, когда маршрут ответа деградирован — слово утверждённой policy; на здоровом маршруте оставьте пустым)</label>
+<select id="reply-promise" name="update_promise">
+<option value="">— без обещания (маршрут здоров) —</option>
+{{range $.View.UpdatePromiseOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}
 </select>
 <label for="reply-commitment">Связь обязательства (только sales-класс: предъявить материальные условия offered-версии)</label>
 <select id="reply-commitment" name="commitment_link">
@@ -342,9 +348,9 @@
 <div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Исходящие ответы">
 <table class="datamap-table">
 <caption>Ответы клиенту: канал, класс, текст, состояние, epoch владельца, время</caption>
-<thead><tr><th scope="col">Ответ</th><th scope="col">Канал</th><th scope="col">Класс</th><th scope="col">Текст</th><th scope="col">Ограничение точности</th><th scope="col">Состояние</th><th scope="col">Epoch</th><th scope="col">Создан</th></tr></thead>
+<thead><tr><th scope="col">Ответ</th><th scope="col">Канал</th><th scope="col">Класс</th><th scope="col">Текст</th><th scope="col">Ограничение точности</th><th scope="col">Состояние</th><th scope="col">Доставка</th><th scope="col">Обещание</th><th scope="col">Epoch</th><th scope="col">Создан</th></tr></thead>
 <tbody>
-{{range .View.Ownership.ReplyRows}}<tr><th scope="row"><span class="digest-block">{{.ReplyID}}</span></th><td>{{.Channel}}</td><td>{{.ClassText}}</td><td>{{.Content}}</td><td>{{if .QualifierText}}{{.QualifierText}}{{else}}—{{end}}</td><td>{{if .State}}<span class="alert" role="status">{{.StateText}}</span>{{else}}{{.StateText}}{{end}}</td><td>{{.Epoch}}</td><td>{{.CreatedAt}}</td></tr>{{end}}
+{{range .View.Ownership.ReplyRows}}<tr><th scope="row"><span class="digest-block">{{.ReplyID}}</span></th><td>{{.Channel}}</td><td>{{.ClassText}}</td><td>{{.Content}}</td><td>{{if .QualifierText}}{{.QualifierText}}{{else}}—{{end}}</td><td>{{if .State}}<span class="alert" role="status">{{.StateText}}</span>{{else}}{{.StateText}}{{end}}</td><td>{{if .DeliveryText}}{{.DeliveryText}}{{if .DeliveryDetail}}<br><span class="next-note">{{.DeliveryDetail}}</span>{{end}}{{else}}—{{end}}</td><td>{{if .PromiseText}}{{.PromiseText}}{{else}}—{{end}}</td><td>{{.Epoch}}</td><td>{{.CreatedAt}}</td></tr>{{end}}
 </tbody>
 </table>
 </div>
@@ -409,6 +415,7 @@
 {{if .Current.Mandatory}}<p>Обязательные факты: {{range $i, $fact := .Current.Mandatory}}{{if $i}}; {{end}}{{$fact.MaterialKey}} ({{if eq $fact.Source "rule"}}правило{{else}}предложение{{end}}) — {{$fact.StateText}}{{end}}.</p>{{end}}
 {{if .Current.NextSteps}}<p>Следующие шаги: {{range $i, $step := .Current.NextSteps}}{{if $i}}; {{end}}{{$step}}{{end}}.</p>{{end}}
 {{if .Current.Alternatives}}<p>Активные альтернативы (честные пути без media): {{range $i, $alt := .Current.Alternatives}}{{if $i}}; {{end}}<strong>{{$alt.WordText}}</strong> — {{$alt.LimitationText}}{{end}}. Продажный ответ обязан заявить одно из этих ограничений точности (accuracy_qualifier).</p>{{end}}
+{{if .Current.DegradedPaths}}<p>Разрешённые пути деградированного режима: {{range $i, $path := .Current.DegradedPaths}}{{if $i}}; {{end}}<strong>{{$path.Word}}</strong> — {{$path.PathText}}{{end}}. Обещания на деградированном маршруте закрыты: продажный ответ не выдаётся, вопросы остаются (вопросы — не обещания).</p>{{end}}
 {{if .Current.Reused}}<p>Переиспользованные значения: {{range $i, $reused := .Current.Reused}}{{if $i}}; {{end}}{{$reused}}{{end}}.</p><p class="next-note">{{range $i, $sig := .Current.ReusedSigs}}{{if $i}} {{end}}<span class="digest-block">{{$sig}}</span>{{end}}</p>{{end}}
 {{if .Current.Suppressed}}<p>Удалённые повторы вопросов: {{range $i, $q := .Current.Suppressed}}{{if $i}}; {{end}}{{$q}}{{end}} (дедуп против подтверждённых фактов).</p>{{end}}
 <p>Дайджест решения: <span class="digest-block">{{.Current.DecisionDigest}}</span>. {{.Current.CreatedAt}}.</p>
@@ -492,6 +499,71 @@
 </form>
 <p class="next-note">Повторная запись того же ключа — новая ревизия (история не правится); снятие убирает ключ из текущего набора. Предпочтения — операционная настройка: не факт, не диагноз, не доказательство.</p>
 </details>
+{{end}}
+</section>
+
+<h2>Состояние маршрутов — деградации и восстановление</h2>
+<p class="next-note" id="degradations-panel-note" aria-live="polite">{{.View.RouteDegradationsPanelText}}</p>
+<section class="panel" aria-label="Состояние маршрутов">
+<p id="degradations-current" aria-live="polite">{{if .View.RouteDegradationCurrentRows}}Деградированные маршруты: {{range $i, $route := .View.RouteDegradationCurrentRows}}{{if $i}}; {{end}}<strong>{{$route.Channel}}</strong> (подключение <span class="digest-block">{{$route.ConnectionID}}</span>) — {{$route.CauseText}} (ревизия {{$route.Revision}}){{end}}.{{else}}Деградированных маршрутов нет.{{end}}</p>
+{{if .View.HasRouteDegradations}}
+<details>
+<summary>История ревизий ({{len .View.RouteDegradationHistoryRows}}) — append-only, включая восстановления</summary>
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="История деградаций маршрутов">
+<table class="datamap-table">
+<caption>Ревизии маршрутов: канал, причина, номер, восстановление, заметка, участник, время</caption>
+<thead><tr><th scope="col">Канал</th><th scope="col">Причина</th><th scope="col">Ревизия</th><th scope="col">Состояние</th><th scope="col">Заметка</th><th scope="col">Участник</th><th scope="col">Время</th></tr></thead>
+<tbody>
+{{range .View.RouteDegradationHistoryRows}}<tr><th scope="row">{{.Channel}} <span class="digest-block">{{.ConnectionID}}</span></th><td>{{.CauseText}}</td><td>{{.Revision}}</td><td>{{if .Cleared}}восстановлен (маршрут покидает деградированные){{else}}деградирован{{end}}</td><td>{{if .Note}}{{.Note}}{{else}}—{{end}}</td><td><span class="digest-block">{{.ActorID}}</span></td><td>{{.RecordedAt}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+</details>
+{{end}}
+{{if .View.CanManageWork}}
+<details class="connector-connect"><summary>Записать деградацию маршрута (record_route_degradation)</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/route-degradations">
+<label for="degradation-connection">Подключение маршрута (свои подключения обращения)</label>
+<select id="degradation-connection" name="connection_id" required>
+<option value="">— выберите подключение —</option>
+{{range $.View.DegradationConnectionOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}
+</select>
+<label for="degradation-channel">Канал маршрута (словарь фиксирован)</label>
+<select id="degradation-channel" name="channel" required>
+<option value="">— выберите канал —</option>
+{{range $.View.DegradationChannelOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}
+</select>
+<label for="degradation-cause">Причина деградации (словарь фиксирован)</label>
+<select id="degradation-cause" name="cause" required>
+<option value="">— выберите причину —</option>
+{{range $.View.DegradationCauseOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}
+</select>
+<label><input type="checkbox" name="cleared"> Восстановление маршрута (своей ревизией — cleared)</label>
+<label for="degradation-note">Заметка оператора (до 500 символов; остаётся в строке — не покидает таблицу)</label>
+<textarea id="degradation-note" name="note" rows="2" maxlength="500"></textarea>
+<input type="hidden" name="expected_degradation_records" value="{{.View.DegradationRecordsAnchor}}">
+<button class="primary" type="submit">Записать ревизию маршрута</button>
+</form>
+<p class="next-note">Повторная запись маршрута — новая ревизия; восстановление — своей ревизией. Деградация чужого маршрута невозможна: маршрут обязан существовать в разговорах этого обращения. Слоты — операционная запись: не факт, не доказательство.</p>
+</details>
+{{if .View.Ownership.HasReplies}}
+<details class="connector-connect"><summary>Записать наблюдение доставки (record_delivery_evidence)</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/delivery-evidence">
+<label for="evidence-reply">Ответ (наблюдение живёт на исходящем ответе этого обращения)</label>
+<select id="evidence-reply" name="reply_id" required>
+<option value="">— выберите ответ —</option>
+{{range $.View.Ownership.ReplyEvidenceOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}
+</select>
+<label for="evidence-kind">Наблюдение коннектора (словарь фиксирован — передаёт оператор)</label>
+<select id="evidence-kind" name="kind" required>
+<option value="">— выберите слово наблюдения —</option>
+{{range $.View.EvidenceKindOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}
+</select>
+<button class="primary" type="submit">Записать наблюдение</button>
+</form>
+<p class="next-note">Наблюдение передаёт оператор (наблюдение коннектора): машина никогда не изобретает исход. Отправленный без наблюдений ответ — «доставка неизвестна», не «доставлен»; слово delivered только у квитанции. Слепой повтор структурно невозможен — повторная отправка это новый ответ, решение человека.</p>
+</details>
+{{end}}
 {{end}}
 </section>
 

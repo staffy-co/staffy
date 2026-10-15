@@ -233,7 +233,21 @@ func (s *Service) EvaluatePolicy(ctx context.Context, command casesAPI.EvaluateP
 		return casesAPI.WorkOutcome{}, err
 	}
 	currentAccommodations := casesDomain.DeriveCurrentAccommodations(accommodationRecords)
-	decision := casesDomain.EvaluatePolicy(*proposal, snapshot.world, casesDomain.EffectiveWorkModeWord(effective), currentAccommodations)
+	// The 2.12 fifth input: the route degradations map of the case with
+	// the dialog route of the Work Item's conversation (the honest read
+	// before the transaction; the store re-derives the same truth under
+	// the SAME advisory locks — the advisory input, never a raced
+	// snapshot).
+	degradationRecords, err := s.repository.ReadDegradations(ctx, scope, command.CaseID)
+	if err != nil {
+		return casesAPI.WorkOutcome{}, err
+	}
+	currentDegradations := casesDomain.DeriveCurrentDegradations(degradationRecords)
+	dialogRoute, err := s.dialogRouteOf(ctx, scope, proposal.ConversationID)
+	if err != nil {
+		return casesAPI.WorkOutcome{}, err
+	}
+	decision := casesDomain.EvaluatePolicy(*proposal, snapshot.world, casesDomain.EffectiveWorkModeWord(effective), currentAccommodations, currentDegradations, dialogRoute)
 	outcomeID, err := s.ids.New(command.Now)
 	if err != nil {
 		return casesAPI.WorkOutcome{}, err

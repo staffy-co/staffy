@@ -741,6 +741,14 @@ func (s *Service) CaseView(ctx context.Context, actor domain.Principal, tenantID
 	if err != nil {
 		return casesAPI.CaseView{}, err
 	}
+	// The Story 2.12 section: the degraded route slots — the CURRENT set
+	// (the read-time derivation), the append-only revision history
+	// including the recovery rows and the dictionaries of the record
+	// form (the reads degrade honestly — the same view scope).
+	routeDegradations, err := s.routeDegradationView(ctx, scope, detail)
+	if err != nil {
+		return casesAPI.CaseView{}, err
+	}
 	return casesAPI.CaseView{
 		TenantID: tenantID, Case: detail.Case, Conversations: detail.Conversations,
 		Timeline: detail.Timeline, WorkItems: detail.WorkItems, Exceptions: detail.Exceptions,
@@ -761,6 +769,7 @@ func (s *Service) CaseView(ctx context.Context, actor domain.Principal, tenantID
 		Mode:       mode, Policy: policy,
 		Observations: observations, Objections: objections, Commitments: commitments,
 		Continuations: continuations, Accommodations: accommodations,
+		RouteDegradations: routeDegradations,
 	}, nil
 }
 

@@ -329,6 +329,19 @@ type Repository interface {
 	// the panel history and the transfer view; the states are derived
 	// read-time, never stored).
 	ReadAccommodations(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]casesDomain.AccommodationRecord, error)
+	// Story 2.12 — the degradation and the delivery evidence surfaces:
+	// ReadDegradations reads every append-only route degradation record
+	// of one case ordered by the route key and the monotonic revision
+	// (the derivation input of the CURRENT slots, the panel history and
+	// the policy fifth input; the states are derived read-time, never
+	// stored).
+	ReadDegradations(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]casesDomain.RouteDegradationRecord, error)
+	// ReadDeliveryEvents reads every append-only delivery evidence
+	// event of the replies of one case ordered by the reply and the
+	// monotonic event number (the derivation input of the honest
+	// delivery states — dispatched without events is the unknown, never
+	// the delivered).
+	ReadDeliveryEvents(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]casesDomain.ReplyDeliveryEvent, error)
 	ReadPresentedCommitments(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]casesDomain.PresentedCommitment, error)
 	// ReadCommitmentKey reads (or creates on the first use) the per-tenant
 	// commitment key of the content binding (the ensure pattern of the
@@ -599,11 +612,35 @@ type WorkCommandParams struct {
 	AccommodationValue    string
 	AccommodationCleared  bool
 	AccommodationNote     string
+	// The Story 2.12 material (the command-specific fields of the
+	// record_route_degradation and the record_delivery_evidence
+	// commands): the record id of the append-only degradation revision
+	// row with its route (the connection id and the channel word of the
+	// 2.1 dictionary), the cause word, the clearing mark and the
+	// operator note (the note never enters the outbox); the event id of
+	// the append-only evidence row with its reply reference and the
+	// kind word. The revision number and the event number are the
+	// server-side truth: the store derives the next monotonic numbers
+	// under the locks (the request never carries them).
+	DegradationRecordID     id.UUID
+	DegradationConnectionID id.UUID
+	DegradationChannel      string
+	DegradationCause        string
+	DegradationCleared      bool
+	DegradationNote         string
+	DeliveryEvidenceEventID id.UUID
+	DeliveryEvidenceReplyID id.UUID
+	DeliveryEvidenceKind    string
 	// The accuracy qualifier word of the send_client_reply extension: the
 	// SALES reply against an outcome with active alternatives carries the
 	// honest limitation word of the outcome's active set (the word lands
 	// in the reply row; the store re-validates the gate under the locks).
 	AccuracyQualifier string
+	// The Story 2.12 update promise word of the send_class reply
+	// extension: a reply on a DEGRADED route carries the promise word of
+	// the approved policy dictionary (the word lands in the reply row;
+	// the store re-validates the classless timing gate under the locks).
+	UpdatePromise string
 }
 
 // ContinuationCorrectionParams is the material of one public fact
