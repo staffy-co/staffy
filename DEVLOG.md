@@ -2289,3 +2289,11 @@ story: 2-12
 summary: Закрытие среза story 2-12 — QA-саморевью PASS (Major: контракт-дрейф словарей v3 закрыт в срезе на 4 поверхностях с пиннинг-тестами; Minor: мёртвая ветка DeliveryText удалена; PascalCase-сериализация PolicyOutcome — честный deferred-work долг с 2-6 вне скоупа), спека и sprint-status синхронно → done (Epic 2: 12/16; замороженные секции не тронуты: дифф = status + Change Log), union main b11f098 (DEVLOG 61-sm/62-sm в ветке, прецедент a1f1f26); полная цепь ветки: 0eec40d → d111a0d → 17281f6 → 52117fb → 97ee0ff → 0dfa1b3 → 8172269 (step-05 feat БЕЗ skip ci) → 130b698 (DEVLOG 67-dev-step-05) → b11f098 (union) → closure
 next: CHECKPOINT 2 — push ветки в origin (нужен СВЕЖИЙ ТОКЕН владельца: STAFFY_GH_TOKEN в env отсутствует — окружение ресайклилось, протокол AGENTS.md «Отказ push = СТОП»; прошлый токен сессии считаться действующим нельзя), PR через GitHub API (base main, head codex/story-2-12-degraded-mode-callback), CI ×3 зелёный (push-run + PR-run + merge-run), merge в main (метод merge, прецедент 6996c02 PR #26), локальный main синхронизировать pull; после merge/подтверждения владельца — ревокация токена
 commit: (эта запись)
+---
+date: 2026-10-15
+task: 67-push-stop
+role: main (Super Z)
+story: 2-12
+summary: Push-отказ по протоколу AGENTS.md («Отказ push = СТОП»): push ветки в origin невозможен — STAFFY_GH_TOKEN в окружении отсутствует (окружение ресайклилось между сессиями; прошлый токен сессии валидным считать нельзя — выдаётся владельцем на сессию). Вся работа step-05 и closure выполнена и закоммичена локально, дерево чистое. unpushed: 6 (8172269 feat step-05, 130b698 DEVLOG 67-dev-step-05, b11f098 union main, 0ed3766 closure + вошедшие юнионом 7d7ac1a/8a4d679, уже живущие на origin/main)
+next: свежий токен владельца в чате → export STAFFY_GH_TOKEN=... → git push origin codex/story-2-12-degraded-mode-callback → CHECKPOINT 2 (PR через GitHub API base main + CI ×3 зелёный + merge методом merge по прецеденту 6996c02 + pull локального main) → после подтверждения владельцем — ревокация токена
+commit: (wip-запись; будет запушена вместе с веткой)
