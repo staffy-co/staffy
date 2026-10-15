@@ -2297,3 +2297,11 @@ story: 2-12
 summary: Push-отказ по протоколу AGENTS.md («Отказ push = СТОП»): push ветки в origin невозможен — STAFFY_GH_TOKEN в окружении отсутствует (окружение ресайклилось между сессиями; прошлый токен сессии валидным считать нельзя — выдаётся владельцем на сессию). Вся работа step-05 и closure выполнена и закоммичена локально, дерево чистое. unpushed: 6 (8172269 feat step-05, 130b698 DEVLOG 67-dev-step-05, b11f098 union main, 0ed3766 closure + вошедшие юнионом 7d7ac1a/8a4d679, уже живущие на origin/main)
 next: свежий токен владельца в чате → export STAFFY_GH_TOKEN=... → git push origin codex/story-2-12-degraded-mode-callback → CHECKPOINT 2 (PR через GitHub API base main + CI ×3 зелёный + merge методом merge по прецеденту 6996c02 + pull локального main) → после подтверждения владельцем — ревокация токена
 commit: (wip-запись; будет запушена вместе с веткой)
+---
+date: 2026-10-15
+task: 67-push-resume
+role: main (Super Z)
+story: 2-12
+summary: Публикация возобновлена — свежий токен владельца получен в чате, проверен API-вызовом /repos/artemiosu/staffy (200, приватный, права push; маска в отчётах по протоколу секретов). git-факт при возобновлении: локальная ветка 2-12 = f417361 (5 коммитов поверх origin/0dfa1b3 — 8172269 feat step-05, 130b698 DEVLOG 67-dev-step-05, b11f098 union main, 0ed3766 closure, f417361 push-stop), локальный main = origin = 8a4d679, дерево чистое; показание «ahead 7» локального трекинга — артефакт inline-push (урок сессии Task 67), фактический unpushed сверен через ls-remote. Настоящая запись добавлена поверх push-stop и НЕ несёт wip-маркер: головной коммит финального пуша CHECKPOINT 2 обязан запустить полный конвейер CI (push-run + PR-run по прецеденту 2-11 c34365e), тогда как wip-маркер записи push-stop погасил бы оба события CI по голове ветки.
+next: push ветки codex/story-2-12-degraded-mode-callback токеном владельца (credential-helper env, именованный remote — трекинг обновится) → PR через GitHub API (base main ← head ветка, формат прецедента PR #26) → CI ×3 зелёный (push-run + PR-run на новой голове + merge-run) → merge методом merge (прецедент 6996c02) → pull локального main → DEVLOG 68-merge → после подтверждения владельца — ревокация токена
+commit: (эта запись)
