@@ -207,4 +207,80 @@ func TestDegradationContractIsHonest(t *testing.T) {
 	if len(permittedWords) != 5 {
 		t.Errorf("the permitted path dictionary carries the five AC-3 words, got %v", permittedEnum)
 	}
+
+	// The 2.12 dictionary words of the outcome view MUST stay documented on
+	// every emission surface (the QA closure finding of step-05: the domain
+	// and the table CHECK carried the new words while the wire enums lagged
+	// behind — the drift is pinned here so it cannot recur).
+	outcomeViewProperties := mapping(t, outcomeView, "properties")
+	classEnum, _ := outcomeViewProperties["outcome_class"].(map[string]any)["enum"].([]any)
+	if !enumHas(classEnum, "degraded_mode") {
+		t.Errorf("PolicyOutcomeView.outcome_class documents the degraded_mode word of Story 2.12, got %v", classEnum)
+	}
+	reasonEnum, _ := outcomeViewProperties["reason"].(map[string]any)["enum"].([]any)
+	if !enumHas(reasonEnum, "degraded_route") {
+		t.Errorf("PolicyOutcomeView.reason documents the degraded_route word of Story 2.12, got %v", reasonEnum)
+	}
+	ruleVersionEnum, _ := outcomeViewProperties["rule_version"].(map[string]any)["enum"].([]any)
+	for _, word := range []string{"intake-policy-v1", "intake-policy-v2", "intake-policy-v3"} {
+		if !enumHas(ruleVersionEnum, word) {
+			t.Errorf("PolicyOutcomeView.rule_version keeps every historical word readable, missing %q, got %v", word, ruleVersionEnum)
+		}
+	}
+
+	// The WorkOutcome of the evaluate_policy command carries the class word
+	// of the recorded outcome (degraded_mode included).
+	outcomeClassEnum, _ := outcomeProperties["outcome_class"].(map[string]any)["enum"].([]any)
+	if !enumHas(outcomeClassEnum, "degraded_mode") {
+		t.Errorf("WorkOutcome.outcome_class documents the degraded_mode word of Story 2.12, got %v", outcomeClassEnum)
+	}
+
+	// The policy panel view: the class dictionary and the rule word of the
+	// panel (the panel emits the domain constants — the class words carry
+	// degraded_mode, the rule word travels with the current dictionary).
+	policyView := mapping(t, schemas, "PolicyView")
+	policyViewProperties := mapping(t, policyView, "properties")
+	classWordsItems, _ := policyViewProperties["class_words"].(map[string]any)["items"].(map[string]any)
+	classWordsEnum, _ := classWordsItems["enum"].([]any)
+	if !enumHas(classWordsEnum, "degraded_mode") {
+		t.Errorf("PolicyView.class_words documents the degraded_mode word of Story 2.12, got %v", classWordsEnum)
+	}
+	panelRuleEnum, _ := policyViewProperties["rule_version"].(map[string]any)["enum"].([]any)
+	if !enumHas(panelRuleEnum, "intake-policy-v3") {
+		t.Errorf("PolicyView.rule_version documents the intake-policy-v3 word of Story 2.12, got %v", panelRuleEnum)
+	}
+
+	// The input snapshot: the canonical degradations map of the fifth input
+	// (route -> {cause, revision, cleared} — the honest supersede material
+	// of the digest).
+	snapshotView := mapping(t, schemas, "PolicyInputSnapshot")
+	snapshotProperties := mapping(t, snapshotView, "properties")
+	degradationsProperty, _ := snapshotProperties["degradations"].(map[string]any)
+	if degradationsProperty == nil {
+		t.Fatalf("PolicyInputSnapshot documents the degradations map of the fifth input")
+	}
+	degradationAdditional, _ := degradationsProperty["additionalProperties"].(map[string]any)
+	if degradationAdditional == nil {
+		t.Fatalf("PolicyInputSnapshot.degradations is the route-keyed map of the fifth input")
+	}
+	degradationCause, _ := mapping(t, degradationAdditional, "properties")["cause"].(map[string]any)
+	snapshotCauseEnum, _ := degradationCause["enum"].([]any)
+	if len(snapshotCauseEnum) != 5 {
+		t.Errorf("the snapshot degradations cause dictionary carries the five AC-1 words, got %v", snapshotCauseEnum)
+	}
+	snapshotRuleEnum, _ := snapshotProperties["rule_version"].(map[string]any)["enum"].([]any)
+	if !enumHas(snapshotRuleEnum, "intake-policy-v3") {
+		t.Errorf("PolicyInputSnapshot.rule_version documents the intake-policy-v3 word of Story 2.12, got %v", snapshotRuleEnum)
+	}
+}
+
+// enumHas reports whether a YAML enum array carries the word (the pinned
+// dictionary word of the wire contract).
+func enumHas(enum []any, word string) bool {
+	for _, item := range enum {
+		if text, _ := item.(string); text == word {
+			return true
+		}
+	}
+	return false
 }

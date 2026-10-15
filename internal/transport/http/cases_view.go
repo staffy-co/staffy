@@ -1668,12 +1668,6 @@ func prepareOwnershipPanel(view casesAPI.CaseView) ownershipPanelView {
 		// route reply (the promise select of the form mirrors the options).
 		if delivery, known := panel.deliveries[card.Reply.ReplyID.String()]; known {
 			row.DeliveryText = deliveryStateText(delivery.State)
-			if delivery.State == casesDomain.ReplyDeliveryUnknown || delivery.State == casesDomain.ReplyDeliveryFailed {
-				row.DeliveryText = "неизвестна (квитанции нет)"
-				if delivery.State == casesDomain.ReplyDeliveryFailed {
-					row.DeliveryText = "отказ провайдера"
-				}
-			}
 			if delivery.LastEventNo > 0 {
 				row.DeliveryDetail = evidenceKindText(delivery.LastKind) + " · №" + strconv.FormatInt(delivery.LastEventNo, 10) + " · " + formatTime(delivery.LastEventAt)
 			}
