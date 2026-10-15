@@ -156,6 +156,27 @@ func (s *Service) handoffRoleWord(ctx context.Context, scope tenancy.Context, ta
         return "", fmt.Errorf("роль назначаемого не входит в целевые роли запроса (%s): полномочия участника не несут слово целевых ролей", joinQuotedOf(targetRoles))
 }
 
+// handoffBackupMember proves the backup of the assignment round is an
+// ACTIVE member of the tenant (the round's reserve — the same membership
+// truth as the assignee; the honest 400 of a foreign or an inactive
+// reference: the reserve is never a convenient id, AC-3).
+func (s *Service) handoffBackupMember(ctx context.Context, scope tenancy.Context, backup id.UUID) error {
+        if s.members == nil {
+                return fmt.Errorf("факт-порт участников не сконфигурирован: назначение честно отклоняется")
+        }
+        memberships, err := s.members.MembersFacts(ctx, domain.Principal{ID: scope.PrincipalID()}, scope.TenantID())
+        if err != nil {
+                return err
+        }
+        for i := range memberships {
+                candidate := &memberships[i]
+                if candidate.PrincipalID != nil && *candidate.PrincipalID == backup && candidate.Status == "active" {
+                        return nil
+                }
+        }
+        return fmt.Errorf("резервный участник %s не активный участник тенента: раунд назначается только участникам", backup.String())
+}
+
 // inWords reports whether the word belongs to the list (the honest
 // dictionary membership of the target roles).
 func inWords(words []string, word string) bool {
@@ -407,6 +428,13 @@ func (s *Service) AssignHumanHandoff(ctx context.Context, command casesAPI.Assig
         // travels as an operator input).
         role, err := s.handoffRoleWord(ctx, scope, target.Request.TargetRoles, command.Assignee)
         if err != nil {
+                return casesAPI.WorkOutcome{}, rule("assign_human_handoff", err)
+        }
+        // The backup membership check: the round's reserve is an active member
+        // of the tenant (the same membership truth as the assignee — the
+        // honest 400 of a foreign reference; the spec row of the matrix: the
+        // backup is a member, never a convenient reference).
+        if err := s.handoffBackupMember(ctx, scope, command.Backup); err != nil {
                 return casesAPI.WorkOutcome{}, rule("assign_human_handoff", err)
         }
         // The domain guard of the round material (the honest 400 before SQL;
