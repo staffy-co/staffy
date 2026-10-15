@@ -221,6 +221,30 @@ func (s *Service) CreateCommitment(ctx context.Context, command casesAPI.CreateC
 	if outcome, replay, err := s.lookupCommand(ctx, scope, "create_commitment", command.IdempotencyKey, hash); replay || err != nil {
 		return outcome, err
 	}
+	// The Story 2.13 freeze gate (AFTER the dictionary guards and the
+	// idempotency replay — an exact repeat returns the stored outcome;
+	// BEFORE the material guards): the effective mode of the Work Item
+	// (the stricter of the conversation ladder and the item's own
+	// context) equal to human_requested, OR an active human handoff of
+	// the case, freezes the creation of the new commitments — the
+	// incompatible automatic actions stop until the acknowledged
+	// handoff (AC-2). The handoff half is the honest pre-migration
+	// absence of this step: the store revalidation of step-02
+	// (commitmentHandoffGateOfTx under the advisory locks) brings the
+	// live derivation of the 00013 rows. The control branch stays
+	// byte-identical: without the mode and the handoff the 2.9 path
+	// never differs.
+	modeTerms, err := s.repository.ReadModeMaterial(ctx, scope, command.CaseID)
+	if err != nil {
+		return casesAPI.WorkOutcome{}, err
+	}
+	if err := rule("create_commitment", casesDomain.GuardCommitmentFreeze(
+		casesDomain.EffectiveWorkMode(
+			casesDomain.ActiveConversationMode(modeTerms),
+			casesDomain.WorkItemModeContext(modeTerms, command.WorkItemID)),
+		false)); err != nil {
+		return casesAPI.WorkOutcome{}, err
+	}
 	// The Work Item of the command scope: it must exist in this case and be
 	// alive (the write-command boundary of 2.2).
 	currents, err := s.repository.ReadWorkItemCurrents(ctx, scope, command.CaseID, []id.UUID{command.WorkItemID})
