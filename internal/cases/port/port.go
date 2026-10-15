@@ -342,6 +342,13 @@ type Repository interface {
 	// delivery states — dispatched without events is the unknown, never
 	// the delivered).
 	ReadDeliveryEvents(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]casesDomain.ReplyDeliveryEvent, error)
+	// Story 2.13 — the human handoff lifecycle surface:
+	// ReadHandoffMaterial reads the whole lifecycle material of one case
+	// — every append-only request row with the events of its lifecycle
+	// ordered by the monotonic numbers (the derivation input of the
+	// panel, the transfer view, the client status and the freeze gate;
+	// the states are derived read-time, never stored).
+	ReadHandoffMaterial(ctx context.Context, scope tenancy.Context, caseID id.UUID) (HandoffMaterial, error)
 	ReadPresentedCommitments(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]casesDomain.PresentedCommitment, error)
 	// ReadCommitmentKey reads (or creates on the first use) the per-tenant
 	// commitment key of the content binding (the ensure pattern of the
@@ -641,6 +648,29 @@ type WorkCommandParams struct {
 	// the approved policy dictionary (the word lands in the reply row;
 	// the store re-validates the classless timing gate under the locks).
 	UpdatePromise string
+	// The Story 2.13 material (the command-specific fields of the six
+	// handoff lifecycle commands): the target roles of the unconditional
+	// ask (the subset of the fixed dictionary the request addresses),
+	// the ack-deadline word of the expected confirmation window (the
+	// approved policy v0 dictionary — shared by the request and the
+	// assignment rounds), the assignee and the backup owner of the
+	// assignment round with the app-resolved role word of the assignee
+	// (the store re-validates the role against the request's target
+	// roles under the locks — the membership truth never travels as an
+	// operator input), the result word of the return, and the outbox
+	// event id of the lifecycle event row (the composed transactions of
+	// the acknowledge and the return write the ownership_changed and
+	// mode_changed envelopes with the existing ids — the lifecycle
+	// envelope carries its own). The request and event numbers are the
+	// server-side truth: the store derives the next monotonic numbers
+	// under the locks (the requests never carry them).
+	HandoffTargetRoles   []string
+	HandoffAckDeadline   string
+	HandoffAssignee      id.UUID
+	HandoffBackup        id.UUID
+	HandoffAssigneeRole  string
+	HandoffResult        string
+	HandoffOutboxEventID id.UUID
 }
 
 // ContinuationCorrectionParams is the material of one public fact
@@ -686,6 +716,16 @@ type ContinuationPanelMaterial struct {
 	Uses        []casesDomain.ContinuationLinkUse
 	Revocations []casesDomain.ContinuationRevocation
 	Delivered   map[id.UUID]bool
+}
+
+// HandoffMaterial is the raw lifecycle read of the human handoff surface
+// of one case: every append-only request row with every append-only
+// lifecycle event row, ordered by the monotonic numbers (the derivation
+// of the states, the current round and the client status happens
+// read-time in the domain — the material never carries a stored status).
+type HandoffMaterial struct {
+	Requests []casesDomain.HandoffRequest
+	Events   []casesDomain.HandoffEvent
 }
 
 // ---------------------------------------------------------------------------

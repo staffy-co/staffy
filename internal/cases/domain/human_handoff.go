@@ -298,6 +298,28 @@ func HandoffStateActive(word string) bool {
 	return handoffOpenStates[word]
 }
 
+// HandoffActiveText is the fixed refusal line of the one-competing-task
+// conflict: the second ask is never created while the current ask lives
+// (AC-4); the current lifecycle words travel with the conflict.
+const HandoffActiveText = "Запрос человека уже активен: вторая конкурирующая задача не создаётся — дождитесь закрытия текущего запроса (подтверждение, отмена клиента либо возврат)."
+
+// HandoffActiveError is the honest one-competing-task refusal of the
+// repeated request_human (the 409 of the second competing task, AC-4):
+// the CURRENT lifecycle words travel with the conflict — the derived
+// state word with its honest text and the client status word with its
+// honest text — so the operator and the client see what already lives
+// instead of a bare refusal (the ModeConflictError precedent of the
+// machine-readable conflicts).
+type HandoffActiveError struct {
+	State        string
+	ClientStatus string
+}
+
+// Error renders the fixed refusal line (the words travel as the fields
+// of the problem contract — the transport carries them, never a re-parse
+// of this text).
+func (e HandoffActiveError) Error() string { return HandoffActiveText }
+
 // ---------------------------------------------------------------------------
 // The client status dictionary (AC-11: «назначен ≠ принял» — two words)
 // ---------------------------------------------------------------------------
