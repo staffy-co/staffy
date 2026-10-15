@@ -2281,3 +2281,11 @@ done:
 - Инцидент сессии: правки файловых инструментов конвертировали табы в пробелы (gofmt-долг в файле) — выявлено cat -A по диффу, восстановлено gofmt -w, аменд feat-коммита до минимального диффа (+96/−21 семантика, сырой = семантическому)
 next: closure — спека статус → done + Change Log запись step-05, sprint-status 2-12 → done, DEVLOG 67-close, union main (DEVLOG 61-sm/62-sm), затем CHECKPOINT 2 (PR через GitHub API + CI ×3 зелёный + merge в main) — требуется свежий токен владельца (запрос по протоколу AGENTS.md «Отказ push = СТОП»)
 commit: (feat-коммит выше; эта запись)
+---
+date: 2026-10-15
+task: 67-close
+role: main (Super Z)
+story: 2-12
+summary: Закрытие среза story 2-12 — QA-саморевью PASS (Major: контракт-дрейф словарей v3 закрыт в срезе на 4 поверхностях с пиннинг-тестами; Minor: мёртвая ветка DeliveryText удалена; PascalCase-сериализация PolicyOutcome — честный deferred-work долг с 2-6 вне скоупа), спека и sprint-status синхронно → done (Epic 2: 12/16; замороженные секции не тронуты: дифф = status + Change Log), union main b11f098 (DEVLOG 61-sm/62-sm в ветке, прецедент a1f1f26); полная цепь ветки: 0eec40d → d111a0d → 17281f6 → 52117fb → 97ee0ff → 0dfa1b3 → 8172269 (step-05 feat БЕЗ skip ci) → 130b698 (DEVLOG 67-dev-step-05) → b11f098 (union) → closure
+next: CHECKPOINT 2 — push ветки в origin (нужен СВЕЖИЙ ТОКЕН владельца: STAFFY_GH_TOKEN в env отсутствует — окружение ресайклилось, протокол AGENTS.md «Отказ push = СТОП»; прошлый токен сессии считаться действующим нельзя), PR через GitHub API (base main, head codex/story-2-12-degraded-mode-callback), CI ×3 зелёный (push-run + PR-run + merge-run), merge в main (метод merge, прецедент 6996c02 PR #26), локальный main синхронизировать pull; после merge/подтверждения владельца — ревокация токена
+commit: (эта запись)
