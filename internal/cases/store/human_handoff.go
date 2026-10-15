@@ -27,8 +27,10 @@ const TerminalCaseHandoffText = "Терминальное обращение н�
 
 // HandoffAbsentText is the honest refusal of every lifecycle command
 // without a request: there is nothing to assign, acknowledge, decline,
-// cancel or return — the lifecycle begins with the client's ask.
-const HandoffAbsentText = "Запроса человека не существует: назначать, подтверждать, отклонять, отменять или возвращать нечего — сначала безусловная просьба клиента."
+// cancel or return — the lifecycle begins with the client's ask. The
+// word lives in the domain dictionary (the app pre-transaction guards
+// and the store re-validation share the honest sentence).
+const HandoffAbsentText = casesDomain.HandoffAbsentText
 
 // HandoffConversationForeignText is the honest refusal of the
 // conversation guard: the mode write of the ask anchors to a conversation

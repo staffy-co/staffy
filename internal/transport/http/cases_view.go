@@ -207,6 +207,26 @@ type caseDetailPageView struct {
 	UpdatePromiseOptions         []workOption
 	EvidenceKindOptions          []workOption
 	ReplyEvidenceOptions         []workOption
+	// The Story 2.13 section: the human handoff panel words (the current
+	// lifecycle state line with the honest texts, the request rows with
+	// the derived states and the event histories, the card of the
+	// assignee, the dictionaries of the forms — the target roles, the
+	// deadlines, the return results — and the anchors of the double-submit
+	// protection).
+	HandoffsPanelText      string
+	HandoffCurrentText     string
+	HandoffClientText      string
+	HasHandoffs            bool
+	HandoffRequestRows     []handoffRequestRow
+	HandoffCardForActor    bool
+	HandoffCardStateText   string
+	HandoffCardDeadline    string
+	HandoffCardAssignee    string
+	HandoffRoleWords       []workOption
+	HandoffDeadlineOptions []workOption
+	HandoffResultOptions   []workOption
+	HandoffRequestsAnchor  string
+	HandoffEventsAnchor    string
 }
 
 // assurancePanelView is the assurance section of the case page: the derived
@@ -419,6 +439,38 @@ type modePanelView struct {
 	HasDisclosures  bool
 	DisclosureRows  []disclosureRowView
 	CanManage       bool
+}
+
+// handoffRequestRow is one request row of the «Запрос человека» panel:
+// the derived lifecycle state with the honest texts, the client status
+// word (назначение ≠ принятие — two words), the current round material
+// (the assignee, the backup, the deadline) and the append-only event
+// history of the request.
+type handoffRequestRow struct {
+	RequestNo    string
+	ReasonText   string
+	State        string
+	StateText    string
+	ClientText   string
+	ActiveText   string
+	RolesText    string
+	DeadlineText string
+	TurnRef      string
+	Assignee     string
+	Backup       string
+	DeadlineAt   string
+	CreatedAt    string
+	HasRound     bool
+	HasEvents    bool
+	Events       []handoffEventRow
+}
+
+// handoffEventRow is one lifecycle event row of the request history.
+type handoffEventRow struct {
+	KindText     string
+	MaterialText string
+	ActorID      string
+	CreatedAt    string
 }
 
 // modeTermRow is one term row of the mode ladder history.
@@ -894,6 +946,92 @@ func prepareCaseView(r *http.Request, view casesAPI.CaseView, facts casesAPI.Fac
 	}
 	for _, word := range casesDomain.DeliveryEvidenceWords {
 		out.EvidenceKindOptions = append(out.EvidenceKindOptions, workOption{Value: word, Text: evidenceKindText(word)})
+	}
+
+	// The Story 2.13 section: the human handoff panel — the current
+	// lifecycle state line with the honest texts (the state word, the
+	// client status word — назначение ≠ принятие are two words), the
+	// request rows with the derived states and the event histories, the
+	// card of the assignee (the acting principal IS the assignee of the
+	// open assigned round), the dictionaries of the forms (the fixed
+	// compile-time words — never the invented options) and the anchors of
+	// the double-submit protection.
+	out.HandoffsPanelText = view.Handoff.PanelText
+	out.HasHandoffs = view.Handoff.RequestsCount > 0
+	out.HandoffRequestsAnchor = strconv.Itoa(view.Handoff.RequestsCount)
+	eventsCount := 0
+	for _, request := range view.Handoff.Requests {
+		eventsCount += len(request.Events)
+	}
+	out.HandoffEventsAnchor = strconv.Itoa(eventsCount)
+	if view.Handoff.ClientStatus != "" {
+		out.HandoffCurrentText = "Запрос человека: " + handoffStateWordText(view.Handoff)
+		out.HandoffClientText = "Клиентский статус: " + view.Handoff.ClientStatusText + " (слово: " + view.Handoff.ClientStatus + ")"
+	} else {
+		out.HandoffCurrentText = "Запроса человека нет: безусловная просьба клиента не зарегистрирована."
+		out.HandoffClientText = "Клиентский статус: специалист не запрашивался."
+	}
+	for _, request := range view.Handoff.Requests {
+		row := handoffRequestRow{
+			RequestNo:    strconv.FormatInt(request.RequestNo, 10),
+			ReasonText:   request.ReasonText,
+			State:        request.State,
+			StateText:    request.StateText,
+			ClientText:   request.ClientStatusText,
+			ActiveText:   "закрыт",
+			RolesText:    strings.Join(request.TargetRoles, ", "),
+			DeadlineText: request.AckDeadlineText,
+			TurnRef:      request.TurnRef.String(),
+			Assignee:     request.Assignee.String(),
+			Backup:       request.BackupOwner.String(),
+			DeadlineAt:   formatTime(request.DeadlineAt),
+			CreatedAt:    formatTime(request.CreatedAt),
+			HasRound:     request.Assignee != id.UUID(""),
+			HasEvents:    len(request.Events) > 0,
+		}
+		if request.Active {
+			row.ActiveText = "открыт"
+		}
+		for _, event := range request.Events {
+			material := ""
+			switch event.Kind {
+			case casesDomain.HandoffEventAssigned:
+				material = "специалист " + event.Assignee.String() + ", резерв " + event.BackupOwner.String() + ", " + casesDomain.HandoffAckDeadlineText(event.AckDeadline)
+			case casesDomain.HandoffEventAcknowledged:
+				material = "новая эпоха владения " + strconv.FormatInt(event.ResultingEpoch, 10)
+			case casesDomain.HandoffEventDeclined:
+				material = "владелец не изменился"
+			case casesDomain.HandoffEventCancelled:
+				material = "якорь отмены — реплика " + event.TurnRef.String()
+			case casesDomain.HandoffEventReturned:
+				material = casesDomain.HandoffResultText(event.Result)
+			}
+			row.Events = append(row.Events, handoffEventRow{
+				KindText:     event.KindText,
+				MaterialText: material,
+				ActorID:      event.ActorID.String(),
+				CreatedAt:    formatTime(event.CreatedAt),
+			})
+		}
+		out.HandoffRequestRows = append(out.HandoffRequestRows, row)
+	}
+	// The card of the assignee: the open assigned round the acting
+	// principal answers (the confirm and the decline forms — the
+	// assignment or the notification is never an acknowledgement).
+	out.HandoffCardForActor = view.Handoff.AcknowledgeForActor
+	if view.Handoff.AcknowledgeForActor {
+		out.HandoffCardStateText = casesDomain.HandoffStateText(casesDomain.HandoffStateAssigned)
+		out.HandoffCardDeadline = formatTime(view.Handoff.RoundDeadlineAt)
+		out.HandoffCardAssignee = view.Handoff.RoundAssignee.String()
+	}
+	for _, word := range view.Handoff.RoleWords {
+		out.HandoffRoleWords = append(out.HandoffRoleWords, workOption{Value: word, Text: handoffRoleText(word)})
+	}
+	for _, word := range view.Handoff.DeadlineWords {
+		out.HandoffDeadlineOptions = append(out.HandoffDeadlineOptions, workOption{Value: word, Text: casesDomain.HandoffAckDeadlineText(word)})
+	}
+	for _, word := range view.Handoff.ResultWords {
+		out.HandoffResultOptions = append(out.HandoffResultOptions, workOption{Value: word, Text: casesDomain.HandoffResultText(word)})
 	}
 
 	for _, conversation := range view.Conversations {
@@ -2507,4 +2645,27 @@ func updatePromiseText(word string) string {
 // channelWordText renders the channel word of the route options.
 func channelWordText(word string) string {
 	return word
+}
+
+// handoffRoleText renders the honest target-role word text of the request
+// form (the fixed dictionary — the checkbox labels of the ask).
+func handoffRoleText(word string) string {
+	switch word {
+	case casesDomain.HandoffTargetRoleOperator:
+		return "operator — рабочий оператор (полномочие review)"
+	case casesDomain.HandoffTargetRoleSupervision:
+		return "supervision — надзор (полномочие configuration)"
+	}
+	return word
+}
+
+// handoffStateWordText renders the current lifecycle state line of the
+// panel (the state word with its honest text — the words, never the
+// colors).
+func handoffStateWordText(view casesAPI.HandoffView) string {
+	if len(view.Requests) == 0 {
+		return "нет зарегистрированного запроса."
+	}
+	last := view.Requests[len(view.Requests)-1]
+	return last.StateText + " (слово: " + last.State + ", запрос №" + strconv.FormatInt(last.RequestNo, 10) + ")"
 }

@@ -567,6 +567,127 @@
 {{end}}
 </section>
 
+<h2>Запрос человека — жизненный цикл передачи</h2>
+<p class="next-note" id="handoffs-panel-note" aria-live="polite">{{.View.HandoffsPanelText}}</p>
+<section class="panel" aria-label="Запрос человека">
+<p id="handoffs-current" aria-live="polite"><strong>{{.View.HandoffCurrentText}}</strong> {{.View.HandoffClientText}}</p>
+{{if .View.HandoffCardForActor}}
+<section class="panel" aria-label="Передача ждёт вашего подтверждения" id="handoff-ack-card">
+<p role="status">Передача ждёт вашего подтверждения: {{.View.HandoffCardStateText}} Дедлайн раунда: {{.View.HandoffCardDeadline}}. Назначение — не принятие: подтвердите передачу, чтобы принять владение обращением.</p>
+{{if .View.CanManageWork}}
+<details class="connector-connect" open><summary>Подтвердить принятие (acknowledge_human_handoff)</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/human-requests/acknowledgement">
+<input type="hidden" name="expected_epoch" value="{{.View.Ownership.CurrentEpoch}}">
+<button class="primary" type="submit">Подтвердить передачу</button>
+</form>
+<p class="next-note">Подтверждение — смена владельца одной транзакцией с механикой передачи 2-4 (эпоха +1, поверхность inbox). Подтвердить может только назначенный специалист.</p>
+</details>
+<details class="connector-connect"><summary>Отклонить назначение (decline_human_handoff)</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/human-requests/decline">
+<input type="hidden" name="expected_handoff_events" value="{{.View.HandoffEventsAnchor}}">
+<button type="submit">Отклонить назначение</button>
+</form>
+<p class="next-note">Отказ не меняет владельца: прежний безопасный владелец сохраняется, запрос остаётся открытым для нового назначения.</p>
+</details>
+{{end}}
+</section>
+{{end}}
+{{if .View.HasHandoffs}}
+{{range .View.HandoffRequestRows}}
+<details>
+<summary>Запрос №{{.RequestNo}} — {{.StateText}} ({{.ActiveText}})</summary>
+<p class="next-note">{{.ReasonText}} Целевые роли: {{.RolesText}}. Дедлайн подтверждения запроса: {{.DeadlineText}}. Якорь просьбы: <span class="digest-block">{{.TurnRef}}</span>. Создан: {{.CreatedAt}}.</p>
+<p class="next-note">Клиентский статус: {{.ClientText}}. Состояние: <strong>{{.State}}</strong> — {{.StateText}}</p>
+{{if .HasRound}}
+<p class="next-note">Раунд назначения: специалист <span class="digest-block">{{.Assignee}}</span>, резерв <span class="digest-block">{{.Backup}}</span>, дедлайн {{.DeadlineAt}}.</p>
+{{end}}
+{{if .HasEvents}}
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="События жизненного цикла запроса {{.RequestNo}}">
+<table class="datamap-table">
+<caption>События запроса №{{.RequestNo}}: вид, материал, участник, время — append-only</caption>
+<thead><tr><th scope="col">Событие</th><th scope="col">Материал</th><th scope="col">Участник</th><th scope="col">Время</th></tr></thead>
+<tbody>
+{{range .Events}}<tr><th scope="row">{{.KindText}}</th><td>{{.MaterialText}}</td><td><span class="digest-block">{{.ActorID}}</span></td><td>{{.CreatedAt}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+{{end}}
+</details>
+{{end}}
+{{end}}
+{{if .View.CanManageWork}}
+<details class="connector-connect"><summary>Запросить человека (request_human — безусловная просьба клиента)</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/human-requests">
+<label for="handoff-turn">Реплика клиента — якорь просьбы (принятое событие обращения)</label>
+<select id="handoff-turn" name="turn_ref" required>
+<option value="">— выберите реплику —</option>
+{{range $.View.EventOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}
+</select>
+<fieldset>
+<legend>Целевые роли запроса (словарь фиксирован — хотя бы одна)</legend>
+{{range $.View.HandoffRoleWords}}<label><input type="checkbox" name="target_roles" value="{{.Value}}"> {{.Text}}</label>{{end}}
+</fieldset>
+<label for="handoff-deadline">Дедлайн подтверждения (словарь фиксирован)</label>
+<select id="handoff-deadline" name="ack_deadline" required>
+<option value="">— выберите слово дедлайна —</option>
+{{range $.View.HandoffDeadlineOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}
+</select>
+<input type="hidden" name="expected_mode_version" value="{{.View.Mode.CurrentVersion}}">
+<input type="hidden" name="expected_handoff_requests" value="{{.View.HandoffRequestsAnchor}}">
+<button class="primary" type="submit">Записать просьбу клиента</button>
+</form>
+<p class="next-note">Причину оператор НЕ вводит: просьба безусловна, причина — системная константа словаря. Режим поднимается машиной (трещотка): строже активного — режим не тронут, просьба всё равно записывается. Повторная просьба при активном запросе — отказ одной конкурирующей задачи (409).</p>
+</details>
+<details class="connector-connect"><summary>Назначить специалиста (assign_human_handoff — назначение ≠ принятие)</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/human-requests/assignment">
+<label for="handoff-assignee">Назначаемый специалист (assignee — участник целевой роли)</label>
+<select id="handoff-assignee" name="assignee" required>
+<option value="">— выберите специалиста —</option>
+{{range $.View.Ownership.MemberOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}
+</select>
+<label for="handoff-backup">Резервный участник раунда (backup)</label>
+<select id="handoff-backup" name="backup" required>
+<option value="">— выберите резервного —</option>
+{{range $.View.Ownership.MemberOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}
+</select>
+<label for="handoff-round-deadline">Дедлайн подтверждения раунда (словарь фиксирован)</label>
+<select id="handoff-round-deadline" name="ack_deadline" required>
+<option value="">— выберите слово дедлайна —</option>
+{{range $.View.HandoffDeadlineOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}
+</select>
+<input type="hidden" name="expected_handoff_events" value="{{.View.HandoffEventsAnchor}}">
+<button class="primary" type="submit">Назначить раунд</button>
+</form>
+<p class="next-note">Назначение не меняет владельца: специалист увидит карточку подтверждения. Роль назначаемого машина разрешает сама из участия (оператор роль НЕ вводит). Переназначение — новое событие с новым дедлайном: человеческое решение.</p>
+</details>
+<details class="connector-connect"><summary>Отменить запрос клиента (cancel_human_request — якорь отмены)</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/human-requests/cancellation">
+<label for="handoff-cancel-turn">Реплика клиента — якорь отмены (принятое событие обращения)</label>
+<select id="handoff-cancel-turn" name="turn_ref" required>
+<option value="">— выберите реплику —</option>
+{{range $.View.EventOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}
+</select>
+<input type="hidden" name="expected_handoff_events" value="{{.View.HandoffEventsAnchor}}">
+<button type="submit">Записать отмену</button>
+</form>
+<p class="next-note">Отмена не меняет владельца и не удаляет историю. Режим не понижается (трещотка): выход — только явный exit_mode с полномочием. Закрытый запрос не отменяется — путь возврата return_to_staffy.</p>
+</details>
+<details class="connector-connect"><summary>Вернуть обращение Staffy (return_to_staffy — после подтверждения)</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/human-requests/return">
+<label for="handoff-result">Результат возврата (словарь фиксирован)</label>
+<select id="handoff-result" name="result" required>
+<option value="">— выберите слово результата —</option>
+{{range $.View.HandoffResultOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}
+</select>
+<input type="hidden" name="expected_epoch" value="{{.View.Ownership.CurrentEpoch}}">
+<input type="hidden" name="expected_handoff_events" value="{{.View.HandoffEventsAnchor}}">
+<button class="primary" type="submit">Вернуть цифровому сотруднику</button>
+</form>
+<p class="next-note">Возврат — смена владельца одной транзакцией с механикой передачи 2-4 (владелец = цифровой сотрудник, поверхность external_inbox, эпоха +1). Режим не тронут: продажный путь не возобновляется под строжим режимом.</p>
+</details>
+{{end}}
+</section>
+
 <h2>Work Control Card — рабочие элементы</h2>
 <p class="next-note">Версии — истина: каждая команда пишет новую версию; текущее состояние и тип — производные. Автоматической связи событий с элементами нет; факты не выбирают значение сами — только подтверждение человеком.</p>
 {{if .View.HasWorkItems}}

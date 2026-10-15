@@ -303,6 +303,13 @@ func HandoffStateActive(word string) bool {
 // (AC-4); the current lifecycle words travel with the conflict.
 const HandoffActiveText = "Запрос человека уже активен: вторая конкурирующая задача не создаётся — дождитесь закрытия текущего запроса (подтверждение, отмена клиента либо возврат)."
 
+// HandoffAbsentText is the honest refusal of every lifecycle command
+// without a request: there is nothing to assign, acknowledge, decline,
+// cancel or return — the lifecycle begins with the client's ask. The
+// app pre-transaction guards and the store re-validation share this
+// sentence (the domain truth of the absent lifecycle).
+const HandoffAbsentText = "Запроса человека не существует: назначать, подтверждать, отклонять, отменять или возвращать нечего — сначала безусловная просьба клиента."
+
 // HandoffActiveError is the honest one-competing-task refusal of the
 // repeated request_human (the 409 of the second competing task, AC-4):
 // the CURRENT lifecycle words travel with the conflict — the derived

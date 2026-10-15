@@ -153,6 +153,13 @@ type CaseView struct {
 	// rows and the dictionaries of the record form (an OPERATIONAL
 	// record, never a fact).
 	RouteDegradations RouteDegradationView `json:"route_degradations"`
+	// The Story 2.13 section: the human handoff lifecycle — every
+	// append-only request row with the derived lifecycle state and
+	// the event history, the honest client status of the LAST request
+	// (назначение ≠ принятие — two words, never one) and the
+	// dictionaries of the forms (a LIFECYCLE RECORD, never a fact;
+	// the overdue state is the read-time derivation).
+	Handoff HandoffView `json:"handoff"`
 }
 
 // PayloadView is the sealed payload read under review/audit: the digest,
@@ -454,6 +461,19 @@ type WorkOutcome struct {
 	DeliveryEvidenceID  id.UUID `json:"delivery_evidence_id,omitempty"`
 	DeliveryKindWord    string  `json:"delivery_evidence_kind,omitempty"`
 	UpdatePromise       string  `json:"update_promise,omitempty"`
+	// The Story 2.13 material: the handoff lifecycle words of the six
+	// commands (the anchor turn of the unconditional ask and the
+	// cancellation, the assignee and the backup of the assignment round
+	// with its deadline word, the result word of the return — the
+	// request and event numbers are the server-side truth of the store,
+	// the stored outcome never carries them; the mode raise reuses the
+	// 2.5 fields ModeTermID/ModeVersion, the ownership transition reuses
+	// the 2.4 fields Epoch/TransferRequestID).
+	HandoffTurnRef     id.UUID `json:"handoff_turn_ref,omitempty"`
+	HandoffAssignee    id.UUID `json:"handoff_assignee,omitempty"`
+	HandoffBackup      id.UUID `json:"handoff_backup,omitempty"`
+	HandoffAckDeadline string  `json:"handoff_ack_deadline,omitempty"`
+	HandoffResult      string  `json:"handoff_result,omitempty"`
 }
 
 // FactView is one fact of the facts view: the anchor, the derived status,
