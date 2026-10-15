@@ -508,8 +508,9 @@ func (f *casesFixture) SendClientReply(_ context.Context, command casesAPI.SendC
                 Content: command.Content, ActorID: command.Actor.ID,
                 ReplyClass: command.ReplyClass, WorkItemID: command.WorkItemID, PolicyOutcomeID: policyOutcomeID, CreatedAt: command.Now,
                 AccuracyQualifier: command.AccuracyQualifier,
+                UpdatePromise: command.UpdatePromise,
         })
-        outcome = casesAPI.WorkOutcome{Command: "send_client_reply", ReplyID: replyID, ReplyState: "prepared", Epoch: state.Current.Epoch, ReplyClass: command.ReplyClass, PolicyOutcomeID: policyOutcomeID, ObjectionID: objectionID, PlaybookStep: command.PlaybookStep, AccuracyQualifier: command.AccuracyQualifier}
+        outcome = casesAPI.WorkOutcome{Command: "send_client_reply", ReplyID: replyID, ReplyState: "prepared", Epoch: state.Current.Epoch, ReplyClass: command.ReplyClass, PolicyOutcomeID: policyOutcomeID, ObjectionID: objectionID, PlaybookStep: command.PlaybookStep, AccuracyQualifier: command.AccuracyQualifier, UpdatePromise: command.UpdatePromise}
         f.storeOutcome("send_client_reply", command.IdempotencyKey, outcome)
         return outcome, nil
 }
@@ -652,5 +653,10 @@ func (f *casesFixture) fixtureOwnershipView(caseID id.UUID) casesAPI.OwnershipVi
                 }
                 view.Replies = append(view.Replies, card)
         }
+        // The Story 2.12 columns: the derived honest delivery states of the
+        // outgoing replies (the transport renders the «Доставка» column from
+        // the view — the LAST evidence event decides, dispatched without
+        // events is the honest unknown, never the delivered).
+        view.Deliveries = f.fixtureDeliveries(caseID)
         return view
 }

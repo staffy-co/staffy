@@ -197,17 +197,20 @@ func (f *casesFixture) EvaluatePolicy(_ context.Context, command casesAPI.Evalua
 	// the canonical preferences map: the same state renders the same
 	// digest, a changed state is the honest supersede).
 	preferences := f.fixtureAccommodationCurrent(command.CaseID)
-	// The 2.12 fifth input: the route degradations map with the dialog
-	// route (nil + the zero route keep the control branch — the honest
-	// wiring arrives with step-03; the fixture mirrors the store).
-	decision := casesDomain.EvaluatePolicy(*proposal, world, effective, preferences, nil, casesDomain.RouteKey{})
+	// The 2.12 fifth input: the CURRENT route degradations map with the
+	// dialog route of the proposal's conversation (the store mirror — the
+	// read under the same world lock; the snapshot stamps the canonical
+	// route map: the same degradation state renders the same digest, a
+	// recovered route is the honest supersede).
+	degradations := f.fixtureDegradationCurrent(command.CaseID)
+	decision := casesDomain.EvaluatePolicy(*proposal, world, effective, preferences, degradations, f.fixtureDialogRoute(proposal.ConversationID))
 	snapshot := casesDomain.PolicyInputSnapshot{
 		ProposalID: proposal.ProposalID, SchemaVersion: proposal.SchemaVersion,
 		ModeVersion: modeVersion, OwnerEpoch: f.epochOf(command.CaseID),
 		FactsDigest: digestMap, FactsDigestHash: digest,
 		WorkItemVersion: command.ExpectedWorkItemVersion, RuleVersion: casesDomain.PolicyRuleVersion,
 		Preferences:  casesDomain.AccommodationSnapshotOf(preferences),
-		Degradations: casesDomain.DegradationSnapshotOf(nil),
+		Degradations: casesDomain.DegradationSnapshotOf(degradations),
 	}
 	decisionDigest, err := casesDomain.DecisionDigest(snapshot, decision, proposal.Intent)
 	if err != nil {
@@ -229,8 +232,9 @@ func (f *casesFixture) EvaluatePolicy(_ context.Context, command casesAPI.Evalua
 		RuleVersion: casesDomain.PolicyRuleVersion, Intent: proposal.Intent,
 		MandatoryFacts: decision.MandatoryFacts, NextSteps: decision.NextSteps,
 		ReusedFacts: decision.ReusedFacts, SuppressedQuestions: decision.SuppressedQuestions,
-		ActiveAlternatives: decision.ActiveAlternatives,
-		InputSnapshot:      snapshot, DecisionDigest: decisionDigest,
+		ActiveAlternatives:     decision.ActiveAlternatives,
+		DegradedPermittedPaths: decision.DegradedPermittedPaths,
+		InputSnapshot:          snapshot, DecisionDigest: decisionDigest,
 		ActorID: command.Actor.ID, CreatedAt: command.Now,
 	})
 	outcome = casesAPI.WorkOutcome{Command: "evaluate_policy", ProposalID: command.ProposalID,

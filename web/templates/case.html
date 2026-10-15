@@ -415,6 +415,7 @@
 {{if .Current.Mandatory}}<p>Обязательные факты: {{range $i, $fact := .Current.Mandatory}}{{if $i}}; {{end}}{{$fact.MaterialKey}} ({{if eq $fact.Source "rule"}}правило{{else}}предложение{{end}}) — {{$fact.StateText}}{{end}}.</p>{{end}}
 {{if .Current.NextSteps}}<p>Следующие шаги: {{range $i, $step := .Current.NextSteps}}{{if $i}}; {{end}}{{$step}}{{end}}.</p>{{end}}
 {{if .Current.Alternatives}}<p>Активные альтернативы (честные пути без media): {{range $i, $alt := .Current.Alternatives}}{{if $i}}; {{end}}<strong>{{$alt.WordText}}</strong> — {{$alt.LimitationText}}{{end}}. Продажный ответ обязан заявить одно из этих ограничений точности (accuracy_qualifier).</p>{{end}}
+{{if .Current.DegradedPaths}}<p>Разрешённые пути деградированного режима: {{range $i, $path := .Current.DegradedPaths}}{{if $i}}; {{end}}<strong>{{$path.Word}}</strong> — {{$path.PathText}}{{end}}. Обещания на деградированном маршруте закрыты: продажный ответ не выдаётся, вопросы остаются (вопросы — не обещания).</p>{{end}}
 {{if .Current.Reused}}<p>Переиспользованные значения: {{range $i, $reused := .Current.Reused}}{{if $i}}; {{end}}{{$reused}}{{end}}.</p><p class="next-note">{{range $i, $sig := .Current.ReusedSigs}}{{if $i}} {{end}}<span class="digest-block">{{$sig}}</span>{{end}}</p>{{end}}
 {{if .Current.Suppressed}}<p>Удалённые повторы вопросов: {{range $i, $q := .Current.Suppressed}}{{if $i}}; {{end}}{{$q}}{{end}} (дедуп против подтверждённых фактов).</p>{{end}}
 <p>Дайджест решения: <span class="digest-block">{{.Current.DecisionDigest}}</span>. {{.Current.CreatedAt}}.</p>

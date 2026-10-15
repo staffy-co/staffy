@@ -317,7 +317,7 @@ func (s *Service) routeDegradationView(ctx context.Context, scope tenancy.Contex
 		view.Current = append(view.Current, casesAPI.RouteDegradationStateView{
 			ConnectionID: state.Route.ConnectionID, Channel: state.Route.Channel,
 			Cause: state.Cause, CauseText: casesDomain.DegradationCauseText(state.Cause),
-			Revision: state.Revision,
+			Revision: state.Revision, RecordedAt: state.RecordedAt,
 		})
 	}
 	// The honest history: every revision row including the recovery ones

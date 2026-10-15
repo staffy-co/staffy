@@ -244,15 +244,19 @@ type RouteDegradationRecord struct {
 // ---------------------------------------------------------------------------
 
 // DegradationState is the read-time state of one route: the latest
-// revision number, its cause word and its clearing mark. A CLEARED state
-// stays in the map (the honest revision truth of the snapshot — a
-// recovery changes the digest); the DEGRADED set is the routes whose
-// latest revision is not a clearing one.
+// revision number, its cause word, its clearing mark and the recorded
+// time of the winning revision (the panel material — the spec row:
+// «слово причины и время»; the SNAPSHOT map never carries the time —
+// the digest determinism). A CLEARED state stays in the map (the honest
+// revision truth of the snapshot — a recovery changes the digest); the
+// DEGRADED set is the routes whose latest revision is not a clearing
+// one.
 type DegradationState struct {
-	Route    RouteKey
-	Cause    string
-	Revision int64
-	Cleared  bool
+	Route      RouteKey
+	Cause      string
+	Revision   int64
+	Cleared    bool
+	RecordedAt time.Time
 }
 
 // CurrentDegradations is the derived route state of one case: every
@@ -277,6 +281,7 @@ func DeriveCurrentDegradations(records []RouteDegradationRecord) CurrentDegradat
 			current[key] = DegradationState{
 				Route: record.Route, Cause: record.Cause,
 				Revision: record.Revision, Cleared: record.Cleared,
+				RecordedAt: record.RecordedAt,
 			}
 		}
 	}

@@ -247,7 +247,7 @@ func (f *casesFixture) fixtureDegradationView(caseID id.UUID) casesAPI.RouteDegr
 		view.Current = append(view.Current, casesAPI.RouteDegradationStateView{
 			ConnectionID: state.Route.ConnectionID, Channel: state.Route.Channel,
 			Cause: state.Cause, CauseText: casesDomain.DegradationCauseText(state.Cause),
-			Revision: state.Revision,
+			Revision: state.Revision, RecordedAt: state.RecordedAt,
 		})
 	}
 	for _, record := range records {

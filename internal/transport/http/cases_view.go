@@ -382,6 +382,7 @@ type routeDegradationRecordRow struct {
 	ConnectionID string
 	Channel      string
 	Cause        string
+	CauseText    string
 	Revision     string
 	Cleared      bool
 	Note         string
@@ -866,8 +867,9 @@ func prepareCaseView(r *http.Request, view casesAPI.CaseView, facts casesAPI.Fac
 	for _, record := range view.RouteDegradations.History {
 		out.RouteDegradationHistoryRows = append(out.RouteDegradationHistoryRows, routeDegradationRecordRow{
 			ConnectionID: record.ConnectionID.String(), Channel: record.Channel,
-			Cause: record.Cause, Revision: strconv.FormatInt(record.Revision, 10),
-			Cleared: record.Cleared, Note: record.Note,
+			Cause: record.Cause, CauseText: degradationCauseText(record.Cause),
+			Revision: strconv.FormatInt(record.Revision, 10),
+			Cleared:  record.Cleared, Note: record.Note,
 			ActorID: record.ActorID.String(), RecordedAt: formatTime(record.RecordedAt),
 		})
 	}
@@ -2036,6 +2038,7 @@ type policyOutcomeRow struct {
 	ReusedSigs     []string
 	Suppressed     []string
 	Alternatives   []policyAlternativeRow
+	DegradedPaths  []policyDegradedPathRow
 	PermittedText  string
 	DecisionDigest string
 	CreatedAt      string
@@ -2049,6 +2052,15 @@ type policyAlternativeRow struct {
 	Word           string
 	WordText       string
 	LimitationText string
+}
+
+// policyDegradedPathRow is one permitted path word of the degraded
+// mode outcome (Story 2.12): the word with its honest fixed text — the
+// panel renders the text, the database carries the words only (the
+// AC-3 dictionary of the Domain Pack).
+type policyDegradedPathRow struct {
+	Word     string
+	PathText string
 }
 
 // policyMandatoryRow is one mandatory fact of the outcome plan: the
@@ -2072,6 +2084,8 @@ func policyClassText(class string) string {
 		return "clarify (уточнение — только вопросы)"
 	case casesDomain.OutcomeModeBlocked:
 		return "mode_blocked (режим блокирует коммерческий путь)"
+	case casesDomain.OutcomeDegradedMode:
+		return "degraded_mode (маршрут деградирован — обещаний нет, разрешённые пути в исходе)"
 	case casesDomain.OutcomeFailClosed:
 		return "fail_closed (закрыт безопасно — неизвестное правило)"
 	}
@@ -2091,6 +2105,8 @@ func policyReasonText(reason string) string {
 		return "no_answer_basis (нет базиса ответа)"
 	case casesDomain.ReasonModeBlocksCommercial:
 		return "mode_blocks_commercial_path (режим решает)"
+	case casesDomain.ReasonDegradedRoute:
+		return "degraded_route (маршрут диалога деградирован)"
 	case casesDomain.ReasonUnknownIntent:
 		return "unknown_intent (намерение вне словаря)"
 	}
@@ -2228,6 +2244,7 @@ func preparePolicyOutcomeRow(outcome casesDomain.PolicyOutcome) policyOutcomeRow
 		ReusedSigs:     make([]string, 0, len(outcome.ReusedFacts)),
 		Suppressed:     make([]string, 0, len(outcome.SuppressedQuestions)),
 		Alternatives:   make([]policyAlternativeRow, 0, len(outcome.ActiveAlternatives)),
+		DegradedPaths:  make([]policyDegradedPathRow, 0, len(outcome.DegradedPermittedPaths)),
 		PermittedText:  "Разрешённый путь: " + casesDomain.OutcomePermittedPath(outcome.OutcomeClass),
 		DecisionDigest: outcome.DecisionDigest,
 		CreatedAt:      formatTime(outcome.CreatedAt),
@@ -2257,6 +2274,15 @@ func preparePolicyOutcomeRow(outcome casesDomain.PolicyOutcome) policyOutcomeRow
 		row.Alternatives = append(row.Alternatives, policyAlternativeRow{
 			Word: word, WordText: accuracyQualifierText(word),
 			LimitationText: casesDomain.AlternativeLimitationText(word),
+		})
+	}
+	// The permitted paths of the degraded mode outcome (Story 2.12): every
+	// word carries its honest fixed text — the panel renders the words with
+	// the texts (AC-3: the permitted continuation paths of the degraded
+	// route; the sales path is closed machine-wise, the questions stay).
+	for _, word := range outcome.DegradedPermittedPaths {
+		row.DegradedPaths = append(row.DegradedPaths, policyDegradedPathRow{
+			Word: word, PathText: casesDomain.DegradedPathText(word),
 		})
 	}
 	return row
