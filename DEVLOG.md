@@ -2431,3 +2431,18 @@ decisions:
 - zz-knowledge вне скоупа: воспроизведение байт-в-байт на merge-base выполнено QA-агентом — пре-существующее состояние Epic-1, замороженные файлы не правились
 next: CHECKPOINT 2 — push closure-коммита (CI push-run) → PR через GitHub API (base main, head codex/story-2-13-unconditional-human-handoff) → CI PR-run → NEED=2 зелёных → merge sha-pinned (merge_method=merge) → main-run CI NEED=1 → синк локального main ff-only → DEVLOG 76-merge + push docs [skip ci] → check-continuity → story 2-14 (SM-фаза, backlog)
 commit: (closure-коммит ниже; эта запись)
+---
+date: 2026-10-16
+task: 76-merge
+role: main (Super Z)
+story: 2-13
+summary: Story 2-13 влита в main — PR #28, merge-коммит 2428bbc; CI зелёный тремя полными прогонами (push/PR/main); Epic 2: 13/16 stories done — контур получил безусловный запрос человека и lifecycle Handoff: request_human с turn-якорем и системной причиной-константой, append-only human_handoffs/events с материальными CHECK, назначение ≠ принятие (4 клиентских слова), CAS-подтверждение exec-композицией transfer-механики 2.4 в ОДНОЙ tx, freeze-гейт обязательств, overdue-деривация, возврат Staffy (external_inbox), панель/карточка/4 PRG-формы с a11y, OpenAPI-контракт
+done:
+- Git-факты: PR #28 head e061282929819721eaf07636200e04d6edb1fc23 = closure-коммит ветки (merge ровно от от-reviewенной головы; merge_method=merge, sha-pinned); origin/main = 2428bbc9c2683a481d22cf796076374ec5cc4f48, локальный main синхронизирован ff-only
+- Публикация батчем: пуш 3 коммитов push-stop (3a9bc68/19061f5/5b29278, все [skip ci]) + closure-коммит e061282 БЕЗ skip ci + union-мерж d59f2ed (DEVLOG 69-sm/70-sm влиты в ветку — прецедент 2-7); PR #28 через GitHub API после публикации
+- CI ×3 зелёный по GitHub API: push-run 38865994203 (head e061282) и pull_request-run 38866059831 (head e061282) — NEED=2 выполнено ДО merge; main-run 38866666413 (head 2428bbc, после merge) — NEED=1; полный конвейер Go+PG+Playwright во всех трёх
+- Токен применён только inline env STAFFY_GH_TOKEN per-invocation (credential-helper, на диск не попадал; в отчётах только маска github_pat_***) — паттерн 46/47/48/49/50/73-merge соблюдён шестым CHECKPOINT подряд
+- Цикл story 2-13 (два дня, 2026-10-15..16, с двумя push-stop по протоколу и двумя восстановлениями после ресайкла окружения): SM-спека afa6851 → CHECKPOINT 1 108f3fe («одобряю») → Dev step-01..04 (fb2053a/3c0757c/44bf445/19061f5 + orphan-checkpoint 3a9bc68 поднят по ритуалу) → step-05 QA-саморевью свежим контекстом (субагент, копия staffy-r3: ВЕРДИКТ PASS, мутации 4/4, 2 Minor закрыты: gofmt слайса + фантомное слово Down 00013) → closure e061282 (спека done, Execution 5/5, sprint-status done) → PR #28 → merge 2428bbc
+- Локальный регресс в merge-фазе не перегонялся (не нужен): рабочее дерево main байт-в-байт = origin/main @ 2428bbc (ff-only без расхождений), CI ×3 прогнал тот же контент независимо; регресс последнего дерева ветки прогнан свежими прогонами в основном клоне после Minor-фиксов (184 ×2 TZ, journeys 28+2 пре-существующих)
+next: story 2-14 «Decision-ready контекст и операторская поверхность» (backlog; SM-фаза по решению владельца) — в Epic 2 осталось 3 stories; свежий токен для следующего CHECKPOINT 2 понадобится от владельца
+commit: 2428bbc
