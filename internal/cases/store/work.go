@@ -493,6 +493,14 @@ func (s *Postgres) ExecuteWorkCommand(ctx context.Context, p casesPort.WorkComma
 		// re-validates the conversation under the locks; the event number
 		// derivation is the lock-visible truth).
 		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID), conversationLockKey(tenantID, p.ConversationID))
+	case "request_human", "assign_human_handoff", "acknowledge_human_handoff", "decline_human_handoff", "cancel_human_request", "return_to_staffy":
+		// The Story 2.13 handoff lifecycle: the case + conversation keys —
+		// the same sorted plan (the lifecycle derivations, the mode CAS of
+		// the ask, the freeze gate reads of the commitments and the composed
+		// 2.4 transfer transitions serialize on the identical key set with
+		// the ownership and mode writers; the request and event number
+		// derivations are the lock-visible truth).
+		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID), conversationLockKey(tenantID, p.ConversationID))
 	case "issue_continuation_link", "revoke_continuation_link":
 		// The continuation commands: the case key serializes the owner
 		// epoch read of the issuance pin (the ownership writers hold the
@@ -586,6 +594,18 @@ func (s *Postgres) ExecuteWorkCommand(ctx context.Context, p casesPort.WorkComma
 		err = s.execRecordRouteDegradation(ctx, tx, tenantID, p, now)
 	case "record_delivery_evidence":
 		err = s.execRecordDeliveryEvidence(ctx, tx, tenantID, p, now)
+	case "request_human":
+		err = s.execRequestHuman(ctx, tx, tenantID, p, now)
+	case "assign_human_handoff":
+		err = s.execAssignHumanHandoff(ctx, tx, tenantID, p, now)
+	case "acknowledge_human_handoff":
+		err = s.execHandoffAcknowledge(ctx, tx, tenantID, p, now)
+	case "decline_human_handoff":
+		err = s.execHandoffDecline(ctx, tx, tenantID, p, now)
+	case "cancel_human_request":
+		err = s.execCancelHumanRequest(ctx, tx, tenantID, p, now)
+	case "return_to_staffy":
+		err = s.execReturnToStaffy(ctx, tx, tenantID, p, now)
 	default:
 		err = fmt.Errorf("неизвестная команда %s", p.Command)
 	}

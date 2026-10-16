@@ -368,6 +368,16 @@ func (s *Postgres) execCreateCommitment(ctx context.Context, tx pgx.Tx, tenantID
 	}, now); err != nil {
 		return casesDomain.WorkRuleError{Rule: p.Command, Reason: err.Error()}
 	}
+	// The Story 2.13 freeze gate re-validation under the SAME advisory
+	// locks (the store half of the app gate — the LIVE derivation of the
+	// 00013 rows the app read could race): the effective mode of the Work
+	// Item equal to human_requested OR an ACTIVE human handoff freezes the
+	// creation with the honest mode word. The control branch stays
+	// byte-identical: without the mode and without the handoff rows the
+	// gate returns nil and the 2.9 path never differs.
+	if err := commitmentHandoffGateOfTx(ctx, tx, tenantID, p.CaseID, p.WorkItemID, p.Command, now); err != nil {
+		return err
+	}
 	// The per-commitment monotonic version number under the lock (the
 	// max+1 of the append-only ladder — a new offer starts at 1; a
 	// changed offer of the same commitment id continues the ladder).

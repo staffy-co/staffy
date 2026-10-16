@@ -157,6 +157,15 @@ type casesFixture struct {
 	replyDeliveryEvents map[id.UUID][]casesDomain.ReplyDeliveryEvent
 	degradationSeq      int
 
+	// The Story 2.13 handoff material: the append-only request rows and
+	// the append-only lifecycle event rows per case (the states and the
+	// client statuses are the read-time derivations over the REAL domain
+	// function — never stored; the request and the event numbers are the
+	// fixture-owned monotonic truths, the requests never carry them).
+	handoffs      map[id.UUID][]casesDomain.HandoffRequest
+	handoffEvents map[id.UUID][]casesDomain.HandoffEvent
+	handoffSeq    int
+
 	caseNo, conversationNo int64
 	eventSeq               int
 	workSeq, exceptionSeq  int
@@ -237,6 +246,9 @@ func newCasesFixture() *casesFixture {
 		// The Story 2.12 material:
 		degradations:        map[id.UUID][]casesDomain.RouteDegradationRecord{},
 		replyDeliveryEvents: map[id.UUID][]casesDomain.ReplyDeliveryEvent{},
+		// The Story 2.13 material:
+		handoffs:      map[id.UUID][]casesDomain.HandoffRequest{},
+		handoffEvents: map[id.UUID][]casesDomain.HandoffEvent{},
 	}
 }
 
@@ -535,7 +547,7 @@ func (f *casesFixture) CasesView(_ context.Context, _ domain.Principal, tenant i
 // CaseView reads one case of the fixture material with the honest
 // statements of the slice, the DERIVED work item views (the version
 // ladders) and the pinned taxonomy of the Work Control Card.
-func (f *casesFixture) CaseView(_ context.Context, _ domain.Principal, tenant, caseID id.UUID) (casesAPI.CaseView, error) {
+func (f *casesFixture) CaseView(_ context.Context, actor domain.Principal, tenant, caseID id.UUID) (casesAPI.CaseView, error) {
 	f.lock()
 	defer f.unlock()
 	if tenant != f.tenant {
@@ -665,6 +677,11 @@ func (f *casesFixture) CaseView(_ context.Context, _ domain.Principal, tenant, c
 		// append-only history, the dictionaries of the record form).
 		Accommodations:    f.fixtureAccommodationView(caseID),
 		RouteDegradations: f.fixtureDegradationView(caseID),
+		// The Story 2.13 section: the «Запрос человека» panel over the
+		// REAL read-time derivations (the lifecycle states, the
+		// client statuses «назначен ≠ принял», the assignment card of
+		// the acting assignee).
+		Handoff: f.fixtureHandoffView(caseID, actor.ID),
 	}, nil
 }
 

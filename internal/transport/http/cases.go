@@ -123,6 +123,28 @@ func (s *Server) BindCases(service casesAPI.Service) {
 		s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/route-degradations", s.recordRouteDegradationForm)
 		s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/delivery-evidence", s.recordDeliveryEvidenceForm)
 	}
+	if handoffs, ok := service.(casesAPI.HandoffService); ok {
+		// The Story 2.13 surfaces: the six handoff lifecycle commands (the
+		// unconditional human request, the assignment round, the assignee's
+		// acknowledgement and decline, the client's cancellation and the
+		// return to Staffy — machine JSON + the operator PRG forms, the
+		// narrow interface is type-asserted of the cases service, the
+		// DegradationService precedent: the composite Service and the test
+		// fakes stay untouched).
+		s.handoffs = handoffs
+		s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/human-requests", s.requestHumanAPI)
+		s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/human-requests/assignment", s.assignHumanHandoffAPI)
+		s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/human-requests/acknowledgement", s.acknowledgeHumanHandoffAPI)
+		s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/human-requests/decline", s.declineHumanHandoffAPI)
+		s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/human-requests/cancellation", s.cancelHumanRequestAPI)
+		s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/human-requests/return", s.returnToStaffyAPI)
+		s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/human-requests", s.requestHumanForm)
+		s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/human-requests/assignment", s.assignHumanHandoffForm)
+		s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/human-requests/acknowledgement", s.acknowledgeHumanHandoffForm)
+		s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/human-requests/decline", s.declineHumanHandoffForm)
+		s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/human-requests/cancellation", s.cancelHumanRequestForm)
+		s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/human-requests/return", s.returnToStaffyForm)
+	}
 	if continuations, ok := service.(casesAPI.ContinuationService); ok {
 		s.continuations = continuations
 		s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/continuation-links", s.issueContinuationLinkAPI)

@@ -46,6 +46,7 @@ type Server struct {
 	cases          casesAPI.Service
 	accommodations casesAPI.AccommodationService
 	degradations   casesAPI.DegradationService
+	handoffs       casesAPI.HandoffService
 	continuations  casesAPI.ContinuationService
 	tenantNamer    api.TenantNameService
 	resolver       port.PrincipalResolver

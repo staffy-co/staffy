@@ -116,6 +116,21 @@ func (f *casesFixture) CreateCommitment(_ context.Context, command casesAPI.Crea
 	if f.material[command.CaseID] == nil {
 		return casesAPI.WorkOutcome{}, casesDomain.ErrNotFound
 	}
+	// The Story 2.13 freeze gate (AFTER the dictionary guards and the
+	// idempotency replay — an exact repeat returns the stored outcome;
+	// BEFORE the material guards): the effective mode of the Work Item
+	// (the stricter of the conversation ladder and the item's own
+	// context) equal to human_requested, OR an active human handoff of
+	// the case, freezes the creation of the new commitments (AC-2). The
+	// control branch stays byte-identical: without the mode and without
+	// the handoff the 2.9 path never differs.
+	if err := fixtureWorkRule("create_commitment", casesDomain.GuardCommitmentFreeze(
+		casesDomain.EffectiveWorkMode(
+			casesDomain.ActiveConversationMode(f.modeTerms[command.CaseID]),
+			casesDomain.WorkItemModeContext(f.modeTerms[command.CaseID], command.WorkItemID)),
+		f.fixtureHandoffActive(command.CaseID))); err != nil {
+		return casesAPI.WorkOutcome{}, err
+	}
 	current, known := f.workCurrentOf(command.WorkItemID)
 	if !known || current.CaseID != command.CaseID {
 		return casesAPI.WorkOutcome{}, casesDomain.ErrNotFound

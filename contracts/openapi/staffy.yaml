@@ -2675,6 +2675,139 @@ paths:
         '403': { description: 'Гейт прав ДО стражей: команды записи наблюдения требуют review или configuration', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
         '404': { $ref: '#/components/responses/Problem' }
         '409': { description: 'Гонка номера события (stale_version) / тот же ключ с иным материалом — command_key_conflict', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/human-requests:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+    post:
+      operationId: requestHuman
+      summary: 'Записать безусловную просьбу клиента о человеке (первый срез 2-13): якорь — принятая реплика клиента ЭТОГО обращения (страж turn_ref); причина НЕ поле запроса — системная константа словаря client_request (безусловность AC-1); CAS версии лестницы; режим human_requested поднимается машиной через существующую машинерию 2-5 (трещотка: строже активного — режим не тронут, просьба всё равно записана); одна конкурирующая задача — активный lifecycle отказывает 409 human_active словами состояния; append-only строка запроса + outbox case.human_requested (идентификаторы и словарные слова — текст причины режима НИКОГДА); freeze-гейт новых обязательств включён тем же срезом'
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RequestHumanRequest' }
+      responses:
+        '201': { description: 'Просьба записана (append-only, UNIQUE tenant+case+request_no) + условный подъём режима + outbox case.human_requested', content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { description: 'Словарь целевых ролей / слово дедлайна / CAS-ожидание / страж turn_ref (якорь — событие ЭТОГО кейса) / терминальный кейс', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Гейт прав ДО стражей: команды жизненного цикла передачи требуют review или configuration', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { description: 'Активный запрос — human_active (вторая конкурирующая задача не создаётся) / гонка лестницы mode_conflict / тот же ключ с иным материалом — command_key_conflict', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/human-requests/assignment:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+    post:
+      operationId: assignHumanHandoff
+      summary: 'Назначить раунд подтверждения (назначение ≠ принятие, AC-3): assignee и backup — участники тенента, роль назначаемого НЕ поле запроса — серверная резолюция машинерией участия (review → operator, configuration → supervision; страж целевых ролей запроса); дедлайн — слово утверждённой policy; append-only событие assigned + outbox case.human_assigned; владелец НЕ меняется; переназначение — новое событие с новым дедлайном (человеческое решение)'
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AssignHumanHandoffRequest' }
+      responses:
+        '201': { description: 'Раунд назначен (append-only событие, UNIQUE tenant+case+request+event_no) + карточка подтверждения назначенному', content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { description: 'Состояние lifecycle (закрыт/нет запроса) / assignee не участник / роль вне целевых / дедлайн чужим словом / терминальный кейс', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Гейт прав ДО стражей', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { description: 'Тот же ключ с иным материалом — command_key_conflict', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/human-requests/acknowledgement:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+    post:
+      operationId: acknowledgeHumanHandoff
+      summary: 'Подтвердить принятие назначения (только assignee — серверная истина, AC-5): ОДНА транзакция с механикой передачи 2-4 (событие acknowledged + TransferRequest с константой-причиной словаря + Resolution + Term эпоха+1, поверхность inbox); ровно один победитель гонки двух операторов (UNIQUE + CAS + advisory-локи) — проигравший честный stale_version; назначение или уведомление не считается подтверждением; sales-ответ прежнего владельца блокируется NotOwnerText'
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AcknowledgeHumanHandoffRequest' }
+      responses:
+        '201': { description: 'Владение передано назначенному (эпоха+1, transfer_acknowledge) + outbox case.human_acknowledged', content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { description: 'Состояние (не назначен / просрочен / закрыт) / actor не assignee / CAS-ожидание / терминальный кейс', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Гейт прав ДО стражей', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { description: 'Гонка эпохи (stale_version — проигравший подтверждения) / активная передача 2-4 (pending transfer) / command_key_conflict', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/human-requests/decline:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+    post:
+      operationId: declineHumanHandoff
+      summary: 'Отклонить назначение (только assignee, AC-6): владелец НИКОГДА не меняется — прежний безопасный владелец сохраняется; запрос остаётся открытым для нового назначения (переназначение / reassign / take); append-only событие declined + outbox case.human_declined'
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '201': { description: 'Отказ записан (append-only) + outbox case.human_declined', content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { description: 'Состояние (не назначен / просрочен / закрыт) / actor не assignee / терминальный кейс', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Гейт прав ДО стражей', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { description: 'Command_key_conflict (тот же ключ с иным материалом)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/human-requests/cancellation:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+    post:
+      operationId: cancelHumanRequest
+      summary: 'Отменить запрос клиента (AC-10): якорь — принятая реплика клиента-отмены ЭТОГО обращения (страж turn_ref); lifecycle обязан быть открытым (закрытый — путь возврата return_to_staffy); владелец НЕ меняется, история НЕ удаляется; режим НЕ понижается (трещотка 2-5 — выход только явный exit_mode с полномочием); append-only событие cancelled + outbox case.human_cancelled'
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CancelHumanRequestRequest' }
+      responses:
+        '201': { description: 'Отмена записана (append-only) + карточка назначенному «отменено» + outbox case.human_cancelled', content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { description: 'Lifecycle закрыт / страж turn_ref (якорь — событие ЭТОГО кейса) / терминальный кейс', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Гейт прав ДО стражей', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { description: 'Command_key_conflict', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/human-requests/return:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+    post:
+      operationId: returnToStaffy
+      summary: 'Вернуть обращение цифровому сотруднику (после подтверждения, AC-9): результат — слово словаря; ОДНА транзакция с механикой передачи 2-4 (владелец=staffy/employee_id кейса, поверхность external_inbox, эпоха+1, причина-константа результата словаря); режим НЕ тронут (продажный путь не возобновляется под строжим режимом — режимная лестница отказывает); append-only событие returned + outbox case.human_returned'
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReturnToStaffyRequest' }
+      responses:
+        '201': { description: 'Обращение возвращено (владелец=staffy, эпоха+1) + outbox case.human_returned', content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { description: 'Состояние (не подтверждён) / слово результата вне словаря / терминальный кейс', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Гейт прав ДО стражей', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { description: 'Гонка эпохи (stale_version) / активная передача 2-4 / command_key_conflict', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
   /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/commitments:
     parameters:
       - $ref: '#/components/parameters/TenantID'
@@ -4521,6 +4654,7 @@ components:
         continuations: { $ref: '#/components/schemas/ContinuationView', description: 'Секция «Ссылки продолжения» (Story 2.10): ссылки с read-time состояниями, delivered-связкой и лентой событий' }
         accommodations: { $ref: '#/components/schemas/AccommodationView', description: 'Секция «Предпочтения связи» (Story 2.11): текущий набор (read-time деривация), append-only история ревизий, словари формы записи' }
         route_degradations: { $ref: '#/components/schemas/RouteDegradationView', description: 'Секция «Состояние маршрутов» (Story 2.12): текущие деградации (read-time деривация), append-only история включая восстановления, словари формы записи' }
+        handoff: { $ref: '#/components/schemas/HandoffView', description: 'Секция «Запрос человека» (Story 2.13): append-only запросы и события lifecycle (состояния/клиентские статусы — read-time деривации, назначение ≠ принятие), карточка назначенного, словари форм' }
     AssuranceView:
       type: object
       required: [state, records, allowed_methods, fallback_options, step_up_text]
@@ -4732,6 +4866,11 @@ components:
         degradation_cleared: { type: boolean, description: 'Восстановление маршрута — своей ревизией' }
         delivery_evidence_id: { type: string, format: uuid, description: 'Записанное наблюдение доставки (Story 2.12); номер события — серверная истина, в исходе не хранится; content реплая НИКОГДА не входит' }
         delivery_evidence_kind: { type: string, enum: [delivered_confirmed, delivery_unknown, provider_failed], description: 'Слово наблюдения коннектора (передаёт оператор)' }
+        handoff_turn_ref: { type: string, format: uuid, description: 'Якорь просьбы/отмены — принятая реплика клиента (Story 2.13); номера запроса/события — серверная истина, в исходе не хранятся' }
+        handoff_assignee: { type: string, format: uuid, description: 'Назначенный специалист раунда (назначение ≠ принятие); роль резолвит сервер из участия — оператор её НЕ вводит' }
+        handoff_backup: { type: string, format: uuid, description: 'Резервный участник раунда назначения' }
+        handoff_ack_deadline: { type: string, enum: [ack_15m, ack_1h, ack_4h], description: 'Слово дедлайна подтверждения раунда (утверждённая policy v0)' }
+        handoff_result: { type: string, enum: [issue_resolved, handed_back], description: 'Слово результата возврата; текст причины режима НИКОГДА не входит в исход' }
     StartVerificationRequest:
       type: object
       required: [conversation_id, kind, method, provider_code, subject_handle]
@@ -5325,6 +5464,82 @@ components:
         last_event_no: { type: integer, description: 'Номер последнего evidence-события (монотонная история наблюдений читаема)' }
         last_kind: { type: string, enum: [delivered_confirmed, delivery_unknown, provider_failed] }
         last_event_at: { type: string, format: date-time, description: 'Время последнего события — якорь таймлайна AC-9' }
+    RequestHumanRequest:
+      type: object
+      required: [turn_ref, expected_mode_version, target_roles, ack_deadline]
+      additionalProperties: false
+      description: 'Безусловная просьба клиента о человеке (Story 2.13): причина НЕ поле запроса — системная константа словаря client_request (оператор причину НЕ вводит); номера запроса/события НЕ поля запроса — серверная истина под локами; request_no/события запрос не несёт'
+      properties:
+        turn_ref: { type: string, format: uuid, description: 'Принятая реплика клиента ЭТОГО обращения — якорь безусловной просьбы (страж стора: событие кейса)' }
+        expected_mode_version: { type: integer, minimum: 1, description: 'CAS-ожидание версии лестницы режимов (гонка режима — честный 409 mode_conflict)' }
+        target_roles: { type: array, minItems: 1, items: { type: string, enum: [operator, supervision] }, description: 'Целевые роли запроса (непустой набор слов словаря без дублей — кого адресует просьба)' }
+        ack_deadline: { type: string, enum: [ack_15m, ack_1h, ack_4h], description: 'Слово дедлайна подтверждения (утверждённая policy v0)' }
+    AssignHumanHandoffRequest:
+      type: object
+      required: [assignee, backup, ack_deadline]
+      additionalProperties: false
+      description: 'Назначение раунда подтверждения (назначение ≠ принятие): роль назначаемого НЕ поле запроса — серверная резолюция машинерией участия (review → operator, configuration → supervision; страж целевых ролей запроса под локами)'
+      properties:
+        assignee: { type: string, format: uuid, description: 'Назначаемый специалист (активный участник тенента)' }
+        backup: { type: string, format: uuid, description: 'Резервный участник раунда' }
+        ack_deadline: { type: string, enum: [ack_15m, ack_1h, ack_4h], description: 'Слово дедлайна раунда (утверждённая policy v0; переназначение — новое событие с новым дедлайном)' }
+    AcknowledgeHumanHandoffRequest:
+      type: object
+      required: [expected_epoch]
+      additionalProperties: false
+      description: 'Подтверждение принятия назначения (только assignee — серверная истина): ОДНА транзакция с механикой передачи 2-4; гонка двух подтверждений — ровно один победитель (UNIQUE + CAS + локи)'
+      properties:
+        expected_epoch: { type: integer, minimum: 1, description: 'CAS-ожидание текущей эпохи владения (проигравший — честный stale_version)' }
+    CancelHumanRequestRequest:
+      type: object
+      required: [turn_ref]
+      additionalProperties: false
+      description: 'Отмена запроса клиента: якорь — принятая реплика клиента-отмены ЭТОГО обращения; владелец не меняется, история не удаляется, режим не понижается (трещотка 2-5)'
+      properties:
+        turn_ref: { type: string, format: uuid, description: 'Принятая реплика клиента-отмены (страж стора: событие кейса)' }
+    ReturnToStaffyRequest:
+      type: object
+      required: [result, expected_epoch]
+      additionalProperties: false
+      description: 'Возврат обращения цифровому сотруднику (после подтверждения): результат — слово словаря; ОДНА транзакция с механикой передачи 2-4 (владелец=staffy, external_inbox, эпоха+1); режим не тронут'
+      properties:
+        result: { type: string, enum: [issue_resolved, handed_back], description: 'Слово результата возврата (свободный материал не существует)' }
+        expected_epoch: { type: integer, minimum: 1, description: 'CAS-ожидание текущей эпохи владения' }
+    HandoffView:
+      type: object
+      required: [requests, requests_count, role_words, deadline_words, result_words, panel_text]
+      description: 'Секция «Запрос человека» (Story 2.13): append-only запросы с read-time состояниями (просрочка — деривация дедлайна раунда, не запись), клиентские статусы честны (назначение ≠ принятие — два слова); карточка назначенного видна только назначенному; запись жизненного цикла, не факт'
+      properties:
+        requests: { type: array, items: { type: object, required: [request_no, reason, state, state_text, client_status, client_status_text, active, target_roles, ack_deadline, turn_ref, actor_id, created_at, events], properties: { request_no: { type: integer, minimum: 1, description: 'Монотонный номер запроса (серверная истина)' }, reason: { type: string, enum: [client_request] }, reason_text: { type: string }, state: { type: string, enum: [requested, assigned, overdue, acknowledged, declined, cancelled, returned] }, state_text: { type: string }, client_status: { type: string, enum: [human_requested, human_assigned, human_acknowledged, human_cancelled], description: 'Назначение ≠ принятие: до human_acknowledged интерфейс НЕ сообщает «специалист подключился»' }, client_status_text: { type: string }, active: { type: boolean, description: 'Открытый lifecycle (одна конкурирующая задача + freeze обязательств)' }, owner_kind: { type: string }, owner_ref: { type: string, format: uuid }, target_roles: { type: array, items: { type: string, enum: [operator, supervision] } }, ack_deadline: { type: string, enum: [ack_15m, ack_1h, ack_4h] }, ack_deadline_text: { type: string }, turn_ref: { type: string, format: uuid }, actor_id: { type: string, format: uuid }, created_at: { type: string, format: date-time }, assignee: { type: string, format: uuid, description: 'Специалист текущего раунда (последний assigned)' }, backup_owner: { type: string, format: uuid }, deadline_at: { type: string, format: date-time, description: 'Дедлайн раунда — деривация просрочки читает его' }, events: { type: array, items: { $ref: '#/components/schemas/HandoffEventView' } } } } }
+        requests_count: { type: integer, description: 'Число запросов — якорь формы просьбы (защита двойного сабмита PRG)' }
+        client_status: { type: string, enum: [human_requested, human_assigned, human_acknowledged, human_cancelled], description: 'Клиентский статус ПОСЛЕДНЕГО запроса (CaseView-истина интерфейса; пусто — запроса нет, честное отсутствие)' }
+        client_status_text: { type: string }
+        acknowledge_for_actor: { type: boolean, description: 'Действующий принципал — назначенный открытого раунда (карточка «Передача ждёт вашего подтверждения» с формами подтверждения/отказа — только назначенному)' }
+        round_assignee: { type: string, format: uuid, description: 'Назначенный открытого раунда (назначение или уведомление не считается подтверждением)' }
+        round_deadline_at: { type: string, format: date-time }
+        role_words: { type: array, items: { type: string, enum: [operator, supervision] } }
+        deadline_words: { type: array, items: { type: string, enum: [ack_15m, ack_1h, ack_4h] } }
+        result_words: { type: array, items: { type: string, enum: [issue_resolved, handed_back] } }
+        panel_text: { type: string }
+    HandoffEventView:
+      type: object
+      required: [request_no, event_no, kind, kind_text, actor_id, created_at]
+      description: 'Append-only событие lifecycle запроса: одно событие — один вид; назначение несёт assignee/backup/дедлайн раунда, подтверждение — только эпоху, отмена — только якорь, возврат — только слово результата; история не правится'
+      properties:
+        request_no: { type: integer, minimum: 1 }
+        event_no: { type: integer, minimum: 1, description: 'Монотонный номер события запроса (UNIQUE гонок)' }
+        kind: { type: string, enum: [assigned, acknowledged, declined, cancelled, returned] }
+        kind_text: { type: string, description: 'Честный текст вида — рендер панели, в БД/outbox только слова' }
+        assignee: { type: string, format: uuid }
+        backup_owner: { type: string, format: uuid }
+        ack_deadline: { type: string, enum: [ack_15m, ack_1h, ack_4h] }
+        deadline_at: { type: string, format: date-time }
+        result: { type: string, enum: [issue_resolved, handed_back] }
+        result_text: { type: string }
+        turn_ref: { type: string, format: uuid }
+        resulting_epoch: { type: integer, description: 'Эпоха владения терма подтверждения (единственный переход смены владельца)' }
+        actor_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
     ObjectionRecordRequest:
       type: object
       required: [turn_ref, objection_type, client_signal, spans]

@@ -749,6 +749,16 @@ func (s *Service) CaseView(ctx context.Context, actor domain.Principal, tenantID
 	if err != nil {
 		return casesAPI.CaseView{}, err
 	}
+	// The Story 2.13 section: the human handoff lifecycle — every
+	// append-only request row with the derived lifecycle state and
+	// the event history, the honest client status of the LAST request
+	// and the card flag of the acting principal (the assignee of the
+	// open assigned round — the reads degrade honestly — the same view
+	// scope).
+	handoff, err := s.handoffView(ctx, scope, detail, actor.ID)
+	if err != nil {
+		return casesAPI.CaseView{}, err
+	}
 	return casesAPI.CaseView{
 		TenantID: tenantID, Case: detail.Case, Conversations: detail.Conversations,
 		Timeline: detail.Timeline, WorkItems: detail.WorkItems, Exceptions: detail.Exceptions,
@@ -770,6 +780,7 @@ func (s *Service) CaseView(ctx context.Context, actor domain.Principal, tenantID
 		Observations: observations, Objections: objections, Commitments: commitments,
 		Continuations: continuations, Accommodations: accommodations,
 		RouteDegradations: routeDegradations,
+		Handoff:           handoff,
 	}, nil
 }
 
