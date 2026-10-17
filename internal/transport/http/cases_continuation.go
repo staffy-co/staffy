@@ -358,11 +358,21 @@ func (s *Server) renderCasePageWithIssuance(w http.ResponseWriter, r *http.Reque
 		s.casesPageProblem(w, r, err)
 		return
 	}
+	// The Story 2.14 decision context of the «Контекст передачи» section
+	// (the honest degradation of the unauthorized read — the page keeps
+	// the rest of the surface).
+	contextPanel, contextErr := s.decisionContextOf(r.Context(), actor, tenant, caseID)
+	if contextErr != nil {
+		s.casesPageProblem(w, r, contextErr)
+		return
+	}
 	flash := flashError(r, tenant)
 	if flash != "" {
 		http.SetCookie(w, clearFlashCookie(tenant))
 	}
-	data := map[string]any{"TenantID": tenant, "View": prepareCaseView(r, view, facts, flash)}
+	page := prepareCaseView(r, view, facts, flash)
+	page.DecisionContext = contextPanel
+	data := map[string]any{"TenantID": tenant, "View": page}
 	if issuance.URL != "" {
 		data["Issuance"] = continuationIssuanceCardOf(issuance)
 		w.Header().Set("Cache-Control", "no-store")

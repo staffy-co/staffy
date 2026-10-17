@@ -1,6 +1,7 @@
 package httptransport
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -144,6 +145,17 @@ func (s *Server) BindCases(service casesAPI.Service) {
 		s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/human-requests/decline", s.declineHumanHandoffForm)
 		s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/human-requests/cancellation", s.cancelHumanRequestForm)
 		s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/human-requests/return", s.returnToStaffyForm)
+	}
+	if decisionContext, ok := service.(casesAPI.DecisionContextService); ok {
+		// The Story 2.14 surfaces: the decision context read (the machine
+		// GET of the twelve-block view — the operator page renders the
+		// same projection in the «Контекст передачи» section) and the AI
+		// summary record of the producer path (the machine JSON POST —
+		// the PRG forms do NOT exist: the operator never writes the
+		// summary, the kind dictionary carries the single producer word).
+		s.decisionContext = decisionContext
+		s.mux.HandleFunc("GET /v1/tenants/{tenant_id}/cases/{case_id}/decision-context", s.decisionContextAPI)
+		s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/summaries", s.recordCaseSummaryAPI)
 	}
 	if continuations, ok := service.(casesAPI.ContinuationService); ok {
 		s.continuations = continuations
@@ -464,14 +476,44 @@ func (s *Server) caseDetailPage(w http.ResponseWriter, r *http.Request) {
 		s.casesPageProblem(w, r, err)
 		return
 	}
+	// The Story 2.14 decision context of the «Контекст передачи» section:
+	// the read gate is review or configuration — an audit-only member
+	// sees the page without the section (the honest degradation, never a
+	// failed page); the section renders only when the material exists.
+	contextPanel, contextErr := s.decisionContextOf(r.Context(), actor, tenant, caseID)
+	if contextErr != nil {
+		s.casesPageProblem(w, r, contextErr)
+		return
+	}
 	flash := flashError(r, tenant)
 	if flash != "" {
 		http.SetCookie(w, clearFlashCookie(tenant))
 	}
+	page := prepareCaseView(r, view, facts, flash)
+	page.DecisionContext = contextPanel
 	s.render(w, "case", map[string]any{
 		"TenantID": tenant,
-		"View":     prepareCaseView(r, view, facts, flash),
+		"View":     page,
 	})
+}
+
+// decisionContextOf reads the decision context panel of the case page
+// (the honest degradation of the unreadable or unauthorized read: the
+// absent service renders the zero view — no section; the forbidden read
+// of the audit-only member renders the zero view — the page keeps the
+// rest of the surface; every other failure fails the page honestly).
+func (s *Server) decisionContextOf(ctx context.Context, actor domain.Principal, tenant, caseID id.UUID) (decisionContextPanelView, error) {
+	if s.decisionContext == nil {
+		return decisionContextPanelView{}, nil
+	}
+	view, err := s.decisionContext.DecisionContext(ctx, actor, tenant, caseID)
+	if err != nil {
+		if errors.Is(err, domain.ErrForbidden) {
+			return decisionContextPanelView{}, nil
+		}
+		return decisionContextPanelView{}, err
+	}
+	return decisionContextPanelOf(view), nil
 }
 
 func (s *Server) casesPageProblem(w http.ResponseWriter, r *http.Request, err error) {

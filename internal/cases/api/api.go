@@ -474,6 +474,13 @@ type WorkOutcome struct {
 	HandoffBackup      id.UUID `json:"handoff_backup,omitempty"`
 	HandoffAckDeadline string  `json:"handoff_ack_deadline,omitempty"`
 	HandoffResult      string  `json:"handoff_result,omitempty"`
+	// The Story 2.14 material: the request-material words of the summary
+	// record (the kind word of the single-word dictionary with the claim
+	// counter — the summary TEXT and the claims NEVER enter the stored
+	// outcome; the summary number and the watermark are the server-side
+	// truth of the store, the stored outcome never carries them).
+	SummaryKind   string `json:"summary_kind,omitempty"`
+	SummaryClaims int    `json:"summary_claims,omitempty"`
 }
 
 // FactView is one fact of the facts view: the anchor, the derived status,

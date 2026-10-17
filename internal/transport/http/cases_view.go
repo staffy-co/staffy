@@ -227,6 +227,13 @@ type caseDetailPageView struct {
 	HandoffResultOptions   []workOption
 	HandoffRequestsAnchor  string
 	HandoffEventsAnchor    string
+	// The Story 2.14 section: the decision context panel of the assigned
+	// operator («Контекст передачи» — the twelve read-time blocks with
+	// the honest marking of the AI summary, the staleness badge and the
+	// recommendation projection; the section renders ONLY when the
+	// material exists — the open handoff or the recorded summary, the
+	// honest absence of both renders the unchanged page byte-for-byte).
+	DecisionContext decisionContextPanelView
 }
 
 // assurancePanelView is the assurance section of the case page: the derived

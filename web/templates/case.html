@@ -687,7 +687,111 @@
 </details>
 {{end}}
 </section>
-
+{{if .View.DecisionContext.Present}}
+<h2>Контекст передачи</h2>
+<p class="next-note" id="decision-context-note" aria-live="polite">{{.View.DecisionContext.PanelText}}</p>
+<section class="panel" aria-label="Контекст передачи" id="decision-context">
+<p><a class="primary" href="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}#decision-context">Обновить контекст</a></p>
+<p class="next-note">Обновление — ссылка GET с якорем #decision-context: секция остаётся на месте, точная позиция прокрутки не сохраняется (граница без JS — таймеров и push нет). Сводка не заменяет источники: события, обязательства и доставки рендерятся рядом.</p>
+<h3>Что происходит</h3>
+{{if .View.DecisionContext.Handoff.Present}}
+<p id="ctx-handoff" aria-live="polite">Причина передачи: <strong>{{.View.DecisionContext.Handoff.ReasonText}}</strong> Состояние: <strong>{{.View.DecisionContext.Handoff.State}}</strong> — {{.View.DecisionContext.Handoff.StateText}} Якорь просьбы: <span class="digest-block">{{.View.DecisionContext.Handoff.TurnRef}}</span>. Дедлайн раунда: {{.View.DecisionContext.Handoff.AckDeadlineText}}{{if .View.DecisionContext.Handoff.DeadlineText}} ({{.View.DecisionContext.Handoff.DeadlineText}}){{end}}.</p>
+{{else}}
+<p class="next-note">Открытая передача отсутствует: контекст собран по записанной сводке.</p>
+{{end}}
+{{if .View.DecisionContext.HasWorkItems}}
+<p>Активные рабочие элементы: {{range $i, $item := .View.DecisionContext.WorkItems}}{{if $i}}; {{end}}<strong>{{$item.Title}}</strong> ({{$item.Type}} — {{$item.State}}, <span class="digest-block">{{$item.ID}}</span>){{end}}.</p>
+{{else}}
+<p class="next-note">Активных рабочих элементов нет.</p>
+{{end}}
+<p>Режим диалога: {{if .View.DecisionContext.Mode.Present}}<strong>{{.View.DecisionContext.Mode.Mode}}</strong> (версия лестницы {{.View.DecisionContext.Mode.Version}}){{else}}нет записи{{end}}. Проверка личности: {{.View.DecisionContext.Assurance.IdentityLine}}. Полномочия: {{.View.DecisionContext.Assurance.AuthorityLine}}{{if .View.DecisionContext.Assurance.AuthorityScope}} (скоуп: {{.View.DecisionContext.Assurance.AuthorityScope}}){{end}}. Владелец: {{if .View.DecisionContext.Owner.Present}}<strong>{{.View.DecisionContext.Owner.Kind}}</strong> <span class="digest-block">{{.View.DecisionContext.Owner.Ref}}</span> (эпоха {{.View.DecisionContext.Owner.Epoch}}){{else}}нет записи{{end}}.</p>
+<h3>Факты</h3>
+{{if .View.DecisionContext.Facts.HasConfirmed}}
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Подтверждённые факты контекста">
+<table class="datamap-table">
+<caption>Подтверждённые факты: статус, версия, источник, время</caption>
+<thead><tr><th scope="col">Ключ</th><th scope="col">Статус</th><th scope="col">Версия</th><th scope="col">Источник</th><th scope="col">Наблюдено</th></tr></thead>
+<tbody>
+{{range .View.DecisionContext.Facts.Confirmed}}<tr id="ctx-fact-{{.RowID}}"><th scope="row">{{.MaterialKey}}</th><td>{{.StatusText}}</td><td>{{.Version}}</td><td>{{.ProvenanceText}}</td><td>{{.ObservedText}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+{{end}}
+{{if .View.DecisionContext.Facts.HasUnconfirmed}}
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Неподтверждённые факты контекста">
+<table class="datamap-table">
+<caption>Неподтверждённые факты: сверьте с источником</caption>
+<thead><tr><th scope="col">Ключ</th><th scope="col">Статус</th><th scope="col">Версия</th><th scope="col">Источник</th><th scope="col">Наблюдено</th></tr></thead>
+<tbody>
+{{range .View.DecisionContext.Facts.Unconfirmed}}<tr id="ctx-fact-{{.RowID}}"><th scope="row">{{.MaterialKey}}</th><td>{{.StatusText}}</td><td>{{.Version}}</td><td>{{.ProvenanceText}}</td><td>{{.ObservedText}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+{{end}}
+{{if .View.DecisionContext.Facts.HasConflicting}}
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Противоречащие факты контекста">
+<table class="datamap-table">
+<caption>Противоречащие факты: значения расходятся — разрешите конфликт подтверждением точной версии</caption>
+<thead><tr><th scope="col">Ключ</th><th scope="col">Статус</th><th scope="col">Версия</th><th scope="col">Источник</th><th scope="col">Наблюдено</th></tr></thead>
+<tbody>
+{{range .View.DecisionContext.Facts.Conflicting}}<tr id="ctx-fact-{{.RowID}}"><th scope="row">{{.MaterialKey}}</th><td>{{.StatusText}}</td><td>{{.Version}}</td><td>{{.ProvenanceText}}</td><td>{{.ObservedText}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+{{end}}
+{{if not (or .View.DecisionContext.Facts.HasConfirmed .View.DecisionContext.Facts.HasUnconfirmed .View.DecisionContext.Facts.HasConflicting)}}<p class="next-note">Фактов нет.</p>{{end}}
+<h3 id="ctx-observations">Наблюдения систем</h3>
+{{if .View.DecisionContext.HasObservations}}
+{{range .View.DecisionContext.Observations}}
+<p><strong>{{.OwningSystem}}</strong> · {{.MaterialKey}} (элемент <span class="digest-block">{{.WorkItemID}}</span>): свежесть {{.Freshness}}, правило конфликта {{.ConflictRule}}, доказательство {{.Evidence}}. Наблюдено: {{.ObservedText}}.</p>
+<details><summary>Техника провайдера</summary><p class="next-note">{{.TechniqueText}}</p></details>
+{{end}}
+{{else}}
+<p class="next-note">Наблюдений систем нет.</p>
+{{end}}
+{{if .View.DecisionContext.HasDeliveries}}
+<p>Доставка ответов (принятие каналом ≠ доставка ≠ деловое завершение): {{range $i, $d := .View.DecisionContext.Deliveries}}{{if $i}}; {{end}}<span class="digest-block">{{$d.ReplyID}}</span> — <strong>{{$d.State}}</strong>{{if $d.LastKind}} (последнее событие {{$d.LastKind}}, {{$d.LastEventText}}){{end}}{{end}}.</p>
+{{end}}
+<h3>Обязательства</h3>
+{{if .View.DecisionContext.HasCommitments}}
+{{range .View.DecisionContext.Commitments}}
+<p>Обязательство <span class="digest-block">{{.ID}}</span>, версия {{.Version}} — <strong>{{.Status}}</strong>. Действует до: {{.ValidUntilText}}.{{if .Confirmation}} Подтверждение: {{.Confirmation}}.{{end}}{{if .TermsKnownText}} Известные условия: {{.TermsKnownText}}.{{end}}{{if .TermsUnknownText}} Неизвестные условия: {{.TermsUnknownText}}.{{end}} <strong>{{.ReceiptText}}</strong></p>
+{{end}}
+{{else}}
+<p class="next-note">Обязательств нет.</p>
+{{end}}
+<h3>Предпочтения клиента</h3>
+<p>Предпочтения связи: {{if .View.DecisionContext.Preferences.AccommodationsText}}{{.View.DecisionContext.Preferences.AccommodationsText}}{{else}}записанных нет{{end}}. Альтернативные пути: {{if .View.DecisionContext.Preferences.AlternativesText}}{{.View.DecisionContext.Preferences.AlternativesText}}{{else}}нет{{end}}.</p>
+{{if .View.DecisionContext.Preferences.HasModalities}}<p>Обычный способ установления обязательных материалов: {{range $i, $m := .View.DecisionContext.Preferences.Modalities}}{{if $i}}; {{end}}{{$m.Key}} — {{$m.Word}}{{end}}.</p>{{end}}
+<p class="next-note">Предпочтения видны до первого ответа назначенного специалиста: замедленный темп и обязательное чтение вслух соблюдаются первым же ответом.</p>
+<h3>Сводка AI</h3>
+{{if .View.DecisionContext.Summary.Present}}
+<p id="ctx-summary-staleness" aria-live="polite">{{if .View.DecisionContext.Summary.Stale}}<strong>{{.View.DecisionContext.Summary.StaleText}}</strong> {{.View.DecisionContext.Summary.StalenessCountersText}}{{else}}Сводка актуальна ({{.View.DecisionContext.Summary.Staleness}}): источники не менялись после записи.{{end}}</p>
+<p><strong>{{.View.DecisionContext.Summary.MarkingText}}</strong> Сводка №{{.View.DecisionContext.Summary.No}} ({{.View.DecisionContext.Summary.Kind}}).</p>
+<p>{{.View.DecisionContext.Summary.Text}}</p>
+{{if .View.DecisionContext.Summary.HasClaims}}
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Утверждения сводки со ссылками на источники">
+<table class="datamap-table">
+<caption>Утверждения сводки: ссылка на источник либо пометка спорности — текст утверждения байт-в-байт строка сводки</caption>
+<thead><tr><th scope="col">Утверждение</th><th scope="col">Ссылка на источник</th></tr></thead>
+<tbody>
+{{range .View.DecisionContext.Summary.Claims}}<tr><th scope="row">{{.Text}}</th><td>{{if .Disputed}}помечено спорным{{else}}{{if eq .RefType "fact_version"}}<a href="#ctx-fact-{{.RefID}}">факт <span class="digest-block">{{.RefID}}</span></a>{{else}}<a href="#ctx-observations">наблюдение <span class="digest-block">{{.RefID}}</span></a>{{end}}{{end}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+{{end}}
+{{else}}
+<p class="next-note">Сводка AI ещё не записана: контекст собран из источников выше — сверяйтесь с ними.</p>
+{{end}}
+<h3>Рекомендуемый шаг</h3>
+{{if .View.DecisionContext.Recommendation.Present}}
+<p>Шаг: <strong>{{.View.DecisionContext.Recommendation.StepsText}}</strong> Причина: {{.View.DecisionContext.Recommendation.Reason}}.{{if .View.DecisionContext.Recommendation.Checks}} Обязательные проверки: {{range $i, $c := .View.DecisionContext.Recommendation.Checks}}{{if $i}}; {{end}}{{$c.Key}} — {{$c.State}}{{end}}.{{end}}{{if .View.DecisionContext.Recommendation.DeadlineText}} Дедлайн: {{.View.DecisionContext.Recommendation.AckDeadlineText}} ({{.View.DecisionContext.Recommendation.DeadlineText}}).{{end}}{{if .View.DecisionContext.Recommendation.Mode}} Ограничения режима: {{.View.DecisionContext.Recommendation.Mode}}.{{end}}</p>
+<p class="next-note">{{.View.DecisionContext.Recommendation.ProjectionText}}</p>
+{{else}}
+<p class="next-note">Рекомендации нет: действующего исхода политики нет — шаг выбирается существующими командами, каждая со своей записью.</p>
+{{end}}
+</section>
+{{end}}
 <h2>Work Control Card — рабочие элементы</h2>
 <p class="next-note">Версии — истина: каждая команда пишет новую версию; текущее состояние и тип — производные. Автоматической связи событий с элементами нет; факты не выбирают значение сами — только подтверждение человеком.</p>
 {{if .View.HasWorkItems}}
