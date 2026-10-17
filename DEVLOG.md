@@ -2559,3 +2559,17 @@ done:
 - Отчёт QA сохранён: /home/z/my-project/qa-2-14-r1-report.md (копия песочницы, вне репо)
 next: CHECKPOINT 2 — PR ветки codex/story-2-14-decision-ready-context в main через GitHub API (реальный PR + CI ×3 + merge; явное одобрение владельца + свежий токен STAFFY_GH_TOKEN — токен прошлой сессии не пережил ресайкл окружения; unpushed: 3 — cf814b0 + 53ac713 + эта запись; публикация ожидает токен, push-stop по протоколу AGENTS.md)
 commit: 53ac713
+
+---
+date: 2026-10-17
+task: 85-checkpoint-2
+role: main (Super Z)
+story: 2-14
+summary: CHECKPOINT 2 story 2-14 открыт: явное одобрение владельца «одобряю» + свежий PAT одним ответом (≥10-я передача открытым текстом; в записях только маска github_pat_***; ревокация всех ранее выданных PAT рекомендована владельцу после истории) — push-stop снят; валидация API ДО git-операций (login artemiosu, репо private, permissions admin/push); публикация одним пушем 5ca4198..0e16b4a (cf814b0 orphan-checkpoint + 53ac713 closure feat БЕЗ skip ci + DEVLOG 84), ls-remote сверен, RPO=0; PR #29 создан через GitHub API (base main ← head codex/story-2-14-decision-ready-context; дифф 28 файлов +6832/−28; merge-base с main = 92676c6 = origin/main — чистый кандидат merge, конфликтов нет). Отклонение от прецедента 2-13 (там головой был closure feat e061282 БЕЗ skip ci и CI шёл сам) обнаружено и закрыто в шаге: голова ветки 0e16b4a несла [skip ci] — DEVLOG-запись легла поверх closure feat после обрыва сессии, оба события (push/pull_request) подавлены, total runs остался 98 — эта запись коммитится БЕЗ skip ci как честный CI-триггер на реальном контенте ветки + документация отклонения; код ветки не изменён (только DEVLOG).
+done:
+- Токен: API-валидация 200 (artemiosu, push=true), inline env per-invocation через credential-helper scripts/git-credential-staffy.sh — на диск не попал
+- Push 3 коммитов одним батчем: cf814b0 + 53ac713 + 0e16b4a; ls-remote: ветка = 0e16b4a, merge-base = 92676c6 (конфликтов нет)
+- PR #29: https://github.com/artemiosu/staffy/pull/29 — title/body по прецеденту PR #28 (срез/тесты/артефакты статуса/честные границы), PR body дополнен строкой DEVLOG 85
+- Диагноз тишины CI: runs?branch= пуст при живом push → [skip ci] на голове; fix = эта запись без маркера (push-run + PR-run на новой голове)
+next: CI push-run + PR-run на голове этой записи → оба зелёные → sha-pinned merge (merge_method=merge, прецедент 2428bbc) → CI main-run зелёный → DEVLOG 85-merge на main [skip ci] → check-continuity OK; после истории — ревокация PAT владельцем
+commit: 0e16b4a
