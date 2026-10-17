@@ -67,7 +67,7 @@ development_status:
   2-12-degraded-mode-сбой-канала-и-согласованный-callback: done
   2-13-безусловный-запрос-человека-и-lifecycle-handoff: done
   2-14-decision-ready-контекст-и-операторская-поверхность: done
-  2-15-исправление-и-оспаривание-ai-резюме: ready-for-dev
+  2-15-исправление-и-оспаривание-ai-резюме: done
   2-16-правдивые-обновления-и-явный-возврат-из-handoff: backlog
   epic-2-retrospective: optional
 
