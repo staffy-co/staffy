@@ -367,6 +367,25 @@ type Repository interface {
 	// locks are NOT taken for the read (the consistent snapshot of
 	// one transaction is the honest boundary of the GET).
 	ReadDecisionContext(ctx context.Context, scope tenancy.Context, caseID id.UUID, now time.Time) (casesDomain.DecisionContextInput, error)
+	// Story 2.15 — the correction state read: ReadDecisionContextWithCorrections
+	// reads ONE consistent material snapshot of the decision context
+	// TOGETHER with the correction rows of the case in the SAME read
+	// transaction (readCorrectionStateTx joins readDecisionContextTx —
+	// the fact lines of the context view derive the correction markers
+	// over the consistent material; the corrections are append-only
+	// rows, the per-fact LAST-correction derivations are the read-time
+	// domain truth, never stored statuses).
+	ReadDecisionContextWithCorrections(ctx context.Context, scope tenancy.Context, caseID id.UUID, now time.Time) (DecisionContextMaterial, error)
+}
+
+// DecisionContextMaterial is the ONE consistent snapshot of the decision
+// context read together with the correction rows of the case (Story 2.15 —
+// the store reads both halves in one read transaction; the app composes
+// the per-fact correction state of the LAST row into the view lines, the
+// derivations stay read-time).
+type DecisionContextMaterial struct {
+	Input       casesDomain.DecisionContextInput
+	Corrections []casesDomain.CorrectionRecord
 }
 
 // ---------------------------------------------------------------------------
@@ -698,6 +717,27 @@ type WorkCommandParams struct {
 	SummaryText          string
 	SummaryClaims        []casesDomain.SummaryClaim
 	SummaryOutboxEventID id.UUID
+	// The Story 2.15 material (the command-specific fields of the
+	// record_correction command): the correction row id (the append-only
+	// record of the operator act — the pour source id composes from it
+	// under the locks), the summary link (0 = the event evidence; >=1 =
+	// the EXACT summary version of THIS case — the store guards the
+	// belonging), the verbatim evidence spans (the byte-exact excerpts of
+	// the cited source — the store re-validates under the locks) and the
+	// outbox event id of the correction envelope. The pinned target
+	// travels through the shared fields: FactID + VersionNo (the exact
+	// version being corrected), Value + ValueDigest (the proposed value
+	// under the fact material discipline), Reason (the mandatory why),
+	// ObservedAt/ReceivedAt (the 2.2 times) and MaterialKey (the app's
+	// pre-read of the fact anchor — the lock plan key of the pour). The
+	// correction number and the outcome are the SERVER-side truth: the
+	// store derives the NEXT monotonic number under the locks and the
+	// domain decides the outcome by the matrix gate (the requests never
+	// carry them — the strict decode refuses the outcome field).
+	CorrectionID            id.UUID
+	SummaryNo               int64
+	Spans                   []string
+	CorrectionOutboxEventID id.UUID
 }
 
 // ContinuationCorrectionParams is the material of one public fact

@@ -509,6 +509,22 @@ func (s *Postgres) ExecuteWorkCommand(ctx context.Context, p casesPort.WorkComma
 		// the claim refs hold their own ladder locks — the belonging
 		// re-validation under these keys sees the committed truth).
 		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID), conversationLockKey(tenantID, p.ConversationID))
+	case "record_correction":
+		// The Story 2.15 correction record: the case + conversation keys
+		// of the summary precedent TOGETHER WITH the fact keys of the
+		// pour (the confirm_commitment precedent): the applied outcome
+		// writes a fact version through the EXISTING record_fact
+		// discipline, so the pour serializes with every fact writer of
+		// the same anchor (the material key and the fact id); the
+		// version pin, the scope re-read, the matrix gate and the
+		// correction number derivation are the lock-visible truth.
+		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID), conversationLockKey(tenantID, p.ConversationID))
+		if p.MaterialKey != "" {
+			lockKeys = append(lockKeys, factKeyLockKey(tenantID, p.CaseID, p.MaterialKey))
+		}
+		if p.FactID.Valid() {
+			lockKeys = append(lockKeys, factIDLockKey(tenantID, p.FactID))
+		}
 	case "issue_continuation_link", "revoke_continuation_link":
 		// The continuation commands: the case key serializes the owner
 		// epoch read of the issuance pin (the ownership writers hold the
@@ -616,6 +632,8 @@ func (s *Postgres) ExecuteWorkCommand(ctx context.Context, p casesPort.WorkComma
 		err = s.execReturnToStaffy(ctx, tx, tenantID, p, now)
 	case "record_case_summary":
 		err = s.execRecordCaseSummary(ctx, tx, tenantID, p, now)
+	case "record_correction":
+		err = s.execRecordCorrection(ctx, tx, tenantID, p, now)
 	default:
 		err = fmt.Errorf("неизвестная команда %s", p.Command)
 	}
