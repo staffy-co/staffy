@@ -216,10 +216,10 @@ const (
 // boundary of an unsourced assertion) and the claim text — the span that
 // must be present in the summary text byte-for-byte.
 type SummaryClaim struct {
-	RefType  string
-	RefID    id.UUID
-	Disputed bool
-	Text     string
+	RefType  string  `json:"ref_type"`
+	RefID    id.UUID `json:"ref_id"`
+	Disputed bool    `json:"disputed"`
+	Text     string  `json:"text"`
 }
 
 // SummaryWatermark is the server-truth snapshot of the case material at

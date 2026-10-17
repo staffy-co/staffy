@@ -355,6 +355,18 @@ type Repository interface {
 	// identifier keys — the app computes the token before the command
 	// transaction).
 	ReadCommitmentKey(ctx context.Context, scope tenancy.Context, now time.Time) ([]byte, error)
+	// Story 2.14 — the decision context snapshot: ReadDecisionContext
+	// reads ONE consistent material snapshot of every context block in
+	// ONE read transaction (the open handoff, the work items, the mode
+	// ladder, the assurance, the ownership, the facts with the
+	// confirmations, the observations, the reply deliveries, the
+	// commitments with the confirmations, the accommodations, the
+	// policy outcomes, the last summary) with the CURRENT watermark
+	// counters — the staleness derivation is the read-time domain
+	// truth over this snapshot, never a stored status. The advisory
+	// locks are NOT taken for the read (the consistent snapshot of
+	// one transaction is the honest boundary of the GET).
+	ReadDecisionContext(ctx context.Context, scope tenancy.Context, caseID id.UUID, now time.Time) (casesDomain.DecisionContextInput, error)
 }
 
 // ---------------------------------------------------------------------------
@@ -671,6 +683,21 @@ type WorkCommandParams struct {
 	HandoffAssigneeRole  string
 	HandoffResult        string
 	HandoffOutboxEventID id.UUID
+	// The Story 2.14 material (the command-specific fields of the
+	// summary record command): the summary text (1..1000 runes), the
+	// claims with the ref discipline (every claim links a fact anchor
+	// or an observation row of THIS case or carries the honest
+	// disputed mark — the store guards the belonging under the locks;
+	// the claim text is a byte-exact span of the summary text), and
+	// the outbox event id of the summary envelope. The kind word
+	// travels through the shared Kind field (the single word of the
+	// slice dictionary). The summary number and the watermark are the
+	// server-side truth: the store derives the NEXT monotonic number
+	// and takes the watermark snapshot under the locks (the requests
+	// never carry them — the probe pins the absence).
+	SummaryText          string
+	SummaryClaims        []casesDomain.SummaryClaim
+	SummaryOutboxEventID id.UUID
 }
 
 // ContinuationCorrectionParams is the material of one public fact

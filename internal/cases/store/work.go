@@ -501,6 +501,14 @@ func (s *Postgres) ExecuteWorkCommand(ctx context.Context, p casesPort.WorkComma
 		// the ownership and mode writers; the request and event number
 		// derivations are the lock-visible truth).
 		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID), conversationLockKey(tenantID, p.ConversationID))
+	case "record_case_summary":
+		// The Story 2.14 summary record: the case + conversation keys —
+		// the same sorted plan (the ownership gate read, the ref guards,
+		// the watermark snapshot and the summary number derivation are
+		// the lock-visible truth; the fact and observation writers of
+		// the claim refs hold their own ladder locks — the belonging
+		// re-validation under these keys sees the committed truth).
+		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID), conversationLockKey(tenantID, p.ConversationID))
 	case "issue_continuation_link", "revoke_continuation_link":
 		// The continuation commands: the case key serializes the owner
 		// epoch read of the issuance pin (the ownership writers hold the
@@ -606,6 +614,8 @@ func (s *Postgres) ExecuteWorkCommand(ctx context.Context, p casesPort.WorkComma
 		err = s.execCancelHumanRequest(ctx, tx, tenantID, p, now)
 	case "return_to_staffy":
 		err = s.execReturnToStaffy(ctx, tx, tenantID, p, now)
+	case "record_case_summary":
+		err = s.execRecordCaseSummary(ctx, tx, tenantID, p, now)
 	default:
 		err = fmt.Errorf("неизвестная команда %s", p.Command)
 	}
