@@ -2602,3 +2602,18 @@ done:
 - Окружение ресайклилось (Go/PG отсутствуют) — для SM-фазы не нужно; bootstrap потребуется в Dev step-01
 next: CHECKPOINT 1 — явное одобрение спеки владельцем (дисциплина 52-sm: отдельным ответом, самопродолжение чекпоинт не закрывает; прецеденты 2-12 d111a0d / 2-13 108f3fe / 2-14 d3bbf39); после одобрения: спека+sprint-status → ready-for-dev, ветка пушится до смены статуса (RPO=0), затем Dev step-01 (bootstrap ~4 мин → домен correction.go + unit)
 commit: c96d56e
+
+---
+date: 2026-10-18
+task: 87-checkpoint-1
+role: main (Super Z)
+story: 2-15
+summary: CHECKPOINT 1 story 2-15 ЗАКРЫТ: спека первого среза «Исправление и оспаривание AI-резюме» одобрена владельцем явным ответом «подтверждаю» (чат 2026-10-18; дисциплина 52-sm: явное одобрение отдельным ответом, самопродолжение чекпоинт не закрывает; прецедент 2-14 d3bbf39 / 2-13 108f3fe / 2-12 d111a0d); спека+sprint-status → ready-for-dev (замороженные секции Intent/Boundaries/Matrix не тронуты: дифф = status + Change Log). Отличие от прецедента d3bbf39 честно отражено: свежий токен публикации в ответе НЕ передан — push-stop по протоколу AGENTS.md, коммиты чекпоинта локальны (unpushed: 2), публикация ожидает свежий токен; сама ветка УЖЕ на origin с SM-фазы (fb9cc3f запушена токеном сессии 85, RPO=0) — публикация коммитов чекпоинта не блокирует разработку. Далее Dev step-01..05 по спеке; в конце истории CHECKPOINT 2 (PR + CI ×3 + merge — потребуется явное одобрение + свежий токен).
+done:
+- Одобрение зафиксировано отдельным ответом владельца: «подтверждаю» (не самопродолжение — дисциплина 52-sm соблюдена)
+- Спека 2-15: status backlog → ready-for-dev + Change Log-запись решения (8e9f191 [skip ci], docs-коммит; дифф 2 файла +3/−2)
+- sprint-status.yaml: 2-15 → ready-for-dev (Epic 2: 14/16 done + 2-15 ready-for-dev, 2-16 backlog)
+- push-stop по протоколу: токен в ответе одобрения не передан; коммиты 8e9f191 + DEVLOG 87 остаются локальными, unpushed: 2 (прецедент 108f3fe 2-13; публикация — со свежим токеном владельца)
+- Окружение сессии ресайклилось (Go/PG отсутствуют) — bootstrap в foreground запланирован первым шагом Dev step-01
+next: Dev step-01 — bootstrap в foreground (~4 мин: Go 1.27.1, PG 54329, миграции, smoke) → домен correction.go (словари исходов applied|disputed, GuardRecordCorrection: пин fact_id+version_no, материальная дисциплина proposed_value 2048 канонических байт, spans ≤8×200 рун байт-в-байт, reason 1..200, summary_no; матричный гейт MaterialFieldInMatrix чтением словаря 2-7; DeriveCorrectionState read-time) + unit-тесты; затем шаги 02-05 по спеке
+commit: 8e9f191
