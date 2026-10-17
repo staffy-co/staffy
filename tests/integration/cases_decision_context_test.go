@@ -93,11 +93,10 @@ func TestSummariesTablesGrantsAndRLS(t *testing.T) {
 // summaryProbeRow carries the honest template of one summary row with
 // the per-probe dishonest knobs.
 type summaryProbeRow struct {
-	summaryNo   int64
-	kind        string
-	text        string
-	claims      string
-	negativeUse bool
+	summaryNo int64
+	kind      string
+	text      string
+	claims    string
 }
 
 // insertSummaryRow runs the direct INSERT of one summary row over the
@@ -776,16 +775,43 @@ func TestDecisionContextMatrix(t *testing.T) {
 		}
 	})
 
-	// Row 4 — the delivery line (AC-2): the neutral reply exists, the
-	// derived word is the honest unknown (the acceptance by the machine is
-	// NOT the delivery — the record of a record is not a receipt).
+	// Row 4 — the delivery lines (AC-2): the dispatch truth is the 2.4
+	// drain OUTCOME word — exactly the truth the 2.12 panel reads (the
+	// LEFT JOIN of the ownership surface). The acceptance by the machine
+	// is NOT the delivery: the undrained reply stays prepared (nothing
+	// has left); the drained reply without the evidence event is the
+	// honest unknown (the record of a record is not a receipt).
 	t.Run("row-04 deliveries: acceptance is not delivery", func(t *testing.T) {
 		view := contextOf()
 		if len(view.Deliveries) != 1 {
 			t.Fatalf("the delivery block reads the one reply, got %+v", view.Deliveries)
 		}
+		if view.Deliveries[0].State != casesDomain.ReplyDeliveryPrepared || view.Deliveries[0].LastKind != "" {
+			t.Fatalf("the undrained reply is the honest prepared (nothing has left), got %+v", view.Deliveries[0])
+		}
+		// The drain writes the dispatched OUTCOME — the record of the
+		// record: the reply becomes the honest unknown, never delivered.
+		drained, err := w.cases.DrainClientReplies(ctx, w.ownershipActor(), w.tenant)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if drained.Considered != 1 || drained.Dispatched != 1 || drained.Stale != 0 {
+			t.Fatalf("the one fresh reply drains dispatched, got %+v", drained)
+		}
+		view = contextOf()
 		if view.Deliveries[0].State != casesDomain.ReplyDeliveryUnknown || view.Deliveries[0].LastKind != "" {
 			t.Fatalf("the dispatched reply without the evidence is the honest unknown, got %+v", view.Deliveries[0])
+		}
+		// The stale probe material: this second reply stays undrained — the
+		// ownership walk of row-09 moves the case under it, the later drain
+		// marks it stale_needs_review (it never left either — row-09 pins
+		// the honest prepared again).
+		if _, err := w.cases.SendClientReply(ctx, casesAPI.SendClientReplyCommand{
+			Actor: w.owner, TenantID: w.tenant, CaseID: caseID, ConversationID: conversationID,
+			ExpectedEpoch: 1, ReplyClass: casesDomain.ReplyClassNeutral,
+			Content: "Специалист подключится к обращению повторно.", IdempotencyKey: "ctx-matrix-reply-2", Now: ownershipNow,
+		}); err != nil {
+			t.Fatal(err)
 		}
 	})
 
@@ -910,6 +936,27 @@ func TestDecisionContextMatrix(t *testing.T) {
 		}
 		if !view.Handoff.Present || view.Handoff.State != casesDomain.HandoffStateRequested {
 			t.Fatalf("the second ask opens the lifecycle under the staffy owner, got %+v", view.Handoff)
+		}
+		// The stale reply of the row-04 material never left either: the
+		// reply was recorded under the epoch-1 staffy term — the walk moved
+		// the case (the epochs 2 and 3) — the drain marks it
+		// stale_needs_review (the payload is never relayed); the delivery
+		// state stays the honest prepared: without the dispatched outcome
+		// nothing has left (the 2.4 truth the 2.12 panel of the same page
+		// reads — the two surfaces never contradict each other).
+		staleDrained, err := w.cases.DrainClientReplies(ctx, w.ownershipActor(), w.tenant)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if staleDrained.Considered != 1 || staleDrained.Dispatched != 0 || staleDrained.Stale != 1 {
+			t.Fatalf("the reply of the moved ownership drains stale_needs_review, got %+v", staleDrained)
+		}
+		view = contextOf()
+		if len(view.Deliveries) != 2 {
+			t.Fatalf("the delivery block reads the two replies, got %+v", view.Deliveries)
+		}
+		if view.Deliveries[1].State != casesDomain.ReplyDeliveryPrepared || view.Deliveries[1].LastKind != "" {
+			t.Fatalf("the stale_needs_review reply never left — the honest prepared, got %+v", view.Deliveries[1])
 		}
 	})
 
