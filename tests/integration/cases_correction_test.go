@@ -814,6 +814,14 @@ func TestCorrectionsAppCommandAndView(t *testing.T) {
 		t.Fatalf("the price row carries the honest dispute marker, got %s", state)
 	}
 
+	// The dispute NEVER grows the LIVE watermark (the pour never
+	// happened — the Owning System value did not move; the summary
+	// counters stay at the SAME honest numbers: the dispute is not a
+	// rewrite, the summary stays honest about what actually changed).
+	if !strings.Contains(view.Summary.StalenessCountersText, "новых версий фактов: 1") {
+		t.Fatalf("the dispute never grows the watermark of the summary, got %q", view.Summary.StalenessCountersText)
+	}
+
 	// The second correction of the address fact through the SUMMARY link:
 	// the last correction speaks — the summary source kind with the
 	// byte-exact span of the summary text (the store guard re-validates
@@ -844,6 +852,103 @@ func TestCorrectionsAppCommandAndView(t *testing.T) {
 	// address fact + the price v1 against the snapshot of two).
 	if !strings.Contains(view.Summary.StalenessCountersText, "новых версий фактов: 2") {
 		t.Fatalf("the second pour grows the LIVE watermark again, got %q", view.Summary.StalenessCountersText)
+	}
+
+	// Row 44 — the human resolution of the poured conflict: the
+	// operator confirms the EXACT poured version through the EXISTING
+	// confirm ladder (the live command separation of AC-2: the machine
+	// proposes the version, the human confirms — never an automatic
+	// confirmation). The status flips confirmed read-time, the marker
+	// STAYS (the correction history never disappears — append-only),
+	// the watermark stays 2 (a confirmation is not a new version).
+	confirmed, err := w.cases.ConfirmFactVersion(ctx, casesAPI.ConfirmFactVersionCommand{
+		Actor: w.workActor(), TenantID: w.tenant, CaseID: caseID, FactID: addressFactID,
+		VersionNo: 3, ConfirmerType: casesDomain.ConfirmerOperatorRelay,
+		EvidenceEventID: eventIDOf(t, w, caseID, "evt-correction-app-1"),
+		IdempotencyKey:  "correction-app-confirm-1", Now: now,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if confirmed.FactStatus != casesDomain.FactStatusConfirmed {
+		t.Fatalf("the confirm of the exact poured version resolves the conflict, got %+v", confirmed)
+	}
+	view = contextOf()
+	row = findRow(view, addressFactID)
+	if row == nil || row.Status != casesDomain.ContextFactConfirmed ||
+		!strings.HasPrefix(row.StatusText, "Подтверждено: точная версия подтверждена") ||
+		!row.HasCorrection || row.CorrectionNo != 3 || row.CorrectionMarkerText != "исправлено" ||
+		row.CorrectionOutcome != casesDomain.CorrectionOutcomeApplied {
+		state := "nil"
+		if row != nil {
+			state = fmt.Sprintf("%+v", *row)
+		}
+		t.Fatalf("the confirmed row KEEPS the correction marker (the history never disappears), got %s", state)
+	}
+	if !strings.Contains(view.Summary.StalenessCountersText, "новых версий фактов: 2") {
+		t.Fatalf("the confirmation is not a new version — the watermark stays, got %q", view.Summary.StalenessCountersText)
+	}
+
+	// Row 52 — the optimistic concurrency of ONE pinned version: TWO
+	// different corrections of the SAME confirmed version (the different
+	// keys, the different values) — both rows land, both versions pour
+	// (N+1, N+2), the three-value conflict is read-time (the silent
+	// rewrite never exists — append-only), the LAST correction speaks.
+	racyA, err := correct(w.ownershipActor(), addressFactID, 3, []byte(`"Москва, Тверская 4"`), []string{"доставка нужна к пятнице"}, "первая параллельная коррекция", "correction-app-racy-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	racyB, err := correct(w.ownershipActor(), addressFactID, 3, []byte(`"Москва, Тверская 5"`), []string{"доставка нужна к пятнице"}, "вторая параллельная коррекция", "correction-app-racy-2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if racyA.CorrectionID == racyB.CorrectionID || racyA.CorrectionOutcome != casesDomain.CorrectionOutcomeApplied ||
+		racyB.CorrectionOutcome != casesDomain.CorrectionOutcomeApplied {
+		t.Fatalf("the two corrections of one version are TWO rows (never a silent rewrite), got %+v %+v", racyA, racyB)
+	}
+	facts, err = w.cases.FactsView(ctx, w.ownershipActor(), w.tenant, caseID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, fact := range facts.Facts {
+		if fact.FactID != addressFactID {
+			continue
+		}
+		if len(fact.Versions) != 5 {
+			t.Fatalf("the two corrections of one version pour BOTH versions (N+1, N+2), got %d", len(fact.Versions))
+		}
+		if fact.Status != casesDomain.FactStatusConflicting {
+			t.Fatalf("the three-value conflict is read-time (the last poured value is not the confirmed one), got %s", fact.Status)
+		}
+	}
+	view = contextOf()
+	row = findRow(view, addressFactID)
+	if row == nil || row.Status != casesDomain.ContextFactConflicting ||
+		!strings.HasPrefix(row.StatusText, "Противоречие: значения расходятся") ||
+		row.CorrectionNo != 5 || row.CorrectionMarkerText != "исправлено" {
+		state := "nil"
+		if row != nil {
+			state = fmt.Sprintf("%+v", *row)
+		}
+		t.Fatalf("the LAST correction of the SAME version speaks over the read-time conflict, got %s", state)
+	}
+	if !strings.Contains(view.Summary.StalenessCountersText, "новых версий фактов: 4") {
+		t.Fatalf("the both pours grow the LIVE watermark, got %q", view.Summary.StalenessCountersText)
+	}
+
+	// Row 54 — the gates of the slice: the member of another tenant and
+	// the non-member read the plain 404 (the RLS regression of 2.1) —
+	// the gate fires BEFORE the material guards (the honest 404 of the
+	// path, never the 403 of the scope).
+	foreignTenant := createForeignTenant(t, w)
+	foreign := inviteMember(t, w.identity, w.owner, foreignTenant, "correction-app-foreign-tenant@example.org", "expert_qa",
+		[]identityDomain.Scope{identityDomain.Review}, "000000009971", "000000009972")
+	if _, err := correct(foreign, addressFactID, 1, []byte(`"Москва"`), []string{"доставка нужна к пятнице"}, "оператор сверил источник", "correction-app-foreign-tenant-1"); !errors.Is(err, identityDomain.ErrNotFound) && !errors.Is(err, casesDomain.ErrNotFound) {
+		t.Fatalf("the member of another tenant never records, got %v", err)
+	}
+	nonMember := actorPrincipal{principalID: nextCorrectionProbeID(), stepUp: true}.principal()
+	if _, err := correct(nonMember, addressFactID, 1, []byte(`"Москва"`), []string{"доставка нужна к пятнице"}, "оператор сверил источник", "correction-app-nonmember-1"); !errors.Is(err, identityDomain.ErrNotFound) && !errors.Is(err, casesDomain.ErrNotFound) {
+		t.Fatalf("the non-member never records, got %v", err)
 	}
 
 	// The terminal boundary of the state dictionary: the slice carries
