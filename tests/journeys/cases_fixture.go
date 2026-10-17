@@ -166,6 +166,14 @@ type casesFixture struct {
 	handoffEvents map[id.UUID][]casesDomain.HandoffEvent
 	handoffSeq    int
 
+	// The Story 2.14 summary material: the append-only AI summary rows
+	// per case (the staleness is the read-time derivation over the REAL
+	// domain function — never stored; the summary number and the
+	// watermark are the fixture-owned monotonic truths, the requests
+	// never carry them).
+	summaries  map[id.UUID][]casesDomain.RecordedSummary
+	summarySeq int
+
 	caseNo, conversationNo int64
 	eventSeq               int
 	workSeq, exceptionSeq  int
@@ -249,6 +257,8 @@ func newCasesFixture() *casesFixture {
 		// The Story 2.13 material:
 		handoffs:      map[id.UUID][]casesDomain.HandoffRequest{},
 		handoffEvents: map[id.UUID][]casesDomain.HandoffEvent{},
+		// The Story 2.14 material:
+		summaries: map[id.UUID][]casesDomain.RecordedSummary{},
 	}
 }
 

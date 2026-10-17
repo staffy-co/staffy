@@ -2808,6 +2808,42 @@ paths:
         '403': { description: 'Гейт прав ДО стражей', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
         '404': { $ref: '#/components/responses/Problem' }
         '409': { description: 'Гонка эпохи (stale_version) / активная передача 2-4 / command_key_conflict', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/decision-context:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+    get:
+      operationId: readDecisionContext
+      summary: 'Decision-ready контекст назначенному оператору (первый срез 2-14): read-time сборка двенадцати блоков ПОВЕРХ существующих дериваций 2-2..2-13 в ОДНОЙ транзакции согласованного снимка (advisory-локи чтения НЕ берутся); ни одна лестница/гейт не расширяется; факты тремя раздельными группами confirmed/unconfirmed/conflicting (рендер-зеркало read-time дериваций — conflicting НЕ запись); сводка — последняя append-only строка с read-time staleness (actual|stale + честные счётчики); рекомендация — ПРОЕКЦИЯ слов плана последнего исхода политики (полномочий не даёт); секция страницы кейса рендерит ту же проекцию («Контекст передачи», a11y), CaseView НЕ расширяется — контекст отдельный ресурс'
+      x-staffy-principal-required: true
+      responses:
+        '200': { description: 'Контекст собран (деривации read-time, никогда не хранимые статусы)', content: { application/json: { schema: { $ref: '#/components/schemas/DecisionContextView' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Гейт чтения ДО стражей: контекст передачи требует review или configuration (audit-only — честный 403)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/cases/{case_id}/summaries:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+    post:
+      operationId: recordCaseSummary
+      summary: 'Записать AI-сводку (продюсерский путь, AC-5): kind — единственное слово словаря ai_summary (операторские сводки Never, PRG-форм нет); claims 1..32 — каждое утверждение либо связано (ref_type fact_version|observation ∧ ref_id — страж стора: материал ЭТОГО кейса), либо честно помечено disputed; текст утверждения — байт-в-байт строка текста сводки (анти-фантазийный зонд, span-дисциплина 2-8); summary_no и watermark — СЕРВЕРНАЯ истина под advisory-локами case+conversation (запрос их НЕ несёт); гейт владения ДО материальных стражей — сводку пишет Staffy, пока владеет (NotOwnerText после acknowledge); append-only строка (никогда не правится; исправление/оспаривание — story 2-15) + outbox case.summary_recorded идентификаторами и словарными словами (текст и claims НИКОГДА); терминальный кейс — 400 work-rule'
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecordCaseSummaryRequest' }
+      responses:
+        '201': { description: 'Сводка записана (append-only, UNIQUE tenant+case+summary_no) + outbox case.summary_recorded', content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа (replay исходной записи), content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { description: 'Гварды: вид/границы рун текста и утверждений / число claims / дисциплина (ref ∧ id) ∨ disputed / байт-точность утверждения / стражи refs (материал ЭТОГО кейса) / терминальный кейс / NotOwnerText (сводку пишет владелец-Staffy)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Гейт прав ДО стражей: запись сводки требует review или configuration', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { description: 'Гонка номера сводки (stale_version — проигравший локов) / тот же ключ с иным материалом — command_key_conflict', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
   /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/commitments:
     parameters:
       - $ref: '#/components/parameters/TenantID'
@@ -4871,6 +4907,8 @@ components:
         handoff_backup: { type: string, format: uuid, description: 'Резервный участник раунда назначения' }
         handoff_ack_deadline: { type: string, enum: [ack_15m, ack_1h, ack_4h], description: 'Слово дедлайна подтверждения раунда (утверждённая policy v0)' }
         handoff_result: { type: string, enum: [issue_resolved, handed_back], description: 'Слово результата возврата; текст причины режима НИКОГДА не входит в исход' }
+        summary_kind: { type: string, enum: [ai_summary], description: 'Слово вида сводки продюсерской команды (Story 2.14) — единственное слово словаря; операторские сводки Never' }
+        summary_claims: { type: integer, minimum: 1, description: 'Число утверждений записи (счётчик запросного материала); текст сводки и claims НИКОГДА не входят в исход; summary_no и watermark — серверная истина, в исходе не хранятся' }
     StartVerificationRequest:
       type: object
       required: [conversation_id, kind, method, provider_code, subject_handle]
@@ -5884,6 +5922,103 @@ components:
         payload_digest: { type: string, pattern: '^[0-9a-f]{64}$' }
         seal_ok: { type: boolean, description: 'HMAC-печать проверена при чтении' }
         payload: { description: 'Только под полномочиями review/audit; любое одно JSON-значение' }
+    RecordCaseSummaryRequest:
+      type: object
+      required: [kind, text, claims]
+      additionalProperties: false
+      description: 'Запись AI-сводки (продюсерский путь, Story 2.14): kind — единственное слово словаря; claims 1..32, каждое утверждение либо связано (ref_type словаря ∧ ref_id непусто), либо честно помечено disputed; текст утверждения — байт-в-байт подстрока текста сводки (анти-фантазийный зонд). summary_no и watermark — НЕ поля запроса: серверная истина под advisory-локами (зонд контракта пиннит отсутствие)'
+      properties:
+        kind: { type: string, enum: [ai_summary], description: 'Слово вида сводки — единственное слово среза (операторские сводки Never: оператор пишет ноты 2-3, PRG-форм нет)' }
+        text: { type: string, minLength: 1, maxLength: 3000, description: 'Текст сводки (1..1000 рун; байтовый потолок таблицы 16384)' }
+        claims:
+          type: array
+          minItems: 1
+          maxItems: 32
+          description: 'Утверждения сводки — каждое связано ссылкой на материал ЭТОГО кейса либо помечено спорным (дисциплина AD-7/AD-8)'
+          items:
+            type: object
+            required: [text]
+            additionalProperties: false
+            properties:
+              ref_type: { type: string, enum: [fact_version, observation], description: 'Тип якоря утверждения (словарь среза)' }
+              ref_id: { type: string, format: uuid, description: 'Якорь факта или наблюдения ЭТОГО обращения (страж стора: чужой/несуществующий ref — 400)' }
+              disputed: { type: boolean, description: 'Честная пометка спорного утверждения (без ссылки)' }
+              text: { type: string, minLength: 1, maxLength: 600, description: 'Текст утверждения — байт-в-байт строка текста сводки (1..200 рун)' }
+    DecisionContextView:
+      type: object
+      required: [present, panel_text, handoff, work_items, mode, assurance, owner, facts, observations, deliveries, commitments, preferences, recommendation, summary]
+      description: 'Составной контекст передачи (Story 2.14): двенадцать read-time блоков поверх дериваций 2-2..2-13 — ОДНА транзакция согласованного снимка, без advisory-локов чтения; ничего не мутируется; секция появляется только при матери (открытый handoff ИЛИ записанная сводка) — честное отсутствие рендерит пустой present=false'
+      properties:
+        present: { type: boolean, description: 'Материал контекста существует (открытая передача или записанная сводка) — секция рендерится только при true' }
+        panel_text: { type: string }
+        handoff:
+          type: object
+          required: [present, reason, reason_text, state, state_text, turn_ref, ack_deadline, ack_deadline_text, deadline_at]
+          properties:
+            present: { type: boolean }
+            reason: { type: string, enum: [client_request] }
+            reason_text: { type: string }
+            state: { type: string, enum: [requested, assigned, overdue, acknowledged, declined, cancelled, returned], description: 'Read-time состояние lifecycle открытой передачи' }
+            state_text: { type: string }
+            turn_ref: { type: string, format: uuid, description: 'Якорь просьбы — принятая реплика клиента' }
+            ack_deadline: { type: string, enum: [ack_15m, ack_1h, ack_4h] }
+            ack_deadline_text: { type: string }
+            deadline_at: { type: string, format: date-time, description: 'Дедлайн живого раунда (деривация просрочки читает его)' }
+        work_items: { type: array, items: { type: object, required: [work_item_id, title, type, state], properties: { work_item_id: { type: string, format: uuid }, title: { type: string }, type: { type: string }, state: { type: string, enum: [untriaged, in_work, waiting], description: 'Только не-терминальные слова лестницы (терминальные — история, не рабочий материал)' } } } }
+        mode: { type: object, required: [present, mode, mode_version], properties: { present: { type: boolean }, mode: { type: string, description: 'Активное слово лестницы режимов 2-5' }, mode_version: { type: integer, minimum: 0, description: 'Версия лестницы (CAS-истина propose/exit)' } } }
+        assurance: { type: object, required: [identity_level, identity_method, identity_expires_at, authority_level, authority_method, authority_scope, authority_expires_at], description: 'DeriveAssuranceState 2-3: честное none отсутствия никогда не становится подтверждённой личностью', properties: { identity_level: { type: string }, identity_method: { type: string }, identity_expires_at: { type: string, format: date-time }, authority_level: { type: string }, authority_method: { type: string }, authority_scope: { type: string }, authority_expires_at: { type: string, format: date-time } } }
+        owner: { type: object, required: [present, owner_kind, owner_ref, epoch], properties: { present: { type: boolean }, owner_kind: { type: string }, owner_ref: { type: string, format: uuid }, epoch: { type: integer, minimum: 0, description: 'Эпоха текущего терма владения 2-4' } } }
+        facts:
+          type: object
+          required: [confirmed, unconfirmed, conflicting]
+          description: 'ТРИ раздельные группы (никогда один смешанный список); conflicting — рендер read-time деривации, НЕ хранимый статус; unconfirmed — рендер-зеркало unverified'
+          properties:
+            confirmed: { type: array, items: { $ref: '#/components/schemas/DecisionContextFactRow' } }
+            unconfirmed: { type: array, items: { $ref: '#/components/schemas/DecisionContextFactRow' } }
+            conflicting: { type: array, items: { $ref: '#/components/schemas/DecisionContextFactRow' } }
+        observations: { type: array, items: { type: object, required: [work_item_id, material_key, owning_system, observed_at, freshness, conflict_rule, evidence_status, projection, external_id, external_version], description: 'Текущее наблюдение группы (WI, ключ): freshness — слово матричного окна от provider-observed времени; провайдер-техника за прогрессивным раскрытием', properties: { work_item_id: { type: string, format: uuid }, material_key: { type: string }, owning_system: { type: string }, observed_at: { type: string, format: date-time }, freshness: { type: string, description: 'Слово свежести матрицы (fresh|stale|failed — окно FreshnessSeconds)' }, conflict_rule: { type: string }, evidence_status: { type: string }, projection: { type: string }, external_id: { type: string }, external_version: { type: string } } } }
+        deliveries: { type: array, items: { type: object, required: [reply_id, state], description: 'Слова доставки 2-12 отдельными строками: принятие каналом ≠ доставка ≠ деловое завершение', properties: { reply_id: { type: string, format: uuid }, state: { type: string }, last_kind: { type: string }, last_event_at: { type: string, format: date-time } } } }
+        commitments: { type: array, items: { type: object, required: [commitment_id, version_no, status, valid_until, terms_known, terms_unknown, receipt_text], description: 'Текущая версия каждого обязательства: confirmed = деривация валидного подтверждения точной версии 2-9; квитанции честно нет (Action Gateway — Epic 3)', properties: { commitment_id: { type: string, format: uuid }, version_no: { type: integer, minimum: 1 }, status: { type: string, enum: [draft, offered, confirmed], description: 'confirmed — рендер-деривация валидного подтверждения, НЕ хранимый статус' }, valid_until: { type: string, format: date-time }, confirmation_status: { type: string }, terms_known: { type: array, items: { type: string } }, terms_unknown: { type: array, items: { type: string }, description: 'MaterialUnknowns — честные дыры обязательных условий' }, receipt_text: { type: string, description: 'Честная строка отсутствия квитанции' } } } }
+        preferences: { type: object, required: [accommodation_keys, alternative_paths, usual_modalities], description: 'Предпочтения видны ДО первого ответа назначенного (AC-4)', properties: { accommodation_keys: { type: array, items: { type: string } }, alternative_paths: { type: array, items: { type: string }, description: 'Активные альтернативы последнего исхода + разрешённые деградированные пути' }, usual_modalities: { type: array, items: { type: object, required: [material_key, word], properties: { material_key: { type: string }, word: { type: string, description: 'Обычный способ установления ключа (pack-данные v0)' } } } } } }
+        recommendation: { type: object, required: [present, steps, reason, checks, deadline_at, mode, mode_version, projection_text], description: 'ПРОЕКЦИЯ слов плана последнего исхода политики: НЕ команда, НЕ полномочие — исполнение только существующими командами 2-1..2-13 (AC-7)', properties: { present: { type: boolean }, steps: { type: array, items: { type: string }, description: 'Слова NextSteps последнего outcome (StepHumanHandoff и т.д.)' }, reason: { type: string }, checks: { type: array, items: { type: object, required: [material_key, state], properties: { material_key: { type: string }, state: { type: string, description: 'Слово состояния обязательного материала (ask|reused…)' } } } }, ack_deadline: { type: string, enum: [ack_15m, ack_1h, ack_4h] }, ack_deadline_text: { type: string }, deadline_at: { type: string, format: date-time, description: 'Дедлайн открытого handoff (нуль при отсутствии)' }, mode: { type: string, description: 'Ограничения эффективного режима' }, mode_version: { type: integer }, projection_text: { type: string, description: 'Честная граница: рекомендация — проекция' } } }
+        summary: { $ref: '#/components/schemas/SummaryView' }
+    DecisionContextFactRow:
+      type: object
+      required: [fact_id, material_key, status, status_text, version_no, source_type, source_id, channel, observed_at]
+      description: 'Одна строка факта контекста: статус рендер-словаря, версия и provenance (источник-событие/канал)'
+      properties:
+        fact_id: { type: string, format: uuid }
+        material_key: { type: string }
+        status: { type: string, enum: [confirmed, unconfirmed, conflicting], description: 'Рендер-словарь зеркала дериваций work.go (unverified → unconfirmed; conflicting — рендер, не запись)' }
+        status_text: { type: string, description: 'Честный текст статуса — рендер, в БД/outbox только слова' }
+        version_no: { type: integer, minimum: 1 }
+        source_type: { type: string }
+        source_id: { type: string }
+        channel: { type: string }
+        observed_at: { type: string, format: date-time }
+    SummaryView:
+      type: object
+      required: [present, summary_no, kind, marking_text, text, claims, staleness, staleness_text, staleness_counters_text]
+      description: 'Сводка AI (AC-5/AC-6): последняя append-only строка с read-time staleness — actual|stale + честные счётчики; stale сводка НЕ отображается как актуальная (источники рендерятся рядом); сводка не заменяет источники (AD-8)'
+      properties:
+        present: { type: boolean }
+        summary_no: { type: integer, minimum: 1, description: 'Монотонный номер (серверная истина; новое владение — новая строка, append-only)' }
+        kind: { type: string, enum: [ai_summary] }
+        marking_text: { type: string, description: 'Честная маркировка AI-производного представления (сверяйтесь с источниками)' }
+        text: { type: string, description: 'Текст сводки (материал продюсера; 1..1000 рун)' }
+        claims: { type: array, items: { $ref: '#/components/schemas/ClaimView' } }
+        staleness: { type: string, enum: [actual, stale], description: 'Read-time сравнение watermark сводки с текущими счётчиками — никогда не хранимый статус; сводка не мутируется' }
+        staleness_text: { type: string }
+        staleness_counters_text: { type: string, description: 'Честные счётчики новизны («новых событий: N; новых версий фактов: N; владелец сменился; режим сменился»)' }
+    ClaimView:
+      type: object
+      required: [ref_type, disputed, text]
+      description: 'Одно утверждение сводки: связано якорем (словарь ref-типов) либо честно помечено спорным; текст — байт-в-байт строка сводки (span-дисциплина 2-8)'
+      properties:
+        ref_type: { type: string, enum: [fact_version, observation] }
+        ref_id: { type: string, format: uuid, description: 'Якорь факта/наблюдения ЭТОГО обращения (пусто у спорного)' }
+        disputed: { type: boolean, description: 'Честная пометка спорности (спорное утверждение не несёт ссылку)' }
+        text: { type: string, minLength: 1, description: 'Текст утверждения — байт-в-байт подстрока текста сводки' }
   responses:
     Problem:
       description: Безопасная ошибка
