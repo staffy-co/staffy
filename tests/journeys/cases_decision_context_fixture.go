@@ -244,9 +244,14 @@ func (f *casesFixture) fixtureDecisionContextInput(caseID id.UUID, now time.Time
 		}
 	}
 	input.Observations = f.observations[caseID]
-	// The replies with the delivery events.
+	// The replies with the delivery events — the dispatch truth is the
+	// drain OUTCOME word (the 2.12 fixtureDeliveries mirror): without
+	// the dispatched outcome the reply stays prepared; the acceptance
+	// by the machine is never fabricated here.
 	for _, reply := range f.replies[caseID] {
-		material := casesDomain.ReplyDeliveryMaterial{ReplyID: reply.ReplyID, Dispatched: true}
+		outcome, decided := f.replyOutcomes[reply.ReplyID]
+		dispatched := decided && outcome.Kind == casesDomain.ReplyOutcomeDispatched
+		material := casesDomain.ReplyDeliveryMaterial{ReplyID: reply.ReplyID, Dispatched: dispatched}
 		for _, event := range f.replyDeliveryEvents[caseID] {
 			if event.ReplyID == reply.ReplyID {
 				material.Events = append(material.Events, event)

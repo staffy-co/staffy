@@ -39,18 +39,16 @@ const SummaryNotOwnerText = "Сводку пишет Staffy, пока владе
 const SummaryClaimRefForeignText = "Утверждение сводки ссылается на материал другого обращения или несуществующий материал: ссылки утверждают факты и наблюдения этого обращения."
 
 // mapSummaryInsertError maps the raced insert conflicts of the summary
-// surface onto the honest domain errors: the command record UNIQUE is
-// the material idempotency conflict; the summary number UNIQUE is the
-// raced derivation (the loser of the advisory-lock race sees the
+// surface onto the honest domain errors: the summary number UNIQUE is
+// the raced derivation (the loser of the advisory-lock race sees the
 // winner's committed number — the honest stale-retry signal, the
-// handoff precedent).
-func mapSummaryInsertError(err error, command string) error {
+// handoff precedent). The command record UNIQUE never surfaces here:
+// the command row is inserted AFTER the exec by the work flow with its
+// own mapping; a defensive pass-through keeps the fallback honest.
+func mapSummaryInsertError(err error) error {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.SQLState() == "23505" {
-		switch pgErr.ConstraintName {
-		case "command_records_pkey":
-			return casesDomain.ErrCommandKeyConflict
-		case "case_summaries_pkey":
+		if pgErr.ConstraintName == "case_summaries_pkey" {
 			// The raced summary number: the loser re-derives under the locks
 			// and retries (the honest stale-retry signal).
 			return casesDomain.ErrStaleVersion
@@ -247,7 +245,7 @@ func (s *Postgres) execRecordCaseSummary(ctx context.Context, tx pgx.Tx, tenantI
                 values ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10,$11,$12)`,
 		tenantID, p.CaseID, summaryNo, p.Kind, p.Actor, p.SummaryText, claims,
 		watermark.EventCount, watermark.FactVersionCount, watermark.OwnerEpoch, watermark.ModeVersion, now); err != nil {
-		return mapSummaryInsertError(err, p.Command)
+		return mapSummaryInsertError(err)
 	}
 	// The summary envelope: the identifiers, the kind word and the claim
 	// counters only — the summary text and the claims NEVER enter (the
@@ -276,9 +274,9 @@ func (s *Postgres) execRecordCaseSummary(ctx context.Context, tx pgx.Tx, tenantI
 		casesDomain.DedupKeySummaryRecorded(p.CaseID, summaryNo), now); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.SQLState() == "23505" {
-			if pgErr.ConstraintName == "command_records_pkey" {
-				return casesDomain.ErrCommandKeyConflict
-			}
+			// The raced outbox envelope of the same summary number (the
+			// replay never reaches here — the command record resolves
+			// before the exec; the honest stale-retry signal).
 			return casesDomain.ErrStaleVersion
 		}
 		return err
@@ -383,20 +381,35 @@ func readDecisionContextTx(ctx context.Context, tx pgx.Tx, tenantID, caseID id.U
 	// The replies with the delivery events (the acceptance, the delivery
 	// and the business completion never mix — the state words render
 	// read-time over the dispatch truth and the append-only evidence).
+	// The dispatch truth is the 2.4 drain OUTCOME word — exactly the
+	// truth the 2.12 surface reads (the LEFT JOIN of ReadClientReplies):
+	// without the dispatched outcome the reply stays prepared (nothing
+	// has left — a stale_needs_review reply never left either); the
+	// acceptance by the machine is never fabricated here.
 	replyRows, err := tx.Query(ctx, `
-                select reply_id from cases.client_replies
-                where tenant_id=$1 and case_id=$2 order by reply_id`, tenantID, caseID)
+                select r.reply_id, o.kind
+                from cases.client_replies r
+                left join cases.client_reply_outcomes o on o.tenant_id = r.tenant_id and o.reply_id = r.reply_id
+                where r.tenant_id=$1 and r.case_id=$2 order by r.reply_id`, tenantID, caseID)
 	if err != nil {
 		return input, err
 	}
 	defer replyRows.Close()
-	replyIDs := []id.UUID{}
+	type replyTruth struct {
+		replyID    id.UUID
+		dispatched bool
+	}
+	replies := []replyTruth{}
 	for replyRows.Next() {
 		var replyID id.UUID
-		if err := replyRows.Scan(&replyID); err != nil {
+		var outcomeKind *string
+		if err := replyRows.Scan(&replyID, &outcomeKind); err != nil {
 			return input, err
 		}
-		replyIDs = append(replyIDs, replyID)
+		replies = append(replies, replyTruth{
+			replyID:    replyID,
+			dispatched: outcomeKind != nil && *outcomeKind == casesDomain.ReplyOutcomeDispatched,
+		})
 	}
 	if err := replyRows.Err(); err != nil {
 		return input, err
@@ -405,11 +418,11 @@ func readDecisionContextTx(ctx context.Context, tx pgx.Tx, tenantID, caseID id.U
 	if err != nil {
 		return input, err
 	}
-	input.Replies = make([]casesDomain.ReplyDeliveryMaterial, 0, len(replyIDs))
-	for _, replyID := range replyIDs {
-		material := casesDomain.ReplyDeliveryMaterial{ReplyID: replyID, Dispatched: true}
+	input.Replies = make([]casesDomain.ReplyDeliveryMaterial, 0, len(replies))
+	for _, reply := range replies {
+		material := casesDomain.ReplyDeliveryMaterial{ReplyID: reply.replyID, Dispatched: reply.dispatched}
 		for _, event := range deliveryEvents {
-			if event.ReplyID == replyID {
+			if event.ReplyID == reply.replyID {
 				material.Events = append(material.Events, event)
 			}
 		}
