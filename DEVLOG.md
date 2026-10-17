@@ -2573,3 +2573,18 @@ done:
 - Диагноз тишины CI: runs?branch= пуст при живом push → [skip ci] на голове; fix = эта запись без маркера (push-run + PR-run на новой голове)
 next: CI push-run + PR-run на голове этой записи → оба зелёные → sha-pinned merge (merge_method=merge, прецедент 2428bbc) → CI main-run зелёный → DEVLOG 85-merge на main [skip ci] → check-continuity OK; после истории — ревокация PAT владельцем
 commit: 0e16b4a
+
+---
+date: 2026-10-17
+task: 85-merge
+role: main (Super Z)
+story: 2-14
+summary: CHECKPOINT 2 story 2-14 ЗАВЕРШЁН: PR #29 слит в main sha-pinned merge-коммитом 90d40f5ef (пин головы 5cf4b37, merge_method=merge — прецедент 2428bbc story 2-13); CI ×3 ЗЕЛЁНЫЙ: push-run #99 success + PR-run #100 success (оба на 5cf4b37, завершены 15:14 UTC) + main-run #101 success (на merge-коммите); story 2-14 «Decision-ready контекст и операторская поверхность» ПОЛНОСТЬЮ ЗАВЕРШЕНА и влита в main; Epic 2: 14/16 (осталось 2-15, 2-16 + ретро). Инцидент-урок чекпоинта зафиксирован в записи 85-checkpoint-2 и PR body: маркер пропуска прогонов в сообщении головы подавляет ОБА события (push и pull_request) — цитировать маркер в сообщении коммита нельзя (поймано на 167eb27: сообщение описывало инцидент и само несло строку маркера; закрыто amend-ом 5cf4b37 с чистой формулировкой + force-with-lease, контент ветки не менялся).
+done:
+- Merge: PUT pulls/29/merge sha=5cf4b370d0b3cedd48fda0737e05abb43c3916d7, merge_method=merge → merged: true, main = 90d40f5ef (ls-remote сверен)
+- CI ×3: run #99 (event=push, sha 5cf4b37) success; run #100 (event=pull_request, sha 5cf4b37) success; run #101 (event=push, branch=main, sha 90d40f5ef) success
+- Локальный main подтянут ff-only; ветка codex/story-2-14-decision-ready-context слита (оставлена в origin как прецеденты 2-12/2-13)
+- PR body дополнен: DEVLOG-строка включает 85-checkpoint-2 с честным описанием инцидента тишины CI
+- Токен: inline env per-invocation через credential-helper, на диск не попал; передача открытым текстом в чате (счётчик ≥10) — ревокация всех ранее выданных PAT рекомендована владельцу немедленно после истории
+next: story 2-15 «Исправление и оспаривание AI-резюме» (backlog; SM-фаза — спека первого среза по решению владельца, нужен явный сигнал старта); ретро Epic 2 после 2-16
+commit: 90d40f5ef
