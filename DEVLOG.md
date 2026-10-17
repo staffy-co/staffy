@@ -2679,3 +2679,17 @@ done:
 - Регресс: build/vet ok, unit 23 ok -count=1, контракт ok, интеграция ×2 TZ -count=1 (UTC 21.4s / Msk 20.2s), journeys 32 passed (1.5m)
 next: step-05 — QA-саморевью по диффу шагов 01-04 (свежий контекст) + финальный регресс всех контуров + closure feat БЕЗ маркера пропуска → CHECKPOINT 2: PR + CI ×3 + sha-pinned merge (одобрение владельца; свежий токен уже в сессии)
 commit: 295f943
+
+---
+date: 2026-10-18
+task: 92-dev-step-05
+role: main (Super Z)
+story: 2-15
+summary: Dev step-05 story 2-15 закрыт — QA-саморевью и closure (2f97215, БЕЗ каких-либо маркеров пропуска прогонов в сообщении — голова ветки обязана триггерить CI, урок 2-14): QA-вердикт Major-находок НЕТ по диффу шагов 01-04 свежим контекстом; спека+sprint-status → done; Epic 2: 15/16; далее CHECKPOINT 2 — push (CI push-run) → PR (CI PR-run) → CI ×2 зелёные → sha-pinned merge → main-run.
+done:
+- QA: гейты app (скоуп 403 ДО гвардов, терминальность 400 зеркалом, pre-read якоря с честным пином) сверены живым кодом; матричный гейт/заливка/периметры/outbox/privacy — синхронны спеке; тестовые файлы прошлых срезов не тронуты (tenant_test.go — TestMain-регистрация миграции, установленный sync-point; journeys-фикстура 2-14 — заявленная точка расширения спеки)
+- Честные границы не-Major: journeys-фикстура не зеркалирует скоуп-гейт (403 закреплён wire-тестами транспорта — прецедент 2-14 RecordCaseSummary)
+- Финальный регресс свежими прогонами после последнего изменения кода: build/vet, unit 23 ok -count=1, контракт ok, интеграция ×2 TZ -count=1 (UTC 21.4s / Msk 20.2s), journeys 32 passed (1.5m)
+- Closure: спека → done (Change Log с шагами 01-05 поимённо), sprint-status 2-15 → done, Epic 2: 15/16
+next: CHECKPOINT 2 — публикация свежим токеном (в сессии): push 3 коммитов → PR base main → CI ×2 зелёные → sha-pinned merge → main-run → 93-merge
+commit: 2f97215
