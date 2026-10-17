@@ -2633,3 +2633,20 @@ done:
 - Коммит f1513c5 [skip ci] (промежуточный шаг — маркер допустим; голова при PR станет closure feat без маркера — урок 85)
 next: Dev step-02 — миграция 00015 case_corrections append-only (RLS+FORCE, INSERT/SELECT-only, FK fact_versions/case_summaries ЭТОГО кейса, CHECK outcome/spans/value, UNIQUE (tenant,case,correction_no), +43-е слово команды record_correction, +30-й outbox-тип case.correction_recorded, TestMain-регистрация) + стор correction.go (execRecordCorrection под advisory-локами lock-плана: гварды ДО SQL → стражи версий/сводки/факта ЭТОГО кейса → матричный гейт → applied-заливка существующим контуром записи фактов source operator/source_id correction:<id> ИЛИ disputed-строка → outbox; readCorrectionStateTx согласованным снимком с readDecisionContextTx) + зонды pg_class/INSERT/периметр/outbox; регресс ×2 TZ
 commit: f1513c5
+
+---
+date: 2026-10-18
+task: 89-dev-step-02
+role: main (Super Z)
+story: 2-15
+summary: Dev step-02 story 2-15 закрыт — миграция 00015 case_corrections + стор + зонды (e734e41 [skip ci], 7 файлов +1109/−1): append-only таблица (PK (tenant, correction_id) + UNIQUE (tenant, case, correction_no), FK fact_versions/сводки ЭТОГО кейса, материальные CHECK value/spans/outcome/времена, RLS+FORCE, INSERT/SELECT-only) + слово команды record_correction 43-е + outbox-тип case.correction_recorded 30-й + TestMain-регистрация; стор execRecordCorrection под advisory-локами case+conversation+факт-ключи заливки (прецедент confirm_commitment — заливка сериализуется с факт-писателями якоря): стражи цели/сводки → гварды домена под локами с ЖИВЫМИ sourceTexts (сводка ИЛИ payload принятых событий) → матричный гейт (серверное решение исхода) → correction_no max+1 → INSERT → applied-заливка СУЩЕСТВУЮЩИМ контуром insertFactVersion (source operator, source_id correction:<id>, НИКОГДА не confirm) ИЛИ disputed без записи факта → outbox идентификаторами; readCorrectionStateTx + ReadDecisionContextWithCorrections ОДНОЙ read-транзакцией (порт DecisionContextMaterial — согласованный снимок без правки домена 2-14); privacy case-content; зонды 3 семейства зелёные.
+done:
+- Миграция 00015: Down = Up минус новые слова (урок 2-13 Minor-2); spans CHECK — материальная форма (массив 0..8 не-пустых строк), руны 1..200 — гвард домена под локами (послойная честность)
+- Стор: lock-план расширен факт-ключами заливки (отличие от буквы спеки «case+conversation» честно задокументировано в комментарии: заливка пишет fact_versions — сериализация с факт-писателями по прецеденту confirm_commitment)
+- Порт: блок 2-15 в WorkCommandParams (переиспользование FactID/VersionNo/Value/ValueDigest/Reason/времён/MaterialKey), Repository +ReadDecisionContextWithCorrections (старый ReadDecisionContext не тронут — 2-14 поверхность жива)
+- Зонды: pg_class/RLS/гранты; INSERT-бэкстопы (исходы/спаны/reason/пин/сводка/времена/UNIQUE/FK/словари); стор-зонды (гварды, матричный гейт, заливка v2 conflicting, disputed без версии, конверт, key-conflict с откатом, снимок с деривацией)
+- Уроки фикстур: сиды миров ТРЁХЗНАЧНЫЕ (1001 ломает UUID-суффикс memberSuffix %05d от seed*10+8 — взяты свободные 994/995); invalid-value проба подаётся сырой мимо канонизации correctionParams; raw-SQL: счёт столбцов против выражений
+- Регресс: build/vet/unit 20 пакетов ok, интеграция ×2 TZ (UTC 20.7s / Msk 20.2s)
+- Коммит e734e41 [skip ci] (промежуточный шаг; unpushed рос: 4 → 6 с DEVLOG 89)
+next: Dev step-03 — app/correction.go (команда record_correction: скоуп-гейты review|configuration 403 словами ДО стражей → гварды 400 → request-hash ВСЕГО материала ВКЛЮЧАЯ spans и proposed_value → LookupCommand replay → ReadFactMaterial pre-read (MaterialKey для lock-плана) → executeWork) + расширение DecisionContextView коррекционным состоянием строк фактов (DeriveCorrectionState по fact_id) + api/correction.go DTO (outcome НЕ поле запроса — strict decode) + транспорт POST /v1/.../corrections (201/400/401/403/404/409) + PRG-форма «Исправить» на строке факта (303 → #decision-context) + маркеры «исправлено»/«оспорено» панели + OpenAPI +1 путь + контракт-тест
+commit: e734e41
