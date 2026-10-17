@@ -160,10 +160,16 @@ func (s *Service) DecisionContext(ctx context.Context, actor domain.Principal, t
 		return casesAPI.DecisionContextView{}, fmt.Errorf("%w: %s", domain.ErrForbidden, decisionContextScopeText)
 	}
 	now := s.clock.Now()
-	input, err := s.repository.ReadDecisionContext(ctx, scope, caseID, now)
+	// The Story 2.15 extension: the ONE consistent snapshot carries the
+	// correction rows of the case TOGETHER with the context blocks (the
+	// same read transaction — the fact rows derive the correction
+	// markers over the consistent material; the 2.14 derivation and the
+	// DTO mapping stay untouched).
+	material, err := s.repository.ReadDecisionContextWithCorrections(ctx, scope, caseID, now)
 	if err != nil {
 		return casesAPI.DecisionContextView{}, err
 	}
+	input := material.Input
 	// The release lineage word of the confirmation validity: the routing
 	// facts live outside the cases schema — the app resolves the word for
 	// the derivation (the store snapshot leaves it honestly empty). An
@@ -172,7 +178,9 @@ func (s *Service) DecisionContext(ctx context.Context, actor domain.Principal, t
 	// fails on the routing facts.
 	input.CurrentLineage = s.currentLineageOf(ctx, scope, caseID)
 	view := casesDomain.DeriveDecisionContext(input)
-	return decisionContextViewOf(view), nil
+	out := decisionContextViewOf(view)
+	attachContextCorrections(&out, material.Corrections)
+	return out, nil
 }
 
 // currentLineageOf resolves the release lineage word of the case's own

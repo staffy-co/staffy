@@ -693,6 +693,7 @@
 <section class="panel" aria-label="Контекст передачи" id="decision-context">
 <p><a class="primary" href="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}#decision-context">Обновить контекст</a></p>
 <p class="next-note">Обновление — ссылка GET с якорем #decision-context: секция остаётся на месте, точная позиция прокрутки не сохраняется (граница без JS — таймеров и push нет). Сводка не заменяет источники: события, обязательства и доставки рендерятся рядом.</p>
+{{if .View.CorrectionRecorded}}<p class="status" role="status" id="ctx-correction-recorded">Коррекция записана (append-only): заливка applied — НОВАЯ версия факта без автоподтверждения (подтвердите точную версию отдельной командой); матричное поле — спор без перезаписи значения системы. Маркер — на строке факта ниже.</p>{{end}}
 <h3>Что происходит</h3>
 {{if .View.DecisionContext.Handoff.Present}}
 <p id="ctx-handoff" aria-live="polite">Причина передачи: <strong>{{.View.DecisionContext.Handoff.ReasonText}}</strong> Состояние: <strong>{{.View.DecisionContext.Handoff.State}}</strong> — {{.View.DecisionContext.Handoff.StateText}} Якорь просьбы: <span class="digest-block">{{.View.DecisionContext.Handoff.TurnRef}}</span>. Дедлайн раунда: {{.View.DecisionContext.Handoff.AckDeadlineText}}{{if .View.DecisionContext.Handoff.DeadlineText}} ({{.View.DecisionContext.Handoff.DeadlineText}}){{end}}.</p>
@@ -712,7 +713,7 @@
 <caption>Подтверждённые факты: статус, версия, источник, время</caption>
 <thead><tr><th scope="col">Ключ</th><th scope="col">Статус</th><th scope="col">Версия</th><th scope="col">Источник</th><th scope="col">Наблюдено</th></tr></thead>
 <tbody>
-{{range .View.DecisionContext.Facts.Confirmed}}<tr id="ctx-fact-{{.RowID}}"><th scope="row">{{.MaterialKey}}</th><td>{{.StatusText}}</td><td>{{.Version}}</td><td>{{.ProvenanceText}}</td><td>{{.ObservedText}}</td></tr>{{end}}
+{{range .View.DecisionContext.Facts.Confirmed}}<tr id="ctx-fact-{{.RowID}}"><th scope="row">{{.MaterialKey}}</th><td>{{.StatusText}}</td><td>{{.Version}}</td><td>{{.ProvenanceText}}</td><td>{{.ObservedText}}</td></tr>{{if .HasCorrection}}<tr id="ctx-correction-{{.RowID}}"><td colspan="5"><p class="status" role="status">Исправление факта <strong>{{.MaterialKey}}</strong>: <strong>{{.MarkerText}}</strong> — коррекция №{{.CorrectionNo}} (исход {{.CorrectionOutcome}}), {{.CorrectionAtText}}.{{if .CorrectionReason}} Причина: {{.CorrectionReason}}.{{end}}</p><p class="next-note">{{.SourceText}}, {{.CorrectionSpansCount}}. Подтверждение — отдельная команда точной версии; системное значение спором не перезаписывается.</p>{{if .Spans}}<details><summary>Выдержки источника (байт-в-байт)</summary><ul>{{range .Spans}}<li>{{.}}</li>{{end}}</ul></details>{{end}}</td></tr>{{end}}{{end}}
 </tbody>
 </table>
 </div>
@@ -723,7 +724,7 @@
 <caption>Неподтверждённые факты: сверьте с источником</caption>
 <thead><tr><th scope="col">Ключ</th><th scope="col">Статус</th><th scope="col">Версия</th><th scope="col">Источник</th><th scope="col">Наблюдено</th></tr></thead>
 <tbody>
-{{range .View.DecisionContext.Facts.Unconfirmed}}<tr id="ctx-fact-{{.RowID}}"><th scope="row">{{.MaterialKey}}</th><td>{{.StatusText}}</td><td>{{.Version}}</td><td>{{.ProvenanceText}}</td><td>{{.ObservedText}}</td></tr>{{end}}
+{{range .View.DecisionContext.Facts.Unconfirmed}}<tr id="ctx-fact-{{.RowID}}"><th scope="row">{{.MaterialKey}}</th><td>{{.StatusText}}</td><td>{{.Version}}</td><td>{{.ProvenanceText}}</td><td>{{.ObservedText}}</td></tr>{{if .HasCorrection}}<tr id="ctx-correction-{{.RowID}}"><td colspan="5"><p class="status" role="status">Исправление факта <strong>{{.MaterialKey}}</strong>: <strong>{{.MarkerText}}</strong> — коррекция №{{.CorrectionNo}} (исход {{.CorrectionOutcome}}), {{.CorrectionAtText}}.{{if .CorrectionReason}} Причина: {{.CorrectionReason}}.{{end}}</p><p class="next-note">{{.SourceText}}, {{.CorrectionSpansCount}}. Подтверждение — отдельная команда точной версии; системное значение спором не перезаписывается.</p>{{if .Spans}}<details><summary>Выдержки источника (байт-в-байт)</summary><ul>{{range .Spans}}<li>{{.}}</li>{{end}}</ul></details>{{end}}</td></tr>{{end}}{{end}}
 </tbody>
 </table>
 </div>
@@ -734,7 +735,7 @@
 <caption>Противоречащие факты: значения расходятся — разрешите конфликт подтверждением точной версии</caption>
 <thead><tr><th scope="col">Ключ</th><th scope="col">Статус</th><th scope="col">Версия</th><th scope="col">Источник</th><th scope="col">Наблюдено</th></tr></thead>
 <tbody>
-{{range .View.DecisionContext.Facts.Conflicting}}<tr id="ctx-fact-{{.RowID}}"><th scope="row">{{.MaterialKey}}</th><td>{{.StatusText}}</td><td>{{.Version}}</td><td>{{.ProvenanceText}}</td><td>{{.ObservedText}}</td></tr>{{end}}
+{{range .View.DecisionContext.Facts.Conflicting}}<tr id="ctx-fact-{{.RowID}}"><th scope="row">{{.MaterialKey}}</th><td>{{.StatusText}}</td><td>{{.Version}}</td><td>{{.ProvenanceText}}</td><td>{{.ObservedText}}</td></tr>{{if .HasCorrection}}<tr id="ctx-correction-{{.RowID}}"><td colspan="5"><p class="status" role="status">Исправление факта <strong>{{.MaterialKey}}</strong>: <strong>{{.MarkerText}}</strong> — коррекция №{{.CorrectionNo}} (исход {{.CorrectionOutcome}}), {{.CorrectionAtText}}.{{if .CorrectionReason}} Причина: {{.CorrectionReason}}.{{end}}</p><p class="next-note">{{.SourceText}}, {{.CorrectionSpansCount}}. Подтверждение — отдельная команда точной версии; системное значение спором не перезаписывается.</p>{{if .Spans}}<details><summary>Выдержки источника (байт-в-байт)</summary><ul>{{range .Spans}}<li>{{.}}</li>{{end}}</ul></details>{{end}}</td></tr>{{end}}{{end}}
 </tbody>
 </table>
 </div>
@@ -836,6 +837,22 @@
 <input type="hidden" name="expected_version" value="{{len .Versions}}">
 <button class="primary" type="submit">Перенести (новая версия)</button>
 </form></details>
+<details class="connector-connect"><summary>Исправить факт {{.MaterialKey}} (операторская коррекция)</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/facts/{{.FactID}}/corrections">
+<label for="correction-version-{{.FactID}}">Исправляемая версия (точная)</label>
+<select id="correction-version-{{.FactID}}" name="version_no" required>{{range .Versions}}<option value="{{.VersionNo}}">Версия {{.VersionNo}} — {{.Value}}{{if .ConfirmedText}} (уже подтверждена){{end}}</option>{{end}}</select>
+<label for="correction-value-{{.FactID}}">Предложенное значение (одно JSON-значение)</label>
+<textarea id="correction-value-{{.FactID}}" name="value" rows="3" required></textarea>
+<label for="correction-span-{{.FactID}}">Выдержка источника (байт-в-байт строка события или сводки, до 200 символов)</label>
+<input id="correction-span-{{.FactID}}" name="span" type="text" maxlength="600">
+<label for="correction-summary-{{.FactID}}">Номер сводки (0 = выдержка из события)</label>
+<input id="correction-summary-{{.FactID}}" name="summary_no" type="number" min="0" value="0">
+<label for="correction-reason-{{.FactID}}">Причина коррекции (обязательно, до 200 символов)</label>
+<input id="correction-reason-{{.FactID}}" name="reason" type="text" maxlength="200" required>
+<button class="primary" type="submit">Исправить (акт оператора)</button>
+</form>
+<p class="next-note">Коррекция — осознанный акт оператора: заливка applied пишет НОВУЮ версию факта без автоподтверждения (конфликт читается read-time, подтверждение — отдельной командой); матричные поля (цена/наличие/статус заказа) оспариваются без перезаписи значения системы. Отправка возвращает к контексту передачи (#decision-context).</p>
+</details>
 {{end}}
 </details>
 {{end}}

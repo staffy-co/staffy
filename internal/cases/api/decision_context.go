@@ -114,7 +114,13 @@ type ContextOwnerView struct {
 // dictionary with its honest text, the latest version number, the
 // provenance (the source event, the channel) and the provider-observed
 // time. The conflicting word is the render of the read-time derivation —
-// never a stored status.
+// never a stored status. The Story 2.15 fields carry the derived
+// correction state of the fact (read-time, over the correction rows of
+// the SAME consistent snapshot — never a stored status): the marker and
+// the source line with the last correction number, the outcome word, the
+// time, the byte-exact spans and the reason. No corrections is the zero
+// state — the markers appear only with the material (the control branch
+// renders byte-identically).
 type ContextFactRow struct {
 	FactID      string    `json:"fact_id"`
 	MaterialKey string    `json:"material_key"`
@@ -125,6 +131,16 @@ type ContextFactRow struct {
 	SourceID    string    `json:"source_id"`
 	Channel     string    `json:"channel"`
 	ObservedAt  time.Time `json:"observed_at"`
+	// The Story 2.15 correction state of the fact row (read-time
+	// derivation — the last correction of the fact speaks).
+	HasCorrection        bool      `json:"has_correction"`
+	CorrectionMarkerText string    `json:"correction_marker_text,omitempty"`
+	CorrectionSourceText string    `json:"correction_source_text,omitempty"`
+	CorrectionNo         int64     `json:"correction_no,omitempty"`
+	CorrectionOutcome    string    `json:"correction_outcome,omitempty"`
+	CorrectionAt         time.Time `json:"correction_at,omitempty"`
+	CorrectionSpans      []string  `json:"correction_spans,omitempty"`
+	CorrectionReason     string    `json:"correction_reason,omitempty"`
 }
 
 // ContextFactsView is the facts block: the three SEPARATE groups —

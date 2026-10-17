@@ -48,6 +48,7 @@ type Server struct {
 	degradations    casesAPI.DegradationService
 	handoffs        casesAPI.HandoffService
 	decisionContext casesAPI.DecisionContextService
+	corrections     casesAPI.CorrectionService
 	continuations   casesAPI.ContinuationService
 	tenantNamer     api.TenantNameService
 	resolver        port.PrincipalResolver

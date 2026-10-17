@@ -481,6 +481,16 @@ type WorkOutcome struct {
 	// truth of the store, the stored outcome never carries them).
 	SummaryKind   string `json:"summary_kind,omitempty"`
 	SummaryClaims int    `json:"summary_claims,omitempty"`
+	// The Story 2.15 material: the correction record of the command (the
+	// correction id with the OUTCOME word of the domain matrix gate and
+	// the span counter — the proposed value and the spans NEVER enter the
+	// stored outcome; the correction number is the server-side truth of
+	// the store, the stored outcome never carries it; the outcome word is
+	// the SERVER decision of the material key — the request never
+	// carries it).
+	CorrectionID      id.UUID `json:"correction_id,omitempty"`
+	CorrectionOutcome string  `json:"correction_outcome,omitempty"`
+	CorrectionSpans   int     `json:"correction_spans,omitempty"`
 }
 
 // FactView is one fact of the facts view: the anchor, the derived status,
