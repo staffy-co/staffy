@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	actionAPI "github.com/artemiosu/staffy/internal/action/api"
 	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
 	connectorAPI "github.com/artemiosu/staffy/internal/connector/api"
 	employeeAPI "github.com/artemiosu/staffy/internal/employee/api"
@@ -34,6 +35,7 @@ type Clock interface{ Now() time.Time }
 
 type Server struct {
 	identity        api.Service
+	actionCatalog   actionAPI.ActionCatalogService
 	employee        employeeAPI.Service
 	knowledge       employeeAPI.KnowledgeService
 	ingestion       employeeAPI.KnowledgeIngestService

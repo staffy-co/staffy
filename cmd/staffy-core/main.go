@@ -14,8 +14,12 @@ import (
         _ "time/tzdata" // IANA zones without a system zone database (the profile window validator loads zones)
 
         "github.com/artemiosu/staffy/internal/adapters/authdev"
+        "github.com/artemiosu/staffy/internal/adapters/capabilityresolver"
         "github.com/artemiosu/staffy/internal/adapters/ingresssyn"
+        "github.com/artemiosu/staffy/internal/adapters/packresolver"
         "github.com/artemiosu/staffy/internal/adapters/verificationsyn"
+        actionApp "github.com/artemiosu/staffy/internal/action/app"
+        actionCatalog "github.com/artemiosu/staffy/internal/action/catalog"
         casesApp "github.com/artemiosu/staffy/internal/cases/app"
         casesStore "github.com/artemiosu/staffy/internal/cases/store"
         connectorApp "github.com/artemiosu/staffy/internal/connector/app"
@@ -131,6 +135,12 @@ func run(logger *slog.Logger) error {
                 WithPackTaxonomy(employeeService).
                 WithIdentityVerifier(verificationsyn.New())
         transport.BindCases(casesService)
+        // The action catalog (Story 3.1): the read-only surface of the authorized
+        // action dictionary over the composition-root resolvers (the live pack
+        // and connector catalogs through the ports) and the honestly empty
+        // binary dictionary (AG-4 — the first entry appears only with a
+        // published pack connector and a fully admitted definition).
+        transport.BindActionCatalog(actionApp.New(identityService, packresolver.New(), capabilityresolver.New(), actionCatalog.All()))
         server := &http.Server{
                 Addr:              listenAddress,
                 Handler:           transport.Handler(),
