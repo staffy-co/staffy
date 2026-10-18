@@ -929,6 +929,8 @@ func main() {
 	server.BindReadiness(newReadinessFixture(profile, release, entitlement))
 	cases := newCasesFixture()
 	server.BindCases(cases)
+	actions := newActionsFixture()
+	server.BindActionCatalog(actions)
 	// The fixture-only step-up toggle wraps the transport: production never
 	// exposes it; the journey uses it to walk both step-up outcomes.
 	root := http.NewServeMux()
@@ -981,6 +983,16 @@ func main() {
 			return
 		}
 		journeyClock.setOffsetMinutes(minutes)
+		w.WriteHeader(http.StatusNoContent)
+	})
+	// The fixture-only action-catalog switch: the z29 journey walks BOTH
+	// honest contours of the read — the production binary dictionary
+	// (honestly empty — AG-4, the default state of the server) and the
+	// fixture dictionary of the slice vertical. Production never exposes
+	// it; the toggle only chooses which REAL app service serves the read.
+	root.HandleFunc("POST /fixture/actions", func(w http.ResponseWriter, r *http.Request) {
+		r.ParseForm()
+		actions.setLive(r.FormValue("enabled") == "1")
 		w.WriteHeader(http.StatusNoContent)
 	})
 	root.Handle("/", server.Handler())
