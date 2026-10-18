@@ -2814,3 +2814,16 @@ done:
 - Closure: спека 2-16 status → done + Change Log Dev-строка (шаги 01-04 поимённо, QA-вердикт, регресс, урок отображения); sprint-status.yaml 2-16 → done; Epic 2: 16/16 — ретроспектива эпика остаётся optional-строкой (по желанию владельца, отдельная операция)
 next: CHECKPOINT 2 — по сигналу владельца: push живым токеном (голова ветки = DEVLOG-коммит без маркера пропуска — push-run CI триггерится автоматически, урок 2-14) → PR ветки в main → CI ×3 (push-run + PR-run + main-run) → sha-pinned merge → DEVLOG-запись merge на main; закрытие Epic 2 (16/16) — ретроспектива по желанию владельца
 commit: 4db67b5
+
+---
+date: 2026-10-18
+task: 101-merge
+role: main (Super Z)
+story: 2-16
+summary: CHECKPOINT 2 story 2-16 ЗАВЕРШЁН — ветка слита в main: сигнал владельца «да» (токен ранней передачи чата верифицирован API до git-операций, 200, push=true); step-05 закрыт и опубликован (4db67b5 feat closure + d7cc3de DEVLOG 100, ОБЕ записи без каких-либо маркеров пропуска — голова ветки триггерит CI, урок 2-14, прецедент 2-15 ebd7f85); push 5337d35..d7cc3de RPO=0; PR #31 создан (base main, 30 файлов +4676/−3, merge-base d564f4f без конфликтов); CI ×3 ЗЕЛЁНЫЙ: push-run 39133445694 success + PR-run 39133487339 success (оба события сработали — маркеров нет) + main-run 39133938947 на merge-коммите; sha-pinned merge 96faa78 (пин d7cc3de2345cb86e559cf0416554708fd5d35caf, merge_method=merge); main синхронизирован ff-only (d564f4f..96faa78). Story 2.16 полностью завершена, Epic 2: 16/16 — все 16 историй эпика done.
+done:
+- Порядок: API-верификация токена → push (RPO=0) → PR #31 → CI ×3 → sha-pinned merge → ff-only main → DEVLOG 101 (эта запись, публикуется на main с маркером пропуска — merge уже случился, CI main-run уже триггернут merge-коммитом, тихая запись протокола 85-merge/92-merge)
+- CI ×3: push-run и PR-run на d7cc3de (голова без маркера — оба события живые), main-run на 96faa78 (merge-коммит); урок 2-14 закрыт структурно второй раз подряд (прецедент 2-15)
+- Epic 2 закрыт: 16/16 stories done (2-1..2-16); epic-2-retrospective остаётся optional-строкой sprint-status — ретроспектива эпика отдельной операцией по желанию владельца (прецедент epic-1-retrospective)
+next: Epic 3 (backlog: 3-1 каталог разрешённых business-actions) — SM-фаза первого среза по сигналу владельца; либо epic-2-retrospective по желанию
+commit: 96faa78
