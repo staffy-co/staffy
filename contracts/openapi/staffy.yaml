@@ -2868,6 +2868,29 @@ paths:
         '403': { description: 'Гейт прав ДО стражей: запись коррекции требует review или configuration (audit-only — честный 403)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
         '404': { $ref: '#/components/responses/Problem' }
         '409': { description: 'Гонка номера коррекции (stale_version — проигравший локов) / тот же ключ с иным материалом — command_key_conflict', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/update-promises:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+    post:
+      operationId: promiseUpdate
+      summary: 'Обещать обновление клиента в раунде handoff (первый срез 2.16): deadline_word — ЕДИНСТВЕННОЕ поле запроса, слово словаря {update_15m, update_1h, update_4h, update_unknown} с МАТЕРИАЛЬНОЙ честностью unknown (CHECK-пара unknown ↔ NULL-timestamp: слово без выдуманного срока НИКОГДА не несёт времени; promised_at — СЕРВЕРНАЯ истина под advisory-локами, НЕ поле запроса — strict decode отказывает); promise_no — СЕРВЕРНАЯ истина под локами (max+1, НЕ поле запроса); якорь — ОТКРЫТЫЙ lifecycle ЭТОГО кейса {requested, assigned, overdue, acknowledged} — стражи стора зеркалом слов (declined/cancelled/returned → 400); обещание НЕ гейтится владением (долг коммуникации — оператор review|configuration при любом владельце, прецедент коррекции 2.15); append-only строка (supersede derivation-only «последняя говорит») + outbox case.update_promised идентификаторами и словом (клиентский текст НИКОГДА); обещание НЕ переводит раунд в resolved (AC-3) и НЕ заменяет ответ (обновление отправляет человек существующим путём 2-4); терминальный кейс — 400 work-rule (чтение честно отдаёт историю); PRG-форма «Обещать обновление» секции «Запрос человека» ведёт тем же контуром (303 → GET ?update_promised=1#handoff)'
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PromiseUpdateRequest' }
+      responses:
+        '201': { description: 'Обещание записано (append-only, UNIQUE tenant+case+promise_no; known-слово → promised_at = now + окно сервером; unknown → NULL — выдуманный срок структурно невозможен) + outbox case.update_promised', content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа (replay исходной записи), content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { description: 'Гварды: слово вне словаря / отсутствует / promised_at в теле запроса / promise_no в теле (strict decode) / закрытый раунд зеркалом слов стора / терминальный кейс', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Гейт прав ДО стражей: обещание требует review или configuration (audit-only — честный 403)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { description: 'Гонка номера обещания (stale_version — проигравший локов) / тот же ключ с иным материалом — command_key_conflict', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
   /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/commitments:
     parameters:
       - $ref: '#/components/parameters/TenantID'
@@ -4715,6 +4738,24 @@ components:
         accommodations: { $ref: '#/components/schemas/AccommodationView', description: 'Секция «Предпочтения связи» (Story 2.11): текущий набор (read-time деривация), append-only история ревизий, словари формы записи' }
         route_degradations: { $ref: '#/components/schemas/RouteDegradationView', description: 'Секция «Состояние маршрутов» (Story 2.12): текущие деградации (read-time деривация), append-only история включая восстановления, словари формы записи' }
         handoff: { $ref: '#/components/schemas/HandoffView', description: 'Секция «Запрос человека» (Story 2.13): append-only запросы и события lifecycle (состояния/клиентские статусы — read-time деривации, назначение ≠ принятие), карточка назначенного, словари форм' }
+        waiting: { $ref: '#/components/schemas/WaitingUpdateView', description: 'Секция «Ожидание человека» (Story 2.16): клиентский статус ожидания последнего раунда тремя различениями AC-1 + состояние последнего обещания обновления (read-time деривации над согласованным снимком; блок появляется ТОЛЬКО с материалом обещаний — контрольная ветка рендерит байт-в-байт)' }
+    WaitingUpdateView:
+      type: object
+      required: [has_promise]
+      description: 'Правдивое ожидание (первый срез Story 2.16): клиентский статус ожидания тремя различениями AC-1 (ищем специалиста / назначен, ожидаем принятия / специалист принял) + честная просрочка принятия и завершение ожидания; последнее обещание раунда — слово дедлайна, обещанный срок (NULL у честного unknown — выдуманный срок НИКОГДА), read-time состояние {pending, missed, unknown, superseded, closed} — «последняя говорит» derivation-only; персоналия/эпохи/UUID НИКОГДА в клиентских текстах (анти-раскрытие AC-1: ответственный живёт в строке и конверте, не в проекции клиента)'
+      properties:
+        has_promise: { type: boolean, description: 'Материал обещаний существует — блок «Ожидание человека» рендерится только с материалом (контрольная ветка: без обещаний страница байт-в-байт прежняя)' }
+        client_status: { type: string, enum: [waiting_searching, waiting_assigned, waiting_accepted, waiting_overdue, waiting_cancelled, waiting_returned], description: 'Клиентский статус ожидания последнего раунда — словарь, деривация состояния раунда 2-13' }
+        client_status_text: { type: string, description: 'Честный текст статуса — рендер словаря, в БД/outbox только слова' }
+        promise_no: { type: integer, minimum: 1, description: 'Номер последнего обещания раунда (серверная истина под локами; читается, не запрашивается)' }
+        deadline_word: { type: string, enum: [update_15m, update_1h, update_4h, update_unknown], description: 'Слово дедлайна последнего обещания — ЕДИНСТВЕННЫЙ материал записи' }
+        deadline_text: { type: string, description: 'Честный текст слова дедлайна (рендер словаря)' }
+        promised_at: { type: string, format: date-time, description: 'Обещанный срок: known-слово → now + окно (СЕРВЕРОМ под локами); update_unknown → отсутствует (NULL — материальная пара честности FR-41)' }
+        state: { type: string, enum: [pending, missed, unknown, superseded, closed], description: 'Read-time состояние последнего обещания: missed = now > promised_at при живом раунде (латентность чтения, строка НИКОГДА не мутируется); closed = раунд закрыт; superseded — только прежние строки' }
+        state_text: { type: string, description: 'Честный текст состояния — рендер словаря' }
+        promise_line_text: { type: string, description: 'Клиентская строка обещания (композиция словаря: слово дедлайна + состояние + честный следующий шаг при missed)' }
+        missed_next_step_text: { type: string, description: 'Честный следующий шаг просрочки: обновление отправляет человек существующим ответом 2-4 — таймеров/автоотправки/эскалации Never' }
+        deadline_words: { type: array, items: { type: string, enum: [update_15m, update_1h, update_4h, update_unknown] }, description: 'Словарь дедлайн-слов формы обещания (compile-time)' }
     AssuranceView:
       type: object
       required: [state, records, allowed_methods, fallback_options, step_up_text]
@@ -4936,6 +4977,8 @@ components:
         correction_id: { type: string, format: uuid, description: 'Идентификатор записанной коррекции (Story 2.15); correction_no — серверная истина под локами, в исходе не хранится' }
         correction_outcome: { type: string, enum: [applied, disputed], description: 'Исход матричного гейта домена (СЕРВЕРНОЕ решение по material_key якоря — запрос его НЕ несёт); applied = заливка НОВОЙ версии факта без автоподтверждения, disputed = спор матричного поля без записи факта' }
         correction_spans: { type: integer, minimum: 0, description: 'Счётчик выдержек запросного материала; предложенное значение и spans НИКОГДА не входят в исход' }
+        promise_id: { type: string, format: uuid, description: 'Идентификатор записанного обещания обновления (Story 2.16); promise_no — серверная истина под локами, в исходе не хранится (читается вью ожидания)' }
+        promise_deadline_word: { type: string, enum: [update_15m, update_1h, update_4h, update_unknown], description: 'Слово дедлайна обещания — ЕДИНСТВЕННЫЙ материал записи (честное unknown включено); promised_at — серверная истина, в исходе НЕ хранится' }
     StartVerificationRequest:
       type: object
       required: [conversation_id, kind, method, provider_code, subject_handle]
@@ -5960,6 +6003,13 @@ components:
         value: { description: 'Предложенное значение — одно JSON-значение материальной дисциплины фактов 2.2 (каноническая форма, 2048 байта, цифровые литералы; экспоненциальные — отказ)' }
         spans: { type: array, maxItems: 8, items: { type: string, minLength: 1, maxLength: 600 }, description: 'Выдержки-доказательства: байт-в-байт строки источника (события ИЛИ сводки) — анти-фантазийный зонд 2.8 (1..200 рун каждая)' }
         reason: { type: string, minLength: 1, maxLength: 600, description: 'Причина коррекции — акт осознанный (1..200 рун, обязательна)' }
+    PromiseUpdateRequest:
+      type: object
+      required: [deadline_word]
+      additionalProperties: false
+      description: 'Обещание обновления (первый срез Story 2.16): deadline_word — ЕДИНСТВЕННОЕ поле запроса, слово словаря с МАТЕРИАЛЬНОЙ честностью unknown (FR-41: отсутствие подтверждённого ETA называется прямо, выдуманный срок НИКОГДА). promised_at / promise_no / request_no / actor_id — НЕ поля запроса (серверные истины под локами; якорь раунда резолвит стор; strict decode отказывает — зонд контракта пиннит отсутствие)'
+      properties:
+        deadline_word: { type: string, enum: [update_15m, update_1h, update_4h, update_unknown], description: 'Слово дедлайна следующего обновления: известное окно {15 минут, час, 4 часа} ЛИБО честное «срок неизвестен» — без выдуманного обещания' }
     RecordCaseSummaryRequest:
       type: object
       required: [kind, text, claims]

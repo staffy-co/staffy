@@ -227,6 +227,17 @@ type caseDetailPageView struct {
 	HandoffResultOptions   []workOption
 	HandoffRequestsAnchor  string
 	HandoffEventsAnchor    string
+	// The Story 2.16 section: the truthful waiting updates — the
+	// «Ожидание человека» block of the last round (the client
+	// waiting status in the three distinctions of AC-1, the state of
+	// the last promise with the honest missed next step — the
+	// dictionary texts only, the persona NEVER enters the client
+	// line) and the dictionaries of the promise form; the block
+	// renders ONLY with the promise material — the control branch
+	// renders the page byte-for-byte unchanged.
+	Waiting                waitingUpdatePanelView
+	PromiseDeadlineOptions []workOption
+	UpdatePromised         bool
 	// The Story 2.14 section: the decision context panel of the assigned
 	// operator («Контекст передачи» — the twelve read-time blocks with
 	// the honest marking of the AI summary, the staleness badge and the
@@ -451,6 +462,33 @@ type modePanelView struct {
 	HasDisclosures  bool
 	DisclosureRows  []disclosureRowView
 	CanManage       bool
+}
+
+// waitingUpdatePanelView is the «Ожидание человека» block of the case
+// page: the honest client waiting status of the last round (the
+// dictionary word with the honest text — three distinctions plus the
+// honest ending words), the state of the last promise (the word, the
+// honest promised time — the empty text of the unknown word, the
+// derived state word with the honest texts) and the honest missed next
+// step (the update is the EXTERNAL producer — the human sends it by
+// the existing reply path). The block renders ONLY with the promise
+// material: the zero view contributes NOTHING (the control branch of
+// the slice renders the page byte-for-byte unchanged).
+type waitingUpdatePanelView struct {
+	HasPromise         bool
+	ClientStatus       string
+	ClientStatusText   string
+	PromiseNo          string
+	DeadlineWord       string
+	DeadlineText       string
+	HasDeadline        bool
+	PromisedAtText     string
+	State              string
+	StateText          string
+	PromiseLineText    string
+	MissedNextStepText string
+	DeadlineOptions    []workOption
+	PromiseAnchor      string
 }
 
 // handoffRequestRow is one request row of the «Запрос человека» panel:
@@ -837,6 +875,10 @@ func prepareCaseView(r *http.Request, view casesAPI.CaseView, facts casesAPI.Fac
 	// honest status line of the section — the flag rides the URL, the
 	// error rides the flash cookie).
 	out.CorrectionRecorded = r.URL.Query().Get("correction_recorded") == "1"
+	// The Story 2.16 PRG success flag of the «Обещать обновление» form
+	// (the honest status line of the waiting section — the flag rides the
+	// URL, the error rides the flash cookie).
+	out.UpdatePromised = r.URL.Query().Get("update_promised") == "1"
 	for _, word := range casesDomain.ContinuationPurposes {
 		out.ContinuationPurposeOptions = append(out.ContinuationPurposeOptions, workOption{Value: word, Text: continuationPurposeText(word)})
 	}
@@ -1048,6 +1090,40 @@ func prepareCaseView(r *http.Request, view casesAPI.CaseView, facts casesAPI.Fac
 	}
 	for _, word := range view.Handoff.ResultWords {
 		out.HandoffResultOptions = append(out.HandoffResultOptions, workOption{Value: word, Text: casesDomain.HandoffResultText(word)})
+	}
+
+	// The Story 2.16 section: the truthful waiting updates — the
+	// «Ожидание человека» block of the last round (the client status
+	// in the three distinctions of AC-1 and the state of the last
+	// promise with the honest missed next step; the block carries the
+	// dictionary texts ONLY — the persona NEVER enters the client
+	// line, the anti-disclosure of AC-1) and the dictionaries of the
+	// promise form (the fixed compile-time words — never the invented
+	// options). The block renders ONLY with the promise material —
+	// the zero view contributes NOTHING (the control branch renders
+	// the page byte-for-byte unchanged).
+	out.Waiting = waitingUpdatePanelView{
+		HasPromise:         view.Waiting.HasPromise,
+		ClientStatus:       view.Waiting.ClientStatus,
+		ClientStatusText:   view.Waiting.ClientStatusText,
+		PromiseNo:          strconv.FormatInt(view.Waiting.PromiseNo, 10),
+		DeadlineWord:       view.Waiting.DeadlineWord,
+		DeadlineText:       view.Waiting.DeadlineText,
+		HasDeadline:        !view.Waiting.PromisedAt.IsZero(),
+		PromisedAtText:     formatTime(view.Waiting.PromisedAt),
+		State:              view.Waiting.State,
+		StateText:          view.Waiting.StateText,
+		PromiseLineText:    view.Waiting.PromiseLineText,
+		MissedNextStepText: view.Waiting.MissedNextStepText,
+		// The double-submit anchor of the promise form: the
+		// monotonic promise number of the round (0 — no promises
+		// yet; the number bumps with every new promise — the
+		// double submit of the SAME material replays honestly,
+		// the NEW promise carries the NEW anchor).
+		PromiseAnchor: strconv.FormatInt(view.Waiting.PromiseNo, 10),
+	}
+	for _, word := range view.Waiting.DeadlineWords {
+		out.PromiseDeadlineOptions = append(out.PromiseDeadlineOptions, workOption{Value: word, Text: casesDomain.UpdateDeadlineText(word)})
 	}
 
 	for _, conversation := range view.Conversations {

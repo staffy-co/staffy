@@ -376,6 +376,16 @@ type Repository interface {
 	// rows, the per-fact LAST-correction derivations are the read-time
 	// domain truth, never stored statuses).
 	ReadDecisionContextWithCorrections(ctx context.Context, scope tenancy.Context, caseID id.UUID, now time.Time) (DecisionContextMaterial, error)
+	// Story 2.16 — the waiting update state read: ReadUpdatePromiseState
+	// reads ONE consistent snapshot of the handoff lifecycle rows
+	// TOGETHER with the append-only promise rows of the case in the SAME
+	// read transaction (readUpdatePromiseStateTx joins readHandoffsTx —
+	// the client waiting status and the promise state derive read-time
+	// over the consistent material; the promises are append-only rows,
+	// the LAST-promise derivation is the read-time domain truth, never a
+	// stored status). The decision context of 2.14 is NOT touched — the
+	// case page reads both snapshots separately.
+	ReadUpdatePromiseState(ctx context.Context, scope tenancy.Context, caseID id.UUID) (UpdatePromiseMaterial, error)
 }
 
 // DecisionContextMaterial is the ONE consistent snapshot of the decision
@@ -738,6 +748,22 @@ type WorkCommandParams struct {
 	SummaryNo               int64
 	Spans                   []string
 	CorrectionOutboxEventID id.UUID
+	// The Story 2.16 material (the command-specific fields of the
+	// promise_handoff_update command): the promise row id (the
+	// append-only record of the operator act), the deadline word of
+	// the fixed dictionary (the ONLY request-carried material of the
+	// promise — the promised time and the promise number are the
+	// SERVER truths: the store computes now + window under the locks
+	// and derives the NEXT monotonic number; the requests carrying a
+	// promised time or a promise number are refused by the strict
+	// decode of the transport) and the outbox event id of the promise
+	// envelope. The round anchor is the OPEN lifecycle of THIS case —
+	// the store resolves the open round under the locks (the requests
+	// never carry the round: the store guards the belonging and the
+	// open lifecycle with its own mirror words).
+	PromiseID            id.UUID
+	PromiseDeadlineWord  string
+	PromiseOutboxEventID id.UUID
 }
 
 // ContinuationCorrectionParams is the material of one public fact
@@ -793,6 +819,20 @@ type ContinuationPanelMaterial struct {
 type HandoffMaterial struct {
 	Requests []casesDomain.HandoffRequest
 	Events   []casesDomain.HandoffEvent
+}
+
+// UpdatePromiseMaterial is the ONE consistent snapshot read of the
+// waiting update surface: the handoff lifecycle rows (the round
+// derivation input — the same material the operator card reads)
+// together with the append-only promise rows of the case ordered by
+// the monotonic promise numbers (the promise state derivation input).
+// The derivations happen read-time in the domain over the rows of one
+// round (the last promise speaks) — the material never carries a
+// stored status. The advisory locks are NOT taken: the consistent
+// snapshot of one read transaction is the honest boundary of the GET.
+type UpdatePromiseMaterial struct {
+	Handoff  HandoffMaterial
+	Promises []casesDomain.UpdatePromiseRecord
 }
 
 // ---------------------------------------------------------------------------

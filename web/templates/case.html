@@ -569,8 +569,18 @@
 
 <h2>Запрос человека — жизненный цикл передачи</h2>
 <p class="next-note" id="handoffs-panel-note" aria-live="polite">{{.View.HandoffsPanelText}}</p>
-<section class="panel" aria-label="Запрос человека">
+<section class="panel" aria-label="Запрос человека" id="handoff">
 <p id="handoffs-current" aria-live="polite"><strong>{{.View.HandoffCurrentText}}</strong> {{.View.HandoffClientText}}</p>
+{{if .View.UpdatePromised}}<p class="status" role="status" id="waiting-promised">Обещание обновления записано (append-only): строка ожидания ниже несёт слово дедлайна и честное состояние. Обещание не заменяет ответ: обновление отправляется существующим ответом клиенту.</p>{{end}}
+{{if .View.Waiting.HasPromise}}
+<section class="panel" aria-label="Ожидание человека" id="human-waiting">
+<p class="next-note" id="waiting-note" aria-live="polite">Ожидание человека — честное слово ожидания: статус тремя различениями, обещание обновления — append-only строка оператора, просрочка — производная чтения момента (обновление отправляет человек существующим ответом).</p>
+<p id="waiting-status" aria-live="polite">Статус ожидания: <strong>{{.View.Waiting.ClientStatusText}}</strong> (слово: {{.View.Waiting.ClientStatus}})</p>
+<p id="waiting-promise" role="status">Обещание обновления №{{.View.Waiting.PromiseNo}} — {{.View.Waiting.DeadlineText}} {{if .View.Waiting.HasDeadline}}Обещанный срок: {{.View.Waiting.PromisedAtText}}.{{else}}Обещанный срок не называется: честное неизвестное, без выдуманного времени.{{end}} Состояние: <strong>{{.View.Waiting.StateText}}</strong> (слово: {{.View.Waiting.State}}).</p>
+<p id="waiting-client-line" aria-live="polite">Клиенту: {{.View.Waiting.PromiseLineText}}</p>
+{{if .View.Waiting.MissedNextStepText}}<p class="status" role="status" id="waiting-missed">Обновление просрочено — решения ещё нет. {{.View.Waiting.MissedNextStepText}}</p>{{end}}
+</section>
+{{end}}
 {{if .View.HandoffCardForActor}}
 <section class="panel" aria-label="Передача ждёт вашего подтверждения" id="handoff-ack-card">
 <p role="status">Передача ждёт вашего подтверждения: {{.View.HandoffCardStateText}} Дедлайн раунда: {{.View.HandoffCardDeadline}}. Назначение — не принятие: подтвердите передачу, чтобы принять владение обращением.</p>
@@ -659,6 +669,18 @@
 <button class="primary" type="submit">Назначить раунд</button>
 </form>
 <p class="next-note">Назначение не меняет владельца: специалист увидит карточку подтверждения. Роль назначаемого машина разрешает сама из участия (оператор роль НЕ вводит). Переназначение — новое событие с новым дедлайном: человеческое решение.</p>
+</details>
+<details class="connector-connect"><summary>Обещать обновление (promise_handoff_update — честный срок или честное неизвестное)</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/update-promises">
+<label for="promise-deadline">Дедлайн следующего обновления (словарь фиксирован — честное «срок неизвестен» без выдуманного обещания)</label>
+<select id="promise-deadline" name="deadline_word" required>
+<option value="">— выберите слово дедлайна —</option>
+{{range $.View.PromiseDeadlineOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}
+</select>
+<input type="hidden" name="expected_update_promises" value="{{.View.Waiting.PromiseAnchor}}">
+<button class="primary" type="submit">Обещать обновление</button>
+</form>
+<p class="next-note">Обещание — append-only строка оператора: срок вычисляет сервер (слово unknown — без выдуманного времени, материальная пара словаря); обещание НЕ заменяет ответ и НЕ меняет владельца — обновление отправляется существующим ответом клиенту; просрочка — честное слово read-time, без автоматических таймеров и эскалации.</p>
 </details>
 <details class="connector-connect"><summary>Отменить запрос клиента (cancel_human_request — якорь отмены)</summary>
 <form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/human-requests/cancellation">

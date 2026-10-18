@@ -172,6 +172,23 @@ func (s *Server) BindCases(service casesAPI.Service) {
 		s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/facts/{fact_id}/corrections", s.recordCorrectionAPI)
 		s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/facts/{fact_id}/corrections", s.recordCorrectionForm)
 	}
+	if waitingUpdates, ok := service.(casesAPI.UpdatePromiseService); ok {
+		// The Story 2.16 surfaces: the operator update promise of the
+		// handoff round (the machine JSON POST of the case-scoped
+		// command — the deadline word is the ONLY request material, the
+		// promised time and the promise number are NEVER request fields,
+		// the strict decode refuses them; the round anchor is resolved
+		// by the store under the locks) and the PRG form «Обещать
+		// обновление» of the handoff section (POST → 303 → GET
+		// ?update_promised=1#handoff — the section position survives the
+		// anchor, the exact scroll position does not; the no-JS boundary
+		// of the slice). The narrow interface is type-asserted of the
+		// cases service (the CorrectionService precedent: the composite
+		// Service and the test fakes stay untouched).
+		s.waitingUpdates = waitingUpdates
+		s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/update-promises", s.promiseUpdateAPI)
+		s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/update-promises", s.promiseUpdateForm)
+	}
 	if continuations, ok := service.(casesAPI.ContinuationService); ok {
 		s.continuations = continuations
 		s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/continuation-links", s.issueContinuationLinkAPI)
