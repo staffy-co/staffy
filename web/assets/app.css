@@ -194,3 +194,5 @@ details summary { min-height: 44px; padding: .6rem; cursor: pointer; font-weight
 .action-risk-critical{color:#7a2e2e}
 .action-empty{border:1px dashed var(--line);border-radius:.6rem;padding:1rem;margin-top:1rem}
 .action-catalog details summary{min-height:44px}
+
+fieldset.mode-options label{flex-wrap:wrap;align-items:flex-start}
