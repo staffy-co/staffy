@@ -68,7 +68,7 @@
 <p class="next-note">Объект скоупа по видам: tenant — только собственный тенент ({{.TenantID}}); connector — идентификатор из живого реестра коннекторов; channel, policy_outcome, autonomy_class — словарные слова; service и campaign — форма [a-z0-9._-] без реестра (честная граница: словари придут с будущими модулями).</p>
 <label for="scope_ref">Объект скоупа (scope_ref)</label>
 <input id="scope_ref" name="scope_ref" type="text" value="{{.Form.Ref}}" required>
-<fieldset><legend>Режим контроля (лестница: paused наиболее безопасный)</legend>
+<fieldset class="mode-options"><legend>Режим контроля (лестница: paused наиболее безопасный)</legend>
 {{range .ModeOptions}}
 <label><input type="radio" name="mode" value="{{.Word}}" {{if eq $.Form.Mode .Word}}checked{{end}} required> <strong>{{.Word}}</strong> — {{.Description}}{{if .Dangerous}} (опасный режим: обязателен чекбокс подтверждения){{end}}</label>
 {{end}}

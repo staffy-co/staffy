@@ -931,6 +931,8 @@ func main() {
 	server.BindCases(cases)
 	actions := newActionsFixture()
 	server.BindActionCatalog(actions)
+	controls := newControlsFixture()
+	server.BindControls(controls)
 	// The fixture-only step-up toggle wraps the transport: production never
 	// exposes it; the journey uses it to walk both step-up outcomes.
 	root := http.NewServeMux()
@@ -993,6 +995,17 @@ func main() {
 	root.HandleFunc("POST /fixture/actions", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
 		actions.setLive(r.FormValue("enabled") == "1")
+		w.WriteHeader(http.StatusNoContent)
+	})
+	// The fixture-only control-world switch: the z30 journey walks BOTH
+	// honest contours of the vertical — the production-like empty world
+	// (the tenant control state lives in the PG rows the fixture server
+	// does not carry) and the seeded fixture world (two points admitted
+	// through the REAL Set at the world construction). The reset returns
+	// the empty truth; production never exposes it.
+	root.HandleFunc("POST /fixture/controls", func(w http.ResponseWriter, r *http.Request) {
+		r.ParseForm()
+		controls.setLive(r.FormValue("enabled") == "1")
 		w.WriteHeader(http.StatusNoContent)
 	})
 	root.Handle("/", server.Handler())

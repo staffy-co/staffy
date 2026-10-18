@@ -168,8 +168,13 @@ func (s *Postgres) Set(ctx context.Context, p port.SetParams) (domain.ScopedCont
 			// point never existed, the FK keeps the history truthful).
 			return domain.ScopedControl{}, domain.ErrNotFound
 		}
-		created, cerr := scanControl(tx.QueryRow(ctx, "insert into control.scoped_controls(scope_kind,scope_ref,mode,reason,actor_id,prev_mode,generation,scheduled_start_at,expires_at,state,updated_at) values($1,$2,$3,$4,$5,'',1,$6,$7,'active',$8) returning "+controlColumns,
-			p.Kind, p.Ref, p.Mode, p.Reason, actor, p.ScheduledStartAt, p.ExpiresAt, now))
+		// The tenant_id column is written EXPLICITLY from the tenancy scope: the
+		// row is NOT NULL and the RLS WITH CHECK compares it against the tenant
+		// config of the transaction â the live matrix of step-04 caught the honest
+		// omission of the unit steps (the fake repos never exercised the INSERT
+		// against the real PG).
+		created, cerr := scanControl(tx.QueryRow(ctx, "insert into control.scoped_controls(tenant_id,scope_kind,scope_ref,mode,reason,actor_id,prev_mode,generation,scheduled_start_at,expires_at,state,updated_at) values($1,$2,$3,$4,$5,$6,'',1,$7,$8,'active',$9) returning "+controlColumns,
+			p.Scope.TenantID(), p.Kind, p.Ref, p.Mode, p.Reason, actor, p.ScheduledStartAt, p.ExpiresAt, now))
 		if cerr != nil {
 			return domain.ScopedControl{}, cerr
 		}
