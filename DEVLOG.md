@@ -2734,3 +2734,17 @@ done:
 - Push живым токеном сессии (credential-helper env, remote URL чистый); check-continuity после пуша
 next: Dev step-01 — bootstrap в foreground → домен waiting_update.go (словарь дедлайн-слов {update_15m, update_1h, update_4h, update_unknown} с материальной unknown-честностью, GuardPromiseUpdate, DeriveUpdatePromiseState, DeriveClientWaitingStatus, outbox-словарь) + unit-тесты; затем шаги 02-05; CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge) — по свежему сигналу владельца
 commit: 5514389
+
+---
+date: 2026-10-18
+task: 96-dev-step-01
+role: main (Super Z)
+story: 2-16
+summary: Dev step-01 story 2-16 закрыт — домен waiting_update + unit (5e0969e [skip ci], 2 файла +966): словарь дедлайн-слов {update_15m, update_1h, update_4h, update_unknown} с материальной unknown-честностью FR-41 (UpdatePromiseDeadline: known → now+window сервером, unknown → ZERO/NULL — CHECK-пара шага-02; выдуманный timestamp НИКОГДА); DeriveUpdatePromiseState read-time последняя говорит (pending/missed/unknown/superseded/closed; missed = латентность момента без мутации строки; declined/acknowledged держат тикающим; closed = cancelled/returned; superseded derivation-only прецедент 2-15) + DeriveUpdatePromiseRowState; DeriveClientWaitingStatus — клиентский статус ожидания словарём над состояниями 2-13 (три различения AC-1 + overdue + завершение) с анти-раскрытием структурно (деривация принимает только слово состояния; персоналия/эпохи/UUID НИКОГДА; зонд UUID-паттерна/actor-непротекания); GuardPromiseUpdate + GuardUpdatePromiseTimes (48h) + UpdatePromiseRoundAccepts (якорный сет стора); UpdatePromiseRecord append-only; outbox case.update_promised идентификаторами+словом, dedup-ключ; тесты 9 функций ~40 subtest.
+done:
+- Окружение ресайклилось → bootstrap foreground повторно (Go 1.27.1, PG 54329, build/vet/unit зелёные)
+- Домен изучен живым кодом до написания: human_handoff.go (словари-прецеденты дедлайнов/состояний/клиентского статуса, DeriveHandoffState/DeriveHandoffClientStatus, гварды), correction.go (новейший стиль 2-15: закрытость словарей, StateView, outbox-периметр)
+- Дизайн-решения среза честно отражены в комментариях: якорный сет обещания {requested, assigned, overdue, acknowledged} — declined отказывает (раунд назначения потреблён, переназначение за человеком — стражи стора зеркалом слов); closed обещания = cancelled/returned (ожидание кончилось, история остаётся честной)
+- gofmt слайса тем же шагом (урок 2-13 Minor-1); регресс: build/vet ok, unit -count=1 ok, контракт ok, интеграция ×2 TZ -count=1 (UTC 20.2s / Msk 22.6s)
+next: Dev step-02 — миграция 00016 handoff_update_promises (append-only, PK (tenant, promise_id) + UNIQUE (tenant, case, promise_no), FK human_handoffs(tenant, case, request_no) ЭТОГО кейса, CHECK-пара (deadline_word = 'update_unknown') = (promised_at IS NULL), CHECK словаря, времена 2-2, RLS+FORCE, INSERT/SELECT-only) + 44-е слово команды promise_handoff_update + 31-й outbox-тип case.update_promised + TestMain-регистрация; стор store/waiting_update.go (execPromiseUpdate под advisory-локами case+conversation: стражи раунда → гварды → promise_no max+1 → promised_at сервером → INSERT → outbox; readUpdatePromiseStateTx согласованным снимком) + зонды pg_class/INSERT/периметр/outbox
+commit: 5e0969e
