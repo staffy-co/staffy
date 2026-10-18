@@ -15,6 +15,7 @@ import (
 
         "github.com/artemiosu/staffy/internal/adapters/authdev"
         "github.com/artemiosu/staffy/internal/adapters/capabilityresolver"
+        "github.com/artemiosu/staffy/internal/adapters/connectorrefresolver"
         "github.com/artemiosu/staffy/internal/adapters/ingresssyn"
         "github.com/artemiosu/staffy/internal/adapters/packresolver"
         "github.com/artemiosu/staffy/internal/adapters/verificationsyn"
@@ -25,6 +26,8 @@ import (
         connectorApp "github.com/artemiosu/staffy/internal/connector/app"
         connectorStore "github.com/artemiosu/staffy/internal/connector/store"
         connectorVerifier "github.com/artemiosu/staffy/internal/connector/verifier"
+        controlApp "github.com/artemiosu/staffy/internal/control/app"
+        controlStore "github.com/artemiosu/staffy/internal/control/store"
         entitlementApp "github.com/artemiosu/staffy/internal/entitlement/app"
         entitlementStore "github.com/artemiosu/staffy/internal/entitlement/store"
         employeeApp "github.com/artemiosu/staffy/internal/employee/app"
@@ -141,6 +144,13 @@ func run(logger *slog.Logger) error {
         // binary dictionary (AG-4 — the first entry appears only with a
         // published pack connector and a fully admitted definition).
         transport.BindActionCatalog(actionApp.New(identityService, packresolver.New(), capabilityresolver.New(), actionCatalog.All()))
+        // The scoped controls surface (Story 3.2): the operator emergency
+        // restriction module over its own PG store, the live identity gates
+        // and the connector ref resolution through the consumer-owned port
+        // (the composition-root adapter over the live 1-8 catalog — the
+        // packresolver/capabilityresolver precedent of 3.1).
+        controlService := controlApp.New(controlStore.NewPostgres(pool), identityService, connectorrefresolver.New(), clock, ids)
+        transport.BindControls(controlService)
         server := &http.Server{
                 Addr:              listenAddress,
                 Handler:           transport.Handler(),

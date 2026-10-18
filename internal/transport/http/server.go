@@ -16,6 +16,7 @@ import (
 	actionAPI "github.com/artemiosu/staffy/internal/action/api"
 	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
 	connectorAPI "github.com/artemiosu/staffy/internal/connector/api"
+	controlAPI "github.com/artemiosu/staffy/internal/control/api"
 	employeeAPI "github.com/artemiosu/staffy/internal/employee/api"
 	entitlementAPI "github.com/artemiosu/staffy/internal/entitlement/api"
 	"github.com/artemiosu/staffy/internal/identity/api"
@@ -36,6 +37,7 @@ type Clock interface{ Now() time.Time }
 type Server struct {
 	identity        api.Service
 	actionCatalog   actionAPI.ActionCatalogService
+	controls        controlAPI.ControlService
 	employee        employeeAPI.Service
 	knowledge       employeeAPI.KnowledgeService
 	ingestion       employeeAPI.KnowledgeIngestService

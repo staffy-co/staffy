@@ -1,0 +1,113 @@
+{{define "controls"}}
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Аварийное ограничение работы · Staffy</title><link rel="stylesheet" href="/assets/app.css"></head>
+<body><a class="skip-link" href="#main">К основному содержанию</a><header class="topbar"><a class="brand" href="/app/tenants/{{.TenantID}}">Staffy</a><strong>Пространство → Аварийное ограничение работы</strong></header>
+<div class="shell"><nav aria-label="Основная навигация"><a href="/app/tenants/{{.TenantID}}">Сегодня</a><a href="/app/tenants/{{$.TenantID}}/people">Участники</a></nav><main id="main"><section class="panel">
+<h1>Аварийное ограничение работы</h1>
+<p>Контрольные точки останавливают или ограничивают работу маршрута точечно — без отключения всей платформы. Чтение и изменение требуют полномочия operations; изменение дополнительно требует подтверждённой личности (step-up) и причины. Режимы контроля — accept, intake_only/no_promises, human_only, paused — это НЕ режимы разговора и НЕ классы автономии: контроль ограничивает работу маршрута, пересечение нескольких точек даёт наиболее строгое правило.</p>
+{{if .Notice}}<p class="status" role="status" tabindex="-1" id="page-notice">{{.Notice}}</p><script>addEventListener('DOMContentLoaded', () => document.getElementById('page-notice').focus());</script>{{end}}
+{{if .Error}}<p class="alert" role="alert">{{.Error}}</p>{{end}}
+{{if .Conflict}}
+<section class="control-conflict" aria-labelledby="conflict-heading">
+<h2 id="conflict-heading">Конкурентное изменение</h2>
+<p>Ожидаемое вами поколение {{.Conflict.ExpectedGeneration}} не совпало: точку изменил другой оператор. Ниже актуальное состояние — форма заполнена актуальным поколением, проверьте материал и подтвердите изменение повторно.</p>
+<ul class="action-catalog">
+<li class="action-card">
+<strong>Актуальный режим: {{.Conflict.Current.Mode}}</strong>
+<span>Скоуп: {{.Conflict.Current.ScopeKind}}:{{.Conflict.Current.ScopeRef}}</span>
+<span>{{.Conflict.Current.ModeDescription}}</span>
+<span>Поколение: {{.Conflict.Current.Generation}}</span>
+<span>Состояние: {{.Conflict.Current.StateText}}</span>
+<span>Причина последнего изменения: {{.Conflict.Current.Reason}}</span>
+<span>Окно действия: {{.Conflict.Current.WindowText}}</span>
+</li>
+</ul>
+</section>
+{{end}}
+{{if .HasCards}}
+<h2>Контрольные точки</h2>
+<ul class="action-catalog">
+{{range .Cards}}
+<li class="action-card">
+<strong>Режим: {{.Mode}}</strong>
+<span>Скоуп: {{.ScopeKind}}:{{.ScopeRef}}</span>
+<span>{{.ModeDescription}}</span>
+{{if .Corrupted}}<span class="form-error">Хранимое значение режима повреждено: читается как paused — наиболее безопасный применимый, допуск не расширяется.</span>{{end}}
+<span>Владелец изменения: {{.ActorID}}</span>
+<span>Поколение: {{.Generation}}</span>
+<span>Состояние: {{.StateText}}</span>
+<span>Причина: {{.Reason}}</span>
+<span>Окно действия: {{.WindowText}}</span>
+<span>Изменено: {{.UpdatedText}}</span>
+{{if .PrevMode}}<span>Предыдущий режим: {{.PrevMode}}</span>{{end}}
+<details><summary>Снять контрольную точку</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/controls/resume">
+<input type="hidden" name="scope_kind" value="{{.ScopeKind}}">
+<input type="hidden" name="scope_ref" value="{{.ScopeRef}}">
+<input type="hidden" name="expected_generation" value="{{.Generation}}">
+<label for="resume-reason-{{.ScopeKind}}-{{.ScopeRef}}">Причина снятия (обязательна)</label>
+<textarea id="resume-reason-{{.ScopeKind}}-{{.ScopeRef}}" name="reason" required></textarea>
+<label><input type="checkbox" name="confirm_resume" value="yes" required> Подтверждаю возобновление маршрута: точка перестанет действовать, история и аудит сохранятся, поколение вырастет</label>
+<button class="primary" type="submit">Снять точку</button>
+</form>
+</details>
+</li>
+{{end}}
+</ul>
+{{else}}
+<section class="action-empty" aria-labelledby="controls-empty-heading">
+<h2 id="controls-empty-heading">Контрольных точек нет</h2>
+<p class="next-note">{{.EmptyText}}</p>
+</section>
+{{end}}
+<h2 id="set-heading">Установить контрольную точку</h2>
+<form method="post" action="/app/tenants/{{.TenantID}}/controls">
+<label for="scope_kind">Вид скоупа</label>
+<select id="scope_kind" name="scope_kind" required>
+{{range .KindOptions}}<option value="{{.}}" {{if eq $.Form.Kind .}}selected{{end}}>{{.}}</option>{{end}}
+</select>
+<p class="next-note">Объект скоупа по видам: tenant — только собственный тенент ({{.TenantID}}); connector — идентификатор из живого реестра коннекторов; channel, policy_outcome, autonomy_class — словарные слова; service и campaign — форма [a-z0-9._-] без реестра (честная граница: словари придут с будущими модулями).</p>
+<label for="scope_ref">Объект скоупа (scope_ref)</label>
+<input id="scope_ref" name="scope_ref" type="text" value="{{.Form.Ref}}" required>
+<fieldset><legend>Режим контроля (лестница: paused наиболее безопасный)</legend>
+{{range .ModeOptions}}
+<label><input type="radio" name="mode" value="{{.Word}}" {{if eq $.Form.Mode .Word}}checked{{end}} required> <strong>{{.Word}}</strong> — {{.Description}}{{if .Dangerous}} (опасный режим: обязателен чекбокс подтверждения){{end}}</label>
+{{end}}
+</fieldset>
+<label><input type="checkbox" name="confirm_dangerous" value="yes" {{if .Form.ConfirmDangerous}}checked{{end}}> Подтверждаю установку опасного режима (обязательно для paused и human_only)</label>
+<label for="reason">Причина (обязательна, 1–500 символов)</label>
+<textarea id="reason" name="reason" required>{{.Form.Reason}}</textarea>
+<label for="expected_generation">Ожидаемое поколение (0 — первая установка)</label>
+<input id="expected_generation" name="expected_generation" type="number" min="0" value="{{if .Form.ExpectedGeneration}}{{.Form.ExpectedGeneration}}{{else}}0{{end}}" required>
+<label for="scheduled_start_at">Начало окна действия (RFC3339, необязательно)</label>
+<input id="scheduled_start_at" name="scheduled_start_at" type="text" value="{{.Form.ScheduledStart}}" placeholder="2026-10-19T12:00:00Z">
+<label for="expires_at">Окончание окна действия (RFC3339, необязательно)</label>
+<input id="expires_at" name="expires_at" type="text" value="{{.Form.Expires}}" placeholder="2026-10-20T12:00:00Z">
+<p class="next-note">Окно читается в момент вычисления: запланированная в будущем точка ещё не действует, истёкшая больше не действует — истечение идемпотентно. Поколение монотонно: снятие и повторная установка не сбрасывают его.</p>
+<button class="primary" type="submit">Установить контроль</button>
+</form>
+<h2 id="calc-heading">Вычислитель итогового режима</h2>
+<form method="get" action="/app/tenants/{{.TenantID}}/controls">
+<label for="keys">Скоуп-ключи маршрута — по одному kind:ref на строку</label>
+<textarea id="keys" name="keys" placeholder="connector:staffy-synthetic-telephony&#10;tenant:{{.TenantID}}">{{.CalcKeys}}</textarea>
+<button class="primary" type="submit">Вычислить итог</button>
+</form>
+{{if .HasCalc}}
+<section aria-labelledby="calc-result-heading">
+<h3 id="calc-result-heading">Итоговый режим: {{.Calc.Mode}}</h3>
+<p>{{.Calc.ModeDescription}}</p>
+{{if .Calc.Unrestricted}}
+<p>Маршрут не ограничен: контрольных точек на этих объектах нет — отсутствие контроля означает accept.</p>
+{{else}}
+<p>Повлиявшие точки (полный провенанс, не только победитель):</p>
+<ul class="action-catalog">
+{{range .Calc.Influencing}}<li class="action-card"><strong>{{.ScopeKind}}:{{.ScopeRef}}</strong><span>Режим: {{.Mode}}</span><span>Поколение: {{.Generation}}</span><span>Причина: {{.Reason}}</span></li>{{end}}
+</ul>
+<p>Причина победившего правила: {{.Calc.Reason}}</p>
+<p>Слова пересечения (порядок лестницы): {{.Calc.IntersectionText}}</p>
+{{end}}
+{{if .Calc.Corrupted}}<p class="form-error" role="alert">Хотя бы одна повлиявшая точка хранит повреждённое значение режима: оно читается как paused — наиболее безопасный применимый, допуск не расширяется.</p>{{end}}
+</section>
+{{end}}
+</section></main></div>
+</body></html>
+{{end}}

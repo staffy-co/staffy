@@ -3131,6 +3131,91 @@ paths:
         '401': { $ref: '#/components/responses/Problem' }
         '403': { $ref: '#/components/responses/Problem' }
         '404': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/controls:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+    get:
+      operationId: listScopedControls
+      summary: 'Контрольные точки тенента (3.2, первый срез): обе стороны истории — действующие и снятые (снятие НЕ удаление); чтение под скоупом operations, mutations дополнительно требуют step-up и причину'
+      x-staffy-principal-required: true
+      responses:
+        '200':
+          description: 'Все точки тенента; пустой список — честное состояние (маршруты не ограничены), НЕ дефект'
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [controls]
+                properties:
+                  controls: { type: array, items: { $ref: '#/components/schemas/ScopedControlView' } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+    post:
+      operationId: setScopedControl
+      summary: 'Установить/переустановить контрольную точку: гейты ПО ПОРЯДКУ (membership-404 ДО материала → скоуп operations 403 словами → step-up → словарный guard ДО транзакции); ОДНА транзакция (строка + append-only аудит исходом applied|conflict + outbox scoped_control.changed); поколение монотонно; конкурентный конфликт = 409 (повторное подтверждение по материалу, обе попытки в аудите); идемпотентный ключ НЕ используется — конкурентность честная оптимистичная (expected_generation)'
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetScopedControlRequest' }
+      responses:
+        '200': { description: 'Точка установлена: состояние, поколение (первая установка = 1, переустановка продолжает ряд)', content: { application/json: { schema: { type: object, required: [control], properties: { control: { $ref: '#/components/schemas/ScopedControlView' } } } } } }
+        '400': { description: 'Словарные отказы ДО транзакции: вид скоупа / форма ref / слово режима (intake_only/no_promises дословно) / причина обязательна / окно пусто или перевёрнуто; строгий decode (один объект, известные поля)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Скоуп operations словами ДО материала / step-up требуется (опасная операторская поверхность AC-4)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { description: 'Не-участник тенента — поверхность не раскрывается', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '409': { description: 'Конфликт поколений (generation_conflict): перечитайте актуальное состояние и подтвердите повторно — вторая попытка НЕ молча отброшена, обе строки в аудите (AC-11)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/controls/effective:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - name: scope
+        in: query
+        required: true
+        description: 'Повторяемый скоуп-ключ маршрута kind:ref (максимум 16 — MaxScopeKeys домена); словарная дисциплина каждого ключа: мусор = 400, НЕ молчаливый пустой матч'
+        schema:
+          type: array
+          minItems: 1
+          maxItems: 16
+          items: { type: string, minLength: 3, pattern: '^[a-z_]+:[a-z0-9._-]+$' }
+    get:
+      operationId: computeEffectiveControls
+      summary: 'Итоговый режим маршрута (AC-3): наиболее ограничивающее пересечение (ранг-максимум — более узкое разрешение НЕ отменяет широкую блокировку) с провенансом ВСЕХ повлиявших и причиной победившего правила; отсутствующие controls = accept; чтение под скоупом operations; enforcement-точки будущего (admission/dispatch/разговорный движок) потребляют этот read-API вместе с поколениями'
+      x-staffy-principal-required: true
+      responses:
+        '200':
+          description: 'Пересечение ранг-максимум с провенансом; окна чтение-временные: scheduled-будущее не действует, истёкший не действует (истечение идемпотентно by construction)'
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [effective]
+                properties:
+                  effective: { $ref: '#/components/schemas/EffectiveControlView' }
+        '400': { description: 'Словарные отказы ключей (неизвестный вид / ref вне словаря или формы / больше 16) — чтение НЕ превращается в молчаливый пустой матч', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/controls/resume:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+    post:
+      operationId: resumeScopedControl
+      summary: 'Снять контрольную точку (resume = снятие, НЕ удаление): state=removed, поколение РАСТЁТ (снятие — изменение состояния), история/аудит остаются, повторная установка продолжает монотонный ряд; те же гейты по порядку + step-up; повторное снятие уже-removed = словарный 400 (no-op не притворяется изменением); DELETE-пути НЕ существует'
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ResumeScopedControlRequest' }
+      responses:
+        '200': { description: 'Точка снята: state=removed, поколение выросло, история сохранена', content: { application/json: { schema: { type: object, required: [control], properties: { control: { $ref: '#/components/schemas/ScopedControlView' } } } } } }
+        '400': { description: 'Словарные отказы (вид/ref/причина; повторное снятие уже-removed); строгий decode', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Скоуп operations словами / step-up требуется', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { description: 'Не-участник / точка не существует — снимать нечего', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '409': { description: 'Конфликт поколений: перечитайте актуальное состояние и подтвердите повторно (AC-11)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
 components:
   parameters:
     EmployeeID:
@@ -6245,6 +6330,74 @@ components:
         terminal_evidence: { type: string, minLength: 1, description: 'Отсутствие слова = запрет' }
         reconciliation_query: { type: string, minLength: 1, description: 'Идентификатор capability сверки' }
         cancel_compensation_semantics: { type: string, minLength: 1, description: 'Отсутствие слова = запрет' }
+    ScopedControlView:
+      type: object
+      additionalProperties: false
+      required: [scope_kind, scope_ref, mode, corrupted, reason, actor_id, prev_mode, generation, scheduled_start_at, expires_at, state, updated_at]
+      description: 'Контрольная точка (3.2): scope-пара + режим + причина + владелец + монотонное поколение + чтение-временное окно + состояние; снятая точка — история, не отсутствие; mode — SAFE-чтение: испорченное значение читается paused (наиболее безопасный применимый, fail-closed), пометка corrupted честна'
+      properties:
+        scope_kind: { type: string, enum: [tenant, connector, channel, service, policy_outcome, autonomy_class, campaign], description: 'Закрытый словарь семи слов (порядок = детерминированный tie-break)' }
+        scope_ref: { type: string, minLength: 1, maxLength: 120, description: 'По виду: tenant — материальное равенство собственного тенента (AC-1); connector — слово живого реестра 1-8; channel — ControlScopeRefChannel; policy_outcome — ControlScopeRefPolicyOutcome; autonomy_class — ControlScopeRefAutonomyClass; service/campaign — форма [a-z0-9._-] честной границей без реестра' }
+        mode: { type: string, enum: [accept, intake_only/no_promises, human_only, paused], description: 'Слова AD-12 ДОСЛОВНО: слэш intake_only/no_promises — часть слова, переименование запрещено зеркальной дисциплиной; порядок перечисления нормативен (accept наименее, paused наиболее безопасный)' }
+        corrupted: { type: boolean, description: 'Хранимое слово вне словаря: чтение отдало paused — повреждение НИКОГДА не расширяет допуск' }
+        reason: { type: string, minLength: 1, maxLength: 500, description: 'Причина последнего изменения дословно (обязательна на каждой мутации)' }
+        actor_id: { type: string, format: uuid, description: 'Оператор последнего изменения' }
+        prev_mode: { type: string, enum: ['', accept, intake_only/no_promises, human_only, paused], description: 'Режим до последнего изменения; пусто при первой установке; resume сохраняет снятое слово как материал истории' }
+        generation: { type: integer, format: int64, minimum: 1, description: 'Монотонная версия СОСТОЯНИЯ: растёт на установку И снятие, НИКОГДА не сбрасывается — переустановка не притворяется старым поколением (stale-детекция будущего не обманывается)' }
+        scheduled_start_at: { type: string, format: date-time, nullable: true, description: 'Окно [start, expires): null = без границы; чтение-временная семантика — запланированное будущее не действует' }
+        expires_at: { type: string, format: date-time, nullable: true, description: 'Истёкший не действует; истечение идемпотентно by construction (пересчёт по оставшимся, снимков нет)' }
+        state: { type: string, enum: [active, removed], description: 'Снятие НЕ удаление: removed — живое состояние истории' }
+        updated_at: { type: string, format: date-time, description: 'UTC, RFC3339' }
+    EffectiveControlView:
+      type: object
+      additionalProperties: false
+      required: [mode, influencing, reason, intersection, corrupted]
+      description: 'Итоговый режим маршрута (AC-3): наиболее ограничивающее пересечение (ранг-максимум); провенанс ВСЕХ повлиявших, НЕ только победителя; отсутствующие controls = accept (маршрут не ограничен — честное пустое состояние)'
+      properties:
+        mode: { type: string, enum: [accept, intake_only/no_promises, human_only, paused], description: 'Пересечение ранг-максимум: более узкое разрешение НЕ отменяет более широкую блокировку' }
+        influencing: { type: array, items: { $ref: '#/components/schemas/ScopedControlView' }, description: 'Каждая действующая в момент чтения точка маршрута (окно-фильтр)' }
+        reason: { type: string, description: 'Причина самого ограничивающего правила (пусто, когда ничего не ограничивает)' }
+        intersection: { type: array, items: { type: string, enum: [accept, intake_only/no_promises, human_only, paused] }, description: 'Слова пересечения в порядке лестницы, без повторов — читатель видит ЧТО встретилось, не только победителя' }
+        corrupted: { type: boolean, description: 'Хотя бы одна повлиявшая точка хранит испорченное слово: читается paused, допуск не расширяется' }
+    SetScopedControlRequest:
+      type: object
+      additionalProperties: false
+      required: [scope_kind, scope_ref, mode, reason, expected_generation]
+      description: 'Установка/переустановка точки: словарная валидация ДО транзакции (отказ = 400 без аудита); expected_generation 0 адресует несуществующую точку (первая установка); конкурентность оптимистичная — несовпадение = 409 с материалом актуального состояния (AC-11)'
+      properties:
+        scope_kind: { type: string, enum: [tenant, connector, channel, service, policy_outcome, autonomy_class, campaign] }
+        scope_ref: { type: string, minLength: 1, maxLength: 120, pattern: '^[a-z0-9._-]+$', description: 'По видам: tenant — собственный id; connector — живой реестр; channel/policy_outcome/autonomy_class — словарные слова (зеркала-схемы ниже); service/campaign — форма без реестра' }
+        mode: { type: string, enum: [accept, intake_only/no_promises, human_only, paused] }
+        reason: { type: string, minLength: 1, maxLength: 500, description: 'Причина обязательна: пустая = отказ' }
+        expected_generation: { type: integer, format: int64, minimum: 0, description: '0 = первая установка; ненулевое ожидание несуществующей точки = честный 404' }
+        scheduled_start_at: { type: string, format: date-time, nullable: true }
+        expires_at: { type: string, format: date-time, nullable: true, description: 'Окно обязано быть непустым неперевёрнутым [start, expires)' }
+    ResumeScopedControlRequest:
+      type: object
+      additionalProperties: false
+      required: [scope_kind, scope_ref, reason, expected_generation]
+      description: 'Снятие точки (resume): состояние removed, поколение растёт, история/аудит остаются; точка обязана существовать (404 иначе); повторное снятие уже-removed = словарный 400'
+      properties:
+        scope_kind: { type: string, enum: [tenant, connector, channel, service, policy_outcome, autonomy_class, campaign] }
+        scope_ref: { type: string, minLength: 1, maxLength: 120, pattern: '^[a-z0-9._-]+$' }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+        expected_generation: { type: integer, format: int64, minimum: 1, description: 'Точка материальна: ожидание обязано адресовать существующее поколение' }
+    ControlScopeRefChannel:
+      type: string
+      enum: [phone, web_chat, telegram, whatsapp, email, max, jivo, avito, mobile_app_chat]
+      description: 'Допустимые scope_ref вида channel: зеркало девяти каналов cases (пиннится контракт-тестом против живого словаря — дрейф = красный тест)'
+    ControlScopeRefPolicyOutcome:
+      type: string
+      enum: [commercial_answer, informational_answer, clarify, mode_blocked, degraded_mode, fail_closed]
+      description: 'Допустимые scope_ref вида policy_outcome: зеркало классов исходов 2-6 (живой источник, degraded_mode вошёл в 2-12)'
+    ControlScopeRefAutonomyClass:
+      type: string
+      enum: [shadow, copilot, assisted, auto, exception]
+      description: 'Допустимые scope_ref вида autonomy_class: пять слов FR-42 (зеркало против action-домена 3-1)'
+    ControlAuditOutcome:
+      type: string
+      enum: [applied, conflict]
+      description: 'Исходы append-only аудита миграции control/00001 (слова CHECK): КОНФЛИКТ тоже первая строка истории — обе конкурентные попытки материальны (AC-11); read-поверхность аудита — будущие срезы'
   responses:
     Problem:
       description: Безопасная ошибка
