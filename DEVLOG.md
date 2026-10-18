@@ -2721,3 +2721,16 @@ done:
 - Ветка codex/story-2-16-truthful-waiting-updates создана от main, коммит спеки [skip ci], push по живому токену сессии (RPO=0, прецедент 86-sm)
 next: CHECKPOINT 1 — явное одобрение владельцем спеки (дисциплина 52-sm: отдельным ответом; прецеденты d111a0d/108f3fe/d3bbf39/8e9f191); после одобрения: спека+sprint-status → ready-for-dev, затем Dev step-01 (bootstrap → домен waiting_update.go + unit); в конце истории CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge — свежий токен)
 commit: 9967ecbc
+---
+date: 2026-10-18
+task: 95-checkpoint-1
+role: main (Super Z)
+story: 2-16
+summary: CHECKPOINT 1 story 2-16 закрыт: одобрение владельца «подтверждаю» (2026-10-18, отдельным ответом — дисциплина 52-sm; прецеденты 2-15 8e9f191 / 2-14 d3bbf39 / 2-13 108f3fe / 2-12 d111a0d); спека+sprint-status → ready-for-dev (дифф +3/−2 ровно status + Change Log, замороженные секции Intent/Boundaries/Matrix не тронуты — форма прецедента 8e9f191); отличие от прецедента 2-15 честно отражено: токен публикации ЖИВ в сессии (верифицирован API ДО git-операций: login artemiosu, репо staffy private, push=true, маска github_pat_***; прецедент 91-93/94-sm — токен ранней передачи того же чата) — коммиты чекпоинта запушены немедленно, RPO=0; Epic 2: 15/16 done + 2-16 ready-for-dev.
+done:
+- Позиция восстановлена по worklog/git/DEVLOG 94-sm (сводка сессии устарела — порядок доверия git > DEVLOG > сводка): 2-15 полностью завершена merge ece16f2, 2-16 SM-фаза закрыта, ветка = origin = 95059f7, ожидание CHECKPOINT 1
+- Спека 2-16: status → ready-for-dev + Change Log-запись чекпоинта (5514389)
+- sprint-status: 2-16 → ready-for-dev
+- Push живым токеном сессии (credential-helper env, remote URL чистый); check-continuity после пуша
+next: Dev step-01 — bootstrap в foreground → домен waiting_update.go (словарь дедлайн-слов {update_15m, update_1h, update_4h, update_unknown} с материальной unknown-честностью, GuardPromiseUpdate, DeriveUpdatePromiseState, DeriveClientWaitingStatus, outbox-словарь) + unit-тесты; затем шаги 02-05; CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge) — по свежему сигналу владельца
+commit: 5514389
