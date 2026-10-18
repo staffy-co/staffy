@@ -121,6 +121,21 @@ type decisionContextFactRow struct {
 	Version        string
 	ProvenanceText string
 	ObservedText   string
+	// The Story 2.15 correction state of the row (read-time derivation —
+	// the last correction of the fact speaks): the marker with the honest
+	// boundary, the source line, the number, the outcome word, the time,
+	// the span counter (the spans render behind the disclosure) and the
+	// reason. No corrections is the zero state — the row renders
+	// byte-identically (the markers appear only with the material).
+	HasCorrection        bool
+	MarkerText           string
+	SourceText           string
+	CorrectionNo         string
+	CorrectionOutcome    string
+	CorrectionAtText     string
+	CorrectionSpansCount string
+	Spans                []string
+	CorrectionReason     string
 }
 
 type decisionContextFactsPanel struct {
@@ -406,10 +421,25 @@ func decisionContextPanelOf(view casesAPI.DecisionContextView) decisionContextPa
 	}
 	appendContextFacts := func(rows []casesAPI.ContextFactRow, target *[]decisionContextFactRow) {
 		for _, row := range rows {
-			*target = append(*target, decisionContextFactRow{
+			panelRow := decisionContextFactRow{
 				RowID: row.FactID, MaterialKey: row.MaterialKey, Status: row.Status, StatusText: row.StatusText,
 				Version: formatCounter(row.VersionNo), ProvenanceText: factProvenanceText(row), ObservedText: formatTime(row.ObservedAt),
-			})
+			}
+			// The Story 2.15 correction state of the row: the read-time
+			// derivation of the consistent snapshot (the zero state
+			// renders the row untouched — the control branch).
+			if row.HasCorrection {
+				panelRow.HasCorrection = true
+				panelRow.MarkerText = row.CorrectionMarkerText
+				panelRow.SourceText = row.CorrectionSourceText
+				panelRow.CorrectionNo = formatCounter(row.CorrectionNo)
+				panelRow.CorrectionOutcome = row.CorrectionOutcome
+				panelRow.CorrectionAtText = formatTime(row.CorrectionAt)
+				panelRow.CorrectionSpansCount = correctionSpanCountText(row.CorrectionSpans)
+				panelRow.Spans = append([]string{}, row.CorrectionSpans...)
+				panelRow.CorrectionReason = row.CorrectionReason
+			}
+			*target = append(*target, panelRow)
 		}
 	}
 	appendContextFacts(view.Facts.Confirmed, &panel.Facts.Confirmed)

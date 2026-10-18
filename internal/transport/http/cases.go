@@ -157,6 +157,21 @@ func (s *Server) BindCases(service casesAPI.Service) {
 		s.mux.HandleFunc("GET /v1/tenants/{tenant_id}/cases/{case_id}/decision-context", s.decisionContextAPI)
 		s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/summaries", s.recordCaseSummaryAPI)
 	}
+	if corrections, ok := service.(casesAPI.CorrectionService); ok {
+		// The Story 2.15 surfaces: the operator correction record (the
+		// machine JSON POST of the fact-scoped command — the outcome is
+		// NEVER a request field, the strict decode refuses it; the
+		// correction number is the server truth under the locks) and
+		// the PRG form «Исправить» of the fact row (POST → 303 → GET
+		// #decision-context — the section position survives the anchor,
+		// the exact scroll position does not; the no-JS boundary of the
+		// slice). The narrow interface is type-asserted of the cases
+		// service (the DecisionContextService precedent: the composite
+		// Service and the test fakes stay untouched).
+		s.corrections = corrections
+		s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/facts/{fact_id}/corrections", s.recordCorrectionAPI)
+		s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/facts/{fact_id}/corrections", s.recordCorrectionForm)
+	}
 	if continuations, ok := service.(casesAPI.ContinuationService); ok {
 		s.continuations = continuations
 		s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/continuation-links", s.issueContinuationLinkAPI)

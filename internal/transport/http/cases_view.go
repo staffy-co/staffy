@@ -234,6 +234,11 @@ type caseDetailPageView struct {
 	// material exists — the open handoff or the recorded summary, the
 	// honest absence of both renders the unchanged page byte-for-byte).
 	DecisionContext decisionContextPanelView
+	// The Story 2.15 flag: the PRG success of the «Исправить» form (the
+	// 303 lands on the #decision-context anchor — the honest status line
+	// of the append-only record: the pour is NEVER an automatic
+	// confirmation, the matrix field disputes without a rewrite).
+	CorrectionRecorded bool
 }
 
 // assurancePanelView is the assurance section of the case page: the derived
@@ -828,6 +833,10 @@ func prepareCaseView(r *http.Request, view casesAPI.CaseView, facts casesAPI.Fac
 	// options).
 	out.ContinuationsPanelText = view.Continuations.PanelText
 	out.ContinuationRevoked = r.URL.Query().Get("continuation_revoked") == "1"
+	// The Story 2.15 PRG success flag of the «Исправить» form (the
+	// honest status line of the section — the flag rides the URL, the
+	// error rides the flash cookie).
+	out.CorrectionRecorded = r.URL.Query().Get("correction_recorded") == "1"
 	for _, word := range casesDomain.ContinuationPurposes {
 		out.ContinuationPurposeOptions = append(out.ContinuationPurposeOptions, workOption{Value: word, Text: continuationPurposeText(word)})
 	}

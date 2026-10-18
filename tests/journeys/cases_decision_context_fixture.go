@@ -201,7 +201,11 @@ func (f *casesFixture) DecisionContext(_ context.Context, actor domain.Principal
 	}
 	input := f.fixtureDecisionContextInput(caseID, timeNow())
 	view := casesDomain.DeriveDecisionContext(input)
-	return fixtureDecisionContextViewOf(view), nil
+	out := fixtureDecisionContextViewOf(view)
+	// The Story 2.15 correction state of the fact rows (the app
+	// attach mirror — the LAST correction of each fact speaks).
+	fixtureAttachCorrections(&out, f.corrections[caseID], timeNow())
+	return out, nil
 }
 
 // fixtureDecisionContextInput gathers the material snapshot of the case

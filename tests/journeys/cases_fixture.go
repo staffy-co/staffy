@@ -174,6 +174,15 @@ type casesFixture struct {
 	summaries  map[id.UUID][]casesDomain.RecordedSummary
 	summarySeq int
 
+	// The Story 2.15 correction material: the append-only correction
+	// rows per case (the correction state of the fact rows is the
+	// read-time derivation over the REAL domain function — never stored;
+	// the correction number is the fixture-owned monotonic truth, the
+	// requests never carry it; the outcome is the REAL matrix-gate
+	// decision by the material key of the anchor).
+	corrections   map[id.UUID][]casesDomain.CorrectionRecord
+	correctionSeq int
+
 	caseNo, conversationNo int64
 	eventSeq               int
 	workSeq, exceptionSeq  int
@@ -259,6 +268,8 @@ func newCasesFixture() *casesFixture {
 		handoffEvents: map[id.UUID][]casesDomain.HandoffEvent{},
 		// The Story 2.14 material:
 		summaries: map[id.UUID][]casesDomain.RecordedSummary{},
+		// The Story 2.15 material:
+		corrections: map[id.UUID][]casesDomain.CorrectionRecord{},
 	}
 }
 

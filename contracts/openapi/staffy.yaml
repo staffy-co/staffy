@@ -2844,6 +2844,30 @@ paths:
         '403': { description: 'Гейт прав ДО стражей: запись сводки требует review или configuration', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
         '404': { $ref: '#/components/responses/Problem' }
         '409': { description: 'Гонка номера сводки (stale_version — проигравший локов) / тот же ключ с иным материалом — command_key_conflict', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/facts/{fact_id}/corrections:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - $ref: '#/components/parameters/FactID'
+    post:
+      operationId: recordCorrection
+      summary: 'Записать операторскую коррекцию факта (первый срез 2.15): пин ТОЧНОЙ версии [1..версий] (оптимистическая конкурентность AC-8: вторая коррекция той же версии — вторая строка и вторая версия факта, молчаливой перезаписи нет); proposed_value — материальная дисциплина фактов 2.2 (одно каноническое JSON-значение); spans 0..8 × 1..200 рун — байт-в-байт выдержки источника (0 = события кейса, summary_no >= 1 = текст ТОЧНОЙ сводки — анти-фантазийный зонд 2.8); reason 1..200 рун обязательный; ИСХОД — НЕ поле запроса: матричный гейт домена решает по material_key якоря (price/availability/order_status → disputed БЕЗ записи факта — значение Owning System не переписывается; прочий ключ → applied = заливка НОВОЙ версии факта существующим record_fact-контуром, source_id correction:<id>, НИКОГДА не автоподтверждение — конфликт читается read-time, разрешение = confirm_fact_version человеком); коррекция НЕ гейтится владением разговором (долг корректности — доступна оператору review|configuration при любом владельце); correction_no — СЕРВЕРНАЯ истина под advisory-локами case+conversation+факт-ключи; append-only строка + outbox case.correction_recorded идентификаторами и словарными словами (proposed_value и spans НИКОГДА); терминальный кейс — 400 work-rule (чтение честно отдаёт материал); PRG-форма «Исправить» на строке факта страницы кейса ведёт тем же контуром (303 → GET #decision-context)'
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecordCorrectionRequest' }
+      responses:
+        '201': { description: 'Коррекция записана (append-only, UNIQUE tenant+case+correction_no; applied — новая версия факта залита, disputed — спор без записи факта) + outbox case.correction_recorded', content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа (replay исходной записи), content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { description: 'Гварды: пин версии вне лестницы / цель чужого кейса / сводка чужого кейса / материальная дисциплина proposed_value / спаны вне пределов или НЕ байт-в-байт в источнике / reason пустой или >200 рун / терминальный кейс / поле outcome в запросе (strict decode)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Гейт прав ДО стражей: запись коррекции требует review или configuration (audit-only — честный 403)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { description: 'Гонка номера коррекции (stale_version — проигравший локов) / тот же ключ с иным материалом — command_key_conflict', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
   /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/commitments:
     parameters:
       - $ref: '#/components/parameters/TenantID'
@@ -4909,6 +4933,9 @@ components:
         handoff_result: { type: string, enum: [issue_resolved, handed_back], description: 'Слово результата возврата; текст причины режима НИКОГДА не входит в исход' }
         summary_kind: { type: string, enum: [ai_summary], description: 'Слово вида сводки продюсерской команды (Story 2.14) — единственное слово словаря; операторские сводки Never' }
         summary_claims: { type: integer, minimum: 1, description: 'Число утверждений записи (счётчик запросного материала); текст сводки и claims НИКОГДА не входят в исход; summary_no и watermark — серверная истина, в исходе не хранятся' }
+        correction_id: { type: string, format: uuid, description: 'Идентификатор записанной коррекции (Story 2.15); correction_no — серверная истина под локами, в исходе не хранится' }
+        correction_outcome: { type: string, enum: [applied, disputed], description: 'Исход матричного гейта домена (СЕРВЕРНОЕ решение по material_key якоря — запрос его НЕ несёт); applied = заливка НОВОЙ версии факта без автоподтверждения, disputed = спор матричного поля без записи факта' }
+        correction_spans: { type: integer, minimum: 0, description: 'Счётчик выдержек запросного материала; предложенное значение и spans НИКОГДА не входят в исход' }
     StartVerificationRequest:
       type: object
       required: [conversation_id, kind, method, provider_code, subject_handle]
@@ -5922,6 +5949,17 @@ components:
         payload_digest: { type: string, pattern: '^[0-9a-f]{64}$' }
         seal_ok: { type: boolean, description: 'HMAC-печать проверена при чтении' }
         payload: { description: 'Только под полномочиями review/audit; любое одно JSON-значение' }
+    RecordCorrectionRequest:
+      type: object
+      required: [version_no, value, reason]
+      additionalProperties: false
+      description: 'Операторская коррекция факта (Story 2.15): пин ТОЧНОЙ версии факта этого обращения (оптимистическая конкурентность AC-8), proposed_value — материальная дисциплина фактов 2.2, spans 0..8 байт-в-байт выдержки источника, reason обязателен. ИСХОД — НЕ поле запроса: матричный гейт домена решает по material_key якоря (strict decode отказывает полю outcome). correction_no — НЕ поле запроса: серверная истина под advisory-локами (зонд контракта пиннит отсутствие)'
+      properties:
+        version_no: { type: integer, minimum: 1, description: 'Пин ТОЧНОЙ исправляемой версии [1..версий] факта этого обращения (страж стора: чужой факт/версия — 400)' }
+        summary_no: { type: integer, minimum: 0, description: 'Связь с ТОЧНОЙ версией сводки этого обращения: 0 = выдержки из принятых событий кейса; >=1 = текст сводки — источник спанов (страж стора: чужая сводка — 400)' }
+        value: { description: 'Предложенное значение — одно JSON-значение материальной дисциплины фактов 2.2 (каноническая форма, 2048 байта, цифровые литералы; экспоненциальные — отказ)' }
+        spans: { type: array, maxItems: 8, items: { type: string, minLength: 1, maxLength: 600 }, description: 'Выдержки-доказательства: байт-в-байт строки источника (события ИЛИ сводки) — анти-фантазийный зонд 2.8 (1..200 рун каждая)' }
+        reason: { type: string, minLength: 1, maxLength: 600, description: 'Причина коррекции — акт осознанный (1..200 рун, обязательна)' }
     RecordCaseSummaryRequest:
       type: object
       required: [kind, text, claims]
@@ -5996,6 +6034,14 @@ components:
         source_id: { type: string }
         channel: { type: string }
         observed_at: { type: string, format: date-time }
+        has_correction: { type: boolean, description: 'Story 2.15: коррекционное состояние факта существует (маркеры появляются ТОЛЬКО с материалом — контрольная ветка рендерит байт-в-байт)' }
+        correction_marker_text: { type: string, description: 'Маркер «исправлено» либо «оспорено (значение системы не изменено)» — read-time деривация последней коррекции' }
+        correction_source_text: { type: string, description: 'Строка «источник исправления: событие/сводка» (деривация из summary_no: 0 = событие, >=1 = сводка)' }
+        correction_no: { type: integer, minimum: 1, description: 'Номер последней коррекции факта (серверная истина под локами; маркер читается, не запрашивается)' }
+        correction_outcome: { type: string, enum: [applied, disputed], description: 'Исход матричного гейта — СЕРВЕРНОЕ решение домена по material_key якоря (НЕ поле запроса: strict decode отказывает)' }
+        correction_at: { type: string, format: date-time, description: 'Время коррекции (created_at строки)' }
+        correction_spans: { type: array, items: { type: string }, maxItems: 8, description: 'Байт-точные выдержки источника (2.8); панель раскрывает по запросу' }
+        correction_reason: { type: string, description: 'Причина коррекции оператора (акт осознанный)' }
     SummaryView:
       type: object
       required: [present, summary_no, kind, marking_text, text, claims, staleness, staleness_text, staleness_counters_text]
