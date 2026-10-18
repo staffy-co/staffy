@@ -2859,3 +2859,17 @@ done:
 - Коммиты: 0b18e75 спека [skip ci] + эта запись [skip ci]; ветка codex/story-3-1-business-action-catalog от main cf0fc30
 next: CHECKPOINT 1 — явное одобрение владельцем спеки отдельным ответом (дисциплина 52-sm; прецеденты 2-16 d3cf818/2-15 8e9f191/2-14 d3bbf39); после одобрения: спека+sprint-status 3-1 → ready-for-dev → Dev step-01 (bootstrap → домен action/domain/model.go + catalog.go + unit guard-матрица) → шаги 02-05 → CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge)
 commit: 0b18e75
+
+---
+date: 2026-10-18
+task: 104-checkpoint-1
+role: main (Super Z)
+story: 3-1
+summary: CHECKPOINT 1 story 3-1 ЗАКРЫТ — явное одобрение владельца спеки первого среза каталога разрешённых business-actions отдельным ответом «одобряю» + передача токена публикации (дисциплина 52-sm: самопродолжение чекпоинт не закрывает; прецеденты 2-16 5514389/d3cf818, 2-15 8e9f191, 2-14 d3bbf39). Отличие от прецедента 2-15: токен публикации ЖИВ в сессии (верифицирован API до git-операций: 200, login artemiosu, репо private, push=true, маска github_pat_***; прецедент 91-93/94-sm — токен ранней передачи того же чата) — коммиты чекпоинта публикуются немедленно, RPO=0. Спека+sprint-status 3-1 → ready-for-dev (замороженные секции Intent/Boundaries/Matrix не тронуты: дифф = status + Change Log). Epic 3 переходит из backlog в разработку первой историей.
+done:
+- Владелец: «одобряю. токен: github_pat_***» — сигнал CHECKPOINT 1 распознан по next-строке DEVLOG 103-sm («явное одобрение владельцем»)
+- Токен верифицирован API ДО любых git-операций (200 / artemiosu / push=true); env-only per-invocation, на диск не попал
+- Спека: status backlog → ready-for-dev + Change Log-строка одобрения; sprint-status.yaml: 3-1-каталог-разрешённых-business-actions → ready-for-dev
+- Коммиты: a3a3d99 docs(story-3-1) CHECKPOINT 1 + эта запись; оба с маркером пропуска (середина ветки; голова перед PR будет чистой — урок 2-14/ретро-2-1)
+next: Dev step-01 — bootstrap → домен internal/action/domain (model.go словари+зеркала, catalog.go ActionDefinition+guard fail-closed+версионирование) + binary catalog + unit guard-матрица поимённо → шаги 02-05 → CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge)
+commit: a3a3d99
