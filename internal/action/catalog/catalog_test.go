@@ -174,3 +174,23 @@ func TestGetFromReturnsDefensiveCopies(t *testing.T) {
 		t.Fatal("мутация пина не обязана менять источник")
 	}
 }
+
+// TestAllExposesEveryVersionOfTheBinaryDictionary — All() отдаёт ВСЕ записи
+// словаря (не только новейшие) — материал прохода допуска; честная пустота
+// бинарника = пустой НЕ-nil срез (контрольная ветка байт-в-байт).
+func TestAllExposesEveryVersionOfTheBinaryDictionary(t *testing.T) {
+	all := All()
+	if all == nil {
+		t.Fatal("честный пустой бинарный каталог обязан отдавать пустой НЕ-nil срез (контрольная ветка пустоты)")
+	}
+	if len(all) != 0 {
+		t.Fatalf("бинарный каталог честно пуст — All обязан быть пуст, получено записей: %d", len(all))
+	}
+	// The From-variant semantics hold for every version: the fixture slice
+	// keeps ALL pinned versions visible to the admission pass.
+	defs := fixtureDefinitions()
+	listed, pinned := ListFrom(defs), defs
+	if len(listed) != 2 || len(pinned) != 3 {
+		t.Fatalf("List отдаёт новейшие (%d), All-семантика держит все записи (%d)", len(listed), len(pinned))
+	}
+}

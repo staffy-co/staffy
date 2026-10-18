@@ -20,6 +20,15 @@ import "errors"
 var (
 	// ErrInvalid is the umbrella for every rejected action definition.
 	ErrInvalid = errors.New("action definition is invalid")
+	// ErrNotFound is the honest 404 of the catalog read: a non-member
+	// of the tenant, or an unknown definition pin. The transport maps
+	// it (the connector domain precedent).
+	ErrNotFound = errors.New("action definition not found")
+	// ErrForbidden is the 403 of the read scope gate: a member without
+	// the integrations|configuration scopes never reads the action
+	// catalog. The scope words are attached at the wrap point in the
+	// app layer (the decision-context 2-14 precedent).
+	ErrForbidden = errors.New("action catalog read is not allowed")
 )
 
 // RuleError keeps a precise, user-safe reason for a rejected definition

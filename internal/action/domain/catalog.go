@@ -332,3 +332,77 @@ func ParseableVersion(v string) bool {
 	}
 	return true
 }
+
+// ---------------------------------------------------------------------------
+// Reference resolution — the resolver interfaces of the domain (consumer
+// owned) and the delivery-word cross-check of AC-3
+// ---------------------------------------------------------------------------
+
+// PackRefResolver is the consumer-owned port the app layer uses to resolve
+// a definition's PackRef against the published Domain Pack catalog. The
+// action domain never imports the employee module: the composition root
+// adapts the live catalog to this contract (structural typing — any
+// adapter with this exact method set satisfies it).
+type PackRefResolver interface {
+	// Get reports whether the exact pack version is published (the pin
+	// pair, never "the newest").
+	Get(packID, packVersion string) bool
+}
+
+// CapabilityFacts carries the provider contract facts of one resolved
+// capability — exactly the words the delivery-word cross-check needs. The
+// facts are the CapabilityDeclaration (1-8) truth of the provider, relayed
+// by the adapter without importing the connector domain.
+type CapabilityFacts struct {
+	// Idempotent mirrors the provider declaration word: whether the
+	// provider itself declares idempotent execution.
+	Idempotent bool
+	// Reconciliation is the declared reconciliation semantics ("" —
+	// nothing declared).
+	Reconciliation string
+}
+
+// CapabilityRefResolver is the consumer-owned port the app layer uses to
+// resolve a definition's RequiredCapability against the published connector
+// catalog. A capability resolves only when its CapabilityDeclaration is
+// Complete (1-8 renders incomplete semantics as unsupported — an action
+// definition may never lean on an unsupported capability).
+type CapabilityRefResolver interface {
+	// Capability returns the provider contract facts of the exact
+	// (connector, version, capability) triple and reports whether it
+	// resolves to a complete declaration.
+	Capability(connectorID, connectorVersion, capabilityID string) (CapabilityFacts, bool)
+}
+
+// ValidateDefinitionRefs resolves the mandatory references of one
+// definition against the live catalogs and cross-checks the delivery words
+// of the action against the CapabilityDeclaration of the provider (AC-3 —
+// the classification is not self-consistent by declaration):
+//
+//   - provider_idempotent requires the provider declaration Idempotent=true;
+//   - query_reconcilable requires a declared reconciliation semantics.
+//
+// A mismatch refuses the definition with the honest reason — the
+// definition may not enter the catalog. The guard (structure) runs before
+// this in the admission pass; here the RESOLUTION is the truth. Both
+// resolvers are mandatory: a definition may not be admitted without the
+// live catalogs (fail-closed).
+func ValidateDefinitionRefs(d ActionDefinition, packs PackRefResolver, caps CapabilityRefResolver) error {
+	if packs == nil || caps == nil {
+		return RuleError{"refs", "Резолверы ссылок обязательны: определение не может быть допущено без живых каталогов паков и коннекторов."}
+	}
+	if !packs.Get(d.PackRef.PackID, d.PackRef.PackVersion) {
+		return RuleError{"pack_ref", "Domain Pack «" + d.PackRef.PackID + "@" + d.PackRef.PackVersion + "» не опубликован — ссылка определения не резолвится."}
+	}
+	facts, ok := caps.Capability(d.RequiredCapability.ConnectorID, d.RequiredCapability.ConnectorVersion, d.RequiredCapability.CapabilityID)
+	if !ok {
+		return RuleError{"required_capability", "Capability «" + d.RequiredCapability.ConnectorID + "@" + d.RequiredCapability.ConnectorVersion + "/" + d.RequiredCapability.CapabilityID + "» не резолвится против опубликованного каталога коннекторов."}
+	}
+	if d.DeliveryContract.CapabilityClass == CapabilityProviderIdempotent && !facts.Idempotent {
+		return RuleError{"capability_class", "Коннектор не объявляет идемпотентность для этой capability — класс provider_idempotent не допускается (сверка delivery-слов против CapabilityDeclaration)."}
+	}
+	if d.DeliveryContract.CapabilityClass == CapabilityQueryReconcilable && strings.TrimSpace(facts.Reconciliation) == "" {
+		return RuleError{"capability_class", "Коннектор не объявляет reconciliation для этой capability — класс query_reconcilable не допускается (сверка delivery-слов против CapabilityDeclaration)."}
+	}
+	return nil
+}

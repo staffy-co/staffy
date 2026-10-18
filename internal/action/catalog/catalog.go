@@ -45,6 +45,19 @@ func Latest(id, requestedVersion string) (domain.ActionDefinition, bool, bool) {
 	return LatestFrom(definitions, id, requestedVersion)
 }
 
+// All returns defensive copies of EVERY entry of the binary dictionary —
+// all versions, not just the newest. This is the material of the admission
+// pass (ValidateBinaryCatalog walks it through the guard integrity plus the
+// reference resolution and the delivery-word cross-check), so a pinned old
+// version is held to the same admission truth as the newest one.
+func All() []domain.ActionDefinition {
+	out := make([]domain.ActionDefinition, 0, len(definitions))
+	for _, d := range definitions {
+		out = append(out, clone(d))
+	}
+	return out
+}
+
 // ListFrom is the slice-parameterized core of List: the first entry of every
 // ID — the catalog is maintained newest-first (the 1-8 convention), so the
 // first occurrence IS the newest version. The test composition root uses it
