@@ -2,7 +2,7 @@
 title: 'Story 3.2 — Scoped Controls и аварийное ограничение работы (первый срез: рождение модуля control — записи ScopedControl со словарём режимов {accept, intake_only/no_promises, human_only, paused} и лестницей ограничительности, наиболее ограничивающее пересечение effective mode с провенансом повлиявших controls и итоговой причиной, монотонные поколения control_generation с оптимистичной конкурентностью и append-only аудитом обеих попыток, transactional outbox событие в той же транзакции, expiry/scheduled чтение-временной семантикой идемпотентного истечения, операторские поверхности скоупа operations с step-up и обязательной причиной, явное подтверждение опасных режимов и a11y; enforcement-точки будущего (admission, dispatch, разговорный движок) получают типизированный read-API и поколения — модуль не притворяется исполненным там, где исполнителей нет)'
 type: 'feature'
 created: '2026-10-19'
-status: 'backlog'
+status: 'ready-for-dev'
 route: 'dispatch'
 baseline_commit: '8df06571bafa8bc3da5099c4ae27b949ac22fe88'
 context:
@@ -89,4 +89,5 @@ context:
 
 ## Spec Change Log
 
+- 2026-10-19 — CHECKPOINT 1 (main, Super Z): спека одобрена владельцем явным ответом «одобряю» (дисциплина 52-sm: самопродолжение чекпоинт не закрывает; прецеденты 3-1 a3a3d99/2-16 d3cf818/2-15 8e9f191/2-14 d3bbf39); статус → ready-for-dev; ветка codex/story-3-2-scoped-controls создана от main 6228572; публикация чекпоинт-коммитов отложена до живого токена (токен прошлой сессии верифицирован мёртвым ДО git-операций: 401 × 6 с протокольными паузами 15–20с — паттерн транзиентности не подтвердился; коммиты сохранены локально, прецедент 3-1 step-02 7371744/step-04 4aaffa3); далее Dev step-01..05 → CHECKPOINT 2.
 - 2026-10-19 — SM (main, Super Z): спека первого среза создана по epics.md §3.2 (FR-32, AC-блоки 1-4/8-12 — ядро: рождение модуля control: записи ScopedControl со словарём режимов AD-12 {accept, intake_only/no_promises, human_only, paused} и лестницей ограничительности, наиболее ограничивающее пересечение с провенансом, монотонные control_generation с оптимистичной конкурентностью и append-only аудитом обеих попыток, transactional outbox, чтение-временные окна expiry/scheduled, операторские поверхности скоупа operations с step-up/причиной/явным подтверждением опасных, a11y AC-12; честные Never: re-check в dispatch (workers 3-3..3-6), admission-гейт cases (второй срез вертикали), ограничения активных conversations (AG-4), полная re-verification resume (3-3+), фоновые expiry-воркеры, campaign/service-реестры); статус backlog, ожидает CHECKPOINT 1; baseline 8df0657 (main, после закрытия story 3-1 PR #32).
