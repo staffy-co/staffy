@@ -48,6 +48,20 @@ var (
 	// second operator re-confirms over the CURRENT truth — the history
 	// of BOTH attempts is preserved in the append-only audit (AC-11).
 	ErrGenerationConflict = errors.New("scoped control generation conflict")
+	// ErrNotFound is the transport identity of the honest absence: a
+	// non-member of the tenant never learns the surface exists (the
+	// membership gate answers it BEFORE any control material), and a
+	// resume of a point that does not exist is the honest refusal — there
+	// is nothing to lift. The sentinel is sliced off by the transport
+	// (errors.Is) and mapped to a bare 404 (the action-domain 3-1
+	// precedent: the module's own identity, never the identity one).
+	ErrNotFound = errors.New("control point not found")
+	// ErrForbidden is the scope refusal carrier: the app wraps it WITH the
+	// words of the operations scope (403 spoken BEFORE any material — the
+	// decision-context 2-14 precedent). The transport slices the sentinel
+	// off and answers the words; the source of the refusal text is ONE —
+	// the app service (the actionCatalogScopeText 3-1 precedent).
+	ErrForbidden = errors.New("principal is not allowed to operate scoped controls")
 )
 
 // RuleError keeps a precise, user-safe reason for a rejected control
@@ -515,6 +529,30 @@ func beats(a, b ScopedControl) bool {
 		return ka < kb
 	}
 	return a.ScopeRef < b.ScopeRef
+}
+
+// ---------------------------------------------------------------------------
+// The scope keys of a route (the EffectiveFor read)
+// ---------------------------------------------------------------------------
+
+// MaxScopeKeys is the honest upper bound of the route scope keys one
+// EffectiveFor read accepts (the spec's "повторяемый параметр, максимум
+// разумного размера"). The seven-word kind dictionary bounds the KIND
+// diversity; 16 covers the realistic route (every kind at most once plus
+// the realistically-possible duplicates the caller deduplicates anyway).
+// A larger ask is a RuleError BEFORE any query — the read never turns
+// into an unbounded scan.
+const MaxScopeKeys = 16
+
+// ScopeKey is one addressable scope object of a route: the (kind, ref)
+// pair. EffectiveFor consumes the keys of the ROUTE the caller is
+// reasoning about — the app validates each key with the SAME dictionary
+// discipline (an out-of-dictionary kind or a mis-shaped ref is a
+// refusal, not a silent empty match), loads the matching rows and
+// computes the most-restrictive intersection over them.
+type ScopeKey struct {
+	Kind string
+	Ref  string
 }
 
 // ---------------------------------------------------------------------------
