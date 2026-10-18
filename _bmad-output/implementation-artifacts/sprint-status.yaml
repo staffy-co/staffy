@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-16-2026 16:47
-last_updated: 10-17-2026
+last_updated: 10-18-2026
 project: staffy
 project_key: NOKEY
 tracking_system: file-system
@@ -52,7 +52,7 @@ development_status:
   1-14-readiness-проверка-и-контролируемая-публикация: done
   epic-1-retrospective: done
 
-  epic-2: in-progress
+  epic-2: done
   2-1-приём-channel-event-и-создание-единого-case: done
   2-2-work-items-факты-и-provenance-внутри-case: done
   2-3-проверка-личности-и-безопасное-связывание-каналов: done
@@ -69,7 +69,7 @@ development_status:
   2-14-decision-ready-контекст-и-операторская-поверхность: done
   2-15-исправление-и-оспаривание-ai-резюме: done
   2-16-правдивые-обновления-и-явный-возврат-из-handoff: done
-  epic-2-retrospective: optional
+  epic-2-retrospective: done
 
   epic-3: backlog
   3-1-каталог-разрешённых-business-actions: backlog
@@ -158,4 +158,30 @@ action_items:
   - id: retro-1-6
     action: Эпик-уровень записи (ретроспектива/коррекции) — прямой docs-пуш main [skip ci]; story-записи — только на ветке
     owner: protocol
+    status: open
+
+# Action items из epic-2-retrospective (2026-10-18, коммит см. DEVLOG 102-retro):
+  - id: retro-2-1
+    action: Сообщения коммитов упоминают маркер пропуска ТОЛЬКО словами «маркер пропуска» — подстрока не цитируется даже в описаниях инцидентов; головы story-веток перед PR — без маркера
+    owner: protocol
+    status: open
+  - id: retro-2-2
+    action: gofmt -w слайса тем же шагом после КАЖДОЙ правки существующих файлов (расширение retro-1-5; три whitespace-повтора в Epic 2)
+    owner: dev
+    status: open
+  - id: retro-2-3
+    action: Регистр слотов миров/ID-диапазонов интеграционных тестов (таблица мир → seed → диапазоны зондов; коллизии 998/971/975/985/64-pool перестают искаться grep'ом)
+    owner: dev
+    status: open
+  - id: retro-2-4
+    action: QA-кандидаты, прочитанные через bash-вывод, проверяются байтовым дампом (od -c) до вынесения вердикта (слой вывода поглощает подряд идущие двухсимвольные скобочные последовательности)
+    owner: dev
+    status: open
+  - id: retro-2-5
+    action: Перенос незакрытых retro-1-1 + retro-1-4 — epic-валидация в check-continuity.sh (FAIL при заявке закрытого эпика с не-done stories) и CI-шаг git ls-files tests/journeys ≥ 28 spec-файлов
+    owner: next-dev-cycle
+    status: open
+  - id: retro-2-6
+    action: Ревокация всех выданных PAT владельцем после закрытия чата (≥10 передач открытым текстом за эпик)
+    owner: owner
     status: open
