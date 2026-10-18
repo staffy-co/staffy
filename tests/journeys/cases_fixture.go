@@ -183,6 +183,16 @@ type casesFixture struct {
 	corrections   map[id.UUID][]casesDomain.CorrectionRecord
 	correctionSeq int
 
+	// The Story 2.16 waiting material: the append-only update promise
+	// rows per case (the promise state and the client waiting status
+	// are the read-time derivations over the REAL domain functions —
+	// never stored; the promise number is the fixture-owned monotonic
+	// truth, the requests never carry it; the promised time is the
+	// REAL server computation now + window of the word — the unknown
+	// word stays the ZERO time, the material honesty pair).
+	promises   map[id.UUID][]casesDomain.UpdatePromiseRecord
+	promiseSeq int
+
 	caseNo, conversationNo int64
 	eventSeq               int
 	workSeq, exceptionSeq  int
@@ -270,6 +280,7 @@ func newCasesFixture() *casesFixture {
 		summaries: map[id.UUID][]casesDomain.RecordedSummary{},
 		// The Story 2.15 material:
 		corrections: map[id.UUID][]casesDomain.CorrectionRecord{},
+		promises:    map[id.UUID][]casesDomain.UpdatePromiseRecord{},
 	}
 }
 
@@ -703,6 +714,13 @@ func (f *casesFixture) CaseView(_ context.Context, actor domain.Principal, tenan
 		// client statuses «назначен ≠ принял», the assignment card of
 		// the acting assignee).
 		Handoff: f.fixtureHandoffView(caseID, actor.ID),
+		// The Story 2.16 section: the «Ожидание человека» block over
+		// the REAL read-time derivations (the client waiting status
+		// in the three distinctions of AC-1, the state of the last
+		// promise of the round, the honest missed next step) — the
+		// journeyClock truth of the moment (the honest mirror of the
+		// transport clock the real app reads).
+		Waiting: f.fixtureWaitingUpdateView(caseID, journeyClock.Now()),
 	}, nil
 }
 
