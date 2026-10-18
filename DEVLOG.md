@@ -3091,3 +3091,9 @@ done:
 - Чистая feat-голова f5ac585 без маркеров + DEVLOG 117 без маркера
 next: CHECKPOINT 2 — push (CI run 1 push-event) → PR (CI run 2) → оба зелёные → sha-pinned merge (CI run 3 main) → DEVLOG-merge на main с маркером → worklog → уборка веток GitHub по поручению владельца («потом наведите порядок с ветками» — слитые ветки codex/story-* под удаление после верификации merge)
 commit: f5ac585
+---
+date: 2026-10-19
+task: 118-merge
+role: main (Super Z)
+story: 3-2
+summary: CHECKPOINT 2 story 3-2 закрыт: PR #33 слит sha-pinned (merge 508e278, пин 2fc2aa0 — ровно проверенная голова), CI ×3 зелёный (push 39174451722 + PR 39174566305 на 2fc2aa0 без маркеров + main-run 39175011144 на 508e278), main 6228572..508e278; story 3-2 полностью завершена (5/5 шагов: домен-словари 1af9faa, миграция/порты/store/app 1b16680, транспорт/страница/OpenAPI/wiring 58c9c21, живая матрица 21 строка + journeys z30 + fixture-мир ac40d01 с закрытой MAJOR-находкой INSERT tenant_id, QA+closure f5ac585 — вердикт Major НЕТ, спека+sprint-status done), Epic 3: 2/9; финальные прогоны: unit 32, интеграция ×2 TZ 21.2s/24.7s, journeys 35 (z30 добавлена); одобрение владельца: «продолжайте, доверяю вашему экспертному мнению. и потом наведите порядок с ветками в github» — полное поручение конвейера до merge и уборки веток; next: уборка слитых веток на GitHub по поручению владельца → SM-фаза story 3-3 «Надёжное сохранение внешнего commitment до отправки» по сигналу владельца [skip ci]
