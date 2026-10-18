@@ -72,7 +72,7 @@ development_status:
   epic-2-retrospective: done
 
   epic-3: backlog
-  3-1-каталог-разрешённых-business-actions: backlog
+  3-1-каталог-разрешённых-business-actions: ready-for-dev
   3-2-scoped-controls-и-аварийное-ограничение-работы: backlog
   3-3-надёжное-сохранение-внешнего-commitment-до-отправки: backlog
   3-4-подготовка-и-проверка-action-preview: backlog
