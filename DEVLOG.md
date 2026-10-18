@@ -2693,3 +2693,17 @@ done:
 - Closure: спека → done (Change Log с шагами 01-05 поимённо), sprint-status 2-15 → done, Epic 2: 15/16
 next: CHECKPOINT 2 — публикация свежим токеном (в сессии): push 3 коммитов → PR base main → CI ×2 зелёные → sha-pinned merge → main-run → 93-merge
 commit: 2f97215
+
+---
+date: 2026-10-18
+task: 93-merge
+role: main (Super Z)
+story: 2-15
+summary: CHECKPOINT 2 story 2-15 ЗАВЕРШЁН: сигнал владельца «продолжайте» + свежий токен (верифицирован API до git-операций, push=true, маска github_pat_***); step-04 закрыт и опубликован (295f943→amend 422c059 + DEVLOG 91 852e65f; RPO=0, check-continuity OK); step-05 QA+closure (2f97215: вердикт Major-находок НЕТ, спека+sprint-status → done) + DEVLOG 92 (ebd7f85, ОБЕ записи без каких-либо маркеров пропуска — голова ветки триггерит CI, урок 2-14 закрыт структурно); PR #30 создан (base main, 31 файл +4247/−11, merge-base 01d20dd без конфликтов); CI ×3 ЗЕЛЁНЫЙ: push-run 39081036108 success + PR-run 39081103393 success (оба события сработали — маркеров нет) + main-run 39081497847 success; sha-pinned merge ece16f2 (пин ebd7f85ed11c832a95cc296191ccaec9b6d8b6b3, merge_method=merge); main синхронизирован ff-only. Story 2-15 полностью завершена, Epic 2: 15/16.
+done:
+- Полный протокол сессии одним мандатом: верификация токена → push (RPO=0) → step-04 (матрица + journeys-цепь z27 + фикстура CorrectionService) → финальный регресс → QA step-05 → closure feat без маркера → push → PR #30 → CI ×3 → merge → main-run
+- correction: запись 91 ссылается на коммит 295f943 — pre-amend хэш шага-04 (amend правил пробел в сообщении, хэш сместился на 422c059; в истории ветки/origin фактический 422c059, запись 91 писалась до amend) — ошибка ссылок лечения не требует: коммит-объект 295f943 существует локально, дифф и описание точны
+- Уроки сессии: journeys-фикстура — точка расширения CorrectionService (маршруты регистрируются type-assertion над сервисом); replay-заголовок в playwright читается headers()[lowercase]; внутренние details форм Work Control Card требуют клика по summary; Edit-инструмент переиндентирует пробелами (третий случай — gofmt -w немедленно)
+- Позиция BMAD: Epic 2: 15/16; осталась 2-16 «правдивые обновления и явный возврат из handoff» (backlog)
+next: story 2-16 — SM-фаза по сигналу владельца; рекомендация: ревокация PAT сессии после закрытия чата (токен передавался открытым текстом в чате)
+commit: ece16f2
