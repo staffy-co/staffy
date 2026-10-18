@@ -738,6 +738,22 @@ type WorkCommandParams struct {
 	SummaryNo               int64
 	Spans                   []string
 	CorrectionOutboxEventID id.UUID
+	// The Story 2.16 material (the command-specific fields of the
+	// promise_handoff_update command): the promise row id (the
+	// append-only record of the operator act), the deadline word of
+	// the fixed dictionary (the ONLY request-carried material of the
+	// promise — the promised time and the promise number are the
+	// SERVER truths: the store computes now + window under the locks
+	// and derives the NEXT monotonic number; the requests carrying a
+	// promised time or a promise number are refused by the strict
+	// decode of the transport) and the outbox event id of the promise
+	// envelope. The round anchor is the OPEN lifecycle of THIS case —
+	// the store resolves the open round under the locks (the requests
+	// never carry the round: the store guards the belonging and the
+	// open lifecycle with its own mirror words).
+	PromiseID            id.UUID
+	PromiseDeadlineWord  string
+	PromiseOutboxEventID id.UUID
 }
 
 // ContinuationCorrectionParams is the material of one public fact
@@ -793,6 +809,20 @@ type ContinuationPanelMaterial struct {
 type HandoffMaterial struct {
 	Requests []casesDomain.HandoffRequest
 	Events   []casesDomain.HandoffEvent
+}
+
+// UpdatePromiseMaterial is the ONE consistent snapshot read of the
+// waiting update surface: the handoff lifecycle rows (the round
+// derivation input — the same material the operator card reads)
+// together with the append-only promise rows of the case ordered by
+// the monotonic promise numbers (the promise state derivation input).
+// The derivations happen read-time in the domain over the rows of one
+// round (the last promise speaks) — the material never carries a
+// stored status. The advisory locks are NOT taken: the consistent
+// snapshot of one read transaction is the honest boundary of the GET.
+type UpdatePromiseMaterial struct {
+	Handoff  HandoffMaterial
+	Promises []casesDomain.UpdatePromiseRecord
 }
 
 // ---------------------------------------------------------------------------

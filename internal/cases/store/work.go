@@ -525,6 +525,16 @@ func (s *Postgres) ExecuteWorkCommand(ctx context.Context, p casesPort.WorkComma
 		if p.FactID.Valid() {
 			lockKeys = append(lockKeys, factIDLockKey(tenantID, p.FactID))
 		}
+	case "promise_handoff_update":
+		// The Story 2.16 update promise: the case + conversation keys —
+		// the same sorted plan of the summary/correction precedents
+		// (the round derivation of the anchor, the domain guards, the
+		// promise number derivation and the promised-time computation
+		// are the lock-visible truth; the 2.13 lifecycle writers hold
+		// the identical key set — the promise NEVER resolves the
+		// round, but the two truths serialize: a round closing and a
+		// promise write see each other's committed state).
+		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID), conversationLockKey(tenantID, p.ConversationID))
 	case "issue_continuation_link", "revoke_continuation_link":
 		// The continuation commands: the case key serializes the owner
 		// epoch read of the issuance pin (the ownership writers hold the
@@ -634,6 +644,8 @@ func (s *Postgres) ExecuteWorkCommand(ctx context.Context, p casesPort.WorkComma
 		err = s.execRecordCaseSummary(ctx, tx, tenantID, p, now)
 	case "record_correction":
 		err = s.execRecordCorrection(ctx, tx, tenantID, p, now)
+	case "promise_handoff_update":
+		err = s.execPromiseUpdate(ctx, tx, tenantID, p, now)
 	default:
 		err = fmt.Errorf("неизвестная команда %s", p.Command)
 	}
