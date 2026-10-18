@@ -160,6 +160,13 @@ type CaseView struct {
 	// dictionaries of the forms (a LIFECYCLE RECORD, never a fact;
 	// the overdue state is the read-time derivation).
 	Handoff HandoffView `json:"handoff"`
+	// The Story 2.16 section: the truthful waiting updates — the client
+	// waiting status of the last round in the THREE distinctions of
+	// AC-1 and the state of the last update promise (the read-time
+	// derivations over ONE consistent snapshot; the block appears only
+	// with the promise material — the control branch renders the page
+	// byte-for-byte unchanged).
+	Waiting WaitingUpdateView `json:"waiting"`
 }
 
 // PayloadView is the sealed payload read under review/audit: the digest,
@@ -491,6 +498,15 @@ type WorkOutcome struct {
 	CorrectionID      id.UUID `json:"correction_id,omitempty"`
 	CorrectionOutcome string  `json:"correction_outcome,omitempty"`
 	CorrectionSpans   int     `json:"correction_spans,omitempty"`
+	// The Story 2.16 material: the promise id with the deadline word of
+	// the fixed dictionary (the ONLY request-carried material — the
+	// honest unknown word included). The promised time and the promise
+	// number are the SERVER truths of the locks — the stored outcome
+	// NEVER carries them (the reader learns the number from the waiting
+	// view of the case page); the client texts NEVER enter the stored
+	// outcome (the texts are the read-time render of the dictionary).
+	PromiseID           id.UUID `json:"promise_id,omitempty"`
+	PromiseDeadlineWord string  `json:"promise_deadline_word,omitempty"`
 }
 
 // FactView is one fact of the facts view: the anchor, the derived status,

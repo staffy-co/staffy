@@ -376,6 +376,16 @@ type Repository interface {
 	// rows, the per-fact LAST-correction derivations are the read-time
 	// domain truth, never stored statuses).
 	ReadDecisionContextWithCorrections(ctx context.Context, scope tenancy.Context, caseID id.UUID, now time.Time) (DecisionContextMaterial, error)
+	// Story 2.16 — the waiting update state read: ReadUpdatePromiseState
+	// reads ONE consistent snapshot of the handoff lifecycle rows
+	// TOGETHER with the append-only promise rows of the case in the SAME
+	// read transaction (readUpdatePromiseStateTx joins readHandoffsTx —
+	// the client waiting status and the promise state derive read-time
+	// over the consistent material; the promises are append-only rows,
+	// the LAST-promise derivation is the read-time domain truth, never a
+	// stored status). The decision context of 2.14 is NOT touched — the
+	// case page reads both snapshots separately.
+	ReadUpdatePromiseState(ctx context.Context, scope tenancy.Context, caseID id.UUID) (UpdatePromiseMaterial, error)
 }
 
 // DecisionContextMaterial is the ONE consistent snapshot of the decision

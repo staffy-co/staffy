@@ -49,6 +49,7 @@ type Server struct {
 	handoffs        casesAPI.HandoffService
 	decisionContext casesAPI.DecisionContextService
 	corrections     casesAPI.CorrectionService
+	waitingUpdates  casesAPI.UpdatePromiseService
 	continuations   casesAPI.ContinuationService
 	tenantNamer     api.TenantNameService
 	resolver        port.PrincipalResolver

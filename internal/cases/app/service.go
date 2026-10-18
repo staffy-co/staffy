@@ -759,6 +759,17 @@ func (s *Service) CaseView(ctx context.Context, actor domain.Principal, tenantID
 	if err != nil {
 		return casesAPI.CaseView{}, err
 	}
+	// The Story 2.16 section: the truthful waiting updates — the client
+	// waiting status of the last round and the state of the last promise
+	// (the read-time derivations over ONE consistent snapshot of the
+	// lifecycle rows together with the promise rows; the block appears
+	// only with the promise material — the control branch renders the
+	// page byte-for-byte unchanged; the reads degrade honestly — the
+	// same view scope).
+	waiting, err := s.waitingView(ctx, scope, caseID)
+	if err != nil {
+		return casesAPI.CaseView{}, err
+	}
 	return casesAPI.CaseView{
 		TenantID: tenantID, Case: detail.Case, Conversations: detail.Conversations,
 		Timeline: detail.Timeline, WorkItems: detail.WorkItems, Exceptions: detail.Exceptions,
@@ -781,6 +792,7 @@ func (s *Service) CaseView(ctx context.Context, actor domain.Principal, tenantID
 		Continuations: continuations, Accommodations: accommodations,
 		RouteDegradations: routeDegradations,
 		Handoff:           handoff,
+		Waiting:           waiting,
 	}, nil
 }
 
