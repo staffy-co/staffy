@@ -3083,6 +3083,54 @@ paths:
         '403': { $ref: '#/components/responses/Problem' }
         '404': { $ref: '#/components/responses/Problem' }
         '409': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/action-definitions:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+    get:
+      operationId: listActionDefinitions
+      summary: Каталог разрешённых Business Actions — новейшая версия каждого определения (read-only, скоуп integrations|configuration)
+      x-staffy-principal-required: true
+      responses:
+        '200':
+          description: 'Новейшие версии; честный пустой список — состояние AG-4 (ни один пак не связан с capability-коннектором), не дефект'
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [action_definitions]
+                properties:
+                  action_definitions: { type: array, items: { $ref: '#/components/schemas/ActionDefinitionView' } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/action-definitions/{definition_id}/{definition_version}:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - name: definition_id
+        in: path
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 120, pattern: '^[a-z0-9._-]+$' }
+      - name: definition_version
+        in: path
+        required: true
+        schema: { type: string, pattern: '^[0-9]+\.[0-9]+\.[0-9]+$' }
+    get:
+      operationId: getActionDefinition
+      summary: Пин точной версии определения (AC-8) — старые версии неизменяемы и резолвимы для будущих Manifest/Operation/Receipt
+      x-staffy-principal-required: true
+      responses:
+        '200':
+          description: Закреплённое определение точной (id, version) пары
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [action_definition]
+                properties:
+                  action_definition: { $ref: '#/components/schemas/ActionDefinitionView' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
 components:
   parameters:
     EmployeeID:
@@ -6115,6 +6163,88 @@ components:
         ref_id: { type: string, format: uuid, description: 'Якорь факта/наблюдения ЭТОГО обращения (пусто у спорного)' }
         disputed: { type: boolean, description: 'Честная пометка спорности (спорное утверждение не несёт ссылку)' }
         text: { type: string, minLength: 1, description: 'Текст утверждения — байт-в-байт подстрока текста сводки' }
+    ActionDefinitionView:
+      type: object
+      additionalProperties: false
+      required: [id, version, name, purpose, typed_input_schema, typed_output_schema, pack_ref, required_capability, owning_system, conditions, delivery_contract]
+      description: 'Разрешённое Business Action (3.1, первый срез): декларация без исполнения. Словарная система условий fail-closed — «отсутствие обязательного условия = запрет»; классификация delivery свёрена с CapabilityDeclaration провайдера (AC-3); пин-пара (id, version) неизменяема (AC-8). Секретных значений НЕТ: Secret только помечает поле схемы'
+      properties:
+        id: { type: string, minLength: 1, maxLength: 120, pattern: '^[a-z0-9._-]+$' }
+        version: { type: string, pattern: '^[0-9]+\.[0-9]+\.[0-9]+$', description: 'Числовая тройка — порядок версий тотален, List отдаёт только новейшую' }
+        name: { type: string, minLength: 1 }
+        purpose: { type: string, minLength: 1 }
+        typed_input_schema: { type: array, items: { $ref: '#/components/schemas/ActionFieldSchemaView' } }
+        typed_output_schema: { type: array, items: { $ref: '#/components/schemas/ActionFieldSchemaView' } }
+        pack_ref: { $ref: '#/components/schemas/ActionPackRefView' }
+        required_capability: { $ref: '#/components/schemas/ActionCapabilityRefView' }
+        owning_system: { type: string, enum: [catalog, erp], description: 'Зеркало словаря 2-7' }
+        conditions: { $ref: '#/components/schemas/ActionConditionsView' }
+        delivery_contract: { $ref: '#/components/schemas/ActionDeliveryContractView' }
+    ActionFieldSchemaView:
+      type: object
+      additionalProperties: false
+      required: [name, label, type, required, secret, description]
+      description: 'Одно декларированное поле схемы (зеркало паттерна 1-8): декларация без значения; secret=true только помечает'
+      properties:
+        name: { type: string, minLength: 1 }
+        label: { type: string, minLength: 1 }
+        type: { type: string, enum: [text, url] }
+        required: { type: boolean }
+        secret: { type: boolean }
+        description: { type: string }
+    ActionPackRefView:
+      type: object
+      additionalProperties: false
+      required: [pack_id, pack_version]
+      description: 'Обязательная ссылка на опубликованный Domain Pack — резолвится живым каталогом employee (пин-пара, не «новейшая»); домен гейтит структуру, app-слой — резолюцию'
+      properties:
+        pack_id: { type: string, minLength: 1 }
+        pack_version: { type: string, minLength: 1 }
+    ActionCapabilityRefView:
+      type: object
+      additionalProperties: false
+      required: [connector_id, connector_version, capability_id]
+      description: 'Обязательная ссылка на точную capability коннектора — резолвится против CapabilityDeclaration 1-8 (Complete-дисциплина: неполная = unsupported, на действие опереться нельзя)'
+      properties:
+        connector_id: { type: string, minLength: 1 }
+        connector_version: { type: string, minLength: 1 }
+        capability_id: { type: string, minLength: 1 }
+    ActionConditionsView:
+      type: object
+      additionalProperties: false
+      required: [risk_class, autonomy_class, allowed_conversation_modes, allowed_roles, required_facts, confirmation, required_gates, timeout_ms, materiality_class, consumption_rule, allowed_stages]
+      description: 'Полная типизированная система условий — каждое поле обязано быть словом compile-time словаря (расширение рантаймом/конфигом тенанта NEVER)'
+      properties:
+        risk_class: { type: string, enum: [low, medium, high, critical] }
+        autonomy_class: { type: string, enum: [shadow, copilot, assisted, auto, exception], description: 'Словарь FR-42' }
+        allowed_conversation_modes: { type: array, minItems: 1, items: { type: string, enum: [safety, claim, cancellation, privacy_no_contact, human_requested, unclassified, sales] }, description: 'Непустое подмножество лестницы 2-5 (зеркало ModeOrder, пиннится контракт-тестом)' }
+        allowed_roles: { type: array, minItems: 1, items: { type: string, enum: [owner, configurator, operator, expert_qa, integration_admin] }, description: 'Непустое подмножество ролей identity' }
+        required_facts: { type: array, minItems: 1, items: { $ref: '#/components/schemas/ActionFactRequirementView' } }
+        confirmation: { type: string, enum: [required, not_required], description: 'Confirm-before-mutate AD-6: мутирующие классы — только required; unsafe — всегда required' }
+        required_gates: { type: array, minItems: 1, items: { type: string, enum: [OQ-1, OQ-2, OQ-3, OQ-4, OQ-5, OQ-6, OQ-7A, OQ-7B, OQ-8, OQ-9, OQ-10, OQ-11, OQ-12, OQ-13A, OQ-13B, OQ-14, OQ-15, OQ-16, OQ-17, OQ-18, OQ-19, AG-1, AG-2, AG-3, AG-4] }, description: 'Слова GATE-REGISTRY (25 ID, пиннятся контракт-тестом против машинного реестра)' }
+        timeout_ms: { type: integer, minimum: 1, maximum: 600000 }
+        materiality_class: { type: string, enum: [immaterial, material, critical] }
+        consumption_rule: { type: string, enum: [single_use, bounded, unlimited] }
+        allowed_stages: { type: array, minItems: 1, items: { type: string, enum: [synthetic, closed_account_test, controlled_real_customer, live, scale] }, description: 'Непустое подмножество стадий GATE-REGISTRY' }
+    ActionFactRequirementView:
+      type: object
+      additionalProperties: false
+      required: [material_field, freshness]
+      description: 'Одна материальная зависимость действия: поле 2-7 + слово свежести'
+      properties:
+        material_field: { type: string, enum: [price, availability, order_status] }
+        freshness: { type: string, enum: [fresh, stale, failed, unknown] }
+    ActionDeliveryContractView:
+      type: object
+      additionalProperties: false
+      required: [capability_class, idempotency_scope, terminal_evidence, reconciliation_query, cancel_compensation_semantics]
+      description: 'Классификация delivery (AC-3): класс НЕ самосогласен — свёрен с CapabilityDeclaration провайдера (provider_idempotent требует Idempotent=true; query_reconcilable требует непустой Reconciliation). unsafe остаётся в человеческом контуре: confirmation required + single_use'
+      properties:
+        capability_class: { type: string, enum: [provider_idempotent, query_reconcilable, compensatable, unsafe] }
+        idempotency_scope: { type: string, minLength: 1, description: 'Отсутствие слова = запрет' }
+        terminal_evidence: { type: string, minLength: 1, description: 'Отсутствие слова = запрет' }
+        reconciliation_query: { type: string, minLength: 1, description: 'Идентификатор capability сверки' }
+        cancel_compensation_semantics: { type: string, minLength: 1, description: 'Отсутствие слова = запрет' }
   responses:
     Problem:
       description: Безопасная ошибка

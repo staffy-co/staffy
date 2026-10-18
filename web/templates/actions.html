@@ -1,0 +1,72 @@
+{{define "actions"}}
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Каталог действий · Staffy</title><link rel="stylesheet" href="/assets/app.css"></head>
+<body><a class="skip-link" href="#main">К основному содержанию</a><header class="topbar"><a class="brand" href="/app/tenants/{{.TenantID}}">Staffy</a><strong>Пространство → Каталог действий</strong></header>
+<div class="shell"><nav aria-label="Основная навигация"><a href="/app/tenants/{{.TenantID}}">Сегодня</a><a href="/app/tenants/{{$.TenantID}}/people">Участники</a></nav><main id="main"><section class="panel"><h1>Каталог действий</h1>
+<p>Разрешённые Business Actions платформы: версии закреплены, условия объявлены полностью — отсутствие обязательного условия означало бы запрет. Чтение требует полномочия integrations или configuration. Мутирующий путь исполнения не существует в этом срезе: каталог отдаёт только декларации.</p>
+{{if .HasCards}}
+<ul class="action-catalog">
+{{range .Cards}}
+<li class="action-card">
+<strong>{{.Name}}</strong>
+<span>Идентификатор: {{.ID}} · версия {{.Version}}</span>
+<span>Риск: <strong class="action-risk action-risk-{{.RiskClass}}">{{.RiskClass}}</strong>{{if .Unsafe}} — только человеческий контур (assisted/human-only){{end}}</span>
+<span>Стадии: {{.StagesText}}</span>
+<span>Владеющая система: {{.OwningSystem}}</span>
+<span>Capability: {{.CapabilityText}}</span>
+<span>Domain Pack: {{.PackText}}</span>
+<span>Состояние: опубликовано (compile-time словарь, версия неизменяема)</span>
+<span>Назначение: {{.Purpose}}</span>
+<details class="action-conditions"><summary>Условия действия</summary>
+<div class="action-conditions-grid">
+<span>Класс автономности: {{.Autonomy}}</span>
+<span>Режимы разговора: {{.ModesText}}</span>
+<span>Роли: {{.RolesText}}</span>
+<span>Материальные зависимости: {{.FactsText}}</span>
+<span>Подтверждение: {{.Confirmation}}</span>
+<span>Обязательные гейты: {{.GatesText}}</span>
+<span>Таймаут исполнения: {{.TimeoutText}}</span>
+<span>Класс материальности: {{.Materiality}}</span>
+<span>Правило потребления: {{.Consumption}}</span>
+</div>
+</details>
+<details class="action-delivery"><summary>Delivery-контракт</summary>
+<div class="action-conditions-grid">
+<span>Класс доставки: {{.DeliveryClass}}</span>
+<span>Область идемпотентности: {{.IdempotencyScopeText}}</span>
+<span>Терминальное доказательство: {{.TerminalEvidenceText}}</span>
+<span>Reconciliation-запрос: {{.ReconciliationQueryText}}</span>
+<span>Семантика отмены/компенсации: {{.CancelCompensationText}}</span>
+</div>
+</details>
+{{if or .HasInputFields .HasOutputFields}}
+<details class="action-schema"><summary>Схемы полей</summary>
+{{if .HasInputFields}}
+<h3>Входные поля</h3>
+<ul class="action-fields">
+{{range .InputFields}}
+<li><strong>{{.Label}}</strong> ({{.Name}}): тип {{.Type}}, обязательно: {{.Required}}, секрет: {{.Secret}}{{if .Description}} — {{.Description}}{{end}}</li>
+{{end}}
+</ul>
+{{end}}
+{{if .HasOutputFields}}
+<h3>Выходные поля</h3>
+<ul class="action-fields">
+{{range .OutputFields}}
+<li><strong>{{.Label}}</strong> ({{.Name}}): тип {{.Type}}, обязательно: {{.Required}}, секрет: {{.Secret}}{{if .Description}} — {{.Description}}{{end}}</li>
+{{end}}
+</ul>
+{{end}}
+</details>
+{{end}}
+</li>
+{{end}}
+</ul>
+{{else}}
+<section class="action-empty" aria-labelledby="action-empty-heading">
+<h2 id="action-empty-heading">Определений пока нет</h2>
+<p class="next-note">{{.EmptyText}}</p>
+</section>
+{{end}}
+</section></main></div>
+</body></html>
+{{end}}

@@ -177,3 +177,20 @@ details summary { min-height: 44px; padding: .6rem; cursor: pointer; font-weight
 .commitment-form{grid-template-columns:minmax(0,1fr)}
 .commitment-form input,.commitment-form select,.commitment-form textarea{box-sizing:border-box;max-width:100%;width:100%}
 .commitment-card-action summary{overflow-wrap:anywhere}
+/* Story 3.1: action catalog cards. Grid like the connector cards, words
+   wrap at 320 px; the risk badge never relies on color alone (the word
+   itself carries the meaning); summary targets keep the 44 px minimum. */
+.action-catalog{list-style:none;padding:0;margin:0;display:grid;gap:1rem}
+.action-card{display:grid;border:1px solid var(--line);border-radius:.6rem;padding:1rem;gap:.3rem;overflow-wrap:anywhere}
+.action-card>span{display:block}
+.action-conditions-grid{display:grid;gap:.3rem;padding:.5rem 0 .25rem}
+.action-conditions-grid>span{display:block;overflow-wrap:anywhere}
+.action-fields{padding-left:1.25rem;margin:.25rem 0}
+.action-fields li{overflow-wrap:anywhere}
+.action-risk{font-weight:700}
+.action-risk-low{color:#1d5c33}
+.action-risk-medium{color:#6e5416}
+.action-risk-high{color:#a33b2b}
+.action-risk-critical{color:#7a2e2e}
+.action-empty{border:1px dashed var(--line);border-radius:.6rem;padding:1rem;margin-top:1rem}
+.action-catalog details summary{min-height:44px}
