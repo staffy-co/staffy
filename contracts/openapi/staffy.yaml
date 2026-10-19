@@ -1690,7 +1690,7 @@ paths:
       x-staffy-principal-required: true
       responses:
         '200':
-          description: Профиль — правила и границы работы, а не допуск трафика; адmission — Story 1.14
+          description: Профиль — правила и границы работы, а не допуск трафика; admission — Story 1.14
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ProfileView' }
@@ -3344,6 +3344,119 @@ paths:
         '401': { $ref: '#/components/responses/Problem' }
         '403': { description: 'Скоуп configuration', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
         '404': { description: 'Не-участник', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/action-previews:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+    get:
+      operationId: readActionPreviews
+      summary: 'Action Preview кейса (3.4, первый срез): потоки подготовки с карточками версий — живые выводы чтения (готовность, свежесть семью причинами, Timeline по append-only событиям ТОЧНОЙ версии), лестницы попыток AD-7, validation evidence dry-run и diff правок; чтение под скоупом review|configuration; пустые threads — честное состояние, НЕ дефект'
+      x-staffy-principal-required: true
+      responses:
+        '200':
+          description: 'Вид Preview Review: живые выводы пересчитываются при каждом чтении, никогда не хранимые слова'
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [previews]
+                properties:
+                  previews: { $ref: '#/components/schemas/PreviewView' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Участник только с audit — 403 словами ДО материала', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { description: 'Не-участник / чужой кейс — поверхность не раскрывается', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/action-previews/{preview_id}:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - name: preview_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: readActionPreviewThread
+      summary: 'Один поток подготовки: стабильный preview_id со всеми карточками версий, лестницей попыток и validation evidence — материал будущих ссылок Confirmation 3.5 (пин пары preview_id+version_no)'
+      x-staffy-principal-required: true
+      responses:
+        '200':
+          description: 'Поток с карточками версий (старые читаемы для аудита, пригодность к авторизации гасится выводом свежести)'
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [preview]
+                properties:
+                  preview: { $ref: '#/components/schemas/PreviewThreadView' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Скоуп словами', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { description: 'Не-участник / поток не найден', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/action-previews/proposals:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - $ref: '#/components/parameters/WorkItemID'
+    post:
+      operationId: submitActionProposal
+      summary: 'Подать proposal (AC-1/AC-2/AC-3): строгая типовая валидация против TypedInputSchema пиннутого определения (одна попытка исправления AD-7, повторная невалидность — терминальный rejected, третьей попытки не существует); неизвестное поле НИКОГДА не входит в preview и никому не передаётся; Policy живыми источниками по порядку — текст proposal НЕ вход Policy (структурно); блокировка = 403 точным словом причины ДО материального snapshot; сборка = ОДНА транзакция append-only'
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SubmitProposalRequest' }
+      responses:
+        '200': { description: 'Попытка валидна и все гейты зелёные: preview v1 построен (digest, snapshot, эффекты из определения)', content: { application/json: { schema: { type: object, required: [proposal], properties: { proposal: { $ref: '#/components/schemas/ProposalOutcome' } } } } } }
+        '400': { description: 'Первая типовая невалидность (verdict invalid): перечень полей словами; строгий decode (один объект, известные поля)', content: { application/json: { schema: { type: object, required: [proposal], properties: { proposal: { $ref: '#/components/schemas/ProposalOutcome' } } } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Policy-гейт заблокировал валидную попытку (blocked_reason — точное слово словаря из 10) / участник только с audit', content: { application/json: { schema: { type: object, required: [proposal], properties: { proposal: { $ref: '#/components/schemas/ProposalOutcome' } } } } } }
+        '404': { description: 'Не-участник / кейс или work item или определение не найдены — ДО материала', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '409': { description: 'Терминальный rejected (повторная невалидность, попытки исчерпаны) / третья попытка структурно не существует', content: { application/json: { schema: { type: object, required: [proposal], properties: { proposal: { $ref: '#/components/schemas/ProposalOutcome' } } } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/action-previews/{preview_id}/versions:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - name: preview_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: newActionPreviewVersion
+      summary: 'Отредактировать разрешённое поле (AC-10): полная цепочка заново (валидация + Policy + свежий snapshot); НОВАЯ версия append-only + атомарный supersede прежней ОДНОЙ транзакцией; diff — вывод чтения пары, никогда не хранимый; старое Confirmation 3.5 спишется только с точной новой парой — прежняя версия структурно не авторизует изменённый материал'
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewPreviewVersionRequest' }
+      responses:
+        '200': { description: 'Версия N+1 построена: прежняя читаема для аудита, к авторизации не пригодна', content: { application/json: { schema: { type: object, required: [edit], properties: { edit: { $ref: '#/components/schemas/PreviewVersionOutcome' } } } } } }
+        '400': { description: 'Типовая невалидность правки словами ДО записи (прежняя версия остаётся полностью текущей)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Policy-гейт правки словами ДО записи', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { description: 'Не-участник / поток не найден', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '409': { description: 'Лестница версий двинулась параллельным прогоном — перечитайте и повторите', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/action-previews/{preview_id}/versions/{version_no}/dry-runs:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - name: preview_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: version_no
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    post:
+      operationId: recordActionDryRun
+      summary: 'Записать dry-run ТОЧНОЙ версии (AC-8): validation evidence append-only; dry-run ≠ действие ≠ гарантия — слова Timeline НЕ смещаются evidence-событием (СТРУКТУРНО); AG-4: production адаптер НЕ подключён — честный отказ словами, evidence не создаётся'
+      x-staffy-principal-required: true
+      responses:
+        '200': { description: 'Validation evidence записано (valid/invalid/error — словарь из трёх слов)', content: { application/json: { schema: { type: object, required: [dry_run], properties: { dry_run: { $ref: '#/components/schemas/DryRunOutcome' } } } } } }
+        '400': { description: 'AG-4 честный отказ (адаптер не подключён) / чужое слово результата словарно', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Скоуп словами', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { description: 'Не-участник / версия не найдена', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
 components:
   parameters:
     EmployeeID:
@@ -6742,6 +6855,254 @@ components:
       type: string
       enum: [accepted, delivered, failed, timeout]
       description: 'Словарь исходов адаптера (машинная граница): failed — предотправочный отказ (повтор безопасен), timeout — возможная отправка (unknown, повтор только по гарантии); documented для контракта адаптера, AG-4'
+    ProposalVerdict:
+      type: string
+      enum: [valid, invalid, rejected]
+      description: 'Лестница AD-7: первая невалидность = invalid (перечень полей словами), повторная = терминальный rejected, третьей попытки не существует (CHECK миграции — структурно)'
+    PreviewTargetKind:
+      type: string
+      enum: [catalog_item, client, order]
+      description: 'Закрытый словарь целей proposal (step-01 домен)'
+    PreviewSnapshotStatus:
+      type: string
+      enum: [fresh, stale, conflicting, unknown, allowed_uncertain]
+      description: 'ПЯТЬ слов snapshot: первые четыре от ридера, allowed_uncertain — ТОЛЬКО по явному объявлению определения (никогда из молчания)'
+    PreviewReadiness:
+      type: string
+      enum: [ready, blocked_material]
+      description: 'Готовность ≠ существование: blocked preview существует и говорит правду (прецедент pin_blocked 3-3)'
+    PreviewTimelineWord:
+      type: string
+      enum: [proposal, previewed, superseded]
+      description: 'Три слова Timeline — вывод чтения по append-only событиям ТОЧНОЙ версии; authorized/executed — словарь 3.5, в контуре не существует'
+    PreviewFreshnessReason:
+      type: string
+      enum: [fact_changed, observation_changed, owner_epoch_moved, control_generation_moved, release_manifest_moved, policy_changed, capability_evidence_moved]
+      description: 'СЕМЬ причин AC-9 нормативным порядком: первая несовпавшая шпилька — причина; исчезнувший источник = изменение (fail-closed); stale-вывод при КАЖДОМ чтении живыми источниками, никогда не хранимый'
+    PreviewPolicyReason:
+      type: string
+      enum: [role_not_allowed, conversation_mode_not_allowed, response_owner_changed, control_mode, entitlement_blocked, stage_not_allowed, gate_not_satisfied, capability_not_verified, capability_class_unsafe, definition_not_resolved]
+      description: 'Словарь причин Policy из 10 слов (step-01 домен): unsafe НЕ блокирует подготовку — маркер human-only разделения; определение не резолвится — 404 приложения ДО Policy'
+    PreviewPartitionWord:
+      type: string
+      enum: [staffy, human_only]
+      description: 'Разграничение staffy/human-only: unsafe и действия без доказанного reconciliation path остаются human-only с обязательным человеком-владельцем'
+    PreviewFailureSemantics:
+      type: string
+      enum: [abort_remaining, continue_remaining, park_and_report]
+      description: 'Семантики отказа эффектов — слова приходят ТОЛЬКО из определения (открытый набор структурно невозможен)'
+    PreviewDryRunResult:
+      type: string
+      enum: [valid, invalid, error]
+      description: 'Словарь evidence из трёх слов: dry-run — проверка валидации, не выполненное действие и не гарантия будущего успеха'
+    SubmitProposalRequest:
+      type: object
+      additionalProperties: false
+      required: [definition_id, definition_version, target_kind, target_ref, typed_input, owner_epoch]
+      properties:
+        definition_id: { type: string, minLength: 1, maxLength: 120 }
+        definition_version: { type: string, pattern: '^[0-9]+\.[0-9]+\.[0-9]+$' }
+        target_kind: { $ref: '#/components/schemas/PreviewTargetKind' }
+        target_ref: { type: string, format: uuid }
+        typed_input:
+          type: object
+          description: 'Строгая карта имя-поля-схемы → значение; неизвестное поле отклоняется по имени ДО preview; секретные поля не заполняются значением'
+          additionalProperties: { type: string, maxLength: 2000 }
+        supporting_facts:
+          type: array
+          items: { type: string, format: uuid }
+        supporting_observations:
+          type: array
+          items: { type: string, format: uuid }
+        owner_epoch: { type: integer, minimum: 1 }
+    ProposalOutcome:
+      type: object
+      additionalProperties: false
+      required: [command, verdict, attempt_no]
+      properties:
+        command: { type: string, enum: [submit_proposal] }
+        verdict: { $ref: '#/components/schemas/ProposalVerdict' }
+        violations:
+          type: array
+          description: 'Честный перечень нарушений словами (iff invalid/rejected — автор читает точные поля)'
+          items: { type: string }
+        preview_id: { type: string, format: uuid }
+        version_no: { type: integer, minimum: 1 }
+        attempt_no: { type: integer, enum: [1, 2] }
+        blocked_reason: { $ref: '#/components/schemas/PreviewPolicyReason' }
+        preview_digest: { type: string, minLength: 64, maxLength: 64 }
+    NewPreviewVersionRequest:
+      type: object
+      additionalProperties: false
+      required: [typed_input]
+      properties:
+        typed_input:
+          type: object
+          additionalProperties: { type: string, maxLength: 2000 }
+        supporting_facts:
+          type: array
+          items: { type: string, format: uuid }
+        supporting_observations:
+          type: array
+          items: { type: string, format: uuid }
+    PreviewVersionOutcome:
+      type: object
+      additionalProperties: false
+      required: [command, preview_id, version_no, supersedes_version, preview_digest]
+      properties:
+        command: { type: string, enum: [edit_preview_version] }
+        preview_id: { type: string, format: uuid }
+        version_no: { type: integer, minimum: 1 }
+        supersedes_version: { type: integer, minimum: 1 }
+        attempt_no: { type: integer }
+        preview_digest: { type: string, minLength: 64, maxLength: 64 }
+    DryRunOutcome:
+      type: object
+      additionalProperties: false
+      required: [command]
+      properties:
+        command: { type: string, enum: [record_dry_run] }
+        result: { $ref: '#/components/schemas/PreviewDryRunResult' }
+        details: { type: string, maxLength: 500 }
+        unsupported: { type: boolean, description: 'AG-4: адаптер не подключён — honest отказ словами, evidence не создано' }
+    PreviewVersionPin:
+      type: object
+      additionalProperties: false
+      required: [ref, version]
+      properties:
+        ref: { type: string, format: uuid }
+        version: { type: integer, description: 'Живая версия факта / номер текущего наблюдения на момент сборки; 0 = мёртвая ссылка (устаревание названо при чтении)' }
+    PreviewSnapshotRow:
+      type: object
+      additionalProperties: false
+      required: [material_field, status, external_id, external_version, observed_at, evidence_ref]
+      properties:
+        material_field: { type: string, enum: [price, availability, order_status] }
+        status: { $ref: '#/components/schemas/PreviewSnapshotStatus' }
+        external_id: { type: string }
+        external_version: { type: string }
+        observed_at: { type: string, format: date-time }
+        evidence_ref: { type: string }
+    PreviewEffect:
+      type: object
+      additionalProperties: false
+      required: [order, action_ref, failure_semantics]
+      properties:
+        order: { type: integer, minimum: 1 }
+        action_ref: { type: string, description: 'Пин определения id@версия' }
+        depends_on:
+          type: array
+          items: { type: integer }
+        failure_semantics: { $ref: '#/components/schemas/PreviewFailureSemantics' }
+    PreviewAttemptView:
+      type: object
+      additionalProperties: false
+      required: [preview_id, attempt_no, verdict, created_at]
+      properties:
+        preview_id: { type: string, format: uuid }
+        attempt_no: { type: integer, enum: [1, 2] }
+        verdict: { $ref: '#/components/schemas/ProposalVerdict' }
+        blocked_reason: { $ref: '#/components/schemas/PreviewPolicyReason' }
+        invalid_report: { type: string, maxLength: 2100 }
+        created_at: { type: string, format: date-time }
+    PreviewDryRunEvidenceView:
+      type: object
+      additionalProperties: false
+      required: [version_no, result, created_at]
+      properties:
+        version_no: { type: integer, minimum: 1 }
+        result: { $ref: '#/components/schemas/PreviewDryRunResult' }
+        created_at: { type: string, format: date-time }
+    PreviewCardView:
+      type: object
+      additionalProperties: false
+      required: [preview_id, version_no, definition_id, definition_version, case_id, work_item_id, target_kind, target_ref, typed_input, snapshot, effects, partition, partition_text, readiness, readiness_text, timeline, timeline_text, current, digest, authorization_absence_text, author_id, created_at]
+      properties:
+        preview_id: { type: string, format: uuid }
+        version_no: { type: integer, minimum: 1 }
+        supersedes_version: { type: integer, minimum: 1 }
+        definition_id: { type: string }
+        definition_version: { type: string }
+        case_id: { type: string, format: uuid }
+        work_item_id: { type: string, format: uuid }
+        target_kind: { $ref: '#/components/schemas/PreviewTargetKind' }
+        target_ref: { type: string, format: uuid }
+        typed_input:
+          type: object
+          additionalProperties: { type: string }
+          description: 'Спроецированный вход: ТОЛЬКО схемные незасекреченные поля — unknown и secret структурно не выживают проекцию (AC-2)'
+        supporting_facts:
+          type: array
+          items: { $ref: '#/components/schemas/PreviewVersionPin' }
+        supporting_observations:
+          type: array
+          items: { $ref: '#/components/schemas/PreviewVersionPin' }
+        owner_epoch: { type: integer, minimum: 1 }
+        control_generation: { type: integer }
+        profile_version: { type: integer }
+        policy_outcome_no: { type: integer }
+        capability_decl_version: { type: string }
+        snapshot:
+          type: array
+          items: { $ref: '#/components/schemas/PreviewSnapshotRow' }
+        effects:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/PreviewEffect' }
+        partition: { $ref: '#/components/schemas/PreviewPartitionWord' }
+        partition_text: { type: string }
+        recovery_instruction: { type: string, maxLength: 2000 }
+        human_owner_required: { type: boolean }
+        unsafe_class: { type: boolean }
+        no_reconciliation: { type: boolean }
+        human_only_control_mark: { type: boolean }
+        readiness: { $ref: '#/components/schemas/PreviewReadiness' }
+        readiness_text: { type: string }
+        freshness_stale: { type: boolean }
+        freshness_reason: { $ref: '#/components/schemas/PreviewFreshnessReason' }
+        freshness_reason_text: { type: string }
+        timeline: { $ref: '#/components/schemas/PreviewTimelineWord' }
+        timeline_text: { type: string }
+        current: { type: boolean }
+        digest: { type: string, minLength: 64, maxLength: 64 }
+        digest_alarm: { type: boolean, description: 'Перепроверка digest на каждом чтении: несовпадение проговаривается, никогда не маскируется' }
+        authorization_absence_text: { type: string, description: 'Контур 3-5 отсутствует — переход к авторизации объяснён словами; скрытой отправки не существует' }
+        diff_lines:
+          type: array
+          description: 'Diff правки — вывод чтения пары версий (материальные изменения словами), НИКОГДА не хранимый'
+          items: { type: string }
+        author_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+    PreviewThreadView:
+      type: object
+      additionalProperties: false
+      required: [preview_id, cards, attempts, dry_run_evidence]
+      properties:
+        preview_id: { type: string, format: uuid }
+        cards:
+          type: array
+          items: { $ref: '#/components/schemas/PreviewCardView' }
+        attempts:
+          type: array
+          items: { $ref: '#/components/schemas/PreviewAttemptView' }
+        dry_run_evidence:
+          type: array
+          items: { $ref: '#/components/schemas/PreviewDryRunEvidenceView' }
+    PreviewView:
+      type: object
+      additionalProperties: false
+      required: [tenant_id, case_id, panel_text, threads, work_item_ids]
+      properties:
+        tenant_id: { type: string, format: uuid }
+        case_id: { type: string, format: uuid }
+        panel_text: { type: string, description: 'Фиксированный текст дисциплин среза — app и fixture делят ОДИН источник (дрейф невозможен)' }
+        empty_text: { type: string }
+        threads:
+          type: array
+          items: { $ref: '#/components/schemas/PreviewThreadView' }
+        work_item_ids:
+          type: array
+          items: { type: string, format: uuid }
   responses:
     Problem:
       description: Безопасная ошибка

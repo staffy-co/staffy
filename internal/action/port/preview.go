@@ -9,6 +9,7 @@ import (
 	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
 	connectorAPI "github.com/artemiosu/staffy/internal/connector/api"
 	employeeAPI "github.com/artemiosu/staffy/internal/employee/api"
+	entitlementDomain "github.com/artemiosu/staffy/internal/entitlement/domain"
 	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
 	"github.com/artemiosu/staffy/internal/platform/id"
 	"github.com/artemiosu/staffy/internal/platform/tenancy"
@@ -180,18 +181,12 @@ type MembersSource interface {
 
 // EntitlementSource is the narrow admission read (the entitlement api
 // Service satisfies it structurally): the derived admission state of the
-// tenant — the three-word mirror of 1-11/1-14.
+// tenant — the three-word dictionary of 1-11/1-14 (the byte-exact
+// mirror is pinned by the step-01 unit matrix; the action module reads
+// the published domain type through this port and never imports the
+// entitlement module).
 type EntitlementSource interface {
-	AdmissionView(ctx context.Context, actor identityDomain.Principal, tenantID id.UUID) (AdmissionState, error)
-}
-
-// AdmissionState is the relayed admission word of the entitlement module
-// (the port owns the contract shape — the action domain never imports the
-// entitlement domain; the byte-exact mirror is pinned by the step-01
-// unit matrix and the integration contract).
-type AdmissionState struct {
-	Status string
-	Reason string
+	AdmissionView(ctx context.Context, actor identityDomain.Principal, tenantID id.UUID) (entitlementDomain.AdmissionState, error)
 }
 
 // ReadinessSource is the narrow employee test-and-release read (the

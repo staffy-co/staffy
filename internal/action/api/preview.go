@@ -227,6 +227,10 @@ type PreviewView struct {
 	PanelText string              `json:"panel_text"`
 	EmptyText string              `json:"empty_text,omitempty"`
 	Threads   []PreviewThreadView `json:"threads"`
+	// WorkItemIDs carries the anchored Work Items of the case (the form
+	// dictionary of the proposal submission — the transport page reads
+	// them; the machine consumer may ignore them).
+	WorkItemIDs []id.UUID `json:"work_item_ids"`
 }
 
 // IDGenerator follows the module conventions of identity/cases: the

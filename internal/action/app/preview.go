@@ -827,19 +827,12 @@ func (s *Service) ReadPreviewView(ctx context.Context, actor identityDomain.Prin
 	if err != nil {
 		return api.PreviewView{}, err
 	}
-	view := api.PreviewView{
-		TenantID:  tenantID,
-		CaseID:    caseID,
-		PanelText: domain.PreviewPanelText,
-		Threads:   []api.PreviewThreadView{},
-	}
-	if len(versions) == 0 && len(attempts) == 0 {
-		view.EmptyText = domain.PreviewEmptyText
-		return view, nil
-	}
 	// The LIVE material of the case: the freshness re-checks read the
 	// live sources at EVERY read (the derived word is never a column); a
-	// case that vanished mid-read answers the honest 404.
+	// case that vanished mid-read answers the honest 404. The read runs
+	// BEFORE the empty-state answer so the proposal form always carries
+	// the anchored Work Items (an empty preview world is still a form
+	// surface).
 	caseView, err := s.caseMaterial.CaseView(ctx, actor, tenantID, caseID)
 	if err != nil {
 		if errors.Is(err, casesDomain.ErrNotFound) {
@@ -848,6 +841,23 @@ func (s *Service) ReadPreviewView(ctx context.Context, actor identityDomain.Prin
 		return api.PreviewView{}, err
 	}
 	material := caseViewMaterial{view: caseView}
+	view := api.PreviewView{
+		TenantID:  tenantID,
+		CaseID:    caseID,
+		PanelText: domain.PreviewPanelText,
+		Threads:   []api.PreviewThreadView{},
+		WorkItemIDs: func() []id.UUID {
+			ids := make([]id.UUID, 0, len(caseView.WorkItems))
+			for _, item := range caseView.WorkItems {
+				ids = append(ids, item.WorkItemID)
+			}
+			return ids
+		}(),
+	}
+	if len(versions) == 0 && len(attempts) == 0 {
+		view.EmptyText = domain.PreviewEmptyText
+		return view, nil
+	}
 	facts, err := s.caseMaterial.FactsView(ctx, actor, tenantID, caseID)
 	if err != nil {
 		return api.PreviewView{}, err

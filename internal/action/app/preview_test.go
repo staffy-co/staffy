@@ -17,6 +17,7 @@ import (
 	connectorDomain "github.com/artemiosu/staffy/internal/connector/domain"
 	employeeAPI "github.com/artemiosu/staffy/internal/employee/api"
 	employeeDomain "github.com/artemiosu/staffy/internal/employee/domain"
+	entitlementDomain "github.com/artemiosu/staffy/internal/entitlement/domain"
 	identityAPI "github.com/artemiosu/staffy/internal/identity/api"
 	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
 	"github.com/artemiosu/staffy/internal/platform/id"
@@ -313,8 +314,8 @@ func (f fakeMembers) MembersFacts(_ context.Context, _ identityDomain.Principal,
 // fakeEntitlement serves one admission word.
 type fakeEntitlement struct{ status string }
 
-func (f fakeEntitlement) AdmissionView(_ context.Context, _ identityDomain.Principal, _ id.UUID) (port.AdmissionState, error) {
-	return port.AdmissionState{Status: f.status}, nil
+func (f fakeEntitlement) AdmissionView(_ context.Context, _ identityDomain.Principal, _ id.UUID) (entitlementDomain.AdmissionState, error) {
+	return entitlementDomain.AdmissionState{Status: f.status}, nil
 }
 
 // fakeReadiness serves one active stage and the gate instances.

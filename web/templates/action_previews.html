@@ -1,0 +1,136 @@
+{{define "action_previews"}}
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Action Preview · Staffy</title><link rel="stylesheet" href="/assets/app.css"></head>
+<body><a class="skip-link" href="#main">К основному содержанию</a><header class="topbar"><a class="brand" href="/app/tenants/{{.TenantID}}">Staffy</a><strong>Кейс → Action Preview (Preview Review)</strong></header>
+<div class="shell"><nav aria-label="Основная навигация"><a href="/app/tenants/{{.TenantID}}">Сегодня</a><a href="/app/tenants/{{$.TenantID}}/cases">Обращения</a><a href="/app/tenants/{{$.TenantID}}/cases/{{.CaseID}}">Карточка кейса</a></nav><main id="main"><section class="panel">
+<h1>Action Preview — подготовка и проверка действия</h1>
+<p>{{.PanelText}}</p>
+{{if .Notice}}<p class="status" role="status" tabindex="-1" id="page-notice">{{.Notice}}</p><script>addEventListener('DOMContentLoaded', () => document.getElementById('page-notice').focus());</script>{{end}}
+{{if .Flash}}<p class="alert" role="alert">{{.Flash}}</p>{{end}}
+{{if .HasThreads}}
+{{range .Threads}}
+<h2 id="thread-{{.PreviewID}}">Поток {{.PreviewID}}</h2>
+<ul class="action-catalog">
+{{range .Cards}}
+<li class="action-card">
+<h3>Версия {{.No}}{{if .Supersedes}} (заменяет версию {{.Supersedes}}){{end}}</h3>
+<span><strong>Определение:</strong> {{.DefinitionText}}</span>
+<span><strong>Цель:</strong> {{.TargetText}}</span>
+<span><strong>Типовой материал (только поля схемы):</strong></span>
+<pre>{{.TypedInputPairs}}</pre>
+{{if .FactsText}}<span><strong>Поддерживающие факты (пины версий):</strong> {{.FactsText}}</span>{{end}}
+{{if .ObservationsText}}<span><strong>Поддерживающие наблюдения (пины номеров):</strong> {{.ObservationsText}}</span>{{end}}
+{{if .HasSnapshot}}
+<details open><summary>Материальный snapshot (владеющая система, read-only)</summary>
+<ul>
+{{range .SnapshotRows}}<li><strong>{{.MaterialField}}</strong>: {{.Status}} — внешний идентификатор {{.ExternalID}}, внешняя версия {{.ExternalVersion}}, наблюдалось {{.ObservedAt}}; доказательство: {{.EvidenceRef}}</li>{{end}}
+</ul>
+</details>
+{{end}}
+{{if .HasEffects}}
+<details open><summary>Эффекты (конечный набор из определения)</summary>
+<ul>
+{{range .EffectRows}}<li>№{{.Order}} {{.ActionRef}}{{if .DependsOn}} (зависит от {{.DependsOn}}){{end}} — семантика отказа: {{.FailureSemantics}}</li>{{end}}
+</ul>
+</details>
+{{end}}
+<span><strong>Разграничение:</strong> {{.PartitionText}}</span>
+{{if .UnsafeText}}<span><strong>Маркер:</strong> {{.UnsafeText}}</span>{{end}}
+{{if .NoReconText}}<span><strong>Маркер:</strong> {{.NoReconText}}</span>{{end}}
+{{if .ControlMarkText}}<span><strong>Маркер:</strong> {{.ControlMarkText}}</span>{{end}}
+{{if .HumanOwnerText}}<span><strong>Человеческий контур:</strong> {{.HumanOwnerText}}</span>{{end}}
+{{if .RecoveryText}}<span>{{.RecoveryText}}</span>{{end}}
+<span><strong>Готовность к авторизации:</strong> {{.ReadinessWord}} — {{.ReadinessText}}</span>
+<span><strong>Свежесть:</strong> {{.FreshnessText}}</span>
+<span><strong>Timeline:</strong> {{.TimelineWord}} — {{.TimelineText}}</span>
+<span><strong>Актуальность:</strong> {{.CurrentText}}</span>
+<span><strong>Digest версии:</strong> {{.Digest}}</span>
+{{if .DigestAlarmText}}<p class="alert" role="alert">{{.DigestAlarmText}}</p>{{end}}
+{{if .DiffLines}}
+<details open><summary>Diff правки (материальные изменения словами)</summary>
+<ul>
+{{range .DiffLines}}<li>{{.}}</li>{{end}}
+</ul>
+</details>
+{{end}}
+{{if .Attempts}}
+<details open><summary>Лестница попыток предложения (AD-7: одна повторная попытка, третьей не существует)</summary>
+<ul>
+{{range .Attempts}}<li>Попытка {{.No}} — вердикт {{.Verdict}}{{if .BlockedText}}, блокировка Policy: {{.BlockedText}}{{end}}{{if .InvalidReport}}: {{.InvalidReport}}{{end}} — {{.At}}</li>{{end}}
+</ul>
+</details>
+{{end}}
+{{if .Evidence}}
+<details open><summary>Validation evidence (dry-run: не действие и не гарантия)</summary>
+<ul>
+{{range .Evidence}}<li>Версия {{.Version}} — результат {{.Result}} — {{.At}}</li>{{end}}
+</ul>
+</details>
+{{end}}
+<p id="authorization-{{.PreviewID}}-{{.No}}">{{.AuthorizationText}}</p>
+{{if .Current}}
+<a class="primary" href="#authorization-{{.PreviewID}}-{{.No}}">Перейти к авторизации</a>
+<p class="next-note">Скрытой отправки не существует: Connector write request из подготовительного контура отсутствует, авторизация (подтверждение и Operation) строится в контуре 3-5 и спишется с точной пары (preview_id, version_no).</p>
+<details><summary>Запустить dry-run этой версии (validation evidence)</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.CaseID}}/action-previews/{{.PreviewID}}/versions/{{.No}}/dry-runs">
+<label><input type="checkbox" name="confirm_dry_run" value="yes" required> Подтверждаю запуск dry-run: это проверка валидации, не выполненное действие и не гарантия будущего успеха</label>
+<p class="next-note">Слова Timeline не смещаются evidence-событием; в производственном контуре валидационный адаптер не подключён (AG-4) — команда честно откажется, evidence не создастся.</p>
+<button class="primary" type="submit">Запустить dry-run</button>
+</form>
+</details>
+{{end}}
+</li>
+{{end}}
+</ul>
+<details><summary>Отредактировать разрешённое поле (новая версия полной цепочкой)</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.CaseID}}/action-previews/{{.PreviewID}}/versions">
+<label for="typed_input-{{.PreviewID}}">Типовой материал (пары поле=значение, по одной в строке; неизвестное поле отклоняется по имени)</label>
+<textarea id="typed_input-{{.PreviewID}}" name="typed_input" rows="4" required></textarea>
+<label for="supporting_facts-{{.PreviewID}}">Поддерживающие факты (UUID через запятую)</label>
+<input id="supporting_facts-{{.PreviewID}}" name="supporting_facts" type="text">
+<label for="supporting_observations-{{.PreviewID}}">Поддерживающие наблюдения (UUID через запятую)</label>
+<input id="supporting_observations-{{.PreviewID}}" name="supporting_observations" type="text">
+<p class="next-note">Правка перезапускает полную цепочку (валидация + Policy живыми источниками + свежий материальный snapshot); прежняя версия остаётся читаемой для аудита и теряет пригодность к авторизации; новое подтверждение 3-5 спишется только с точной новой версией.</p>
+<button class="primary" type="submit">Создать новую версию</button>
+</form>
+</details>
+{{end}}
+{{else}}
+<section class="action-empty" aria-labelledby="preview-empty-heading">
+<h2 id="preview-empty-heading">Preview нет</h2>
+<p class="next-note">{{.EmptyText}}</p>
+</section>
+{{end}}
+{{if .HasWorkItems}}
+<h2 id="submit-heading">Подать proposal (построить первый preview)</h2>
+<form method="post" action="/app/tenants/{{.TenantID}}/cases/{{.CaseID}}/action-previews/proposals">
+<label for="work_item_id">Элемент работы</label>
+<select id="work_item_id" name="work_item_id" required>
+{{range .WorkItemIDs}}<option value="{{.}}" {{if eq $.Form.WorkItem .}}selected{{end}}>{{.}}</option>{{end}}
+</select>
+<label for="definition_pin">Определение действия (пин ID@версия из каталога)</label>
+<select id="definition_pin" name="definition_pin" required>
+{{range .DefinitionOptions}}<option value="{{.Pin}}" {{if eq $.Form.Definition .Pin}}selected{{end}}>{{.Pin}} — {{.Name}}</option>{{end}}
+</select>
+<fieldset><legend>Цель действия (закрытый словарь из трёх слов)</legend>
+{{range .TargetKindOptions}}<label><input type="radio" name="target_kind" value="{{.Word}}" {{if eq $.Form.TargetKind .Word}}checked{{end}} required> <strong>{{.Word}}</strong> — {{.Text}}</label>
+{{end}}
+</fieldset>
+<label for="target_ref">Ссылка цели (UUID)</label>
+<input id="target_ref" name="target_ref" type="text" value="{{.Form.TargetRef}}" required>
+<label for="typed_input">Типовой материал (пары поле=значение, по одной в строке — имена полей схемы определения; секретные поля не заполняются значением)</label>
+<textarea id="typed_input" name="typed_input" rows="4" required>{{.Form.TypedInput}}</textarea>
+<label for="supporting_facts">Поддерживающие факты (UUID через запятую, необязательно)</label>
+<input id="supporting_facts" name="supporting_facts" type="text" value="{{.Form.Facts}}">
+<label for="supporting_observations">Поддерживающие наблюдения (UUID через запятую, необязательно)</label>
+<input id="supporting_observations" name="supporting_observations" type="text" value="{{.Form.Observations}}">
+<label for="owner_epoch">Эпоха владельца ответа (живое наблюдение, положительное число)</label>
+<input id="owner_epoch" name="owner_epoch" type="number" min="1" value="{{.Form.OwnerEpoch}}" required>
+<p class="next-note">Proposal строго валидируется против типовой схемы определения (одна попытка исправления, повторная невалидность — терминальный отказ; неизвестное поле не входит в preview и никому не передаётся); Policy подготовки проверяется живыми источниками по порядку — текст proposal не является входом Policy; материальный snapshot берётся read-only из владеющей системы.</p>
+<button class="primary" type="submit">Подать proposal</button>
+</form>
+{{else}}
+<p class="next-note">У кейса нет якорных элементов работы — proposal не подать: создайте элемент работы на карточке кейса.</p>
+{{end}}
+</section></main></div>
+</body></html>
+{{end}}
