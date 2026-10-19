@@ -27,16 +27,33 @@ const actionCatalogScopeText = "Чтение каталога действий �
 // precedent).
 var _ api.ActionCatalogService = (*Service)(nil)
 
-// Service is the read-only CatalogService of the action module (step-02:
-// ports, resolvers, the app layer). It owns NO store — the definition
-// dictionary is compile-time; the service gates the read, resolves nothing
-// on the read path (the admission pass is a separate, test-facing surface)
-// and serves the injected dictionary with the 1-8 pin semantics.
+// Service is the application surface of the action module: the read-only
+// CatalogService of story 3-1 (step-02: ports, resolvers, the app layer —
+// it owns NO store for the catalog; the definition dictionary is
+// compile-time) plus the preparation contour of story 3-4 (step-02 of
+// 3-4: the preview repository and the LIVE fact ports). The 3-4 fields
+// are wired through the With* builders — the 3-1 New() signature stays
+// byte-stable (the transport and the existing tests are untouched), and
+// an unwired 3-4 port is the HONEST refusal, never an assumed "ok"
+// (the ConnectionsFacts precedent).
 type Service struct {
 	identity identityAPI.MembershipService
 	packs    domain.PackRefResolver
 	caps     domain.CapabilityRefResolver
 	defs     []domain.ActionDefinition
+
+	// Story 3-4 (step-02): the preparation contour.
+	previews       port.PreviewRepository  // the append-only store (mandatory for the contour)
+	previewReader  port.OwningSystemReader // nil = the honest blocked_material (AG-4)
+	dryRunner      port.DryRunner          // nil = the honest refusal in words (AG-4)
+	previewControl port.ControlEffectiveReader
+	caseMaterial   port.CaseMaterialSource
+	members        port.MembersSource
+	entitlement    port.EntitlementSource
+	readiness      port.ReadinessSource
+	connectors     port.ConnectorFactsSource
+	routeFacts     port.RouteFactsSource
+	ids            api.IDGenerator
 }
 
 // New wires the service. The resolvers are the composition-root adapters
@@ -48,6 +65,45 @@ type Service struct {
 // as immutable from here on; every read returns a defensive copy.
 func New(identity identityAPI.MembershipService, packs port.PackRefResolver, caps port.CapabilityRefResolver, defs []domain.ActionDefinition) *Service {
 	return &Service{identity: identity, packs: packs, caps: caps, defs: defs}
+}
+
+// WithPreviews wires the whole preparation contour of story 3-4 in one
+// call (the fixture and the transport composition roots): the
+// repository, the LIVE fact sources and the ID generator. The optional
+// AG-4 adapters (the owning-system reader, the dry-runner) are wired
+// separately — their absence is a HONEST state, not a misconfiguration
+// (nil reader = the blocked_material readiness word, nil runner = the
+// spoken unsupported refusal).
+func (s *Service) WithPreviews(repository port.PreviewRepository, control port.ControlEffectiveReader,
+	material port.CaseMaterialSource, memberFacts port.MembersSource,
+	admissions port.EntitlementSource, readinessFacts port.ReadinessSource,
+	connections port.ConnectorFactsSource, routes port.RouteFactsSource, ids api.IDGenerator) *Service {
+	s.previews = repository
+	s.previewControl = control
+	s.caseMaterial = material
+	s.members = memberFacts
+	s.entitlement = admissions
+	s.readiness = readinessFacts
+	s.connectors = connections
+	s.routeFacts = routes
+	s.ids = ids
+	return s
+}
+
+// WithPreviewReader wires the material reader of the snapshot (the test
+// contour wires the synthetic adapter; the production root wires NOTHING
+// — AG-4: no real providers exist, the readiness honestly blocks).
+func (s *Service) WithPreviewReader(reader port.OwningSystemReader) *Service {
+	s.previewReader = reader
+	return s
+}
+
+// WithPreviewDryRunner wires the validation adapter (the test contour
+// only — AG-4: the production root wires nothing, the dry-run surface
+// honestly refuses in words).
+func (s *Service) WithPreviewDryRunner(runner port.DryRunner) *Service {
+	s.dryRunner = runner
+	return s
 }
 
 // authorize is the read gate, in the honest order:

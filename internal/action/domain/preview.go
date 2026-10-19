@@ -848,8 +848,13 @@ type ActionPreview struct {
 	ProfileVersion         int64                 `json:"profile_version"`
 	PolicyOutcomeNo        int64                 `json:"policy_outcome_no"`
 	CapabilityDeclVersion  string                `json:"capability_decl_version"`
-	AuthorID               id.UUID               `json:"author_id"`
-	CreatedAt              time.Time             `json:"created_at"`
+	// Digest is the keyed identity of the WHOLE shown row (the step-02
+	// store column, computed by PreviewDigest over the canonical bytes).
+	// It deliberately NEVER enters the canonical material itself — the
+	// digest is the identity OF the material, never a part of it.
+	Digest    string    `json:"digest"`
+	AuthorID  id.UUID   `json:"author_id"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 // The canonical separators: the ASCII unit separator between the top-level

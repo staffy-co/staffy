@@ -61,7 +61,7 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 	if os.Getenv("STAFFY_TEST_DATABASE_URL") != "" {
-		if _, err = adminPool.Exec(ctx, "drop schema if exists employee cascade; drop schema if exists identity cascade; drop schema if exists connector cascade; drop schema if exists privacy cascade; drop schema if exists entitlement cascade; drop schema if exists cases cascade; drop schema if exists control cascade; drop role if exists staffy_app"); err != nil {
+		if _, err = adminPool.Exec(ctx, "drop schema if exists employee cascade; drop schema if exists identity cascade; drop schema if exists connector cascade; drop schema if exists privacy cascade; drop schema if exists entitlement cascade; drop schema if exists cases cascade; drop schema if exists control cascade; drop schema if exists action cascade; drop role if exists staffy_app"); err != nil {
 			panic(err)
 		}
 	}
@@ -329,6 +329,18 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 	if _, err = adminPool.Exec(ctx, strings.Split(string(casesExternalCommitmentMigration), "-- +goose Down")[0]); err != nil {
+		panic(err)
+	}
+	// Story 3.4: the FIRST migration of the action module. The
+	// registration in this hard list is load-bearing (the 3.3 lesson of
+	// 00017: a migration outside the list never applied its tables to
+	// the test database and the whole contour tested a world that did
+	// not exist).
+	actionPreviewMigration, err := os.ReadFile("../../migrations/action/00001_action_preview.sql")
+	if err != nil {
+		panic(err)
+	}
+	if _, err = adminPool.Exec(ctx, strings.Split(string(actionPreviewMigration), "-- +goose Down")[0]); err != nil {
 		panic(err)
 	}
 	if _, err = adminPool.Exec(ctx, "alter role staffy_app login password 'staffy-runtime-test'"); err != nil {
