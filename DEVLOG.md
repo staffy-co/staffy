@@ -3112,3 +3112,16 @@ done:
 - Коммиты: 94c0e23 спека [skip ci] + эта запись [skip ci]; push немедленный (токен жив, 200+200) — CI-тишина ожидаема (маркеры на обоих коммитах ветки, протокол экономии CI-минут; голова перед PR будет чистой — урок 2-14/ретро-2-1)
 next: CHECKPOINT 1 — явное одобрение владельцем спеки отдельным ответом «одобряю» (дисциплина 52-sm: самопродолжение чекпоинт не закрывает; прецеденты 3-2 e54377b/3-1 a3a3d99/2-16 d3cf818/2-15 8e9f191); после одобрения: спека+sprint-status 3-3 → ready-for-dev (замороженные секции не тронуты: дифф = status + Change Log), ветка codex/story-3-3-external-commitment УЖЕ создана от main 5540933 → Dev step-01 (домен external_commitment.go: словари/версии/пин 2-9/readiness-вывод/7-словный вывод состояний/idempotency key/BuildOutboundPayload + unit-матрица поимённо) → шаги 02-05 → CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge); ретроспектива epic-3 — по закрытии эпика
 commit: 94c0e23
+
+---
+date: 2026-10-19
+task: 120-checkpoint-1
+role: main (Super Z)
+story: 3-3
+summary: CHECKPOINT 1 story 3-3 закрыт: спека первого среза одобрена владельцем явным ответом «одобряю» (дисциплина 52-sm: самопродолжение чекпоинт не закрывает; прецеденты 3-2 e54377b/622f238, 3-1 a3a3d99, 2-16 d3cf818, 2-15 8e9f191, 2-14 d3bbf39). Позиция восстановлена по порядку доверия git > DEVLOG > worklog: сводка контекста устарела 16-й раз (говорила «step-05 story 3-1»), git-факт: stories 3-1/3-2 полностью закрыты (PR #32 merge c4b799f / PR #33 merge 508e278), уборка веток исполнена и верифицирована (33 слитые ветки удалены, на GitHub только main 5540933), SM-фаза 3-3 закрыта (спека 94c0e23 + DEVLOG 119-sm ebbb052, RPO=0, CI-тишина подтверждена). Инструменты восстановлены после 403-рестарта (echo-проба жива); токен владельца верифицирован ДО git-операций: 200 + 200 на /user + /repos. Спека+sprint-status 3-3 → ready-for-dev (замороженные секции не тронуты: дифф = status + Change Log — прецедент 3-2 e54377b); чекпоинт-коммит 9ce0e01 [skip ci] + эта запись [skip ci]; push немедленный (токен жив) — CI-тишина ожидаема (маркеры на середине ветки, голова перед PR будет чистой по уроку 2-14/ретро-2-1).
+done:
+- Верификация позиции: ветка codex/story-3-3-external-commitment = ebbb052 = origin (sync, RPO=0); единственные remote-ветки: main + текущая story-ветка
+- Спека status backlog → ready-for-dev + Change Log запись CHECKPOINT 1; sprint-status ключ 3-3 → ready-for-dev (last_updated уже 10-19-2026)
+- Коммит 9ce0e01 [skip ci]; push живым токеном
+next: Dev step-01 домен external_commitment в internal/cases/domain (словари purpose {promise, offer, callback, deadline_update}/recipient {client, operator}/каналы-зеркало 9 слов, конверт со стабильным ext_commitment_id и монотонным version_no, пин 2-9 тройкой для offer, content_token keyed HMAC над каноническими байтами, DeriveExternalReadiness выводом чтения, СЕМЬ слов состояний выводом по append-only dispatch_events, idempotency key = HMAC пина версии, BuildOutboundPayload детерминированно из строки версии + unit-матрица поимённо) → шаги 02-05 → CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge); ретроспектива epic-3 — по закрытии эпика
+commit: 9ce0e01
