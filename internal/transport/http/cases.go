@@ -203,6 +203,33 @@ func (s *Server) BindCases(service casesAPI.Service) {
 			s.tenantNamer = namer
 		}
 	}
+	if external, ok := service.(casesAPI.ExternalCommitmentService); ok {
+		// The Story 3.3 surfaces (the first slice): the machine JSON of
+		// the envelope lifecycle (the create, the exact-version approval
+		// with step-up, the persist-before-emit enqueue, the operator
+		// receipt relay and the bounded drain) and the operator
+		// Commitment Review page with the PRG forms — the narrow
+		// interface is type-asserted of the cases service (the
+		// UpdatePromiseService precedent: the composite Service and
+		// the test fakes stay untouched). The mutation paths are
+		// Work-Item-anchored (the 2.9 commitment family); the view and
+		// the page are case-wide (the sections read every Work Item);
+		// the drain is the tenant-level operator command (the
+		// client-replies drain precedent).
+		s.externalCommitments = external
+		s.mux.HandleFunc("GET /v1/tenants/{tenant_id}/cases/{case_id}/external-commitments", s.readExternalCommitmentsAPI)
+		s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/external-commitments", s.createExternalCommitmentAPI)
+		s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/external-commitments/{ext_commitment_id}/versions/{version_no}/approve", s.approveExternalCommitmentAPI)
+		s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/external-commitments/{ext_commitment_id}/versions/{version_no}/enqueue", s.enqueueExternalCommitmentAPI)
+		s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/external-commitments/{ext_commitment_id}/versions/{version_no}/dispatch-receipts", s.relayExternalReceiptAPI)
+		s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/external-commitments/drain", s.drainExternalCommitmentsAPI)
+		s.mux.HandleFunc("GET /app/tenants/{tenant_id}/cases/{case_id}/external-commitments", s.externalCommitmentsPage)
+		s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/external-commitments", s.createExternalCommitmentForm)
+		s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/external-commitments/{ext_commitment_id}/versions/{version_no}/approve", s.approveExternalCommitmentForm)
+		s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/external-commitments/{ext_commitment_id}/versions/{version_no}/enqueue", s.enqueueExternalCommitmentForm)
+		s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/external-commitments/{ext_commitment_id}/versions/{version_no}/dispatch-receipts", s.relayExternalReceiptForm)
+		s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/external-commitments/drain", s.drainExternalCommitmentsForm)
+	}
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/commitments", s.createCommitmentForm)
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/commitments/{commitment_id}/confirm", s.confirmCommitmentForm)
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/commitments/{commitment_id}/decline", s.declineCommitmentForm)

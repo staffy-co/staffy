@@ -732,3 +732,173 @@ func (s *Service) livePinReadiness(ctx context.Context, scope tenancy.Context, p
 	}
 	return casesDomain.DeriveCommitmentReadiness(*pinned, maxVersionNo), nil
 }
+
+// externalPanelText is the fixed intro of the Commitment Review surface —
+// the ONE domain text (the render-layer material of the domain; the
+// fixture world serves the same word).
+const externalPanelText = casesDomain.ExternalCommitmentPanelText
+
+// externalEmptyText is the honest reason of the empty view — the ONE
+// domain text.
+const externalEmptyText = casesDomain.ExternalCommitmentEmptyText
+
+// ReadExternalCommitmentView reads the Commitment Review surface of one
+// case: the per-Work-Item sections with the immutable envelope version
+// cards — the queue evidence of the outbox record (the words have NOT
+// left by construction), the append-only dispatch history, the
+// seven-word delivery derivation, the five-word readiness derivation
+// (the LIVE 2.9 pin readiness of the offers), the approval material of
+// the EXACT version and the current flag. The gate is the cases view
+// scope (the CaseView precedent — the envelope content is the case
+// material of the honesty perimeter); the derivations are read-time
+// only, never stored words.
+func (s *Service) ReadExternalCommitmentView(ctx context.Context, actor domain.Principal, tenantID, caseID id.UUID) (casesAPI.ExternalCommitmentView, error) {
+	// The read gate: review, configuration or audit (the cases read
+	// scope — a member with any scope sees the surface, a member without
+	// one gets the honest 403, a non-member the plain 404).
+	scope, _, err := s.viewScope(ctx, actor, tenantID)
+	if err != nil {
+		return casesAPI.ExternalCommitmentView{}, err
+	}
+	// The case must exist for this member (the honest 404 of a foreign
+	// case — the section anchor is the Work Item list of the case).
+	detail, err := s.repository.ReadCase(ctx, scope, caseID)
+	if err != nil {
+		return casesAPI.ExternalCommitmentView{}, err
+	}
+	versions, err := s.repository.ReadExternalCommitments(ctx, scope, caseID)
+	if err != nil {
+		return casesAPI.ExternalCommitmentView{}, err
+	}
+	approvals, err := s.repository.ReadExternalApprovals(ctx, scope, caseID)
+	if err != nil {
+		return casesAPI.ExternalCommitmentView{}, err
+	}
+	events, err := s.repository.ReadExternalDispatchEvents(ctx, scope, caseID)
+	if err != nil {
+		return casesAPI.ExternalCommitmentView{}, err
+	}
+	queued, err := s.repository.ReadExternalQueuedVersions(ctx, scope, caseID)
+	if err != nil {
+		return casesAPI.ExternalCommitmentView{}, err
+	}
+	// The CURRENT owner epoch of the readiness derivation (the moved
+	// epoch honestly degrades every pinned version to owner_stale).
+	ownershipTerms, _, _, err := s.repository.ReadOwnershipMaterial(ctx, scope, caseID)
+	if err != nil {
+		return casesAPI.ExternalCommitmentView{}, err
+	}
+	ownerEpochCurrent := int64(0)
+	if owner := casesDomain.CurrentOwnership(ownershipTerms); owner != nil {
+		ownerEpochCurrent = owner.Epoch
+	}
+	now := s.clock.Now().UTC()
+	// The queue evidence index (the outbox record IS the enqueued proof).
+	queuedSet := make(map[casesPort.ExternalQueuedVersion]bool, len(queued))
+	for _, pin := range queued {
+		queuedSet[pin] = true
+	}
+	// The LIVE 2.9 pin readiness per distinct pinned commitment of the
+	// offer versions: the stored token match against the pin triple, the
+	// DeriveCommitmentReadiness of the exact version. An absent pinned
+	// row or a mismatched token degrades the word to the fail-closed
+	// empty string — the derivation answers pin_blocked honestly (the
+	// view never fails on the stale material; the readiness word carries
+	// the honesty). An infra failure stays loud (the honest 500, never a
+	// fabricated word).
+	pinReadiness := make(map[id.UUID]string)
+	for _, version := range versions {
+		if version.Purpose != casesDomain.ExternalPurposeOffer || !version.Pin.Present() {
+			continue
+		}
+		if _, resolved := pinReadiness[version.Pin.CommitmentID]; resolved {
+			continue
+		}
+		pinned, err := s.repository.ReadCommitmentVersionsByID(ctx, scope, version.Pin.CommitmentID)
+		if err != nil {
+			return casesAPI.ExternalCommitmentView{}, err
+		}
+		word := ""
+		var exact *casesDomain.CommitmentVersion
+		maxVersionNo := int64(0)
+		for i := range pinned {
+			if pinned[i].VersionNo == version.Pin.VersionNo {
+				exact = &pinned[i]
+			}
+			if pinned[i].VersionNo > maxVersionNo {
+				maxVersionNo = pinned[i].VersionNo
+			}
+		}
+		if exact != nil && exact.ContentToken == version.Pin.ContentToken {
+			word = casesDomain.DeriveCommitmentReadiness(*exact, maxVersionNo)
+		}
+		pinReadiness[version.Pin.CommitmentID] = word
+	}
+	// The maximal version per envelope (the current flag and the
+	// superseded fence of the readiness derivation).
+	maxVersionNo := make(map[id.UUID]int64, len(versions))
+	for _, version := range versions {
+		if version.VersionNo > maxVersionNo[version.ExtCommitmentID] {
+			maxVersionNo[version.ExtCommitmentID] = version.VersionNo
+		}
+	}
+	view := casesAPI.ExternalCommitmentView{
+		PurposeWords:   append([]string(nil), casesDomain.ExternalPurposeWords...),
+		RecipientWords: append([]string(nil), casesDomain.ExternalRecipientKindWords...),
+		AckWords:       append([]string(nil), casesDomain.ExternalAckRequirementWords...),
+		RelayWords:     append([]string(nil), casesDomain.RelayObservationWords...),
+		ChannelWords:   append([]string(nil), casesDomain.ChannelOrder...),
+		StateWords:     append([]string(nil), casesDomain.ExternalDeliveryStateWords...),
+		PanelText:      externalPanelText,
+		EmptyText:      externalEmptyText,
+		Items:          make([]casesAPI.ExternalCommitmentWorkItemView, 0, len(detail.WorkItems)),
+	}
+	for _, item := range detail.WorkItems {
+		section := casesAPI.ExternalCommitmentWorkItemView{
+			WorkItemID: item.WorkItemID,
+			Versions:   []casesAPI.ExternalCommitmentVersionCard{},
+		}
+		for _, version := range versions {
+			if version.WorkItemID != item.WorkItemID {
+				continue
+			}
+			// The append-only history of THIS version (the read order is
+			// the envelope, the version and the monotonic event number).
+			versionEvents := []casesDomain.ExternalDispatchEvent{}
+			for _, event := range events {
+				if event.ExtCommitmentID == version.ExtCommitmentID && event.VersionNo == version.VersionNo {
+					versionEvents = append(versionEvents, event)
+				}
+			}
+			enqueued := queuedSet[casesPort.ExternalQueuedVersion{ExtCommitmentID: version.ExtCommitmentID, VersionNo: version.VersionNo}]
+			delivery := casesDomain.DeriveExternalDeliveryState(enqueued, versionEvents)
+			pinWord := casesDomain.CommitmentReadinessConfirmable
+			if version.Purpose == casesDomain.ExternalPurposeOffer && version.Pin.Present() {
+				pinWord = pinReadiness[version.Pin.CommitmentID]
+			}
+			readiness := casesDomain.DeriveExternalReadiness(version, casesDomain.ExternalReadinessInput{
+				Now: now, MaxVersionNo: maxVersionNo[version.ExtCommitmentID],
+				OwnerEpochCurrent: ownerEpochCurrent, PinReadiness: pinWord,
+			})
+			readinessText := casesDomain.ExternalReadinessRefusalTexts[readiness]
+			card := casesAPI.ExternalCommitmentVersionCard{
+				Version:       casesAPI.FromExternalCommitment(version),
+				Enqueued:      enqueued,
+				Delivery:      casesAPI.FromExternalDeliveryState(delivery),
+				Readiness:     readiness,
+				ReadinessText: readinessText,
+				Current:       version.VersionNo == maxVersionNo[version.ExtCommitmentID],
+			}
+			if approval := casesDomain.ApproverOf(approvals, version.ExtCommitmentID, version.VersionNo); approval != nil {
+				card.Approved = true
+				card.ApproverID = approval.ApproverID
+			}
+			for _, event := range versionEvents {
+				card.Events = append(card.Events, casesAPI.FromExternalDispatchEvent(event))
+			}
+			section.Versions = append(section.Versions, card)
+		}
+		view.Items = append(view.Items, section)
+	}
+	return view, nil
+}

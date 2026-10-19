@@ -16,6 +16,7 @@ import (
         "github.com/artemiosu/staffy/internal/adapters/authdev"
         "github.com/artemiosu/staffy/internal/adapters/capabilityresolver"
         "github.com/artemiosu/staffy/internal/adapters/connectorrefresolver"
+        "github.com/artemiosu/staffy/internal/adapters/controleffectiveresolver"
         "github.com/artemiosu/staffy/internal/adapters/ingresssyn"
         "github.com/artemiosu/staffy/internal/adapters/packresolver"
         "github.com/artemiosu/staffy/internal/adapters/verificationsyn"
@@ -136,7 +137,18 @@ func run(logger *slog.Logger) error {
                 WithConnectionFacts(connectorService).
                 WithMembers(identityService).
                 WithPackTaxonomy(employeeService).
-                WithIdentityVerifier(verificationsyn.New())
+                WithIdentityVerifier(verificationsyn.New()).
+                // The Story 3.3 enforcement point: the drain fence reads the LIVE
+                // effective control of the delivery route (the tenant point + the
+                // channel point) through the composition adapter over the control
+                // rows (the DAG discipline: the case module consumes the
+                // consumer-owned port only; the adapter reads the rows behind the
+                // drain's own configuration gate всть the control UI gates stay out
+                // of a machine fence). The DISPATCHER is deliberately NOT wired
+                // всть AG-4: no real providers exist, the drain refuses in words and
+                // the records stay queued; the synthetic dispatcher lives in the
+                // test-contour adapter package this root never imports.
+                WithControlEffective(controleffectiveresolver.New(controlStore.NewPostgres(pool), clock))
         transport.BindCases(casesService)
         // The action catalog (Story 3.1): the read-only surface of the authorized
         // action dictionary over the composition-root resolvers (the live pack

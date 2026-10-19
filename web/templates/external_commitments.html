@@ -1,0 +1,127 @@
+{{define "external_commitments"}}
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Внешние обязательства · Staffy</title><link rel="stylesheet" href="/assets/app.css"></head>
+<body><a class="skip-link" href="#main">К основному содержанию</a><header class="topbar"><a class="brand" href="/app/tenants/{{.TenantID}}">Staffy</a><strong>Кейс → Внешние обязательства (Commitment Review)</strong></header>
+<div class="shell"><nav aria-label="Основная навигация"><a href="/app/tenants/{{.TenantID}}">Сегодня</a><a href="/app/tenants/{{$.TenantID}}/cases">Обращения</a><a href="/app/tenants/{{$.TenantID}}/cases/{{.CaseID}}">Карточка кейса</a></nav><main id="main"><section class="panel">
+<h1>Внешние обязательства</h1>
+<p>{{.PanelText}}</p>
+{{if .Notice}}<p class="status" role="status" tabindex="-1" id="page-notice">{{.Notice}}</p><script>addEventListener('DOMContentLoaded', () => document.getElementById('page-notice').focus());</script>{{end}}
+{{if .Flash}}<p class="alert" role="alert">{{.Flash}}</p>{{end}}
+<details><summary>Запустить диспетчеризацию очереди</summary>
+<form method="post" action="/app/tenants/{{.TenantID}}/cases/external-commitments/drain">
+<input type="hidden" name="case_id" value="{{.CaseID}}">
+<label><input type="checkbox" name="confirm_drain" value="yes" required> Подтверждаю запуск диспетчеризации: модуль обработает ожидающие записи — слова покинут очередь только через сконфигурированный диспетчер</label>
+<p class="next-note">Диспетчеризация — операторская команда (фоновых демонов нет): каждый запуск обрабатывает не более 500 ожидающих записей тенента. В производственном контуре диспетчер не сконфигурирован (AG-4) — команда честно откажется, записи останутся в очереди.</p>
+<button class="primary" type="submit">Запустить диспетчеризацию</button>
+</form>
+</details>
+{{if .HasItems}}
+{{range .Sections}}
+<h2>Work Item {{.WorkItemID}}</h2>
+{{if .Cards}}
+<ul class="action-catalog">
+{{range .Cards}}
+<li class="action-card">
+<h3>Конверт {{.ExtID}} — версия {{.No}}</h3>
+<span><strong>Назначение:</strong> {{.PurposeText}}</span>
+<span><strong>Получатель:</strong> {{.RecipientText}}</span>
+<span><strong>Канал доставки:</strong> {{.Channel}}</span>
+<span><strong>Содержание:</strong> {{.Content}}</span>
+<span><strong>Срок действия:</strong> {{.ValidUntil}}</span>
+<span><strong>Ожидаемый следующий шаг:</strong> {{.NextStep}}</span>
+<span><strong>Подтверждение получения:</strong> {{.AckText}}</span>
+{{if .PinText}}<span><strong>Пин:</strong> {{.PinText}}</span>{{end}}
+<span><strong>Снимок владельца:</strong> {{.OwnerText}}</span>
+<span><strong>Создана:</strong> {{.CreatedAt}}</span>
+<span><strong>Состояние:</strong> {{.StateWord}} — {{.StateText}}</span>
+<span><strong>Очередь:</strong> {{.EnqueuedText}}</span>
+{{if .LastLine}}<span>{{.LastLine}}</span>{{end}}
+<span><strong>Готовность к отправке:</strong> {{.ReadinessWord}}{{if .ReadinessText}} — {{.ReadinessText}}{{end}}</span>
+<span><strong>Актуальность:</strong> {{.CurrentText}}</span>
+<span><strong>Утверждение:</strong> {{.ApprovedText}}</span>
+{{if .Events}}
+<details open><summary>История диспетчеризации (append-only)</summary>
+<ul>
+{{range .Events}}<li>№{{.No}} {{.Kind}}{{if .ReasonText}} — {{.ReasonText}}{{end}}{{if .AttemptText}}, {{.AttemptText}}{{end}}{{if .Correlation}}, корреляция: {{.Correlation}}{{end}}{{if .GuaranteeText}}, {{.GuaranteeText}}{{end}}{{if .Details}} — {{.Details}}{{end}} — {{.At}}</li>{{end}}
+</ul>
+</details>
+{{end}}
+<details><summary>Утвердить версию (текущий человек-владелец, step-up)</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.CaseID}}/work-items/{{.WorkItemID}}/external-commitments/{{.ExtID}}/versions/{{.No}}/approve">
+<label><input type="checkbox" name="confirm_approve" value="yes" required> Подтверждаю утверждение этой точной версии: изменённый текст потребует новой версии и нового утверждения</label>
+<p class="next-note">Утверждение требует повторного подтверждения личности (step-up) и принадлежит только текущему человеку-владельцу кейса — серверные защиты сработают независимо от чекбокса.</p>
+<button class="primary" type="submit">Утвердить версию</button>
+</form>
+</details>
+<details><summary>Поставить версию в очередь</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.CaseID}}/work-items/{{.WorkItemID}}/external-commitments/{{.ExtID}}/versions/{{.No}}/enqueue">
+<label><input type="checkbox" name="confirm_enqueue" value="yes" required> Подтверждаю постановку точной версии в очередь: слова сохраняются до отправки (persist-before-emit), сетевого вызова при постановке нет</label>
+<p class="next-note">Очередь требует утверждения этой версии текущим владельцем-человеком; готовность проверяется перед транзакцией — словарные отказы придут честными словами без записи.</p>
+<button class="primary" type="submit">Поставить в очередь</button>
+</form>
+</details>
+<details><summary>Передать наблюдение канала (relay)</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.CaseID}}/work-items/{{.WorkItemID}}/external-commitments/{{.ExtID}}/versions/{{.No}}/dispatch-receipts">
+<fieldset><legend>Наблюдение канала (словарь из трёх слов)</legend>
+{{range $.RelayOptions}}<label><input type="radio" name="observation" value="{{.Word}}" required> <strong>{{.Word}}</strong> — {{.Text}}</label>
+{{end}}
+</fieldset>
+<p class="next-note">Человек передаёт машинное наблюдение, машина не изобретает его: наблюдение попадает в append-only историю, состояние чтения пересчитается по последнему событию.</p>
+<button class="primary" type="submit">Записать наблюдение</button>
+</form>
+</details>
+</li>
+{{end}}
+</ul>
+{{else}}
+<p class="next-note">У этого элемента работы конвертов нет.</p>
+{{end}}
+{{end}}
+{{else}}
+<section class="action-empty" aria-labelledby="external-empty-heading">
+<h2 id="external-empty-heading">Конвертов нет</h2>
+<p class="next-note">{{.EmptyText}}</p>
+</section>
+{{end}}
+<h2 id="create-heading">Создать версию конверта</h2>
+<form method="post" action="/app/tenants/{{.TenantID}}/cases/{{.CaseID}}/external-commitments">
+<label for="work_item_id">Элемент работы</label>
+<select id="work_item_id" name="work_item_id" required>
+{{range .Sections}}<option value="{{.WorkItemID}}" {{if eq $.Form.WorkItem .WorkItemID}}selected{{end}}>{{.WorkItemID}}</option>{{end}}
+</select>
+<label for="ext_commitment_id">Стабильный идентификатор конверта (необязательно: пусто — сервер назначит новый; существующий ID продолжает лестницу версий)</label>
+<input id="ext_commitment_id" name="ext_commitment_id" type="text" value="{{.Form.ExtID}}">
+<label for="purpose">Назначение</label>
+<select id="purpose" name="purpose" required>
+{{range .PurposeOptions}}<option value="{{.Word}}" {{if eq $.Form.Purpose .Word}}selected{{end}}>{{.Word}} — {{.Text}}</option>{{end}}
+</select>
+<p class="next-note">Назначение offer требует пин точной версии обязательства 2.9 (тройка ниже): предложение уходит только привязанным к показанной версии.</p>
+<fieldset><legend>Получатель</legend>
+{{range .RecipientOptions}}<label><input type="radio" name="recipient_kind" value="{{.Word}}" {{if eq $.Form.Recipient .Word}}checked{{end}} required> <strong>{{.Word}}</strong> — {{.Text}}</label>
+{{end}}
+</fieldset>
+<label for="channel">Канал доставки (девять слов)</label>
+<select id="channel" name="channel" required>
+{{range .ChannelOptions}}<option value="{{.Word}}" {{if eq $.Form.Channel .Word}}selected{{end}}>{{.Word}}</option>{{end}}
+</select>
+<label for="content_text">Содержание (1–2000 символов)</label>
+<textarea id="content_text" name="content_text" required>{{.Form.Content}}</textarea>
+<label for="valid_until">Срок действия (RFC3339, обязательно будущее)</label>
+<input id="valid_until" name="valid_until" type="text" value="{{.Form.ValidUntil}}" placeholder="2026-10-26T12:00:00Z" required>
+<label for="expected_next_step">Ожидаемый следующий шаг (1–200 символов)</label>
+<input id="expected_next_step" name="expected_next_step" type="text" value="{{.Form.NextStep}}" required>
+<fieldset><legend>Подтверждение получения</legend>
+{{range .AckOptions}}<label><input type="radio" name="ack_requirement" value="{{.Word}}" {{if eq $.Form.Ack .Word}}checked{{end}} required> <strong>{{.Word}}</strong> — {{.Text}}</label>
+{{end}}
+</fieldset>
+<label for="pin_commitment_id">Пин 2.9 — commitment id (необязательно, обязателен для offer)</label>
+<input id="pin_commitment_id" name="pin_commitment_id" type="text" value="{{.Form.PinCommitment}}">
+<label for="pin_version_no">Пин 2.9 — номер версии</label>
+<input id="pin_version_no" name="pin_version_no" type="number" min="0" value="{{.Form.PinVersion}}">
+<label for="pin_content_token">Пин 2.9 — content token версии (64 hex)</label>
+<input id="pin_content_token" name="pin_content_token" type="text" value="{{.Form.PinToken}}">
+<p class="next-note">Пин — тройка all-or-nothing: частичный пин откажется честными словами. Владелец-снимок, lineage и номер policy outcome записываются сервером из живого материала кейса — их нет в форме.</p>
+<button class="primary" type="submit">Создать версию</button>
+</form>
+</section></main></div>
+</body></html>
+{{end}}

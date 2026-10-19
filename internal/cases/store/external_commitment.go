@@ -304,6 +304,42 @@ func (s *Postgres) ReadCommitmentVersionsByID(ctx context.Context, scope tenancy
 	return versions, tx.Commit(ctx)
 }
 
+// ReadExternalQueuedVersions reads the queue evidence of one case: the
+// version pins that carry the external_commitment.queued outbox record
+// (the aggregate of the record is the case — the enqueue wrote it so).
+// The record IS the queued proof: its presence marks the version
+// enqueued whatever the dispatch events said afterwards — the read feeds
+// the Enqueued flag of the view derivation (the events refine the state,
+// the queue evidence never disappears).
+func (s *Postgres) ReadExternalQueuedVersions(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]casesPort.ExternalQueuedVersion, error) {
+	tx, err := s.begin(ctx, scope, true)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	rows, err := tx.Query(ctx, `
+                select (payload->>'ext_commitment_id')::uuid, (payload->>'version_no')::bigint
+                from cases.outbox_events
+                where tenant_id=$1 and aggregate_id=$2 and event_type='external_commitment.queued'
+                order by occurred_at, event_id`, scope.TenantID(), caseID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	queued := []casesPort.ExternalQueuedVersion{}
+	for rows.Next() {
+		var pin casesPort.ExternalQueuedVersion
+		if err := rows.Scan(&pin.ExtCommitmentID, &pin.VersionNo); err != nil {
+			return nil, err
+		}
+		queued = append(queued, pin)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return queued, tx.Commit(ctx)
+}
+
 // readCommitmentVersionsByIDTx reads every version of one commitment
 // identifier inside a caller transaction (the enqueue pin gate under the
 // locks).

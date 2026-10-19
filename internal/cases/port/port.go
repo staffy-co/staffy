@@ -405,6 +405,14 @@ type Repository interface {
 	// pinned version with its STORED token — the live match against the
 	// pin triple — and the maximal number of the readiness derivation).
 	ReadCommitmentVersionsByID(ctx context.Context, scope tenancy.Context, commitmentID id.UUID) ([]casesDomain.CommitmentVersion, error)
+	// ReadExternalQueuedVersions reads the queue evidence of one case:
+	// the version pins that carry the external_commitment.queued outbox
+	// record (the pending outbox record IS the queued proof — the words
+	// have NOT left by construction, AC-3; the record survives the
+	// dispatch attempts — the events refine the state, the queue
+	// evidence never disappears). The read is the Enqueued flag of the
+	// view derivation (the DeriveExternalDeliveryState input).
+	ReadExternalQueuedVersions(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]ExternalQueuedVersion, error)
 	// CreateExternalCommitment writes one envelope version under the
 	// case + work item advisory locks: the work item must be alive, the
 	// expected monotonic number is re-validated under the locks (the
@@ -554,6 +562,17 @@ type ExternalDispatchCandidate struct {
 	OwnerEpochCurrent int64
 	MaxVersionNo      int64
 	HMACKey           []byte
+}
+
+// ExternalQueuedVersion is the queue evidence pin of ONE envelope version:
+// the stable envelope identifier with the exact version number that
+// carries the external_commitment.queued outbox record. The record IS the
+// queued proof — its presence marks the version enqueued whatever the
+// dispatch events say afterwards (the derivation of the seven states
+// reads this flag first, the 2.12 persisted guard).
+type ExternalQueuedVersion struct {
+	ExtCommitmentID id.UUID
+	VersionNo       int64
 }
 
 // ExternalGasParams is the material of one stale gasp: the version pin,

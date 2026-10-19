@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -139,7 +140,8 @@ func (r *fakeExternalRepo) ReadCase(ctx context.Context, scope tenancy.Context, 
 		Conversations: []casesDomain.Conversation{{
 			TenantID: r.f.tenant, CaseID: caseID, ConversationID: r.f.extID,
 			ConnectionID: r.f.workItemID, Modality: casesDomain.ModalityText, State: "open",
-		}}}, nil
+		}},
+		WorkItems: []casesDomain.WorkItemCurrent{r.f.current}}, nil
 }
 
 func (r *fakeExternalRepo) ReadWorkItemCurrents(ctx context.Context, scope tenancy.Context, caseID id.UUID, ids []id.UUID) (map[id.UUID]casesDomain.WorkItemCurrent, error) {
@@ -170,6 +172,30 @@ func (r *fakeExternalRepo) ReadExternalApprovals(ctx context.Context, scope tena
 
 func (r *fakeExternalRepo) ReadExternalDispatchEvents(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]casesDomain.ExternalDispatchEvent, error) {
 	return r.f.events, nil
+}
+
+// ReadExternalQueuedVersions mirrors the store read of the queue evidence:
+// the dedup keys of the queued map ARE the version pins
+// (external_commitment.queued:<ext>:<version> — the honest derivation of
+// the fixture world).
+func (r *fakeExternalRepo) ReadExternalQueuedVersions(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]casesPort.ExternalQueuedVersion, error) {
+	pins := []casesPort.ExternalQueuedVersion{}
+	for key := range r.f.queued {
+		parts := strings.Split(key, ":")
+		if len(parts) != 3 {
+			continue
+		}
+		extID, err := id.Parse(parts[1])
+		if err != nil {
+			continue
+		}
+		versionNo, err := strconv.ParseInt(parts[2], 10, 64)
+		if err != nil {
+			continue
+		}
+		pins = append(pins, casesPort.ExternalQueuedVersion{ExtCommitmentID: extID, VersionNo: versionNo})
+	}
+	return pins, nil
 }
 
 func (r *fakeExternalRepo) ReadCommitmentVersionsByID(ctx context.Context, scope tenancy.Context, commitmentID id.UUID) ([]casesDomain.CommitmentVersion, error) {
@@ -1291,5 +1317,192 @@ func TestExternalQueuedPayloadCarriesNoContentMaterial(t *testing.T) {
 	}
 	if !strings.Contains(string(payload), "content_digest") {
 		t.Fatalf("outbox конверт несёт digest: %s", payload)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// The Commitment Review view: the read-time derivations over the fixture
+// material (the queue evidence, the seven delivery words, the readiness
+// fences, the approval material and the honest empty)
+// ---------------------------------------------------------------------------
+
+// readFixture prepares the read view material: the version, the approval,
+// the queue evidence and the dispatch history.
+func readFixture(t *testing.T, purpose string) (*fakeExternalRepo, *Service, *externalFixture) {
+	t.Helper()
+	f := newExternalFixture()
+	f.versions = []casesDomain.ExternalCommitment{f.version(purpose)}
+	f.approvals = []casesDomain.ExternalApproval{{
+		TenantID: f.tenant, CaseID: f.caseID, WorkItemID: f.workItemID,
+		ExtCommitmentID: f.extID, VersionNo: 1, ApproverID: f.owner, StepUpVerified: true,
+		CreatedAt: f.now,
+	}}
+	repo := &fakeExternalRepo{f: f}
+	service := externalService(repo, fakeExternalIdentity{allowed: map[domain.Scope]bool{domain.Review: true, domain.Audit: true}, member: true}, nil, nil)
+	return repo, service, f
+}
+
+func TestExternalReadViewRefusesNonMemberAndScopelessMember(t *testing.T) {
+	f := newExternalFixture()
+	nonMember := &fakeExternalRepo{f: f}
+	service := externalService(nonMember, fakeExternalIdentity{allowed: map[domain.Scope]bool{}}, nil, nil)
+	_, err := service.ReadExternalCommitmentView(context.Background(), f.actor, f.tenant, f.caseID)
+	if !errors.Is(err, domain.ErrNotFound) {
+		t.Fatalf("не-участник — честный 404, получено: %v", err)
+	}
+	scopeless := &fakeExternalRepo{f: f}
+	service = externalService(scopeless, fakeExternalIdentity{allowed: map[domain.Scope]bool{}, member: true}, nil, nil)
+	_, err = service.ReadExternalCommitmentView(context.Background(), f.actor, f.tenant, f.caseID)
+	if !errors.Is(err, domain.ErrForbidden) {
+		t.Fatalf("участник без скоупов — честный 403, получено: %v", err)
+	}
+}
+
+func TestExternalReadViewServesSectionsAndDerivations(t *testing.T) {
+	repo, service, f := readFixture(t, casesDomain.ExternalPurposePromise)
+	repo.f.queued[casesDomain.DedupKeyExternalCommitmentQueued(f.extID, 1)] = true
+	repo.f.events = []casesDomain.ExternalDispatchEvent{{
+		TenantID: f.tenant, CaseID: f.caseID, ExtCommitmentID: f.extID, VersionNo: 1,
+		EventID: f.extID, EventNo: 1, Kind: casesDomain.ExternalDispatchAttemptSubmitted,
+		AttemptNo: 1, ExternalCorrelationID: "prov-1", IdempotentGuarantee: true,
+		Details: "исход: accepted", ActorID: f.owner, CreatedAt: f.now,
+	}}
+	view, err := service.ReadExternalCommitmentView(context.Background(), f.actor, f.tenant, f.caseID)
+	if err != nil {
+		t.Fatalf("чтение обязано пройти: %v", err)
+	}
+	if len(view.Items) != 1 || view.Items[0].WorkItemID != f.workItemID {
+		t.Fatalf("секция — по одному на work item, получено: %+v", view.Items)
+	}
+	if len(view.Items[0].Versions) != 1 {
+		t.Fatalf("карточка обязана быть одна, получено: %+v", view.Items[0].Versions)
+	}
+	card := view.Items[0].Versions[0]
+	if !card.Enqueued {
+		t.Fatalf("доказательство очереди — outbox запись, получено Enqueued=false")
+	}
+	if card.Delivery.State != casesDomain.ExternalDeliverySubmitted {
+		t.Fatalf("последнее событие решает состояние: submitted, получено: %q", card.Delivery.State)
+	}
+	if card.Delivery.StateText != casesDomain.ExternalDeliveryStateTexts[casesDomain.ExternalDeliverySubmitted] {
+		t.Fatalf("текст состояния — фиксированный доменный, получено: %q", card.Delivery.StateText)
+	}
+	if card.Delivery.LastExternalCorrelationID != "prov-1" || card.Delivery.LastEventNo != 1 {
+		t.Fatalf("материал последнего события обязан приехать, получено: %+v", card.Delivery)
+	}
+	if card.Readiness != casesDomain.ExternalReadinessReady || card.ReadinessText != "" {
+		t.Fatalf("живая версия — ready без текста отказа, получено: %q %q", card.Readiness, card.ReadinessText)
+	}
+	if !card.Current || !card.Approved || card.ApproverID != f.owner {
+		t.Fatalf("current и approval материал обязаны быть честными, получено: %+v", card)
+	}
+	if len(card.Events) != 1 || card.Events[0].Kind != casesDomain.ExternalDispatchAttemptSubmitted ||
+		card.Events[0].IdempotentGuarantee != true {
+		t.Fatalf("append-only история обязана приехать на проводе, получено: %+v", card.Events)
+	}
+	if len(view.PurposeWords) != 4 || len(view.RelayWords) != 3 || len(view.StateWords) != 7 || len(view.ChannelWords) != 9 {
+		t.Fatalf("словари обязаны приехать: purpose %d relay %d states %d channels %d",
+			len(view.PurposeWords), len(view.RelayWords), len(view.StateWords), len(view.ChannelWords))
+	}
+	if view.PanelText == "" || view.EmptyText == "" {
+		t.Fatalf("честные тексты панели и пустоты обязательны")
+	}
+}
+
+func TestExternalReadViewDerivesSupersededAndCancelledHonesty(t *testing.T) {
+	repo, service, f := readFixture(t, casesDomain.ExternalPurposePromise)
+	// v1 — в очереди, загашена newer_version (слова не ушли); v2 — текущая persisted.
+	v1 := f.version(casesDomain.ExternalPurposePromise)
+	v2 := f.version(casesDomain.ExternalPurposePromise)
+	v2.VersionNo = 2
+	v2.ContentToken = casesDomain.ExternalCommitmentContentToken(f.hmacKey, v2)
+	repo.f.versions = []casesDomain.ExternalCommitment{v1, v2}
+	repo.f.queued[casesDomain.DedupKeyExternalCommitmentQueued(f.extID, 1)] = true
+	repo.f.events = []casesDomain.ExternalDispatchEvent{{
+		TenantID: f.tenant, CaseID: f.caseID, ExtCommitmentID: f.extID, VersionNo: 1,
+		EventID: f.extID, EventNo: 1, Kind: casesDomain.ExternalDispatchCancelledStale,
+		Reason: casesDomain.ExternalStaleNewerVersion, ActorID: f.owner, CreatedAt: f.now,
+	}}
+	view, err := service.ReadExternalCommitmentView(context.Background(), f.actor, f.tenant, f.caseID)
+	if err != nil {
+		t.Fatalf("чтение обязано пройти: %v", err)
+	}
+	cards := view.Items[0].Versions
+	if len(cards) != 2 {
+		t.Fatalf("обе версии обязаны быть в секции, получено: %d", len(cards))
+	}
+	v1Card, v2Card := cards[0], cards[1]
+	if v1Card.Readiness != casesDomain.ExternalReadinessSuperseded ||
+		v1Card.ReadinessText != casesDomain.ExternalReadinessRefusalTexts[casesDomain.ExternalReadinessSuperseded] {
+		t.Fatalf("v1 — superseded с честным текстом, получено: %q %q", v1Card.Readiness, v1Card.ReadinessText)
+	}
+	if v1Card.Current {
+		t.Fatalf("v1 не текущая — новое слово в тексте, не цветом")
+	}
+	if v1Card.Delivery.State != casesDomain.ExternalDeliveryPersisted {
+		t.Fatalf("cancelled_stale возвращает persisted — слова не ушли, получено: %q", v1Card.Delivery.State)
+	}
+	if v1Card.Delivery.LastKind != casesDomain.ExternalDispatchCancelledStale ||
+		v1Card.Events[0].ReasonText != casesDomain.ExternalStaleReasonTexts[casesDomain.ExternalStaleNewerVersion] {
+		t.Fatalf("причина гашения — материал истории с доменным текстом, получено: %+v", v1Card.Events)
+	}
+	if !v1Card.Enqueued {
+		t.Fatalf("доказательство очереди не исчезает от событий: outbox запись материальна")
+	}
+	if v2Card.Delivery.State != casesDomain.ExternalDeliveryPersisted || v2Card.Enqueued {
+		t.Fatalf("v2 — persisted без очереди, получено: %q enqueued=%v", v2Card.Delivery.State, v2Card.Enqueued)
+	}
+	if !v2Card.Current {
+		t.Fatalf("v2 — текущая версия конверта")
+	}
+}
+
+func TestExternalReadViewOfferPinBlockedDegradesHonestly(t *testing.T) {
+	repo, service, f := readFixture(t, casesDomain.ExternalPurposeOffer)
+	version := f.version(casesDomain.ExternalPurposeOffer)
+	version.Pin = casesDomain.ExternalCommitmentPin{CommitmentID: f.pinCommit, VersionNo: 3, ContentToken: "64hexpin"}
+	version.ContentToken = casesDomain.ExternalCommitmentContentToken(f.hmacKey, version)
+	repo.f.versions = []casesDomain.ExternalCommitment{version}
+	repo.f.commit29 = nil // пиннутой строки 2.9 нет — слово деградирует fail-closed
+	view, err := service.ReadExternalCommitmentView(context.Background(), f.actor, f.tenant, f.caseID)
+	if err != nil {
+		t.Fatalf("view НЕ падает на стале материале — слово несёт честность: %v", err)
+	}
+	card := view.Items[0].Versions[0]
+	if card.Readiness != casesDomain.ExternalReadinessPinBlocked ||
+		card.ReadinessText != casesDomain.ExternalReadinessRefusalTexts[casesDomain.ExternalReadinessPinBlocked] {
+		t.Fatalf("отсутствующий пин — pin_blocked с честным текстом, получено: %q %q", card.Readiness, card.ReadinessText)
+	}
+}
+
+func TestExternalReadViewOwnerStaleWhenEpochMoved(t *testing.T) {
+	repo, service, f := readFixture(t, casesDomain.ExternalPurposePromise)
+	repo.f.terms = []casesDomain.OwnershipTerm{{
+		TenantID: f.tenant, CaseID: f.caseID, Epoch: 2,
+		OwnerKind: casesDomain.OwnerKindHuman, OwnerRef: f.owner,
+	}}
+	view, err := service.ReadExternalCommitmentView(context.Background(), f.actor, f.tenant, f.caseID)
+	if err != nil {
+		t.Fatalf("чтение обязано пройти: %v", err)
+	}
+	card := view.Items[0].Versions[0]
+	if card.Readiness != casesDomain.ExternalReadinessOwnerStale {
+		t.Fatalf("двинувшийся epoch — owner_stale, получено: %q", card.Readiness)
+	}
+}
+
+func TestExternalReadViewHonestEmptySection(t *testing.T) {
+	repo, service, f := readFixture(t, casesDomain.ExternalPurposePromise)
+	repo.f.versions = nil
+	repo.f.approvals = nil
+	view, err := service.ReadExternalCommitmentView(context.Background(), f.actor, f.tenant, f.caseID)
+	if err != nil {
+		t.Fatalf("пустой кейс — честный ответ, не ошибка: %v", err)
+	}
+	if len(view.Items) != 1 {
+		t.Fatalf("секция work item остаётся — пустые версии внутри, получено: %+v", view.Items)
+	}
+	if len(view.Items[0].Versions) != 0 {
+		t.Fatalf("пустой список версий — честный ноль, получено: %+v", view.Items[0].Versions)
 	}
 }

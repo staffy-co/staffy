@@ -639,6 +639,18 @@ func ExternalApprovalRequiredText(versionNo int64) string {
 	return fmt.Sprintf("Требуется утверждение текущим человеком-владельцем (response owner), версия %d — ранее утверждённая версия не разрешает изменённый текст.", versionNo)
 }
 
+// ExternalCommitmentPanelText is the fixed intro of the Commitment
+// Review surface (the render-layer material — it never enters the store):
+// the disciplines of the slice spoken once (the append-only versions, the
+// approval gate of the exact version, the persist-before-emit core and
+// the seven honest words of the delivery states). The app view and the
+// fixture world share the ONE text (the app-private copy would drift).
+const ExternalCommitmentPanelText = "Внешнее обязательство — конверт с неизменяемыми версиями: изменённый текст = новая версия, прежние строки не меняются. Отправка идёт только через очередь: версия утверждается текущим человеком-владельцем (точная версия, step-up), затем ставится в очередь — слова сохраняются до отправки (persist-before-emit), затем диспетчеризуется с идемпотентным ключом версии. Состояние доставки — семь слов выводом чтения: persisted, queued, submitted, delivered, acknowledged, failed, unknown; submitted — не доставка, delivered — не принятие."
+
+// ExternalCommitmentEmptyText is the honest reason of the empty view: the
+// absence of envelopes is a readable state, never a defect.
+const ExternalCommitmentEmptyText = "Внешних обязательств в этом кейсе нет. Конверт создаёт оператор с полномочием review или configuration: первая версия сохраняется словом persisted — до утверждения точной версии и постановки в очередь слова клиенту не уходят."
+
 // ---------------------------------------------------------------------------
 // The dispatch events (the append-only history) and the seven-state
 // derivation (read-time, never stored)
