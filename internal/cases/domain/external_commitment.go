@@ -662,6 +662,7 @@ type ExternalDispatchEvent struct {
 	Reason                string
 	AttemptNo             int64
 	ExternalCorrelationID string
+	IdempotentGuarantee   bool
 	Details               string
 	ActorID               id.UUID
 	CreatedAt             time.Time
@@ -850,6 +851,70 @@ func ExternalCommitmentIdempotencyKey(tenantID id.UUID, extID id.UUID, versionNo
 	mac.Write([]byte(":"))
 	mac.Write([]byte(fmt.Sprintf("%d", versionNo)))
 	return hex.EncodeToString(mac.Sum(nil))
+}
+
+// ---------------------------------------------------------------------------
+// The approval record (the read shape of the append-only approvals)
+// ---------------------------------------------------------------------------
+
+// ExternalApproval is one append-only approval row read back: the exact
+// version it approves, the human approver (the CURRENT response owner at
+// the approval moment — the app gate), the recorded step-up evidence and
+// the time. The enqueue gate reads the approver against the LIVE owner
+// under the locks: an approval of a departed owner or of an older version
+// structurally never authorises the send (AC-9).
+type ExternalApproval struct {
+	TenantID        id.UUID
+	CaseID          id.UUID
+	WorkItemID      id.UUID
+	ExtCommitmentID id.UUID
+	VersionNo       int64
+	ApprovalID      id.UUID
+	ApproverID      id.UUID
+	StepUpVerified  bool
+	CreatedAt       time.Time
+}
+
+// ApproverOf resolves the approver of one EXACT version (nil when nobody
+// approved it) — the enqueue gate input.
+func ApproverOf(approvals []ExternalApproval, extID id.UUID, versionNo int64) *ExternalApproval {
+	for i := range approvals {
+		if approvals[i].ExtCommitmentID == extID && approvals[i].VersionNo == versionNo {
+			return &approvals[i]
+		}
+	}
+	return nil
+}
+
+// ExternalCommitmentDrainLimit is the bounded drain batch (the
+// client-replies drain precedent): one command considers at most this
+// many pending records — the rest stay queued for the next run, honestly.
+const ExternalCommitmentDrainLimit = 500
+
+// TruncateExternalDetails bounds the safe details material of the dispatch
+// events (the correlation, the outcome and the cause words only — the
+// content never enters, AC-10): an adapter that answers with an oversized
+// safe text gets the honest prefix, never a failed insert.
+func TruncateExternalDetails(text string) string {
+	if utf8.RuneCountInString(text) <= MaxExternalDispatchDetailsRunes {
+		return text
+	}
+	runes := []rune(text)
+	return string(runes[:MaxExternalDispatchDetailsRunes])
+}
+
+// ExternalDispatchText builds the bounded safe details of one attempt
+// outcome: the outcome word, the capability id and the external
+// correlation — the words of the machine boundary, never the content.
+func ExternalDispatchText(outcome, capabilityID, correlationID string) string {
+	details := fmt.Sprintf("исход: %s", outcome)
+	if capabilityID != "" {
+		details = details + "; capability: " + capabilityID
+	}
+	if correlationID != "" {
+		details = details + "; корреляция: " + correlationID
+	}
+	return TruncateExternalDetails(details)
 }
 
 // ---------------------------------------------------------------------------

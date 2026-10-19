@@ -386,6 +386,77 @@ type Repository interface {
 	// stored status). The decision context of 2.14 is NOT touched — the
 	// case page reads both snapshots separately.
 	ReadUpdatePromiseState(ctx context.Context, scope tenancy.Context, caseID id.UUID) (UpdatePromiseMaterial, error)
+	// Story 3.3 — the external commitment dispatch surface:
+	// ReadExternalCommitments reads every envelope version of one case
+	// ordered by the envelope and the monotonic number (the derivation
+	// input of the CURRENT version, the readiness, the enqueue gate and
+	// the panel history).
+	ReadExternalCommitments(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]casesDomain.ExternalCommitment, error)
+	// ReadExternalApprovals reads every approval row of one case ordered
+	// by the creation time (the enqueue gate input: the approver of the
+	// EXACT version against the LIVE owner).
+	ReadExternalApprovals(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]casesDomain.ExternalApproval, error)
+	// ReadExternalDispatchEvents reads every dispatch event of one case
+	// ordered by the envelope, the version and the monotonic event number
+	// (the derivation input of the seven-state delivery truth).
+	ReadExternalDispatchEvents(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]casesDomain.ExternalDispatchEvent, error)
+	// ReadCommitmentVersionsByID reads every version of ONE 2.9
+	// commitment identifier tenant-wide (the live pin gate input: the
+	// pinned version with its STORED token — the live match against the
+	// pin triple — and the maximal number of the readiness derivation).
+	ReadCommitmentVersionsByID(ctx context.Context, scope tenancy.Context, commitmentID id.UUID) ([]casesDomain.CommitmentVersion, error)
+	// CreateExternalCommitment writes one envelope version under the
+	// case + work item advisory locks: the work item must be alive, the
+	// expected monotonic number is re-validated under the locks (the
+	// raced ladder is the honest stale-version refusal), the content
+	// token is re-computed from the material under the locks and the
+	// row inserts append-only. No outbox record — the enqueue is a
+	// separate command (the approval gate sits between).
+	CreateExternalCommitment(ctx context.Context, p ExternalCommitmentCreateParams) error
+	// ApproveExternalCommitment writes one approval row of the EXACT
+	// version by the CURRENT human owner under the locks; the UNIQUE
+	// (tenant, envelope, version, approver) makes the repeated approval
+	// of the same approver the silent idempotency (false — already
+	// present). No outbox record (AC-9).
+	ApproveExternalCommitment(ctx context.Context, p ExternalApprovalParams) (bool, error)
+	// EnqueueExternalCommitment is the persist-before-emit transaction:
+	// ONE write transaction re-validates the approval of the EXACT
+	// version by the CURRENT human owner and the readiness under the
+	// advisory locks, then inserts the outbox record
+	// 'external_commitment.queued' with the safe payload. The signature
+	// carries NO adapter — the network call is physically impossible
+	// before the commit (AC-3); a database failure leaves the external
+	// system untouched. The dedup key of the version pin is the UNIQUE
+	// second line — the repeated enqueue of the same version is the
+	// honest refusal.
+	EnqueueExternalCommitment(ctx context.Context, p ExternalEnqueueParams) error
+	// PendingExternalCommitments returns the drain input: the queued
+	// outbox records of the tenant whose history allows an action — no
+	// attempt_submitted (the words already left), no cancelled_stale
+	// (gassed), the bound not exhausted and the last unknown not
+	// guarantee-free (the blind retry is structurally unselectable).
+	PendingExternalCommitments(ctx context.Context, scope tenancy.Context, limit int) ([]ExternalDispatchCandidate, error)
+	// GasExternalCommitmentQueue appends ONE cancelled_stale event under
+	// the locks — ONLY when the words provably never left (the history is
+	// empty or carries attempt_failed only); a raced decision (the words
+	// left, a receipt arrived or the gasp already landed) writes nothing
+	// (false). The reason is the four-word dictionary of the honest
+	// «слова не ушли» material (AC-6).
+	GasExternalCommitmentQueue(ctx context.Context, p ExternalGasParams) (bool, error)
+	// RecordExternalDispatchOutcome appends the attempt outcome events
+	// of one dispatch call under the locks (the attempt event with the
+	// optional receipt of a delivered outcome): a raced attempt_submitted,
+	// a landed gasp or an exhausted bound writes nothing (false — the
+	// second Staffy intent never exists, the events are the first dedup
+	// line, AC-6/AC-8).
+	RecordExternalDispatchOutcome(ctx context.Context, p ExternalDispatchOutcomeParams) (bool, error)
+	// RelayExternalReceipt appends ONE receipt event of the operator
+	// relay observation (the 2.12 ConfirmerOperatorRelay precedent — the
+	// human passes the machine observation, the machine never invents
+	// it): the version must exist and be enqueued (the outbox record is
+	// the queue evidence); the append-only history accepts the
+	// observation whatever came before (the derivation takes the last).
+	RelayExternalReceipt(ctx context.Context, p ExternalRelayReceiptParams) (bool, error)
 }
 
 // DecisionContextMaterial is the ONE consistent snapshot of the decision
@@ -396,6 +467,153 @@ type Repository interface {
 type DecisionContextMaterial struct {
 	Input       casesDomain.DecisionContextInput
 	Corrections []casesDomain.CorrectionRecord
+}
+
+// ---------------------------------------------------------------------------
+// Story 3.3: the external commitment dispatch persistence surface
+// ---------------------------------------------------------------------------
+
+// ExternalCommitmentCreateParams is the material of one envelope version
+// write: the identifiers, the dictionary words, the content, the window,
+// the optional 2.9 pin triple, the relation snapshots, the expected
+// monotonic number (the app pre-resolved it; the store re-validates under
+// the locks — the raced ladder is the honest stale-version refusal) and
+// the content binding token (re-computed from the material under the
+// locks — the app never binds the wrong version bytes). The signature
+// carries no adapter by construction.
+type ExternalCommitmentCreateParams struct {
+	Scope            tenancy.Context
+	CaseID           id.UUID
+	WorkItemID       id.UUID
+	ExtCommitmentID  id.UUID
+	VersionNo        int64
+	Purpose          string
+	RecipientKind    string
+	Channel          string
+	ContentText      string
+	ValidUntil       time.Time
+	ExpectedNextStep string
+	AckRequirement   string
+	Pin              casesDomain.ExternalCommitmentPin
+	OwnerKind        string
+	OwnerRef         id.UUID
+	OwnerEpoch       int64
+	DecisionNo       int64
+	ProfileVersion   int64
+	PolicyOutcomeNo  int64
+	ContentToken     string
+	ActorID          id.UUID
+	Now              time.Time
+}
+
+// ExternalApprovalParams is the material of one approval write: the EXACT
+// version, the approval identifier, the approver (the app gate verified
+// the actor IS the current human owner) and the step-up evidence. The
+// store re-validates the ownership under the locks — the app's read is
+// never trusted for the authorisation truth.
+type ExternalApprovalParams struct {
+	Scope           tenancy.Context
+	CaseID          id.UUID
+	WorkItemID      id.UUID
+	ExtCommitmentID id.UUID
+	VersionNo       int64
+	ApprovalID      id.UUID
+	ApproverID      id.UUID
+	StepUpVerified  bool
+	Now             time.Time
+}
+
+// ExternalEnqueueParams is the material of the persist-before-emit
+// transaction: the identifiers of the version pin, the generated outbox
+// event identifier and the correlation. The signature deliberately
+// carries NOTHING that could reach the network — the adapter is not a
+// field, a callback or an interface here (AC-3: the network call is
+// physically impossible before the commit).
+type ExternalEnqueueParams struct {
+	Scope           tenancy.Context
+	CaseID          id.UUID
+	WorkItemID      id.UUID
+	ExtCommitmentID id.UUID
+	VersionNo       int64
+	OutboxEventID   id.UUID
+	CorrelationID   id.UUID
+	ActorID         id.UUID
+	Now             time.Time
+}
+
+// ExternalDispatchCandidate is ONE drain input record: the queued outbox
+// record with its safe payload, the immutable version row, the
+// append-only dispatch history, the LIVE owner epoch of the case, the
+// maximal version number of the envelope (the superseded fence) and the
+// per-tenant commitment HMAC key (the token re-check basis) — all read in
+// ONE consistent read transaction (the honest snapshot of the fences).
+type ExternalDispatchCandidate struct {
+	Record            casesDomain.OutboxEvent
+	Version           casesDomain.ExternalCommitment
+	Events            []casesDomain.ExternalDispatchEvent
+	OwnerEpochCurrent int64
+	MaxVersionNo      int64
+	HMACKey           []byte
+}
+
+// ExternalGasParams is the material of one stale gasp: the version pin,
+// the generated event identifier and the four-word reason (the domain
+// dictionary, guarded by the app; the store CHECK backstops it).
+type ExternalGasParams struct {
+	Scope           tenancy.Context
+	CaseID          id.UUID
+	WorkItemID      id.UUID
+	ExtCommitmentID id.UUID
+	VersionNo       int64
+	EventID         id.UUID
+	Reason          string
+	ActorID         id.UUID
+	Now             time.Time
+}
+
+// ExternalDispatchEventAppend is ONE event of a dispatch outcome batch:
+// the generated event identifier, the seven-word kind (guarded), the
+// attempt number (the app computed it from the history it read; the
+// store re-computes under the locks), the external correlation evidence,
+// the recorded capability guarantee word and the bounded safe details.
+type ExternalDispatchEventAppend struct {
+	EventID               id.UUID
+	Kind                  string
+	AttemptNo             int64
+	ExternalCorrelationID string
+	IdempotentGuarantee   bool
+	Details               string
+}
+
+// ExternalDispatchOutcomeParams is the material of the attempt outcome
+// append: the version pin and the event batch of ONE dispatch call (the
+// attempt event; a delivered outcome adds its receipt — the two events of
+// the same call land atomically).
+type ExternalDispatchOutcomeParams struct {
+	Scope           tenancy.Context
+	CaseID          id.UUID
+	WorkItemID      id.UUID
+	ExtCommitmentID id.UUID
+	VersionNo       int64
+	Events          []ExternalDispatchEventAppend
+	ActorID         id.UUID
+	Now             time.Time
+}
+
+// ExternalRelayReceiptParams is the material of the operator relay: the
+// version pin, the generated event identifier and the receipt kind (the
+// relay observation mapped by the domain — delivered, acknowledged or
+// failed).
+type ExternalRelayReceiptParams struct {
+	Scope           tenancy.Context
+	CaseID          id.UUID
+	WorkItemID      id.UUID
+	ExtCommitmentID id.UUID
+	VersionNo       int64
+	EventID         id.UUID
+	Kind            string
+	ActorID         id.UUID
+	Now             time.Time
 }
 
 // ---------------------------------------------------------------------------
