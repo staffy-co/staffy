@@ -143,9 +143,9 @@ func run(logger *slog.Logger) error {
                 // channel point) through the composition adapter over the control
                 // rows (the DAG discipline: the case module consumes the
                 // consumer-owned port only; the adapter reads the rows behind the
-                // drain's own configuration gate всть the control UI gates stay out
+                // drain's own configuration gate — the control UI gates stay out
                 // of a machine fence). The DISPATCHER is deliberately NOT wired
-                // всть AG-4: no real providers exist, the drain refuses in words and
+                // — AG-4: no real providers exist, the drain refuses in words and
                 // the records stay queued; the synthetic dispatcher lives in the
                 // test-contour adapter package this root never imports.
                 WithControlEffective(controleffectiveresolver.New(controlStore.NewPostgres(pool), clock))
