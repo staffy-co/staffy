@@ -35,33 +35,34 @@ type IDGenerator interface {
 type Clock interface{ Now() time.Time }
 
 type Server struct {
-	identity        api.Service
-	actionCatalog   actionAPI.ActionCatalogService
-	controls        controlAPI.ControlService
-	employee        employeeAPI.Service
-	knowledge       employeeAPI.KnowledgeService
-	ingestion       employeeAPI.KnowledgeIngestService
-	release         employeeAPI.ReleaseService
-	profile         employeeAPI.ProfileService
-	readiness       employeeAPI.ReadinessService
-	connector       connectorAPI.Service
-	privacy         privacyAPI.Service
-	entitlement     entitlementAPI.Service
-	cases           casesAPI.Service
-	accommodations  casesAPI.AccommodationService
-	degradations    casesAPI.DegradationService
-	handoffs        casesAPI.HandoffService
-	decisionContext casesAPI.DecisionContextService
-	corrections     casesAPI.CorrectionService
-	waitingUpdates  casesAPI.UpdatePromiseService
-	continuations   casesAPI.ContinuationService
-	tenantNamer     api.TenantNameService
-	resolver        port.PrincipalResolver
-	ids             IDGenerator
-	clock           Clock
-	logger          *slog.Logger
-	templates       *template.Template
-	mux             *http.ServeMux
+	identity            api.Service
+	actionCatalog       actionAPI.ActionCatalogService
+	controls            controlAPI.ControlService
+	employee            employeeAPI.Service
+	knowledge           employeeAPI.KnowledgeService
+	ingestion           employeeAPI.KnowledgeIngestService
+	release             employeeAPI.ReleaseService
+	profile             employeeAPI.ProfileService
+	readiness           employeeAPI.ReadinessService
+	connector           connectorAPI.Service
+	privacy             privacyAPI.Service
+	entitlement         entitlementAPI.Service
+	cases               casesAPI.Service
+	accommodations      casesAPI.AccommodationService
+	degradations        casesAPI.DegradationService
+	handoffs            casesAPI.HandoffService
+	decisionContext     casesAPI.DecisionContextService
+	corrections         casesAPI.CorrectionService
+	waitingUpdates      casesAPI.UpdatePromiseService
+	continuations       casesAPI.ContinuationService
+	externalCommitments casesAPI.ExternalCommitmentService
+	tenantNamer         api.TenantNameService
+	resolver            port.PrincipalResolver
+	ids                 IDGenerator
+	clock               Clock
+	logger              *slog.Logger
+	templates           *template.Template
+	mux                 *http.ServeMux
 }
 
 func New(identity api.Service, resolver port.PrincipalResolver, ids IDGenerator, clock Clock, logger *slog.Logger) (*Server, error) {

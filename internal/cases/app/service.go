@@ -23,17 +23,19 @@ import (
 // operator surface (review/configuration/audit; the sealed payload is
 // review/audit only). DrainOutbox is the idempotent delivery command.
 type Service struct {
-	repository       casesPort.Repository
-	identity         identityAPI.MembershipService
-	verifier         casesPort.SourceVerifier
-	routeFacts       casesPort.RouteFactsSource
-	connectionFacts  casesPort.ConnectionFactsSource
-	members          casesPort.MembersSource
-	taxonomy         casesPort.PackTaxonomy
-	identityVerifier casesPort.IdentityVerifier
-	owningReader     casesPort.OwningSystemReader
-	clock            casesAPI.Clock
-	ids              casesAPI.IDGenerator
+	repository         casesPort.Repository
+	identity           identityAPI.MembershipService
+	verifier           casesPort.SourceVerifier
+	routeFacts         casesPort.RouteFactsSource
+	connectionFacts    casesPort.ConnectionFactsSource
+	members            casesPort.MembersSource
+	taxonomy           casesPort.PackTaxonomy
+	identityVerifier   casesPort.IdentityVerifier
+	owningReader       casesPort.OwningSystemReader
+	externalDispatcher casesPort.ExternalDispatcher
+	controlEffective   casesPort.ControlEffectiveReader
+	clock              casesAPI.Clock
+	ids                casesAPI.IDGenerator
 }
 
 // New wires the cases service. The verifier is mandatory (the ingress
@@ -65,6 +67,26 @@ func (s *Service) WithMembers(source casesPort.MembersSource) *Service {
 // honestly refuse — an assumed taxonomy is never "ok".
 func (s *Service) WithPackTaxonomy(source casesPort.PackTaxonomy) *Service {
 	s.taxonomy = source
+	return s
+}
+
+// WithExternalDispatcher wires the dispatch port of the external
+// commitments (Story 3.3, the consumer-owned boundary). The production
+// root honestly does NOT wire it (AG-4: no real providers exist — the
+// drain refuses in words and the records stay queued); the test contour
+// wires the synthetic adapter.
+func (s *Service) WithExternalDispatcher(dispatcher casesPort.ExternalDispatcher) *Service {
+	s.externalDispatcher = dispatcher
+	return s
+}
+
+// WithControlEffective wires the 3.2 enforcement point of the drain (the
+// composition adapter over the live control EffectiveFor). Without it the
+// drain gases every candidate with the control_mode fence — the words
+// never leave on an unreadable control (fail-closed, the emergency
+// brake).
+func (s *Service) WithControlEffective(reader casesPort.ControlEffectiveReader) *Service {
+	s.controlEffective = reader
 	return s
 }
 

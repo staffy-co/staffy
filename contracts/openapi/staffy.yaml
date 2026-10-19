@@ -3216,6 +3216,134 @@ paths:
         '403': { description: 'Скоуп operations словами / step-up требуется', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
         '404': { description: 'Не-участник / точка не существует — снимать нечего', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
         '409': { description: 'Конфликт поколений: перечитайте актуальное состояние и подтвердите повторно (AC-11)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/external-commitments:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+    get:
+      operationId: readExternalCommitments
+      summary: 'Внешние обязательства кейса (3.3, первый срез): секции по Work Item — неизменяемые версии конвертов, доказательство очереди (outbox запись — слова не уходили, AC-3), append-only истории, СЕМЬ слов доставки выводом чтения и ПЯТЬ слов готовности; чтение под скоупом review|configuration|audit (CaseView-прецедент — материал класса ClassCaseContent)'
+      x-staffy-principal-required: true
+      responses:
+        '200':
+          description: 'Вид Commitment Review: пустой items — честное состояние кейса без конвертов, НЕ дефект; слова состояний — вывод чтения, никогда не хранимый статус'
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [external_commitments]
+                properties:
+                  external_commitments: { $ref: '#/components/schemas/ExternalCommitmentView' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Участник без скоупов — честный 403 словами ДО материала', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { description: 'Не-участник / чужой кейс — поверхность не раскрывается', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/external-commitments:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - $ref: '#/components/parameters/WorkItemID'
+    post:
+      operationId: createExternalCommitment
+      summary: 'Создать версию конверта (AC-1): прав review|configuration; ladder серверная (owner-снимок + epoch, lineage, policy outcome); пин 2.9 обязателен для offer (all-or-nothing тройка, сверка STORED токена живой строки); токен материала вычислен; НЕТ outbox — постановка отдельная команда за approval-гейтом; изменённый текст = НОВАЯ версия, строки не мутируют'
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateExternalCommitmentRequest' }
+      responses:
+        '200': { description: 'Версия сохранена словом persisted: якоря конверта и токен материала точной версии', content: { application/json: { schema: { type: object, required: [outcome], properties: { outcome: { $ref: '#/components/schemas/ExternalCommitmentOutcome' } } } } } }
+        '400': { description: 'Словарные отказы ДО записи (purpose/recipient/канал/ack/содержание/окно/next step/пин; живой пин не совпал со строкой 2.9); строгий decode (один объект, известные поля)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Участник только с audit — 403 словами ДО материала', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { description: 'Не-участник / кейс или work item не найдены', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/external-commitments/{ext_commitment_id}/versions/{version_no}/approve:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - $ref: '#/components/parameters/WorkItemID'
+      - name: ext_commitment_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: version_no
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    post:
+      operationId: approveExternalCommitment
+      summary: 'Утвердить ТОЧНУЮ версию (AC-9): step-up обязателен (403 без него), утверждает только ТЕКУЩИЙ человек-владелец кейса; append-only строка; повтор тем же approver молчит (UNIQUE); approval НЕ создаёт outbox; изменённый текст = version_no+1 = старый approval структурно не авторизует'
+      x-staffy-principal-required: true
+      responses:
+        '200': { description: 'Утверждение записано (approval_recorded=false — молчаливая идемпотентность повтора)', content: { application/json: { schema: { type: object, required: [approval], properties: { approval: { $ref: '#/components/schemas/ExternalApprovalOutcome' } } } } } }
+        '400': { description: 'Гейт владельца словами (утверждает только текущий человек-владелец)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Step-up требуется / audit-only — ДО материала', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { description: 'Не-участник / версия не найдена', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/external-commitments/{ext_commitment_id}/versions/{version_no}/enqueue:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - $ref: '#/components/parameters/WorkItemID'
+      - name: ext_commitment_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: version_no
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    post:
+      operationId: enqueueExternalCommitment
+      summary: 'Поставить ТОЧНУЮ версию в очередь (AC-2/AC-3): approval-гейт живого человека-владельца точной версии + readiness-заборы ПО ПОРЯДКУ ДО транзакции (superseded/expired/owner_stale/pin_blocked); persist-before-emit СТРУКТУРНО — одна PG-транзакция INSERT outbox, сигнатура без адаптера: сетевой вызов физически невозможен до commit, сбой БД = внешняя система нетронута; dedup = пин версии (UNIQUE вторая линия)'
+      x-staffy-principal-required: true
+      responses:
+        '200': { description: 'В очереди: слова сохранены ДО отправки — исход это доказательство очереди, НЕ отправка', content: { application/json: { schema: { type: object, required: [enqueue], properties: { enqueue: { $ref: '#/components/schemas/ExternalEnqueueOutcome' } } } } } }
+        '400': { description: 'Approval-гейт словами AC-9 / словарные отказы readiness ДО транзакции (по счётчику — транзакция не открывается)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Скоуп словами / audit-only', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { description: 'Не-участник / версия не найдена', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/external-commitments/{ext_commitment_id}/versions/{version_no}/dispatch-receipts:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - $ref: '#/components/parameters/WorkItemID'
+      - name: ext_commitment_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: version_no
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    post:
+      operationId: relayExternalReceipt
+      summary: 'Передать наблюдение канала (2-12 ConfirmerOperatorRelay): человек передаёт машинное наблюдение — доставлено, принято или отказ; append-only receipt-событие; состояние чтения пересчитается по последнему событию, НИКОГДА из этого ответа; delivered без acknowledged НИКОГДА не показывается принятием'
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RelayExternalReceiptRequest' }
+      responses:
+        '200': { description: 'Наблюдение записано квитанцией (receipt_delivered / receipt_acknowledged / receipt_failed)', content: { application/json: { schema: { type: object, required: [relay], properties: { relay: { $ref: '#/components/schemas/ExternalRelayOutcome' } } } } } }
+        '400': { description: 'Чужое слово наблюдения словарно / строгий decode', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Скоуп словами', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { description: 'Не-участник / версия не найдена', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/external-commitments/drain:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+    post:
+      operationId: drainExternalCommitments
+      summary: 'Диспетчеризация очереди — операторская команда, фоновых демонов НЕТ (AD-13); скоуп configuration; bound 500 записей за запуск; токен-тревога ПЕРВЫМ забором (alarm/skip/reconciliation 3-7 — никогда выдуманная причина); stale-заборы ПО ПОРЯДКУ gasp cancelled_stale (слова не ушли); ЖИВОЙ контроль маршрута EffectiveFor 3.2 (nil/ошибка/не-accept = fail-closed гашение); политика повтора по ЗАПИСАННОЙ гарантии (timeout без гарантии структурно невыбираем — слепого повтора НЕТ); AG-4: production диспетчер НЕ подключён — честный отказ словами, записи остаются queued'
+      x-staffy-principal-required: true
+      responses:
+        '200': { description: 'Отчёт прогона: счётчики исходов + честные построчные отказы (парковки, токен-тревога, raced skip)', content: { application/json: { schema: { type: object, required: [drain], properties: { drain: { $ref: '#/components/schemas/ExternalDrainResult' } } } } } }
+        '400': { description: 'AG-4 честный отказ: диспетчер не сконфигурирован, записи остаются в очереди (это состояние, не дефект)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Скоуп configuration', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { description: 'Не-участник', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
 components:
   parameters:
     EmployeeID:
@@ -6398,6 +6526,222 @@ components:
       type: string
       enum: [applied, conflict]
       description: 'Исходы append-only аудита миграции control/00001 (слова CHECK): КОНФЛИКТ тоже первая строка истории — обе конкурентные попытки материальны (AC-11); read-поверхность аудита — будущие срезы'
+    ExternalCommitmentView:
+      type: object
+      additionalProperties: false
+      required: [items, purpose_words, recipient_words, ack_words, relay_words, channel_words, state_words, panel_text, empty_text]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/ExternalCommitmentWorkItemView' }, description: 'Секции по Work Item; пустой массив — честное состояние кейса без конвертов' }
+        purpose_words: { type: array, items: { type: string }, description: 'Словарь назначений эпика (4 слова)' }
+        recipient_words: { type: array, items: { type: string }, description: 'Словарь получателей (2 слова; executor — честный Never, реестры Epic 5)' }
+        ack_words: { type: array, items: { type: string }, description: 'Словарь требования квитанции (2 слова)' }
+        relay_words: { type: array, items: { type: string }, description: 'Словарь наблюдений оператора (3 слова — 2-12 ConfirmerOperatorRelay)' }
+        channel_words: { type: array, items: { type: string }, description: 'Зеркало девяти слов каналов cases' }
+        state_words: { type: array, items: { type: string }, description: 'Семь слов доставки AC-7' }
+        panel_text: { type: string, description: 'Фиксированный интро панели: дисциплины среза' }
+        empty_text: { type: string, description: 'Честная причина пустоты — читаемое состояние, не дефект' }
+    ExternalCommitmentWorkItemView:
+      type: object
+      additionalProperties: false
+      required: [work_item_id, versions]
+      properties:
+        work_item_id: { type: string, format: uuid }
+        versions: { type: array, items: { $ref: '#/components/schemas/ExternalCommitmentVersionCard' } }
+    ExternalCommitmentVersionCard:
+      type: object
+      additionalProperties: false
+      required: [version, enqueued, delivery, readiness, readiness_text, current, approved, approver_id, events]
+      properties:
+        version: { $ref: '#/components/schemas/ExternalCommitmentVersionWire' }
+        enqueued: { type: boolean, description: 'Доказательство очереди: outbox запись пинит точную версию — слова не уходили by construction (AC-3); события уточняют состояние, доказательство не исчезает' }
+        delivery: { $ref: '#/components/schemas/ExternalDeliveryWire' }
+        readiness: { $ref: '#/components/schemas/ExternalReadinessWord' }
+        readiness_text: { type: string, description: 'Текст отказа неготовности (пустая строка = ready); слово решает забор ПО ПОРЯДКУ' }
+        current: { type: boolean, description: 'Максимальный номер версии конверта wins — superseded назван текстом, не цветом' }
+        approved: { type: boolean, description: 'Approval строка ТОЧНОЙ версии (append-only)' }
+        approver_id: { type: string, description: 'Утвердивший (пустая строка — не утверждена)' }
+        events: { type: array, items: { $ref: '#/components/schemas/ExternalDispatchEventWire' }, description: 'Append-only история диспетчеризации версии' }
+    ExternalCommitmentVersionWire:
+      type: object
+      additionalProperties: false
+      required: [case_id, work_item_id, ext_commitment_id, version_no, purpose, recipient_kind, channel, content_text, valid_until, expected_next_step, ack_requirement, pin, owner_kind, owner_ref, owner_epoch, decision_no, profile_version, policy_outcome_no, content_token, actor_id, created_at]
+      properties:
+        case_id: { type: string, format: uuid }
+        work_item_id: { type: string, format: uuid }
+        ext_commitment_id: { type: string, format: uuid, description: 'Стабильный идентификатор конверта' }
+        version_no: { type: integer, minimum: 1, description: 'Монотонная лестница: изменённый текст = новая строка, прежние не мутируют' }
+        purpose: { $ref: '#/components/schemas/ExternalPurpose' }
+        recipient_kind: { $ref: '#/components/schemas/ExternalRecipientKind' }
+        channel: { $ref: '#/components/schemas/ExternalChannel' }
+        content_text: { type: string, minLength: 1, maxLength: 2000, description: 'Материал конверта (домен 2000 рун; миграция байт-бэкстоп 8000)' }
+        valid_until: { type: string, format: date-time, description: 'Окно строго будущее на записи; истёкшее = readiness expired' }
+        expected_next_step: { type: string, minLength: 1, maxLength: 200 }
+        ack_requirement: { $ref: '#/components/schemas/ExternalAckRequirement' }
+        pin: { $ref: '#/components/schemas/ExternalCommitmentPinWire' }
+        owner_kind: { type: string, enum: [human, staffy] }
+        owner_ref: { type: string, format: uuid }
+        owner_epoch: { type: integer, minimum: 1, description: 'Снимок epoch на записи; двинувшийся владелец = readiness owner_stale' }
+        decision_no: { type: integer, minimum: 0, description: 'Lineage-числа (0 — честно нет)' }
+        profile_version: { type: integer, minimum: 0 }
+        policy_outcome_no: { type: integer, minimum: 0 }
+        content_token: { type: string, pattern: '^[0-9a-f]{64}$', description: 'HMAC материала точной версии (пространство external_commitment:v1: отделено от 2.9)' }
+        actor_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+    ExternalCommitmentPinWire:
+      type: object
+      additionalProperties: false
+      required: [commitment_id, version_no, content_token]
+      properties:
+        commitment_id: { type: string, description: 'Пустая строка — пин отсутствует (all-or-nothing: тройка либо полна, либо нулевая)' }
+        version_no: { type: integer, description: '0 — пин отсутствует' }
+        content_token: { type: string, description: 'Токен точной версии 2.9' }
+    ExternalDeliveryWire:
+      type: object
+      additionalProperties: false
+      required: [state, state_text, last_event_no, last_kind, last_reason, last_attempt_no, last_external_correlation_id, last_event_at]
+      properties:
+        state: { $ref: '#/components/schemas/ExternalDeliveryState' }
+        state_text: { type: string, description: 'Фиксированный доменный текст: submitted НЕ доставка, delivered НЕ принятие, unknown называет reconciliation (AC-7)' }
+        last_event_no: { type: integer, description: '0 — событий нет (persisted/queued)' }
+        last_kind: { type: string, description: 'Слово последнего события (пустое — событий нет)' }
+        last_reason: { type: string, description: 'Причина cancelled_stale (слова не ушли)' }
+        last_attempt_no: { type: integer }
+        last_external_correlation_id: { type: string, description: 'Корреляция AC-8' }
+        last_event_at: { type: string, format: date-time, nullable: true, description: 'null — событий нет' }
+    ExternalDispatchEventWire:
+      type: object
+      additionalProperties: false
+      required: [event_no, kind, reason, reason_text, attempt_no, external_correlation_id, idempotent_guarantee, details, actor_id, created_at]
+      properties:
+        event_no: { type: integer, minimum: 1, description: 'Монотонная лестница append-only истории' }
+        kind: { $ref: '#/components/schemas/ExternalDispatchKind' }
+        reason: { $ref: '#/components/schemas/ExternalStaleReason' }
+        reason_text: { type: string, description: 'Фиксированный текст причины гашения («слова не ушли»)' }
+        attempt_no: { type: integer, description: '1..3 для attempt-событий; 0 — receipt/gasp' }
+        external_correlation_id: { type: string, maxLength: 200, description: 'Корреляция провайдера AC-8' }
+        idempotent_guarantee: { type: boolean, description: 'ЗАПИСАННОЕ слово capability-гарантии попытки — политика повтора читает запись, не угадывает' }
+        details: { type: string, maxLength: 500, description: 'Safe-текст: корреляция, исход, причина — НИКОГДА содержание (AC-10)' }
+        actor_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+    CreateExternalCommitmentRequest:
+      type: object
+      additionalProperties: false
+      required: [purpose, recipient_kind, channel, content_text, valid_until, expected_next_step, ack_requirement]
+      properties:
+        ext_commitment_id: { type: string, format: uuid, description: 'Необязателен: пусто — сервер минтит новый; существующий продолжает лестницу версий конверта' }
+        purpose: { $ref: '#/components/schemas/ExternalPurpose' }
+        recipient_kind: { $ref: '#/components/schemas/ExternalRecipientKind' }
+        channel: { $ref: '#/components/schemas/ExternalChannel' }
+        content_text: { type: string, minLength: 1, maxLength: 2000 }
+        valid_until: { type: string, format: date-time, description: 'RFC3339; строго будущее — гвард отказывает границу мгновения fail-closed' }
+        expected_next_step: { type: string, minLength: 1, maxLength: 200 }
+        ack_requirement: { $ref: '#/components/schemas/ExternalAckRequirement' }
+        pin: { $ref: '#/components/schemas/ExternalCommitmentPinInput' }
+    ExternalCommitmentPinInput:
+      type: object
+      additionalProperties: false
+      required: [commitment_id, version_no, content_token]
+      properties:
+        commitment_id: { type: string, format: uuid }
+        version_no: { type: integer, minimum: 1 }
+        content_token: { type: string, pattern: '^[0-9a-f]{64}$' }
+      description: 'Пин 2.9 all-or-nothing: offer ТРЕБУЕТ полную тройку; частичная тройка — словарный 400 гварда; живая сверка STORED токена — в app'
+    RelayExternalReceiptRequest:
+      type: object
+      additionalProperties: false
+      required: [observation]
+      properties:
+        observation: { type: string, enum: [delivered, acknowledged, failed], description: 'Наблюдение канала словами 2-12: человек передаёт, машина не изобретает' }
+    ExternalCommitmentOutcome:
+      type: object
+      additionalProperties: false
+      required: [command, ext_commitment_id, version_no]
+      properties:
+        command: { type: string }
+        ext_commitment_id: { type: string, format: uuid }
+        version_no: { type: integer, minimum: 1 }
+        content_token: { type: string, description: 'Токен материала точной версии (опционально на проводе)' }
+    ExternalApprovalOutcome:
+      type: object
+      additionalProperties: false
+      required: [ext_commitment_id, version_no, approval_recorded]
+      properties:
+        ext_commitment_id: { type: string, format: uuid }
+        version_no: { type: integer, minimum: 1 }
+        approval_recorded: { type: boolean, description: 'false — молчаливая идемпотентность повтора того же approver (UNIQUE)' }
+    ExternalEnqueueOutcome:
+      type: object
+      additionalProperties: false
+      required: [ext_commitment_id, version_no, queued]
+      properties:
+        ext_commitment_id: { type: string, format: uuid }
+        version_no: { type: integer, minimum: 1 }
+        queued: { type: boolean, description: 'true — outbox запись создана; слова сохранены ДО отправки' }
+    ExternalRelayOutcome:
+      type: object
+      additionalProperties: false
+      required: [ext_commitment_id, version_no, kind]
+      properties:
+        ext_commitment_id: { type: string, format: uuid }
+        version_no: { type: integer, minimum: 1 }
+        kind: { type: string, enum: [receipt_delivered, receipt_acknowledged, receipt_failed], description: 'Квитанционное слово истории; состояние чтения решает последнее событие, не этот ответ' }
+    ExternalDrainResult:
+      type: object
+      additionalProperties: false
+      required: [considered, gassed, submitted, delivered, failed_retry, unknown_parked, skipped, reports]
+      properties:
+        considered: { type: integer, description: 'Bound 500 за запуск; остальные ждут следующего прогона' }
+        gassed: { type: integer, description: 'Гашения cancelled_stale — слова не ушли' }
+        submitted: { type: integer }
+        delivered: { type: integer }
+        failed_retry: { type: integer, description: 'Предотправочные отказы — повтор в bound тем же ключом' }
+        unknown_parked: { type: integer, description: 'Timeout без гарантии — парковка reconciliation 3-7, слепой повтор структурно исключён' }
+        skipped: { type: integer, description: 'Токен-тревога (reconciliation), raced twins, bound-парковки' }
+        reports: { type: array, items: { $ref: '#/components/schemas/ExternalDrainReport' } }
+    ExternalDrainReport:
+      type: object
+      additionalProperties: false
+      required: [ext_commitment_id, version_no, text]
+      properties:
+        ext_commitment_id: { type: string, format: uuid }
+        version_no: { type: integer, minimum: 1 }
+        text: { type: string, description: 'Честный построчный отказ прогона' }
+    ExternalPurpose:
+      type: string
+      enum: [promise, offer, callback, deadline_update]
+      description: 'Словарь назначений эпика (4 слова); offer требует пин точной версии 2.9'
+    ExternalRecipientKind:
+      type: string
+      enum: [client, operator]
+      description: 'Получатели среза (2 слова); executor — честный Never (реестры Epic 5)'
+    ExternalAckRequirement:
+      type: string
+      enum: [required, not_required]
+      description: 'Требование квитанции; required-конверт различает delivered и acknowledged materially'
+    ExternalChannel:
+      type: string
+      enum: [phone, web_chat, telegram, whatsapp, email, max, jivo, avito, mobile_app_chat]
+      description: 'Зеркало девяти слов каналов cases (ChannelOrder)'
+    ExternalDeliveryState:
+      type: string
+      enum: [persisted, queued, submitted, delivered, acknowledged, failed, unknown]
+      description: 'СЕМЬ слов AC-7 — вывод чтения по append-only событиям, никогда не хранимый статус; submitted ≠ delivered ≠ acknowledged'
+    ExternalDispatchKind:
+      type: string
+      enum: [attempt_submitted, attempt_failed, attempt_unknown, receipt_delivered, receipt_acknowledged, receipt_failed, cancelled_stale]
+      description: 'Семь kinds миграции 00017 (queued НЕ kind — outbox запись сама доказательство, прецедент dispatched 2-12)'
+    ExternalStaleReason:
+      type: string
+      enum: [newer_version, expired, owner_epoch_moved, control_mode]
+      description: 'Причины гашения CHECK миграции; control_mode — ЖИВАЯ enforcement-точка 3.2'
+    ExternalReadinessWord:
+      type: string
+      enum: [ready, superseded, expired, owner_stale, pin_blocked]
+      description: 'Пять слов готовности — read-time вывод, никогда не хранимое слово'
+    ExternalDispatchOutcome:
+      type: string
+      enum: [accepted, delivered, failed, timeout]
+      description: 'Словарь исходов адаптера (машинная граница): failed — предотправочный отказ (повтор безопасен), timeout — возможная отправка (unknown, повтор только по гарантии); documented для контракта адаптера, AG-4'
   responses:
     Problem:
       description: Безопасная ошибка

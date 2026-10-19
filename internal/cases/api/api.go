@@ -650,3 +650,144 @@ type VerificationService interface {
 	UnlinkChannel(context.Context, UnlinkChannelCommand) (WorkOutcome, error)
 	ResolveDuplicate(context.Context, ResolveDuplicateCommand) (WorkOutcome, error)
 }
+
+// ---------------------------------------------------------------------------
+// Story 3.3: the external commitment dispatch commands (the first slice)
+// ---------------------------------------------------------------------------
+
+// CreateExternalCommitmentCommand is the material of one envelope version
+// creation: the dictionary words of the epic (the purpose, the recipient
+// kind, the channel of the route, the ack requirement), the content, the
+// validity window, the expected next step and the optional 2.9 exact-version
+// pin (MANDATORY for the offer purpose). The owner snapshot, the lineage
+// numbers and the policy outcome number are the SERVER-side truth — the app
+// resolves them from the live case material, never from the command.
+type CreateExternalCommitmentCommand struct {
+	Actor            domain.Principal
+	TenantID         id.UUID
+	CaseID           id.UUID
+	WorkItemID       id.UUID
+	ExtCommitmentID  id.UUID
+	Purpose          string
+	RecipientKind    string
+	Channel          string
+	ContentText      string
+	ValidUntil       time.Time
+	ExpectedNextStep string
+	AckRequirement   string
+	Pin              casesDomain.ExternalCommitmentPin
+	Now              time.Time
+}
+
+// ExternalCommitmentOutcome is the material result of one envelope command:
+// the envelope identifier with the exact version number and the content
+// binding token of the version (the page renders the full material from the
+// version row; the outcome carries the anchors only).
+type ExternalCommitmentOutcome struct {
+	Command         string  `json:"command"`
+	ExtCommitmentID id.UUID `json:"ext_commitment_id"`
+	VersionNo       int64   `json:"version_no"`
+	ContentToken    string  `json:"content_token,omitempty"`
+}
+
+// ApproveExternalCommitmentCommand is the material of the approval gate:
+// the EXACT version the CURRENT human owner approves with the step-up
+// evidence. The approver is the acting principal (the app gate verifies the
+// actor IS the current owner — an approval of a departed owner or of an old
+// version structurally never authorises the send, AC-9).
+type ApproveExternalCommitmentCommand struct {
+	Actor           domain.Principal
+	TenantID        id.UUID
+	CaseID          id.UUID
+	WorkItemID      id.UUID
+	ExtCommitmentID id.UUID
+	VersionNo       int64
+	Now             time.Time
+}
+
+// ExternalApprovalOutcome is the material result of the approval: the
+// version it approves and whether THIS call wrote the row (false — the
+// repeated approval of the same approver, the silent idempotency of the
+// UNIQUE).
+type ExternalApprovalOutcome struct {
+	ExtCommitmentID  id.UUID `json:"ext_commitment_id"`
+	VersionNo        int64   `json:"version_no"`
+	ApprovalRecorded bool    `json:"approval_recorded"`
+}
+
+// EnqueueExternalCommitmentCommand is the material of the queue command:
+// the EXACT version the enqueue addresses. The approval of the CURRENT
+// human owner and the readiness of the version are the SERVER-side gates —
+// both refuse BEFORE the transaction with the honest words; the store
+// re-validates both under the advisory locks (the persist-before-emit
+// transaction carries no adapter — the network call is physically
+// impossible before the commit, AC-3).
+type EnqueueExternalCommitmentCommand struct {
+	Actor           domain.Principal
+	TenantID        id.UUID
+	CaseID          id.UUID
+	WorkItemID      id.UUID
+	ExtCommitmentID id.UUID
+	VersionNo       int64
+	Now             time.Time
+}
+
+// ExternalEnqueueOutcome is the material result of the enqueue: the version
+// that entered the queue (the safe outbox record is the queue evidence —
+// the words have NOT left).
+type ExternalEnqueueOutcome struct {
+	ExtCommitmentID id.UUID `json:"ext_commitment_id"`
+	VersionNo       int64   `json:"version_no"`
+	Queued          bool    `json:"queued"`
+}
+
+// RelayExternalReceiptCommand is the material of the operator relay: the
+// observation word of the channel world (the 2.12 ConfirmerOperatorRelay
+// precedent — the human passes the machine observation, the machine never
+// invents it). The version must exist and be enqueued; the append-only
+// history accepts the observation whatever came before.
+type RelayExternalReceiptCommand struct {
+	Actor           domain.Principal
+	TenantID        id.UUID
+	CaseID          id.UUID
+	WorkItemID      id.UUID
+	ExtCommitmentID id.UUID
+	VersionNo       int64
+	Observation     string
+	Now             time.Time
+}
+
+// ExternalRelayOutcome is the material result of the relay: the version and
+// the receipt kind that landed in the history (the read-time derivation
+// takes the LAST event — the state word follows from the history, never
+// from this answer).
+type ExternalRelayOutcome struct {
+	ExtCommitmentID id.UUID `json:"ext_commitment_id"`
+	VersionNo       int64   `json:"version_no"`
+	Kind            string  `json:"kind"`
+}
+
+// ExternalDrainReport is the honest per-record refusal of the drain: the
+// version pin and the safe text (the bounded-parking, the integrity alarm
+// or the raced skip) — the operator surface of the words that stayed.
+type ExternalDrainReport struct {
+	ExtCommitmentID id.UUID `json:"ext_commitment_id"`
+	VersionNo       int64   `json:"version_no"`
+	Text            string  `json:"text"`
+}
+
+// ExternalDrainResult is the material result of the drain command: the
+// counted outcomes of the batch (the gassed fences, the submitted, the
+// delivered, the retryable failures, the parked unknowns, the skipped
+// races) and the per-record reports. The command is idempotent — the
+// repeated run considers the still-pending records only.
+type ExternalDrainResult struct {
+	Considered    int                   `json:"considered"`
+	Gassed        int                   `json:"gassed"`
+	Submitted     int                   `json:"submitted"`
+	Delivered     int                   `json:"delivered"`
+	FailedRetry   int                   `json:"failed_retry"`
+	UnknownParked int                   `json:"unknown_parked"`
+	Skipped       int                   `json:"skipped"`
+	Reports       []ExternalDrainReport `json:"reports"`
+}

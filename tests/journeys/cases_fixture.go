@@ -196,6 +196,12 @@ type casesFixture struct {
 	caseNo, conversationNo int64
 	eventSeq               int
 	workSeq, exceptionSeq  int
+
+	// The Story 3.3 material: the external commitment dispatch world —
+	// the REAL domain derivations, the synthetic dispatcher of the test
+	// contour and the LIVE control fence over the controls fixture (the
+	// file external_commitment_fixture.go).
+	external *externalWorld
 }
 
 type fixtureCaseMaterial struct {
@@ -281,6 +287,8 @@ func newCasesFixture() *casesFixture {
 		// The Story 2.15 material:
 		corrections: map[id.UUID][]casesDomain.CorrectionRecord{},
 		promises:    map[id.UUID][]casesDomain.UpdatePromiseRecord{},
+		// The Story 3.3 material:
+		external: newExternalWorld(),
 	}
 }
 

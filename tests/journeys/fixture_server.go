@@ -1008,6 +1008,35 @@ func main() {
 		controls.setLive(r.FormValue("enabled") == "1")
 		w.WriteHeader(http.StatusNoContent)
 	})
+	// The Story 3.3 wiring (the fixture world IS the test contour —
+	// production never wires a dispatcher, AG-4): the synthetic
+	// dispatcher over the live capability declaration and the LIVE
+	// control fence over the controls fixture world (the drain
+	// observes the enforcement point the z31 journey seeds through
+	// the REAL Set path of the controls fixture).
+	dispatcher := cases.wireExternalDispatchWorld(controls)
+	// The fixture-only dispatch-outcome switch: the z31 journey walks
+	// every word of the outcome dictionary (accepted, delivered,
+	// failed, timeout) and both guarantee words (the live declaration
+	// of command.send-sms, or the scripted no-guarantee of the
+	// timeout row — the blind-retry structural absence); production
+	// never exposes it.
+	root.HandleFunc("POST /fixture/dispatch-outcome", func(w http.ResponseWriter, r *http.Request) {
+		r.ParseForm()
+		outcome := strings.TrimSpace(r.FormValue("outcome"))
+		if outcome == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		switch r.FormValue("guarantee") {
+		case "0":
+			dispatcher.ScriptGuarantee(false)
+		case "1":
+			dispatcher.ScriptGuarantee(true)
+		}
+		dispatcher.Script(outcome, strings.TrimSpace(r.FormValue("correlation")), nil)
+		w.WriteHeader(http.StatusNoContent)
+	})
 	root.Handle("/", server.Handler())
 	if err := http.ListenAndServe("127.0.0.1:18081", root); err != nil {
 		panic(err)
