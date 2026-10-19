@@ -324,6 +324,13 @@ func TestMain(m *testing.M) {
 	if _, err = adminPool.Exec(ctx, strings.Split(string(casesUpdatePromisesMigration), "-- +goose Down")[0]); err != nil {
 		panic(err)
 	}
+	casesExternalCommitmentMigration, err := os.ReadFile("../../migrations/cases/00017_external_commitment_dispatch.sql")
+	if err != nil {
+		panic(err)
+	}
+	if _, err = adminPool.Exec(ctx, strings.Split(string(casesExternalCommitmentMigration), "-- +goose Down")[0]); err != nil {
+		panic(err)
+	}
 	if _, err = adminPool.Exec(ctx, "alter role staffy_app login password 'staffy-runtime-test'"); err != nil {
 		panic(err)
 	}

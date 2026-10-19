@@ -165,7 +165,7 @@ func externalVersionOfTx(ctx context.Context, tx pgx.Tx, tenantID, caseID, workI
 // and the derivation input).
 func readExternalDispatchEventsOfTx(ctx context.Context, tx pgx.Tx, tenantID, extID id.UUID, versionNo int64) ([]casesDomain.ExternalDispatchEvent, error) {
 	rows, err := tx.Query(ctx, `
-                select tenant_id, case_id, ext_commitment_id, version_no, event_id, event_no, kind, reason, attempt_no,
+                select tenant_id, case_id, ext_commitment_id, version_no, event_id, event_no, kind, coalesce(reason, ''), attempt_no,
                        coalesce(external_correlation_id, ''), idempotent_guarantee, details, actor_id, created_at
                 from cases.external_dispatch_events
                 where tenant_id=$1 and ext_commitment_id=$2 and version_no=$3 order by event_no`,
@@ -260,7 +260,7 @@ func (s *Postgres) ReadExternalDispatchEvents(ctx context.Context, scope tenancy
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	rows, err := tx.Query(ctx, `
-                select tenant_id, case_id, ext_commitment_id, version_no, event_id, event_no, kind, reason, attempt_no,
+                select tenant_id, case_id, ext_commitment_id, version_no, event_id, event_no, kind, coalesce(reason, ''), attempt_no,
                        coalesce(external_correlation_id, ''), idempotent_guarantee, details, actor_id, created_at
                 from cases.external_dispatch_events
                 where tenant_id=$1 and case_id=$2 order by ext_commitment_id, version_no, event_no`,
@@ -814,8 +814,9 @@ func (s *Postgres) GasExternalCommitmentQueue(ctx context.Context, p casesPort.E
 			return false, tx.Commit(ctx) // the words left, were observed or the gasp already landed — nothing to write
 		}
 	}
+	reasonWord := p.Reason
 	if err := insertExternalDispatchEvent(ctx, tx, tenantID, p.CaseID, p.ExtCommitmentID, p.VersionNo,
-		p.EventID, int64(len(events)+1), casesDomain.ExternalDispatchCancelledStale, 0, "", false,
+		p.EventID, int64(len(events)+1), casesDomain.ExternalDispatchCancelledStale, &reasonWord, 0, "", false,
 		casesDomain.ExternalStaleReasonText(p.Reason), p.ActorID, p.Now); err != nil {
 		return false, mapExternalInsertError(err)
 	}
@@ -870,7 +871,7 @@ func (s *Postgres) RecordExternalDispatchOutcome(ctx context.Context, p casesPor
 			attemptOfEvent = attemptNo
 		}
 		if err := insertExternalDispatchEvent(ctx, tx, tenantID, p.CaseID, p.ExtCommitmentID, p.VersionNo,
-			outcome.EventID, eventNo, outcome.Kind, attemptOfEvent, outcome.ExternalCorrelationID,
+			outcome.EventID, eventNo, outcome.Kind, nil, attemptOfEvent, outcome.ExternalCorrelationID,
 			outcome.IdempotentGuarantee, outcome.Details, p.ActorID, p.Now); err != nil {
 			return false, mapExternalInsertError(err)
 		}
@@ -913,7 +914,7 @@ func (s *Postgres) RelayExternalReceipt(ctx context.Context, p casesPort.Externa
 		return false, err
 	}
 	if err := insertExternalDispatchEvent(ctx, tx, tenantID, p.CaseID, p.ExtCommitmentID, p.VersionNo,
-		p.EventID, int64(len(events)+1), p.Kind, 0, "", false,
+		p.EventID, int64(len(events)+1), p.Kind, nil, 0, "", false,
 		"наблюдение оператора канала", p.ActorID, p.Now); err != nil {
 		return false, mapExternalInsertError(err)
 	}
@@ -926,13 +927,13 @@ func (s *Postgres) RelayExternalReceipt(ctx context.Context, p casesPort.Externa
 // identifiers are minted by the APP before the transaction (the module
 // convention — the store stays a pure persistence boundary).
 func insertExternalDispatchEvent(ctx context.Context, tx pgx.Tx, tenantID, caseID, extID id.UUID, versionNo int64,
-	eventID id.UUID, eventNo int64, kind string, attemptNo int64,
+	eventID id.UUID, eventNo int64, kind string, reason *string, attemptNo int64,
 	correlationID string, guarantee bool, details string, actorID id.UUID, now time.Time) error {
 	_, err := tx.Exec(ctx, `
                 insert into cases.external_dispatch_events (tenant_id, case_id, ext_commitment_id, version_no,
                         event_id, event_no, kind, reason, attempt_no, external_correlation_id, idempotent_guarantee, details, actor_id, created_at)
                 values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
-		tenantID, caseID, extID, versionNo, eventID, eventNo, kind, nil, attemptNo,
+		tenantID, caseID, extID, versionNo, eventID, eventNo, kind, reason, attemptNo,
 		correlationID, guarantee, casesDomain.TruncateExternalDetails(details), actorID,
 		now.UTC().Truncate(time.Microsecond))
 	return err

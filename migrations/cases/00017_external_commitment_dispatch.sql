@@ -142,7 +142,7 @@ CREATE TABLE cases.external_dispatch_events (
  PRIMARY KEY (tenant_id, event_id),
  UNIQUE (tenant_id, ext_commitment_id, version_no, event_no),
  CONSTRAINT external_dispatch_events_reason_shape CHECK (
-  (kind = 'cancelled_stale' AND reason IN ('newer_version','expired','owner_epoch_moved','control_mode')) OR
+  (kind = 'cancelled_stale' AND reason IS NOT NULL AND reason IN ('newer_version','expired','owner_epoch_moved','control_mode')) OR
   (kind <> 'cancelled_stale' AND reason IS NULL)),
  CONSTRAINT external_dispatch_events_attempt_shape CHECK (
   (kind IN ('attempt_submitted','attempt_failed','attempt_unknown') AND attempt_no BETWEEN 1 AND 3) OR
