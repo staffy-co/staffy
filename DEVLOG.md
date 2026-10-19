@@ -3239,3 +3239,16 @@ done:
 - Never-границы среза: AI Runtime/авторство (AG-4 — автор человек), реальные провайдеры (AG-4 — ридер/dry-run не wired в production), Confirmation/dispatch/Operation (3-5/3-6), reconciliation (3-7), related-effects расширение определения (ActionDefinition 3-1 поля не имеет — будущий срез), тонкая admission-семантика контроля (3-2 второй срез), DELETE-пути, reasoning (AD-8)
 next: CHECKPOINT 1 — спека ждёт явного одобрения владельца «одобряю» (дисциплина 52-sm: самопродолжение чекпоинт не закрывает; прецеденты 3-3 9ce0e01/3-2 e54377b/3-1 a3a3d99); после одобрения: sprint-status 3-4 → ready-for-dev + чекпоинт-коммиты + Dev шаги 01-05 → CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge)
 commit: d8b97f8
+
+---
+date: 2026-10-20
+task: 128-checkpoint-1
+role: main (Super Z)
+story: 3-4
+summary: CHECKPOINT 1 story 3-4 закрыт: спека первого среза «Подготовка и проверка Action Preview» (контур proposal→preview в модуле action) одобрена владельцем явным ответом «одобряю» (дисциплина 52-sm: самопродолжение чекпоинт не закрывает; прецеденты 3-3 9ce0e01/3-2 e54377b/3-1 a3a3d99). Позиция восстановлена по порядку доверия git > DEVLOG > worklog: сводка контекста устарела 21-й раз (заявляла «story 3-1 step-05, ветка 4aaffa3»), git-факт: story 3-3 полностью закрыта (PR #34, merge 4e01917, main e1411f3, RPO=0), SM-фаза 3-4 закрыта (спека d8b97f8 + DEVLOG 127-sm 8dd8b3b, ветка push RPO=0, CI-тишина маркеров подтверждена). Инструменты восстановлены после 403-серия (echo-проба жива); токен владельца верифицирован ДО git-операций: 200 + 200 на /user + /repos. Спека+sprint-status 3-4 → ready-for-dev (замороженные секции не тронуты: дифф = status + Change Log — прецедент 3-3 9ce0e01); чекпоинт-коммит 2facf4e [skip ci] + эта запись [skip ci]; push немедленный (токен жив) — CI-тишина ожидаема (маркеры на середине ветки, голова перед PR будет чистой по уроку 2-14/ретро-2-1).
+done:
+- Верификация позиции: ветка codex/story-3-4-action-preview = 8dd8b3b = origin до чекпоинта (sync, RPO=0); рабочее дерево чистое — поручение «закоммить и отправь» прошлой сессии исполнено полностью, долгов нет
+- Спека status backlog → ready-for-dev + Change Log запись CHECKPOINT 1; sprint-status ключ 3-4 → ready-for-dev (last_updated уже 10-20-2026)
+- Чекпоинт-коммит 2facf4e [skip ci]; push живым токеном
+next: Dev step-01 домен action preview в internal/action (proposal-валидация против TypedInputSchema 3-1 с repair-pass СТРУКТУРНО ≤1 attempt UNIQUE и терминальным rejected, Policy живыми источниками по порядку с не-входом текста proposal, материальный snapshot-словарь {fresh, stale, conflicting, unknown, allowed_uncertain}, Preview стабильный ID + версии append-only + digest HMAC action_preview:v1:, эффекты конечным набором ТОЛЬКО из definition, unsafe/бес-recon → human-only без автономного dispatch, DerivePreviewFreshness 7 причин при каждом чтении, Timeline {proposal, previewed, superseded} выводом чтения + unit-матрица поимённо) → шаги 02-05 → CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge); ретроспектива epic-3 — по закрытии эпика
+commit: 2facf4e
