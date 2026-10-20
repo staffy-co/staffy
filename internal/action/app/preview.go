@@ -454,7 +454,11 @@ func (s *Service) previewFreshnessLive(ctx context.Context, actor identityDomain
 // never smuggle the allowed_uncertain word in (fail-closed to unknown).
 func (s *Service) readPreviewMaterial(ctx context.Context, scope tenancy.Context, def domain.ActionDefinition, preview domain.ActionPreview) []domain.MaterialSnapshotRow {
 	if s.previewReader == nil {
-		return nil
+		// The honest EMPTY set: no rows were read (AG-4). The empty slice —
+		// never a nil — keeps the store's jsonb array CHECK honest: the
+		// blocked preview exists, the readiness derivation speaks the
+		// blocked_material word over zero rows.
+		return []domain.MaterialSnapshotRow{}
 	}
 	required := map[string]string{}
 	for _, req := range def.Conditions.RequiredFacts {
@@ -479,8 +483,10 @@ func (s *Service) readPreviewMaterial(ctx context.Context, scope tenancy.Context
 		// rows survive, the preview exists with the honest неготовность
 		// (the pin_blocked degradation precedent 3-3 — the build never
 		// pretends and never fails on a provider that is not wired to
-		// exist).
-		return nil
+		// exist). The empty slice — never a nil — keeps the store's
+		// jsonb array CHECK honest (the same discipline as the nil
+		// reader above).
+		return []domain.MaterialSnapshotRow{}
 	}
 	mapped := make([]domain.MaterialSnapshotRow, 0, len(rows))
 	for _, row := range rows {

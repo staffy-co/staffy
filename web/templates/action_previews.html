@@ -52,20 +52,6 @@
 </ul>
 </details>
 {{end}}
-{{if .Attempts}}
-<details open><summary>Лестница попыток предложения (AD-7: одна повторная попытка, третьей не существует)</summary>
-<ul>
-{{range .Attempts}}<li>Попытка {{.No}} — вердикт {{.Verdict}}{{if .BlockedText}}, блокировка Policy: {{.BlockedText}}{{end}}{{if .InvalidReport}}: {{.InvalidReport}}{{end}} — {{.At}}</li>{{end}}
-</ul>
-</details>
-{{end}}
-{{if .Evidence}}
-<details open><summary>Validation evidence (dry-run: не действие и не гарантия)</summary>
-<ul>
-{{range .Evidence}}<li>Версия {{.Version}} — результат {{.Result}} — {{.At}}</li>{{end}}
-</ul>
-</details>
-{{end}}
 <p id="authorization-{{.PreviewID}}-{{.No}}">{{.AuthorizationText}}</p>
 {{if .Current}}
 <a class="primary" href="#authorization-{{.PreviewID}}-{{.No}}">Перейти к авторизации</a>
@@ -81,6 +67,20 @@
 </li>
 {{end}}
 </ul>
+{{if .Attempts}}
+<details open><summary>Лестница попыток предложения (AD-7: одна повторная попытка, третьей не существует)</summary>
+<ul>
+{{range .Attempts}}<li>Попытка {{.No}} — вердикт {{.Verdict}}{{if .BlockedText}}, блокировка Policy: {{.BlockedText}}{{end}}{{if .InvalidReport}}: {{.InvalidReport}}{{end}} — {{.At}}</li>{{end}}
+</ul>
+</details>
+{{end}}
+{{if .Evidence}}
+<details open><summary>Validation evidence (dry-run: не действие и не гарантия)</summary>
+<ul>
+{{range .Evidence}}<li>Версия {{.Version}} — результат {{.Result}} — {{.At}}</li>{{end}}
+</ul>
+</details>
+{{end}}
 <details><summary>Отредактировать разрешённое поле (новая версия полной цепочкой)</summary>
 <form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.CaseID}}/action-previews/{{.PreviewID}}/versions">
 <label for="typed_input-{{.PreviewID}}">Типовой материал (пары поле=значение, по одной в строке; неизвестное поле отклоняется по имени)</label>

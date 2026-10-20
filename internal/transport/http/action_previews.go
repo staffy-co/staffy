@@ -66,10 +66,17 @@ func (s *Server) actionPreviewsProblem(w http.ResponseWriter, r *http.Request, e
 		s.problem(w, r, http.StatusBadRequest, rule.Rule, rule.Reason, false, nil)
 	case errors.Is(err, actionDomain.ErrNotFound), errors.Is(err, domain.ErrNotFound):
 		s.problem(w, r, http.StatusNotFound, "not_found", "Обращение, версия preview или определение действия не найдены.", false, nil)
-	case errors.Is(err, domain.ErrForbidden):
+	case errors.Is(err, actionDomain.ErrForbidden), errors.Is(err, domain.ErrForbidden):
+		// The module's own 403 sentinel carries the honest scope words the
+		// app attached at the wrap point (the transport never invents its
+		// own copy); the identity sentinel keeps the legacy branch of the
+		// transport-level fakes.
 		message := err.Error()
-		if prefix := domain.ErrForbidden.Error() + ": "; strings.HasPrefix(message, prefix) {
-			message = strings.TrimPrefix(message, prefix)
+		for _, prefix := range []string{actionDomain.ErrForbidden.Error() + ": ", domain.ErrForbidden.Error() + ": "} {
+			if strings.HasPrefix(message, prefix) {
+				message = strings.TrimPrefix(message, prefix)
+				break
+			}
 		}
 		s.problem(w, r, http.StatusForbidden, "action_previews_forbidden", message, false, nil)
 	case errors.Is(err, actionPort.ErrAttemptExhausted):
@@ -85,6 +92,30 @@ func (s *Server) actionPreviewsProblem(w http.ResponseWriter, r *http.Request, e
 	}
 }
 
+// actionPreviewsPageProblem maps the preparation contour errors of the
+// PAGE read: the module's own 404 (a non-member or a foreign tenant never
+// learn the case prepares actions) and the module's own 403 (the scope
+// words of the honest refusal) — never the unmapped 500 of the cases
+// page mapping (the cases sentinels are a different family).
+func (s *Server) actionPreviewsPageProblem(w http.ResponseWriter, r *http.Request, actor domain.Principal, err error) {
+	var rule actionDomain.RuleError
+	switch {
+	case errors.As(err, &rule):
+		s.renderStatus(w, http.StatusForbidden, "cases", map[string]any{
+			"View": casesPageView{ScopeText: casesScopeText(false), ForbiddenText: rule.Reason},
+		})
+	case errors.Is(err, actionDomain.ErrNotFound), errors.Is(err, domain.ErrNotFound):
+		s.notFound(w, r, actor)
+	case errors.Is(err, actionDomain.ErrForbidden), errors.Is(err, domain.ErrForbidden):
+		message := actionPreviewsFormMessage(err)
+		s.renderStatus(w, http.StatusForbidden, "cases", map[string]any{
+			"View": casesPageView{ScopeText: casesScopeText(false), ForbiddenText: message},
+		})
+	default:
+		s.problem(w, r, http.StatusInternalServerError, "internal_error", "Не удалось открыть Preview Review. Повторите позднее.", true, nil)
+	}
+}
+
 // actionPreviewsFormMessage renders the honest flash text of the form
 // errors (the 3.3 precedent: the rule words, the 404/403 texts, the
 // ladder conflicts).
@@ -95,7 +126,7 @@ func actionPreviewsFormMessage(err error) string {
 		return rule.Reason
 	case errors.Is(err, actionDomain.ErrNotFound), errors.Is(err, domain.ErrNotFound):
 		return "Обращение, версия preview или определение действия не найдены: перечитайте страницу и повторите."
-	case errors.Is(err, domain.ErrForbidden):
+	case errors.Is(err, actionDomain.ErrForbidden), errors.Is(err, domain.ErrForbidden):
 		return "Подготовка action preview требует полномочия review или configuration."
 	case errors.Is(err, actionPort.ErrAttemptExhausted):
 		return "Обе попытки этого предложения исчерпаны — третьей не существует: отредактируйте построенный preview либо подайте предложение с другим пином."
@@ -542,8 +573,6 @@ type previewCardRowView struct {
 	DigestAlarmText   string
 	AuthorizationText string
 	DiffLines         []string
-	Attempts          []previewAttemptRowView
-	Evidence          []previewEvidenceRowView
 	HasSnapshot       bool
 	HasEffects        bool
 	Current           bool
@@ -553,6 +582,12 @@ type previewCardRowView struct {
 type previewThreadRowView struct {
 	PreviewID string
 	Cards     []previewCardRowView
+	// Attempts and Evidence live at the THREAD level: the blocked and
+	// invalid attempts that never built a version stay visible on the
+	// page (the counter of the AD-7 history is shown honestly — the
+	// spec note), and the evidence never rides every card.
+	Attempts []previewAttemptRowView
+	Evidence []previewEvidenceRowView
 }
 
 // previewDefinitionOption is one catalog option of the proposal form.
@@ -716,7 +751,7 @@ func (s *Server) previewReviewPage(w http.ResponseWriter, r *http.Request) {
 	}
 	view, err := s.actionPreviews.ReadPreviewView(r.Context(), actor, tenant, caseID)
 	if err != nil {
-		s.casesPageProblem(w, r, err)
+		s.actionPreviewsPageProblem(w, r, actor, err)
 		return
 	}
 	flash := flashError(r, tenant)
@@ -765,12 +800,10 @@ func (s *Server) previewReviewPage(w http.ResponseWriter, r *http.Request) {
 	}
 	for _, thread := range view.Threads {
 		page.HasThreads = true
-		threadRow := previewThreadRowView{PreviewID: thread.PreviewID.String(), Cards: []previewCardRowView{}}
+		threadRow := previewThreadRowView{PreviewID: thread.PreviewID.String(), Cards: []previewCardRowView{},
+			Attempts: attemptsByThread[thread.PreviewID], Evidence: evidenceByThread[thread.PreviewID]}
 		for _, card := range thread.Cards {
-			cardRow := newPreviewCardRowView(card)
-			cardRow.Attempts = attemptsByThread[thread.PreviewID]
-			cardRow.Evidence = evidenceByThread[thread.PreviewID]
-			threadRow.Cards = append(threadRow.Cards, cardRow)
+			threadRow.Cards = append(threadRow.Cards, newPreviewCardRowView(card))
 		}
 		page.Threads = append(page.Threads, threadRow)
 	}
