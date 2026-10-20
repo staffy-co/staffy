@@ -168,7 +168,15 @@ CREATE TABLE action.operation_ledger (
 -- Operation» — AC-9 материальна) — the equivalent mutation from another
 -- Case does not pass; the loser reads the honest reference of the
 -- existing tenant-visible Operation. The FK stays INSIDE the module
--- (AD-2); case_id is a plain pin.
+-- (AD-2); case_id is a plain pin. The FK is DEFERRABLE INITIALLY
+-- DEFERRED: the frozen INSERT order of ReserveOperation writes the
+-- reservation BEFORE the operation row (the reservation UNIQUE fires
+-- first — the raced same-key twin maps to ErrReservationConflict, the
+-- raced cross-case intent maps to the honest reference, the two
+-- identities stay distinguishable at the constraint level), so the
+-- reference integrity checks at COMMIT — the transaction is one
+-- atomic truth anyway (ANY failure rolls back everything, AC-6
+-- material).
 CREATE TABLE action.reservations (
  tenant_id uuid NOT NULL,
  owning_system text NOT NULL CHECK (char_length(owning_system) BETWEEN 1 AND 64),
@@ -177,7 +185,7 @@ CREATE TABLE action.reservations (
  case_id uuid NOT NULL,
  created_at timestamptz NOT NULL,
  PRIMARY KEY (tenant_id, owning_system, business_intent_key),
- FOREIGN KEY (tenant_id, operation_id) REFERENCES action.operations (tenant_id, operation_id)
+ FOREIGN KEY (tenant_id, operation_id) REFERENCES action.operations (tenant_id, operation_id) DEFERRABLE INITIALLY DEFERRED
 );
 CREATE INDEX reservations_operation ON action.reservations (tenant_id, operation_id);
 

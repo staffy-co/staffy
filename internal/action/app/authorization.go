@@ -839,8 +839,11 @@ func (s *Service) operationCard(ctx context.Context, scope tenancy.Context, op d
 // events speak the visible conflict/blocked exceptions of the rejected
 // attempts) and the operation cards with the ledger and the queue fact.
 // executed NEVER exists here (AC-11 — the honest words speak the
-// boundary).
-func (s *Service) ReadAuthorizationView(ctx context.Context, actor identityDomain.Principal, tenantID, caseID id.UUID) (api.AuthorizationView, error) {
+// boundary). The now parameter is the transport clock — the SAME pair of
+// hours the consent commands pin: the expired derivation reads the
+// injected window coherently (the production transport passes
+// time.Now()).
+func (s *Service) ReadAuthorizationView(ctx context.Context, actor identityDomain.Principal, tenantID, caseID id.UUID, now time.Time) (api.AuthorizationView, error) {
 	if err := s.requireAuthorizationPorts(); err != nil {
 		return api.AuthorizationView{}, err
 	}
@@ -911,7 +914,7 @@ func (s *Service) ReadAuthorizationView(ctx context.Context, actor identityDomai
 		state := domain.ConfirmationValid
 		consumed := 0
 		if def, ok := defsOf(confirmation.DefinitionID, confirmation.DefinitionVersion); ok {
-			if derived, deriveErr := domain.DeriveConfirmationState(def.Conditions.ConsumptionRule, confirmation.ValidUntil, versionEvents, time.Now().UTC()); deriveErr == nil {
+			if derived, deriveErr := domain.DeriveConfirmationState(def.Conditions.ConsumptionRule, confirmation.ValidUntil, versionEvents, now); deriveErr == nil {
 				state = derived
 			}
 			consumed = domain.DeriveConsumedCount(versionEvents)

@@ -1357,7 +1357,7 @@ func TestReadAuthorizationViewDerivesLiveWords(t *testing.T) {
 	f := newAuthorizationFixture(t)
 	thread, version := f.confirm(t)
 	f.authorize(t, thread, version, authGoodKey)
-	view, err := f.service.ReadAuthorizationView(context.Background(), testActor, testTenant, previewCaseID)
+	view, err := f.service.ReadAuthorizationView(context.Background(), testActor, testTenant, previewCaseID, f.now)
 	if err != nil {
 		t.Fatalf("чтение вида обязано проходить: %v", err)
 	}
@@ -1391,7 +1391,7 @@ func TestReadAuthorizationViewDerivesLiveWords(t *testing.T) {
 // the honest words (the surface never pretends).
 func TestReadAuthorizationViewEmptyStateIsHonest(t *testing.T) {
 	f := newAuthorizationFixture(t)
-	view, err := f.service.ReadAuthorizationView(context.Background(), testActor, testTenant, previewCaseID)
+	view, err := f.service.ReadAuthorizationView(context.Background(), testActor, testTenant, previewCaseID, f.now)
 	if err != nil {
 		t.Fatalf("чтение пустого вида обязано проходить: %v", err)
 	}

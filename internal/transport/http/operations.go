@@ -287,7 +287,7 @@ func (s *Server) readAuthorizationViewAPI(w http.ResponseWriter, r *http.Request
 		s.notFound(w, r, actor)
 		return
 	}
-	view, err := s.authorization.ReadAuthorizationView(r.Context(), actor, tenant, caseID)
+	view, err := s.authorization.ReadAuthorizationView(r.Context(), actor, tenant, caseID, s.clock.Now().UTC())
 	if err != nil {
 		s.operationsProblem(w, r, err)
 		return
@@ -312,7 +312,7 @@ func (s *Server) readConfirmationThreadAPI(w http.ResponseWriter, r *http.Reques
 		s.notFound(w, r, actor)
 		return
 	}
-	view, err := s.authorization.ReadAuthorizationView(r.Context(), actor, tenant, caseID)
+	view, err := s.authorization.ReadAuthorizationView(r.Context(), actor, tenant, caseID, s.clock.Now().UTC())
 	if err != nil {
 		s.operationsProblem(w, r, err)
 		return
@@ -349,7 +349,7 @@ func (s *Server) readOperationAPI(w http.ResponseWriter, r *http.Request) {
 		s.notFound(w, r, actor)
 		return
 	}
-	view, err := s.authorization.ReadAuthorizationView(r.Context(), actor, tenant, caseID)
+	view, err := s.authorization.ReadAuthorizationView(r.Context(), actor, tenant, caseID, s.clock.Now().UTC())
 	if err != nil {
 		s.operationsProblem(w, r, err)
 		return
@@ -681,7 +681,7 @@ func (s *Server) operationReviewPage(w http.ResponseWriter, r *http.Request) {
 		s.notFound(w, r, actor)
 		return
 	}
-	view, err := s.authorization.ReadAuthorizationView(r.Context(), actor, tenant, caseID)
+	view, err := s.authorization.ReadAuthorizationView(r.Context(), actor, tenant, caseID, s.clock.Now().UTC())
 	if err != nil {
 		s.operationsPageProblem(w, r, actor, err)
 		return

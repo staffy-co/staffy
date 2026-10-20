@@ -94,7 +94,7 @@ func (f *fakeAuthorization) AuthorizeOperation(_ context.Context, c actionAPI.Au
 	return f.authorize, nil
 }
 
-func (f *fakeAuthorization) ReadAuthorizationView(context.Context, domain.Principal, id.UUID, id.UUID) (actionAPI.AuthorizationView, error) {
+func (f *fakeAuthorization) ReadAuthorizationView(_ context.Context, _ domain.Principal, _, _ id.UUID, _ time.Time) (actionAPI.AuthorizationView, error) {
 	if f.viewErr != nil {
 		return actionAPI.AuthorizationView{}, f.viewErr
 	}

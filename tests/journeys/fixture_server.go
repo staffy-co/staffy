@@ -130,7 +130,9 @@ type clockFixture struct {
 
 // journeyClock is the single clock of the fixture server (the fixture
 // views derive the continuation states from it — the honest mirror of
-// the transport clock of the real app).
+// the transport clock of the real app; the ReadAuthorizationView
+// derivation of Story 3-5 receives the SAME clock through the transport
+// surface, so the consent cards and the commands stay coherent).
 var journeyClock = &clockFixture{}
 
 func (c *clockFixture) Now() time.Time {
@@ -1070,7 +1072,16 @@ func main() {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		previewReader.SetStatus(field, strings.TrimSpace(r.FormValue("status")))
+		status := strings.TrimSpace(r.FormValue("status"))
+		if status == "" {
+			// The empty status resets the field to the honest fresh default
+			// — the PRISTINE state (a masked empty word would read blocked
+			// at the app mapping; the journeys' finally resets walk through
+			// this door).
+			previewReader.ResetStatus(field)
+		} else {
+			previewReader.SetStatus(field, status)
+		}
 		w.WriteHeader(http.StatusNoContent)
 	})
 	// The fixture-only dry-run scripting: the outcome word of one EXACT

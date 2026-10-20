@@ -504,12 +504,12 @@ func (f *actionsFixture) AuthorizeOperation(ctx context.Context, command actionA
 
 // ReadAuthorizationView delegates to the active authorization contour
 // (the honest empty words of the domain).
-func (f *actionsFixture) ReadAuthorizationView(ctx context.Context, actor identityDomain.Principal, tenantID, caseID id.UUID) (actionAPI.AuthorizationView, error) {
+func (f *actionsFixture) ReadAuthorizationView(ctx context.Context, actor identityDomain.Principal, tenantID, caseID id.UUID, now time.Time) (actionAPI.AuthorizationView, error) {
 	f.mu.Lock()
 	service := f.authorizationService()
 	f.mu.Unlock()
 	if service == nil {
 		return actionAPI.AuthorizationView{}, actionDomain.RuleError{Rule: "read_authorization_view", Reason: authorizationNotConfiguredText}
 	}
-	return service.ReadAuthorizationView(ctx, actor, tenantID, caseID)
+	return service.ReadAuthorizationView(ctx, actor, tenantID, caseID, journeyClock.Now())
 }

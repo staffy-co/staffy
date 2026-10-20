@@ -233,8 +233,14 @@ type AuthorizationService interface {
 	// ReadAuthorizationView renders the case's Operation Review surface:
 	// the confirmation cards with the live state/consumption derivations,
 	// the operation cards with the ledger and the queue fact (executed
-	// NEVER exists — the honest words of the slice boundaries).
-	ReadAuthorizationView(ctx context.Context, actor identityDomain.Principal, tenantID, caseID id.UUID) (AuthorizationView, error)
+	// NEVER exists — the honest words of the slice boundaries). The now
+	// parameter is the TRANSPORT clock — the same pair of hours the
+	// confirm/authorize commands pin: the read-time expired derivation
+	// stays coherent with the consent window instead of drifting over
+	// the system wall (the production transport passes time.Now(), the
+	// fixture worlds pass their single clock — the injected hours make
+	// the derivation testable).
+	ReadAuthorizationView(ctx context.Context, actor identityDomain.Principal, tenantID, caseID id.UUID, now time.Time) (AuthorizationView, error)
 }
 
 // The store-contract errors of the contour the transport maps (the
