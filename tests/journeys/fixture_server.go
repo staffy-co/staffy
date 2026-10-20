@@ -968,8 +968,20 @@ func main() {
 	// test contour). The transport binds the SAME fixture instance on
 	// both action surfaces (the catalog read and the preparation contour —
 	// one fixture, the honest composition of the production root).
-	actions.setPreviewWorld(newPreviewWorld(cases, controls, entitlement, readiness, connectors))
+	// The Story 3-5 wiring rides the SAME world: the confirmation→
+	// authorization contour over the REAL ordered gateway and the
+	// in-memory repositories (the SAME preview rows — the pinned
+	// version reads of the digest re-check compare the REAL built
+	// rows; the reader/step-up toggles of the material check are the
+	// 3-4 switches — /fixture/preview-material and /fixture/step-up —
+	// production wires no reader at all: AG-4).
+	previewRepo := newPreviewMemoryRepository()
+	authorizationRepo := newAuthorizationMemoryRepository(previewRepo)
+	actions.setPreviewWorld(
+		newPreviewWorld(cases, controls, entitlement, readiness, connectors, previewRepo).
+			WithAuthorization(authorizationRepo, authorizationRepo))
 	server.BindActionPreviews(actions)
+	server.BindAuthorization(actions)
 	// The fixture-only step-up toggle wraps the transport: production never
 	// exposes it; the journey uses it to walk both step-up outcomes.
 	root := http.NewServeMux()

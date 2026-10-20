@@ -29,3 +29,4 @@ scripts/env.sh
 *.unit.log
 
 /journeys
+staffy-core

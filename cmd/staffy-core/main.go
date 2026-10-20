@@ -21,7 +21,7 @@ import (
         "github.com/artemiosu/staffy/internal/adapters/packresolver"
         "github.com/artemiosu/staffy/internal/adapters/verificationsyn"
         actionApp "github.com/artemiosu/staffy/internal/action/app"
-	actionStore "github.com/artemiosu/staffy/internal/action/store"
+        actionStore "github.com/artemiosu/staffy/internal/action/store"
         actionCatalog "github.com/artemiosu/staffy/internal/action/catalog"
         casesApp "github.com/artemiosu/staffy/internal/cases/app"
         casesStore "github.com/artemiosu/staffy/internal/cases/store"
@@ -168,14 +168,26 @@ func run(logger *slog.Logger) error {
         // AG-4: no real providers exist, the readiness honestly blocks with
         // the blocked_material word and the dry-run surface honestly refuses
         // in words; the synthetic adapters live in the test-contour packages
-        // this root never imports.
+        // this root never imports. The confirmation→authorization contour
+        // (Story 3.5) is wired over the same append-only PG store (the
+        // consent repository and the operation repository — the SAME
+        // *Postgres serves the three repositories of the module); the
+        // OwningSystemReader of the LAST material check stays NOT wired —
+        // AG-4: the authorize of a definition with required material facts
+        // honestly answers the fail-closed 403 fresh_reads_unavailable in
+        // production (the consent, the revocation and the replay surface
+        // work — the reader only gates the FIRST authorization of fresh
+        // material); the synthetic reader lives in the test-contour
+        // packages this root never imports.
         actionService := actionApp.New(identityService, packresolver.New(), capabilityresolver.New(), actionCatalog.All()).
                 WithPreviews(actionStore.NewPostgres(pool),
                         controleffectiveresolver.NewRouteAdapter(controlStore.NewPostgres(pool), clock),
                         casesService, identityService, entitlementService, employeeService, connectorService,
-                        employeeService, ids)
+                        employeeService, ids).
+                WithAuthorization(actionStore.NewPostgres(pool), actionStore.NewPostgres(pool))
         transport.BindActionCatalog(actionService)
         transport.BindActionPreviews(actionService)
+        transport.BindAuthorization(actionService)
         // The scoped controls surface (Story 3.2): the operator emergency
         // restriction module over its own PG store, the live identity gates
         // and the connector ref resolution through the consumer-owned port
