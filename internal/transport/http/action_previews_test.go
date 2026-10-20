@@ -389,11 +389,14 @@ func TestPreviewPageRendersThePrimaryTransitionAndTheAbsence(t *testing.T) {
 		t.Fatalf("страница обязана отвечать 200, пришло %d", recorder.Code)
 	}
 	page := recorder.Body.String()
-	if !strings.Contains(page, "Перейти к авторизации") {
-		t.Fatalf("primary-действие актуальной карточки — переход к авторизации: %s", page[:200])
+	if !strings.Contains(page, "Перейти к подтверждению и авторизации") {
+		t.Fatalf("primary-действие актуальной карточки — переход к confirm-форме контура 3-5: %s", page[:200])
+	}
+	if !strings.Contains(page, "/operations?confirm="+testPreviewID.String()+"@1") {
+		t.Fatalf("primary-кнопка обязана вести в confirm-форму Operation Review с пином точной версии: %s", page[:200])
 	}
 	if !strings.Contains(page, actionDomain.AuthorizationAbsenceText) {
-		t.Fatalf("страница обязана говорить слова отсутствующего контура 3-5: %s", page[:200])
+		t.Fatalf("страница обязана говорить слова контура 3-5: %s", page[:200])
 	}
 	for _, forbidden := range []string{"Отправить действие", "Выполнить действие", "dispatch"} {
 		if strings.Contains(page, forbidden) {

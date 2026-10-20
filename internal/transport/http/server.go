@@ -38,6 +38,7 @@ type Server struct {
 	identity            api.Service
 	actionCatalog       actionAPI.ActionCatalogService
 	actionPreviews      actionAPI.PreviewService
+	authorization       actionAPI.AuthorizationService
 	controls            controlAPI.ControlService
 	employee            employeeAPI.Service
 	knowledge           employeeAPI.KnowledgeService

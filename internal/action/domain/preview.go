@@ -1180,9 +1180,11 @@ const PreviewPanelText = "Action Preview — подготовительный к
 // previews is a readable state, never a defect.
 const PreviewEmptyText = "В этом кейсе ещё нет action preview. Участник кейса с правом review или configuration подаёт proposal по определению из каталога: строгая типовая валидация, затем Policy живыми источниками и материальный snapshot построят первую версию preview."
 
-// AuthorizationAbsenceText speaks the missing 3-5 contour at the primary
-// action of the card: the button is the transition to the authorization,
-// never a hidden dispatch — and the contour itself does not exist yet, so
-// the transition explains itself in words (the «диспетчер не
-// сконфигурирован» precedent 3-3 — the interface never pretends).
-const AuthorizationAbsenceText = "Контур авторизации (подтверждение и Operation) ещё не построен — переход к авторизации объяснён словами; скрытой отправки не существует."
+// AuthorizationAbsenceText speaks the 3-5 contour at the primary action
+// of the card: the button is the transition into the consent form of the
+// Operation Review page, never a hidden dispatch — the contour exists
+// (the 3-5 slice) and the transition explains itself in words (the
+// «диспетчер не сконфигурирован» precedent 3-3 — the interface never
+// pretends; the field name keeps the 3-4 wire contract, the words speak
+// the present truth).
+const AuthorizationAbsenceText = "Контур авторизации построен (3-5): переход ведёт в форму подтверждения точной версии (preview_id, version_no) на странице Operation Review; скрытой отправки не существует."

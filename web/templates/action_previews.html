@@ -54,8 +54,8 @@
 {{end}}
 <p id="authorization-{{.PreviewID}}-{{.No}}">{{.AuthorizationText}}</p>
 {{if .Current}}
-<a class="primary" href="#authorization-{{.PreviewID}}-{{.No}}">Перейти к авторизации</a>
-<p class="next-note">Скрытой отправки не существует: Connector write request из подготовительного контура отсутствует, авторизация (подтверждение и Operation) строится в контуре 3-5 и спишется с точной пары (preview_id, version_no).</p>
+<a class="primary" href="/app/tenants/{{$.TenantID}}/cases/{{$.CaseID}}/operations?confirm={{.PreviewID}}@{{.No}}">Перейти к подтверждению и авторизации</a>
+<p class="next-note">Скрытой отправки не существует: Connector write request из подготовительного контура отсутствует; переход ведёт в форму подтверждения точной версии на странице Operation Review контура 3-5 и списывается с точной пары (preview_id, version_no).</p>
 <details><summary>Запустить dry-run этой версии (validation evidence)</summary>
 <form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.CaseID}}/action-previews/{{.PreviewID}}/versions/{{.No}}/dry-runs">
 <label><input type="checkbox" name="confirm_dry_run" value="yes" required> Подтверждаю запуск dry-run: это проверка валидации, не выполненное действие и не гарантия будущего успеха</label>

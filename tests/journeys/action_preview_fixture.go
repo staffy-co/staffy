@@ -423,9 +423,11 @@ var (
 // dictionary panics the server before the first request). The world is
 // built INSIDE main(): the fact sources are the fixture instances the
 // server assembles there (a package-level initializer could not see
-// them).
+// them). The preview repository arrives as a parameter — the Story 3.5
+// authorization world shares the SAME rows (the pinned version reads of
+// the digest re-check compare the REAL built rows byte-exact).
 func newPreviewWorld(casesWorld *casesFixture, controls *controlsFixture, entitlement *entitlementFixture,
-	readiness *readinessFixture, connectors *connectorFixture) *actionApp.Service {
+	readiness *readinessFixture, connectors *connectorFixture, previews *previewMemoryRepository) *actionApp.Service {
 	defs := fixturePreviewDefinitions()
 	packs, caps := packresolver.New(), capabilityresolver.New()
 	if err := actionDomain.CatalogIntegrity(defs); err != nil {
@@ -437,7 +439,7 @@ func newPreviewWorld(casesWorld *casesFixture, controls *controlsFixture, entitl
 		}
 	}
 	return actionApp.New(previewMembership{}, packs, caps, defs).
-		WithPreviews(newPreviewMemoryRepository(), previewControlRoute{controls: controls},
+		WithPreviews(previews, previewControlRoute{controls: controls},
 			previewCasesMaterial{cases: casesWorld}, previewMembership{}, entitlement,
 			readiness, connectors, previewRouteFacts{}, previewIDsPool).
 		WithPreviewReader(previewReader).

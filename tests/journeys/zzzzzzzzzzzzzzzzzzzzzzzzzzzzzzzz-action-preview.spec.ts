@@ -159,7 +159,7 @@ test('action-preview: the proposal ladder, the honest card, the dry-run evidence
     expect(pageText).not.toContain('dispatch');
     expect(pageText).not.toContain('authorized');
     expect(pageText).not.toContain('executed');
-    const authLink = cardOne.locator('a.primary', { hasText: 'Перейти к авторизации' });
+    const authLink = cardOne.locator('a.primary', { hasText: 'Перейти к подтверждению и авторизации' });
     await expect(authLink).toHaveCount(1);
 
     // 5. The dry-run evidence: the confirm checkbox is the UI discipline
@@ -252,7 +252,7 @@ test('action-preview: the proposal ladder, the honest card, the dry-run evidence
     await expect(manualCard).toHaveCount(1);
     await expect(manualCard).toContainText('Разграничение: human-only — действие исполняет только человек-владелец');
     await expect(manualCard).toContainText('вручную: созвон с клиентом и отметка в журнале');
-    await expect(manualCard.locator('a.primary', { hasText: 'Перейти к авторизации' })).toHaveCount(1);
+    await expect(manualCard.locator('a.primary', { hasText: 'Перейти к подтверждению и авторизации' })).toHaveCount(1);
 
     // 9. The AG-4 capability boundary: the mutating send-sms capability
     // never verifies in the test contour — the honest policy word of the

@@ -1,0 +1,97 @@
+{{define "operations"}}
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Operation Review · Staffy</title><link rel="stylesheet" href="/assets/app.css"></head>
+<body><a class="skip-link" href="#main">К основному содержанию</a><header class="topbar"><a class="brand" href="/app/tenants/{{.TenantID}}">Staffy</a><strong>Кейс → Operation Review (подтверждение и авторизация)</strong></header>
+<div class="shell"><nav aria-label="Основная навигация"><a href="/app/tenants/{{.TenantID}}">Сегодня</a><a href="/app/tenants/{{$.TenantID}}/cases">Обращения</a><a href="/app/tenants/{{$.TenantID}}/cases/{{.CaseID}}">Карточка кейса</a><a href="/app/tenants/{{$.TenantID}}/cases/{{.CaseID}}/action-previews">Action Preview</a></nav><main id="main"><section class="panel">
+<h1>Operation Review — подтверждение и авторизация действия</h1>
+{{if .Notice}}<p class="status" role="status" tabindex="-1" id="page-notice">{{.Notice}}</p><script>addEventListener('DOMContentLoaded', () => document.getElementById('page-notice').focus());</script>{{end}}
+{{if .Flash}}<p class="alert" role="alert">{{.Flash}}</p>{{end}}
+<h2 id="confirm-heading">Подтвердить точную версию preview (согласие человека)</h2>
+<form method="post" action="/app/tenants/{{.TenantID}}/cases/{{.CaseID}}/operations/confirmations">
+<label for="confirm_preview_id">Preview (UUID)</label>
+<input id="confirm_preview_id" name="preview_id" type="text" value="{{.ConfirmPreview}}" required>
+<label for="confirm_version_no">Версия preview (целое число начиная с 1)</label>
+<input id="confirm_version_no" name="version_no" type="number" min="1" value="{{.ConfirmVersion}}" required>
+<label for="confirm_lifetime">Запрошенное окно действия (секунды; сервер ограничивает в 60..3600)</label>
+<input id="confirm_lifetime" name="lifetime_seconds" type="number" min="0" value="{{.ConfirmLifetime}}" required>
+<p class="next-note">Согласие — человеческий акт: требуется живое подтверждение личности (step-up) текущей сессии. Confirmation запинит точную пару (preview_id, version_no) с копиями digest, snapshot и эффектов; срок valid_until назначает сервер. Редактирование preview строит новую версию — прежнее согласие заменяется, к авторизации не пригодно.</p>
+<button class="primary" type="submit">Подтвердить версию preview</button>
+</form>
+{{if .HasConfirmations}}
+<h2 id="confirmations-heading">Подтверждения (append-only версии)</h2>
+<ul class="action-catalog">
+{{range .Confirmations}}
+<li class="action-card">
+<h3>Confirmation {{.ConfirmationID}} — версия {{.No}}</h3>
+<span><strong>Определение:</strong> {{.DefinitionText}}</span>
+<span><strong>Цель:</strong> {{.TargetText}}</span>
+<span><strong>Владелец (снимок согласия):</strong> {{.OwnerText}}</span>
+<span><strong>Пин preview:</strong> {{.PreviewPinText}}</span>
+<span><strong>Состояние:</strong> {{.State}} — {{.StateText}}</span>
+<span><strong>Потребление:</strong> {{.ConsumptionText}}</span>
+{{if .ValidUntilText}}<span><strong>Окно valid_until (серверная истина):</strong> {{.ValidUntilText}}</span>{{end}}
+{{if .CreatedAt}}<span><strong>Создано:</strong> {{.CreatedAt}}</span>{{end}}
+{{if .HasEvents}}
+<details open><summary>История событий (видимые исключения отвергнутых авторизаций)</summary>
+<ul>
+{{range .Events}}<li>Версия {{.VersionNo}}, событие №{{.EventNo}} — {{.Kind}}{{if .Reason}}: {{.Reason}}{{end}}{{if .Details}} — {{.Details}}{{end}} — {{.At}}</li>{{end}}
+</ul>
+</details>
+{{end}}
+<details><summary>Отозвать это подтверждение (человеческий акт с step-up)</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.CaseID}}/confirmations/{{.ConfirmationID}}/versions/{{.No}}/revocations">
+<label><input type="checkbox" name="confirm_revocation" value="yes" required> Подтверждаю отзыв: будущие авторизации невозможны; прошлое потребление остаётся фактом аудита</label>
+<p class="next-note">Серверная защита — живое подтверждение личности (step-up): чекбокс дисциплины, не замена.</p>
+<button class="primary" type="submit">Отозвать подтверждение</button>
+</form>
+</details>
+<details><summary>Авторизовать Operation по этому подтверждению (машинная поверхность повторов)</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.CaseID}}/confirmations/{{.ConfirmationID}}/versions/{{.No}}/authorizations">
+<label for="idem-{{.ConfirmationID}}-{{.No}}">Idempotency key (машинное слово повтора: 8..128 символов, буквы/цифры/точка/подчёркивание/дефис)</label>
+<input id="idem-{{.ConfirmationID}}-{{.No}}" name="idempotency_key" type="text" required>
+<p class="next-note">Double-click, повтор webhook и replay-задание несут ТОТ ЖЕ ключ: повтор с тем же материалом возвращает первоначальную Operation (200), с другим материалом — честный 409. Step-up здесь НЕ требуется: согласие уже материализовано в Confirmation и проверяется пином и состоянием на каждой авторизации. Уверенность модели не входит в контракт — свободных полей не существует.</p>
+<button class="primary" type="submit">Авторизовать Operation</button>
+</form>
+</details>
+</li>
+{{end}}
+</ul>
+{{end}}
+{{if .HasOperations}}
+<h2 id="operations-heading">Операции (неизменяемые)</h2>
+<ul class="action-catalog">
+{{range .Operations}}
+<li class="action-card">
+<h3>Operation {{.OperationID}}</h3>
+<span><strong>Определение:</strong> {{.DefinitionText}}</span>
+<span><strong>Пин preview:</strong> {{.PreviewPinText}}</span>
+<span><strong>Пин Confirmation:</strong> {{.ConfirmationPinText}}</span>
+<span><strong>Цель:</strong> {{.TargetText}}</span>
+<span><strong>Владелец:</strong> {{.OwnerText}}</span>
+<span><strong>Разграничение:</strong> {{.PartitionText}}</span>
+<span><strong>Состояние:</strong> {{.State}} — {{.StateText}}</span>
+<span><strong>Idempotency key (клиентское слово):</strong> {{.IdempotencyKey}}</span>
+<span><strong>Business intent key (серверная идентичность мутации):</strong> {{.BusinessIntentKey}}</span>
+<span><strong>Материальный digest пина запроса:</strong> {{.MaterialDigest}}</span>
+{{if .CreatedAt}}<span><strong>Создано:</strong> {{.CreatedAt}}</span>{{end}}
+{{if .HasLedger}}
+<details open><summary>Operation Ledger (append-only)</summary>
+<ul>
+{{range .Ledger}}<li>№{{.No}} {{.Kind}} — {{.Details}} — {{.At}}</li>{{end}}
+</ul>
+</details>
+{{end}}
+<p class="next-note">{{.ExternalIDText}}</p>
+<p class="next-note">{{.DispatchText}}</p>
+</li>
+{{end}}
+</ul>
+{{end}}
+{{if not .HasConfirmations}}{{if not .HasOperations}}
+<section class="action-empty" aria-labelledby="operations-empty-heading">
+<h2 id="operations-empty-heading">Подтверждений и операций нет</h2>
+<p class="next-note">{{.EmptyText}}</p>
+</section>
+{{end}}{{end}}
+</section></main></div>
+</body></html>
+{{end}}

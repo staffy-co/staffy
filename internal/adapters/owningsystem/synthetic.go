@@ -50,12 +50,26 @@ func (s *Synthetic) SetStatus(materialField, status string) {
 	s.statuses[materialField] = status
 }
 
+// ResetStatus forgets the toggle of one field entirely (the honest fresh
+// default of the reader — the empty fixture status restores the PRISTINE
+// state, never a masked empty word that would read blocked at the
+// mapping; the journeys' finally resets walk through this door).
+func (s *Synthetic) ResetStatus(materialField string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.statuses, materialField)
+}
+
 // FreshReads answers one deterministic material row per requested field:
 // the status from the toggles (fresh by default), the external identity
-// words derived from the field and the work item anchor, the current
-// observation time and the evidence reference the freshness derivations
-// re-check. ONE attempt per command: no retry, no cache (the reader
-// contract of the port).
+// words of the FIELD-scoped material of the synthetic contour (one
+// material object per field word — the business-intent equivalence of
+// two cases over the same field is honest: the real owning system would
+// answer the identity of ITS material object, the work-item-scoped
+// identity of the old draft broke the AC-9 equivalence by construction),
+// the current observation time and the evidence reference the freshness
+// derivations re-check. ONE attempt per command: no retry, no cache (the
+// reader contract of the port).
 func (s *Synthetic) FreshReads(_ context.Context, request actionPort.FreshReadRequest) ([]domain.MaterialSnapshotRow, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -68,7 +82,7 @@ func (s *Synthetic) FreshReads(_ context.Context, request actionPort.FreshReadRe
 		rows = append(rows, domain.MaterialSnapshotRow{
 			MaterialField:   field,
 			Status:          status,
-			ExternalID:      "synthetic-" + field + "-" + request.WorkItemID.String(),
+			ExternalID:      "synthetic-" + field,
 			ExternalVersion: "synthetic-1",
 			ObservedAt:      time.Now().UTC(),
 			EvidenceRef:     request.OwningSystem + "://" + field + "/" + request.WorkItemID.String(),

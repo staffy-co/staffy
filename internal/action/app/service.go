@@ -54,6 +54,14 @@ type Service struct {
 	connectors     port.ConnectorFactsSource
 	routeFacts     port.RouteFactsSource
 	ids            api.IDGenerator
+
+	// Story 3.5 (step-02): the confirmation→authorization contour. The two
+	// repositories of the consent and the operations share the SAME
+	// Postgres store of the module; the LIVE fact sources above are the
+	// ones the freshness/policy re-checks of the gateway read (the 3-4
+	// wiring — «3-5 читает тот же вывод»).
+	confirmations port.ConfirmationRepository
+	operations    port.OperationRepository
 }
 
 // New wires the service. The resolvers are the composition-root adapters
@@ -103,6 +111,19 @@ func (s *Service) WithPreviewReader(reader port.OwningSystemReader) *Service {
 // honestly refuses in words).
 func (s *Service) WithPreviewDryRunner(runner port.DryRunner) *Service {
 	s.dryRunner = runner
+	return s
+}
+
+// WithAuthorization wires the confirmation→authorization contour of story
+// 3.5 in one call (the fixture and the transport composition roots): the
+// consent repository, the operation repository. The LIVE fact sources of
+// the gateway are the WithPreviews wiring (the same ports the preparation
+// reads); the optional AG-4 owning-system reader is the WithPreviewReader
+// wiring — its absence is the HONEST fail-closed authorization refusal
+// (the production root wires nothing).
+func (s *Service) WithAuthorization(consents port.ConfirmationRepository, ops port.OperationRepository) *Service {
+	s.confirmations = consents
+	s.operations = ops
 	return s
 }
 
