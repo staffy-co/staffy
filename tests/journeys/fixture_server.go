@@ -35,6 +35,10 @@ var (
 	// fixture world (the transfer target and the backup owner of the
 	// human coverage).
 	secondOperatorID = id.MustParse("01994f64-6c00-7000-8000-00000000000a")
+	// operationsOperatorID is the operations-only member of the fixture
+	// world (the Story 3-4 rights-gate row: the member exists, the scope
+	// does not — the honest 403 of the preparation contour).
+	operationsOperatorID = id.MustParse("01994f64-6c00-7000-8000-00000000000b")
 )
 
 type identityFixture struct{}
@@ -76,29 +80,36 @@ func (identityFixture) Authorize(context.Context, domain.Principal, id.UUID, dom
 // resolverFixture resolves the fixture principal. The step-up flag is
 // toggleable through the /fixture/step-up endpoint so the journey can walk
 // both the honest step-up refusal and the confirmed approval (the resolver
-// cannot read query parameters — the flag is server state).
+// cannot read query parameters — the flag is server state). The actor
+// switch selects the acting principal: "primary" (the owner), "second"
+// (the review-scoped operator) or "ops" (the operations-only member of the
+// Story 3-4 rights-gate row).
 type resolverFixture struct {
-	mu       sync.Mutex
-	stepUp   bool
-	operator bool // false: the primary owner; true: the second operator
+	mu     sync.Mutex
+	stepUp bool
+	actor  string // "primary" | "second" | "ops"
 }
 
 func (r *resolverFixture) Resolve(context.Context) (domain.Principal, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	resolved := principalID
-	if r.operator {
+	if r.actor == "second" {
 		resolved = secondOperatorID
+	}
+	if r.actor == "ops" {
+		resolved = operationsOperatorID
 	}
 	return domain.Principal{ID: resolved, CanCreateTenant: true, StepUpVerified: r.stepUp}, nil
 }
 
 // setOperator switches the acting fixture principal (the ownership
-// journeys walk both operators of the world).
-func (r *resolverFixture) setOperator(second bool) {
+// journeys walk both operators of the world; the z32 journey walks the
+// operations-only member of the 403 row).
+func (r *resolverFixture) setOperator(which string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.operator = second
+	r.actor = which
 }
 
 func (r *resolverFixture) setStepUp(enabled bool) {
@@ -614,8 +625,23 @@ func (f *connectorFixture) VerifyCapability(_ context.Context, c connectorAPI.Ve
 func (f *connectorFixture) ConnectionsFacts(_ context.Context, _ tenancy.Context) ([]connectorAPI.ConnectionFacts, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	facts := make([]connectorAPI.ConnectionFacts, 0, len(f.connections))
+	// The PRODUCTION mirror order: the store List reads updated_at DESC
+	// with the connection-id tie-break — the map iteration of the fixture
+	// memory would answer a RANDOM connection of the connector first (the
+	// first-match capability read of the consumer ports would flap between
+	// the revoked and the live rows of the family's worlds).
+	ordered := make([]connectorDomain.Connection, 0, len(f.connections))
 	for _, current := range f.connections {
+		ordered = append(ordered, current)
+	}
+	sort.Slice(ordered, func(i, j int) bool {
+		if !ordered[i].UpdatedAt.Equal(ordered[j].UpdatedAt) {
+			return ordered[i].UpdatedAt.After(ordered[j].UpdatedAt)
+		}
+		return ordered[i].ConnectionID < ordered[j].ConnectionID
+	})
+	facts := make([]connectorAPI.ConnectionFacts, 0, len(ordered))
+	for _, current := range ordered {
 		def, _ := connectorCatalog.Get(current.ConnectorID, current.ConnectorVer)
 		result, err := f.capabilityStateLocked(current, def)
 		if err != nil {
@@ -926,13 +952,24 @@ func main() {
 	server.BindEntitlement(entitlement)
 	server.BindRelease(release)
 	server.BindProfile(profile)
-	server.BindReadiness(newReadinessFixture(profile, release, entitlement))
+	readiness := newReadinessFixture(profile, release, entitlement)
+	server.BindReadiness(readiness)
 	cases := newCasesFixture()
 	server.BindCases(cases)
 	actions := newActionsFixture()
 	server.BindActionCatalog(actions)
 	controls := newControlsFixture()
 	server.BindControls(controls)
+	// The Story 3-4 wiring: the preview world over the LIVE fixture fact
+	// sources (the case material, the control route, the entitlement
+	// admission, the readiness views, the connector facts, the release
+	// lineage) with the AG-4 test adapters (the synthetic reader and
+	// dry-runner — production wires neither; the fixture world IS the
+	// test contour). The transport binds the SAME fixture instance on
+	// both action surfaces (the catalog read and the preparation contour —
+	// one fixture, the honest composition of the production root).
+	actions.setPreviewWorld(newPreviewWorld(cases, controls, entitlement, readiness, connectors))
+	server.BindActionPreviews(actions)
 	// The fixture-only step-up toggle wraps the transport: production never
 	// exposes it; the journey uses it to walk both step-up outcomes.
 	root := http.NewServeMux()
@@ -945,7 +982,14 @@ func main() {
 	// transfer target as the acting principal.
 	root.HandleFunc("POST /fixture/operator", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
-		resolver.setOperator(r.FormValue("second") == "1")
+		which := "primary"
+		switch r.FormValue("second") {
+		case "1":
+			which = "second"
+		case "ops":
+			which = "ops"
+		}
+		resolver.setOperator(which)
 		w.WriteHeader(http.StatusNoContent)
 	})
 	// The fixture-only supervisor switch: the mode journeys walk the
@@ -994,7 +1038,39 @@ func main() {
 	// it; the toggle only chooses which REAL app service serves the read.
 	root.HandleFunc("POST /fixture/actions", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
+		if r.FormValue("mode") == "preview" {
+			actions.setPreview(r.FormValue("enabled") != "0")
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
 		actions.setLive(r.FormValue("enabled") == "1")
+		w.WriteHeader(http.StatusNoContent)
+	})
+	// The fixture-only material toggle of the preview world: the status
+	// word of one material field of the synthetic OwningSystemReader (the
+	// four-word reader contract; the app re-maps every row against the
+	// declared tolerance — the lying word reads as unknown). The empty
+	// status resets the field to the honest fresh default.
+	root.HandleFunc("POST /fixture/preview-material", func(w http.ResponseWriter, r *http.Request) {
+		r.ParseForm()
+		field := strings.TrimSpace(r.FormValue("field"))
+		if field == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		previewReader.SetStatus(field, strings.TrimSpace(r.FormValue("status")))
+		w.WriteHeader(http.StatusNoContent)
+	})
+	// The fixture-only dry-run scripting: the outcome word of one EXACT
+	// preview version (the three-word result dictionary; a foreign word
+	// refuses at the app guard).
+	root.HandleFunc("POST /fixture/preview-dry-run", func(w http.ResponseWriter, r *http.Request) {
+		r.ParseForm()
+		if r.FormValue("preview_id") == "" || r.FormValue("version_no") == "" || r.FormValue("result") == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		previewRunner.SetOutcome(r.FormValue("preview_id"), r.FormValue("version_no"), r.FormValue("result"), r.FormValue("details"))
 		w.WriteHeader(http.StatusNoContent)
 	})
 	// The fixture-only control-world switch: the z30 journey walks BOTH

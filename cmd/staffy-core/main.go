@@ -21,6 +21,7 @@ import (
         "github.com/artemiosu/staffy/internal/adapters/packresolver"
         "github.com/artemiosu/staffy/internal/adapters/verificationsyn"
         actionApp "github.com/artemiosu/staffy/internal/action/app"
+	actionStore "github.com/artemiosu/staffy/internal/action/store"
         actionCatalog "github.com/artemiosu/staffy/internal/action/catalog"
         casesApp "github.com/artemiosu/staffy/internal/cases/app"
         casesStore "github.com/artemiosu/staffy/internal/cases/store"
@@ -155,7 +156,26 @@ func run(logger *slog.Logger) error {
         // and connector catalogs through the ports) and the honestly empty
         // binary dictionary (AG-4 — the first entry appears only with a
         // published pack connector and a fully admitted definition).
-        transport.BindActionCatalog(actionApp.New(identityService, packresolver.New(), capabilityresolver.New(), actionCatalog.All()))
+        // The action preview preparation contour (Story 3.4): the 3-1 service
+        // grows the proposal-to-preview surface over its own append-only PG
+        // store, the LIVE fact sources (the direct typed reads of the module
+        // APIs — AD-2: the cases view and facts, the identity member facts,
+        // the entitlement admission, the employee readiness and release
+        // lineage, the connector capability facts) and the 3.2 control read
+        // of the preparation route (the composition adapter package of the
+        // 3.3 drain fence — one package, two consumer-owned ports). The
+        // material reader and the dry-runner are deliberately NOT wired —
+        // AG-4: no real providers exist, the readiness honestly blocks with
+        // the blocked_material word and the dry-run surface honestly refuses
+        // in words; the synthetic adapters live in the test-contour packages
+        // this root never imports.
+        actionService := actionApp.New(identityService, packresolver.New(), capabilityresolver.New(), actionCatalog.All()).
+                WithPreviews(actionStore.NewPostgres(pool),
+                        controleffectiveresolver.NewRouteAdapter(controlStore.NewPostgres(pool), clock),
+                        casesService, identityService, entitlementService, employeeService, connectorService,
+                        employeeService, ids)
+        transport.BindActionCatalog(actionService)
+        transport.BindActionPreviews(actionService)
         // The scoped controls surface (Story 3.2): the operator emergency
         // restriction module over its own PG store, the live identity gates
         // and the connector ref resolution through the consumer-owned port
