@@ -75,7 +75,7 @@ development_status:
   3-1-каталог-разрешённых-business-actions: done
   3-2-scoped-controls-и-аварийное-ограничение-работы: done
   3-3-надёжное-сохранение-внешнего-commitment-до-отправки: done
-  3-4-подготовка-и-проверка-action-preview: ready-for-dev
+  3-4-подготовка-и-проверка-action-preview: done
   3-5-авторизация-и-идемпотентное-резервирование-operation: backlog
   3-6-execute-time-revalidation-dispatch-и-action-receipt: backlog
   3-7-reconciliation-неопределённых-и-частичных-результатов: backlog
