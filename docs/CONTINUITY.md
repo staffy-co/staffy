@@ -24,8 +24,9 @@
    а не переписыванием прошлого.
 5. **Двухступенчатое чтение для агента-преемника** («тёплый старт» ~4K токенов
    вместо ~20K при чтении вслепую): сначала дешёвая фиксация позиции
-   (AGENTS.md → git log → хвост DEVLOG → sprint-status), затем точечное
-   чтение только по текущей роли.
+   одной командой `scripts/session-start.sh` (git-факты → DEVLOG `next:` →
+   sprint-status; резервный ручной путь: AGENTS.md → git log → хвост DEVLOG
+   → sprint-status), затем точечное чтение только по текущей роли.
 
 ## 2. Компоненты
 
@@ -38,6 +39,7 @@
 | `scripts/git-credential-staffy.sh` | Secret-free credential helper: токен только из env `STAFFY_GH_TOKEN`, remote URL всегда чистый |
 | `.githooks/pre-commit, pre-push` | Скан секретов (GitHub PAT, приватные ключи) в стейдже и в уходящих коммитах; `--no-verify` запрещён |
 | `scripts/check-continuity.sh` | Сверка: дерево чистое, нет незапушенного, статусы спек == sprint-status, коммит DEVLOG существует |
+| `scripts/session-start.sh` | Вход в сессию одной командой: свод позиции из git (fetch/дерево/RPO) + DEVLOG (`next:`/`commit:`) + sprint-status + worklog + check-continuity; лечит устаревание сводки диалога (снимок разговора ≠ истина, правила резюме — AGENTS.md) |
 | `_bmad-output/implementation-artifacts/sprint-status.yaml` | Канонический трекер BMAD (существовал и до системы) |
 
 ## 3. Ритуалы фиксации
@@ -61,6 +63,7 @@
 | Полный сброс при незапушенном | Теряется ≤1 подшаг (RPO) | Push сразу за коммитом; SOS-ритуал |
 | Push отклонён | Да | СТОП-протокол (выше) |
 | Рассинхрон источников | Да | `check-continuity.sh`; порядок доверия git > sprint-status > DEVLOG |
+| Устаревшая сводка диалога (компакция/сбой сессии) | Да | `scripts/session-start.sh` + правила резюме в AGENTS.md: сводка = указатель на источники истины, не источник |
 | Force-push / rewrite истории | Защищается дисциплиной | Branch protection недоступна (free-план); запрет force-push в AGENTS.md; CI `on: push` ловит регресс |
 | Сбой посреди bootstrap | Да | Идемпотентность: каждый шаг под маркером наличия; атомарные загрузки (.part + rename); логи шагов |
 | Миграции vs код другой версии | Да | Миграции применяет integration-суит (drop+re-apply); staffy_test — disposable |
@@ -86,9 +89,10 @@
 
 1. **Фаза 0 — ожидания:** зафиксировать HEAD основного клона и позицию BMAD.
 2. **Фаза 1 — fresh clone:** `git clone` → PASS-1: HEAD совпадает (RPO=0).
-3. **Фаза 2 — ориентация (гейт ≤5 минут):** «холодный» агент читает только
-   AGENTS.md → хвост DEVLOG → sprint-status → git log и должен назвать
-   текущую story, статус, следующий шаг и команду bootstrap.
+3. **Фаза 2 — ориентация (гейт ≤5 минут):** «холодный» агент входит
+   `bash scripts/session-start.sh` (резервный ручной путь: AGENTS.md →
+   хвост DEVLOG → sprint-status → git log) и должен назвать текущую story,
+   статус, следующий шаг и команду bootstrap.
 4. **Фаза 3 — bootstrap:** REPO_DIR/PG_HOME/PG_DATA/PG_PORT переопределены
    в drill-каталог; полное восстановление, включая распаковку vendored PG,
    initdb, создание БД (single-user mode), миграции через integration-суит.
