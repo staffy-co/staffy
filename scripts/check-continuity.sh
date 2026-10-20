@@ -53,7 +53,9 @@ for f in sorted(glob.glob('_bmad-output/implementation-artifacts/spec-*.md')):
     if not m:
         continue
     story = f"{m.group(1)}-{m.group(2)}"
-    head = open(f, encoding='utf-8').read(2500)
+    raw = open(f, encoding='utf-8').read()
+    end = raw.find('\n---\n', 3)
+    head = raw[:end] if end != -1 else raw[:2500]
     s = re.search(r"^status:\s*'?([\w-]+)", head, re.M)
     spec_status = s.group(1) if s else None
     keys = [k for k in sm if k.startswith(story + '-')]
