@@ -1,0 +1,251 @@
+package openapi_test
+
+import (
+	"os"
+	"testing"
+
+	actionDomain "github.com/artemiosu/staffy/internal/action/domain"
+	"gopkg.in/yaml.v3"
+)
+
+// TestOperationContractIsHonest pins the Story 3.5 first-slice wire
+// contract: the six machine paths carry the principal boundary and the
+// honest answer/refusal codes (the consent 201, the revocation 200, the
+// authorization ladder 200 replay/reference / 201 first / 400 key gate
+// and strict decode / 403 step-up, policy and the fail-closed fresh
+// reads / 404 the dead pins / 409 the exact conflict and ladder words);
+// the reads carry NO 400 (the views carry no material to refuse); the
+// enum mirrors are EXACT (length AND membership — every wire word a
+// compile-time dictionary word, drift turns this test red: confirmation
+// states 5 / confirmation events 6 / ledger kinds 1 / partition 2 / the
+// spoken operation pair-word derived from the 1-word state dictionary +
+// the queue fact / owner kinds 2); the idempotency bounds mirror the
+// domain constants; the required lists are complete and
+// additionalProperties is false everywhere.
+func TestOperationContractIsHonest(t *testing.T) {
+	content, err := os.ReadFile("staffy.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document map[string]any
+	if err := yaml.Unmarshal(content, &document); err != nil {
+		t.Fatal(err)
+	}
+	paths := mapping(t, document, "paths")
+	schemas := mapping(t, mapping(t, document, "components"), "schemas")
+
+	// The view read: the principal boundary, the honest codes; NO 400 (the
+	// view carries no material to refuse), the wrapper of the view.
+	readPath := mapping(t, paths, "/v1/tenants/{tenant_id}/cases/{case_id}/operations")
+	readGet := mapping(t, readPath, "get")
+	if readGet["operationId"] != "readAuthorizationView" {
+		t.Errorf("the operations view read operation id is wrong: %v", readGet["operationId"])
+	}
+	if required, _ := readGet["x-staffy-principal-required"].(bool); !required {
+		t.Errorf("the operations view read does not document the principal boundary")
+	}
+	readResponses := mapping(t, readGet, "responses")
+	for _, code := range []string{"200", "401", "403", "404"} {
+		if _, documented := readResponses[code]; !documented {
+			t.Errorf("the operations view read does not document the honest %s answer", code)
+		}
+	}
+	if _, documented := readResponses["400"]; documented {
+		t.Errorf("the operations view read must not document a 400: the view carries no material to refuse")
+	}
+	readSchema := mapping(t, mapping(t, mapping(t, mapping(t, readResponses, "200"), "content"), "application/json"), "schema")
+	if required, _ := readSchema["required"].([]any); !requiredWord(required, "authorizations") {
+		t.Errorf("the view read answer must carry the required authorizations wrapper, got %v", required)
+	}
+
+	// The thread read and the operation read: the future material of the
+	// confirmation pin references and the operation card.
+	for _, spec := range []struct {
+		path        string
+		operationID string
+		wrapper     string
+	}{
+		{"/v1/tenants/{tenant_id}/cases/{case_id}/confirmations/{confirmation_id}", "readConfirmationThread", "confirmations"},
+		{"/v1/tenants/{tenant_id}/cases/{case_id}/operations/{operation_id}", "readOperation", "operation"},
+	} {
+		get := mapping(t, mapping(t, paths, spec.path), "get")
+		if get["operationId"] != spec.operationID {
+			t.Errorf("the read operation id of %s is wrong: %v", spec.path, get["operationId"])
+		}
+		if required, _ := get["x-staffy-principal-required"].(bool); !required {
+			t.Errorf("the read %s does not document the principal boundary", spec.path)
+		}
+		if _, documented := mapping(t, get, "responses")["400"]; documented {
+			t.Errorf("the read %s must not document a 400: the card carries no material to refuse", spec.path)
+		}
+		schema := mapping(t, mapping(t, mapping(t, mapping(t, mapping(t, get, "responses"), "200"), "content"), "application/json"), "schema")
+		if required, _ := schema["required"].([]any); !requiredWord(required, spec.wrapper) {
+			t.Errorf("the read %s answer must carry the required %s wrapper, got %v", spec.path, spec.wrapper, required)
+		}
+	}
+
+	// The consent: the human act with the LIVE step-up — 201 of the new
+	// version, 400 of the guard/strict-decode words, 403 of the step-up,
+	// 409 of the raced ladder.
+	confirmPath := "/v1/tenants/{tenant_id}/cases/{case_id}/action-previews/{preview_id}/versions/{version_no}/confirmations"
+	confirmPost := mapping(t, mapping(t, paths, confirmPath), "post")
+	if confirmPost["operationId"] != "confirmPreviewVersion" {
+		t.Errorf("the confirm operation id is wrong: %v", confirmPost["operationId"])
+	}
+	if required, _ := confirmPost["x-staffy-principal-required"].(bool); !required {
+		t.Errorf("the confirm does not document the principal boundary")
+	}
+	confirmResponses := mapping(t, confirmPost, "responses")
+	for _, code := range []string{"201", "400", "401", "403", "404", "409"} {
+		if _, documented := confirmResponses[code]; !documented {
+			t.Errorf("the confirm does not document the honest %s answer", code)
+		}
+	}
+	if _, documented := confirmResponses["200"]; documented {
+		t.Errorf("the confirm must not document a 200: the consent answers 201 (the append-only version exists now)")
+	}
+	if ref, _ := mapping(t, mapping(t, mapping(t, confirmPost, "requestBody"), "content"), "application/json")["$ref" != ""].(string); false {
+		_ = ref
+	}
+	confirmBody := mapping(t, mapping(t, mapping(t, confirmPost, "requestBody"), "content"), "application/json")
+	if ref, _ := confirmBody["schema"].(map[string]any)["$ref"].(string); ref != "#/components/schemas/ConfirmPreviewRequest" {
+		t.Errorf("the confirm request body must reference ConfirmPreviewRequest, got %v", confirmBody["schema"])
+	}
+
+	// The revocation: the human act with the LIVE step-up — 200 of the
+	// revoked words, the empty strict body.
+	revokePath := "/v1/tenants/{tenant_id}/cases/{case_id}/confirmations/{confirmation_id}/versions/{version_no}/revocations"
+	revokePost := mapping(t, mapping(t, paths, revokePath), "post")
+	if revokePost["operationId"] != "revokeConfirmation" {
+		t.Errorf("the revoke operation id is wrong: %v", revokePost["operationId"])
+	}
+	if required, _ := revokePost["x-staffy-principal-required"].(bool); !required {
+		t.Errorf("the revoke does not document the principal boundary")
+	}
+	revokeResponses := mapping(t, revokePost, "responses")
+	for _, code := range []string{"200", "400", "401", "403", "404"} {
+		if _, documented := revokeResponses[code]; !documented {
+			t.Errorf("the revoke does not document the honest %s answer", code)
+		}
+	}
+
+	// The authorization: the machine repeat surface — the honest status
+	// ladder of the replay semantics (200) and the first authorization
+	// (201); the 409 conflict and the ladder words; the 400 key gate and
+	// the strict decode of the AG-10 free field.
+	authorizePath := "/v1/tenants/{tenant_id}/cases/{case_id}/confirmations/{confirmation_id}/versions/{version_no}/authorizations"
+	authorizePost := mapping(t, mapping(t, paths, authorizePath), "post")
+	if authorizePost["operationId"] != "authorizeOperation" {
+		t.Errorf("the authorize operation id is wrong: %v", authorizePost["operationId"])
+	}
+	if required, _ := authorizePost["x-staffy-principal-required"].(bool); !required {
+		t.Errorf("the authorize does not document the principal boundary")
+	}
+	authorizeResponses := mapping(t, authorizePost, "responses")
+	for _, code := range []string{"200", "201", "400", "401", "403", "404", "409"} {
+		if _, documented := authorizeResponses[code]; !documented {
+			t.Errorf("the authorize does not document the honest %s answer of the status ladder", code)
+		}
+	}
+	replayDescription, _ := authorizeResponses["200"].(map[string]any)["description"].(string)
+	if replayDescription == "" || !contains(replayDescription, "идемпотентный") && !contains(replayDescription, "Идемпотентный") {
+		t.Errorf("the authorize 200 answer must document the replay semantics (the idempotent return of the ORIGINAL operation), got %q", replayDescription)
+	}
+	conflictDescription, _ := authorizeResponses["409"].(map[string]any)["description"].(string)
+	if conflictDescription == "" || !contains(conflictDescription, "authorization_conflict") {
+		t.Errorf("the authorize 409 answer must document the visible conflict exception, got %q", conflictDescription)
+	}
+	if required, _ := mapping(t, authorizeResponses, "400").(map[string]any)["description"].(string); required == "" {
+		t.Errorf("the authorize 400 answer must document the key gate and the strict decode words")
+	}
+
+	// The authorize request: the client idempotency word ONLY — the bounds
+	// mirror the domain constants (the loyal backstop of the gate).
+	authorizeBody := mapping(t, mapping(t, mapping(t, authorizePost, "requestBody"), "content"), "application/json")
+	authorizeRequestRef, _ := authorizeBody["schema"].(map[string]any)["$ref"].(string)
+	if authorizeRequestRef != "#/components/schemas/AuthorizeOperationRequest" {
+		t.Fatalf("the authorize request body must reference AuthorizeOperationRequest, got %v", authorizeBody["schema"])
+	}
+	authorizeRequest := mapping(t, schemas, "AuthorizeOperationRequest")
+	if additional, ok := authorizeRequest["additionalProperties"].(bool); !ok || additional {
+		t.Errorf("AuthorizeOperationRequest must reject additionalProperties (false), got %v", authorizeRequest["additionalProperties"])
+	}
+	if required, _ := authorizeRequest["required"].([]any); len(required) != 1 || !requiredWord(required, "idempotency_key") {
+		t.Errorf("AuthorizeOperationRequest must require the idempotency word only, got %v", required)
+	}
+	idempotencyKey := mapping(t, mapping(t, authorizeRequest, "properties"), "idempotency_key")
+	if bound, _ := idempotencyKey["minLength"].(int); bound != actionDomain.IdempotencyKeyMinRunes {
+		t.Errorf("the idempotency min bound must mirror the domain %d, got %v", actionDomain.IdempotencyKeyMinRunes, bound)
+	}
+	if bound, _ := idempotencyKey["maxLength"].(int); bound != actionDomain.IdempotencyKeyMaxRunes {
+		t.Errorf("the idempotency max bound must mirror the domain %d, got %v", actionDomain.IdempotencyKeyMaxRunes, bound)
+	}
+	if pattern, _ := idempotencyKey["pattern"].(string); pattern == "" {
+		t.Errorf("the idempotency word must carry the charset pattern (the loyal backstop of the domain gate)")
+	}
+
+	// The enum mirrors — every wire word a compile-time dictionary word,
+	// length AND membership (drift turns this red). The spoken operation
+	// pair-word derives from the 1-word state dictionary + the queue fact
+	// (DeriveOperationViewWord — nothing is stored).
+	assertEnumMirrors(t, mapping(t, schemas, "ConfirmationStateWord")["enum"], actionDomain.ConfirmationStateWords, "confirmation_state")
+	assertEnumMirrors(t, mapping(t, schemas, "ConfirmationEventKindWord")["enum"], actionDomain.ConfirmationEventKindWords, "confirmation_event_kind")
+	assertEnumMirrors(t, mapping(t, schemas, "OperationLedgerKindWord")["enum"], actionDomain.LedgerEntryKindWords, "operation_ledger_kind")
+	assertEnumMirrors(t, mapping(t, schemas, "PreviewPartitionWord")["enum"], actionDomain.ExecutionPartitionWords, "operation_partition")
+	spoken := []string{actionDomain.OperationAuthorized, actionDomain.OperationAuthorized + "/queued"}
+	assertEnumMirrors(t, mapping(t, schemas, "OperationStateWord")["enum"], spoken, "operation_state")
+	assertEnumMirrors(t, mapping(t, schemas, "ConfirmationOwnerKindWord")["enum"], actionDomain.OwnerKindWords, "confirmation_owner_kind")
+
+	// The closed shapes: additionalProperties false and the complete
+	// required lists (the wire never accepts silence).
+	for _, spec := range []struct {
+		name     string
+		required int
+	}{
+		{"ConfirmPreviewRequest", 0},
+		{"RevokeConfirmationRequest", 0},
+		{"AuthorizeOperationRequest", 1},
+		{"ConfirmationEventView", 4},
+		{"ConfirmationCardView", 18},
+		{"ConfirmationVersionOutcome", 9},
+		{"ConfirmationRevocationOutcome", 6},
+		{"OperationLedgerEntryView", 4},
+		{"OperationCardView", 26},
+		{"AuthorizationOutcome", 5},
+		{"AuthorizationView", 4},
+	} {
+		schema := mapping(t, schemas, spec.name)
+		if additional, ok := schema["additionalProperties"].(bool); !ok || additional {
+			t.Errorf("%s must reject additionalProperties (false), got %v", spec.name, schema["additionalProperties"])
+		}
+		if required, _ := schema["required"].([]any); len(required) != spec.required {
+			t.Errorf("%s must be fully required (%d fields), got %v", spec.name, spec.required, required)
+		}
+	}
+
+	// The material digest bound of the operation card (the keyed-HMAC
+	// fingerprint — hex 64).
+	operationProperties := mapping(t, mapping(t, schemas, "OperationCardView"), "properties")
+	digest := mapping(t, operationProperties, "material_digest")
+	if bound, _ := digest["minLength"].(int); bound != 64 {
+		t.Errorf("the material digest must pin the 64-hex bound, got %v", digest["minLength"])
+	}
+	if bound, _ := digest["maxLength"].(int); bound != 64 {
+		t.Errorf("the material digest must pin the 64-hex bound, got %v", digest["maxLength"])
+	}
+}
+
+// contains reports whether the text carries the word (the local probe of
+// the honest descriptions).
+func contains(text, word string) bool {
+	return len(word) > 0 && len(text) >= len(word) && (text == word || len(text) > 0 && indexOf(text, word) >= 0)
+}
+
+func indexOf(text, word string) int {
+	for i := 0; i+len(word) <= len(text); i++ {
+		if text[i:i+len(word)] == word {
+			return i
+		}
+	}
+	return -1
+}

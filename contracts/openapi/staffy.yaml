@@ -3457,6 +3457,163 @@ paths:
         '401': { $ref: '#/components/responses/Problem' }
         '403': { description: 'Скоуп словами', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
         '404': { description: 'Не-участник / версия не найдена', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/operations:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+    get:
+      operationId: readAuthorizationView
+      summary: 'Operation Review кейса (3.5, первый срез): карточки подтверждений с живыми выводами чтения (состояние словом лестницы, потребление словами, видимые исключения отвергнутых авторизаций) и карточки неизменяемых операций (authorized/queued фактом outbox, НИКОГДА executed, ledger append-only, honest-тексты границ среза); чтение под скоупом review|configuration; пустой вид — честное состояние, НЕ дефект'
+      x-staffy-principal-required: true
+      responses:
+        '200':
+          description: 'Вид Operation Review: состояния и потребление — живые выводы чтения, никогда не хранимые слова'
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [authorizations]
+                properties:
+                  authorizations: { $ref: '#/components/schemas/AuthorizationView' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Участник только с audit — 403 словами ДО материала', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { description: 'Не-участник / чужой кейс — поверхность не раскрывается', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/confirmations/{confirmation_id}:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - name: confirmation_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: readConfirmationThread
+      summary: 'Один поток подтверждений: стабильный confirmation_id со всеми карточками версий append-only (переподтверждение после правки preview = версия+1 той же нити с НОВЫМ пином preview; прежние версии читаемы для аудита, к авторизации не пригодны)'
+      x-staffy-principal-required: true
+      responses:
+        '200':
+          description: 'Карточки версий потока с живыми выводами состояния и потребления'
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [confirmations]
+                properties:
+                  confirmations:
+                    type: array
+                    items: { $ref: '#/components/schemas/ConfirmationCardView' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Скоуп словами', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { description: 'Не-участник / поток не найден', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/operations/{operation_id}:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - name: operation_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: readOperation
+      summary: 'Одна неизменяемая операция: пины (definition/preview/confirmation/case/work_item/target/owner/release), две идентичности ключей (клиентский idempotency против серверного business intent), вывод состояния authorized/queued (executed НЕ существует в срезе — AC-11), append-only ledger и honest-тексты отсутствий (внешний идентификатор не выдан, dispatch worker не существует)'
+      x-staffy-principal-required: true
+      responses:
+        '200':
+          description: 'Карточка операции с ledger и фактом очереди'
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [operation]
+                properties:
+                  operation: { $ref: '#/components/schemas/OperationCardView' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Скоуп словами', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { description: 'Не-участник / операция не найдена', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/action-previews/{preview_id}/versions/{version_no}/confirmations:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - name: preview_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: version_no
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    post:
+      operationId: confirmPreviewVersion
+      summary: 'Подтвердить ТОЧНУЮ версию preview (AC-1, человеческий акт с ЖИВЫМ step-up): Confirmation append-only с копиями digest/snapshot/effects (согласие несёт ЧТО согласовано), пинами definition/case/work_item/target/owner-тройки/снимка релиза; valid_until серверной истиной с клампом 60..3600s; freshness НЕТ причин (согласие мёртвого материала бессмысленно), readiness только ready; not_required определение = честный 400 (контур для мутирующих действий); атомарный supersede прежней версии ОДНОЙ транзакцией'
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ConfirmPreviewRequest' }
+      responses:
+        '201': { description: 'Confirmation версии N построена: живые выводы состояния и потребления, серверная истина valid_until', content: { application/json: { schema: { type: object, required: [confirmation], properties: { confirmation: { $ref: '#/components/schemas/ConfirmationVersionOutcome' } } } } } }
+        '400': { description: 'Гейты словами ДО append: not_required/bounded словарём, freshness/readiness честной причиной, строгий decode (свободное поле «confidence» = 400 — уверенность модели не заменяет Confirmation, AG-4/AC-10)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Живое подтверждение личности (step-up) отсутствует — 403 словами; скоуп review|configuration', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { description: 'Не-участник / мёртвый пин пары — ДО материала', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '409': { description: 'Лестница версий Confirmation двинулась параллельным прогоном — перечитайте и повторите', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/confirmations/{confirmation_id}/versions/{version_no}/revocations:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - name: confirmation_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: version_no
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    post:
+      operationId: revokeConfirmation
+      summary: 'Отозвать ТОЧНУЮ версию Confirmation (человеческий акт с ЖИВЫМ step-up): событие revoked append-only; отзыв гасит БУДУЩИЕ авторизации и НИКОГДА не отменяет потреблённое — прошлое потребление остаётся фактом аудита; тело пустое (пины в пути, step-up в сессии)'
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RevokeConfirmationRequest' }
+      responses:
+        '200': { description: 'Версия отозвана: слово revoked с фиксированным текстом и нотой аудита', content: { application/json: { schema: { type: object, required: [revocation], properties: { revocation: { $ref: '#/components/schemas/ConfirmationRevocationOutcome' } } } } } }
+        '400': { description: 'Строгий decode (тело — ровно один пустой объект)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Живое подтверждение личности (step-up) отсутствует; not_required определение без согласия; скоуп review|configuration', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { description: 'Не-участник / мёртвый пин версии', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/confirmations/{confirmation_id}/versions/{version_no}/authorizations:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - name: confirmation_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: version_no
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    post:
+      operationId: authorizeOperation
+      summary: 'Авторизовать Operation по ТОЧНОЙ версии Confirmation (AC-2..AC-12, машинная поверхность повторов — step-up НЕ требуется: согласие материализовано и проверяется пином и состоянием на каждой авторизации): replay-проверка ПЕРВОЙ по клиентскому idempotency key (double-click/webhook/replay несут ТОТ ЖЕ ключ — 200 идемпотентный возврат ПЕРВОНАЧАЛЬНОЙ Operation БЕЗ потребления и БЕЗ второй outbox записи; тот же ключ с ДРУГИМ материалом = 409 conflict с видимым событием authorization_conflict, исходная неизменна) → лестница отвержений поимённо {superseded, revoked, expired, exhausted} БЕЗ потребления с видимыми событиями authorization_blocked → digest живой строки против копии → freshness/readiness словарём 3-4 → policy живыми источниками → последняя проверка материала (nil-ридер = fail-closed 403 AG-4; stale/conflicting/unknown = 409 «материальное условие изменилось»; allowed_uncertain проходит ЯВНО) → ОДНА транзакция: consumed→reservation→operation→ledger authorized→outbox operation.queued, любой сбой = rollback всего; Connector-вызовов НОЛЬ; эквивалентное намерение из параллельного кейса = 200 ссылка на существующую Operation (резервная гонка UNIQUE), потребление проигравшего НЕ произошло'
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AuthorizeOperationRequest' }
+      responses:
+        '200': { description: 'Идемпотентный replay (replay=true, 200): возвращена ПЕРВОНАЧАЛЬНАЯ Operation и её состояние — потребление не повторилось; ЛИБО резервная ссылка проигравшего cross-case гонки (reservation_reference=true): потребление проигравшего НЕ произошло', content: { application/json: { schema: { type: object, required: [authorization], properties: { authorization: { $ref: '#/components/schemas/AuthorizationOutcome' } } } } } }
+        '201': { description: 'ПЕРВАЯ авторизация: immutable Operation + ledger authorized + outbox operation.queued + потребление ровно +1 в ОДНОЙ транзакции; Connector-вызовов НОЛЬ', content: { application/json: { schema: { type: object, required: [authorization], properties: { authorization: { $ref: '#/components/schemas/AuthorizationOutcome' } } } } } }
+        '400': { description: 'Ключ-гейт ДО всего (charset/длина честными причинами — AC-2); строгий decode: свободное поле «confidence»/«assurance» = 400 — уверенность модели не заменяет Confirmation (AG-4/AC-10)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Policy-гейт точным словом причины ДО транзакции; fail-closed nil-ридер «свежие данные владеющей системы недоступны» (AG-4); скоуп review|configuration', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { description: 'Не-участник / мёртвые пины — ДО материала', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '409': { description: 'Лестница отвержений ТОЧНЫМ словом (confirmation_superseded / confirmation_revoked / confirmation_expired / confirmation_exhausted — БЕЗ потребления, видимое событие authorization_blocked); конфликт идемпотентности (тот же ключ, другой материал — событие authorization_conflict видно владельцу); изменённая Confirmation (digest разошёлся); freshness честной причиной словарём 3-4; материальное условие изменилось; лестница версий двинулась параллельным прогоном', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
 components:
   parameters:
     EmployeeID:
@@ -7066,7 +7223,7 @@ components:
         current: { type: boolean }
         digest: { type: string, minLength: 64, maxLength: 64 }
         digest_alarm: { type: boolean, description: 'Перепроверка digest на каждом чтении: несовпадение проговаривается, никогда не маскируется' }
-        authorization_absence_text: { type: string, description: 'Контур 3-5 отсутствует — переход к авторизации объяснён словами; скрытой отправки не существует' }
+        authorization_absence_text: { type: string, description: 'Контур 3-5 построен — переход ведёт в форму подтверждения точной версии на странице Operation Review; скрытой отправки не существует' }
         diff_lines:
           type: array
           description: 'Diff правки — вывод чтения пары версий (материальные изменения словами), НИКОГДА не хранимый'
@@ -7103,6 +7260,175 @@ components:
         work_item_ids:
           type: array
           items: { type: string, format: uuid }
+    ConfirmPreviewRequest:
+      type: object
+      additionalProperties: false
+      description: 'Тело запроса согласия: пин точной версии едет в пути, здесь только запрошенное окно (сервер клампит в 60..3600s — истина сервера); свободных полей НЕ существует (strict decode): уверенность модели не входит в контракт (AG-4/AC-10)'
+      properties:
+        lifetime_seconds: { type: integer, minimum: 0, description: 'Запрошенное окно действия в секундах; сервер ограничивает в границы 60..3600' }
+    RevokeConfirmationRequest:
+      type: object
+      additionalProperties: false
+      description: 'Тело запроса отзыва пустое: пины точной версии едут в пути, живой step-up — в сессии'
+    AuthorizeOperationRequest:
+      type: object
+      additionalProperties: false
+      required: [idempotency_key]
+      description: 'Тело запроса авторизации: ТОЛЬКО клиентское слово повтора (FR-29 — double-click/повтор webhook/replay-задание несут ТОТ ЖЕ ключ); серверная идентичность мутации (business intent) НЕ выводится из ключа и не принимает его; свободных полей НЕ существует (strict decode: «confidence»/«assurance» = 400 — уверенность модели не заменяет Confirmation, AG-4/AC-10)'
+      properties:
+        idempotency_key:
+          type: string
+          minLength: 8
+          maxLength: 128
+          pattern: '^[A-Za-z0-9._-]{8,128}$'
+          description: 'Клиентское машинное слово повтора; лояльный backstop доменного гейта (8..128 рун, ASCII буквы/цифры/точка/подчёркивание/дефис)'
+    ConfirmationStateWord:
+      type: string
+      enum: [valid, superseded, revoked, expired, exhausted]
+      description: 'Словарь состояний Confirmation (5 слов, вывод чтения — НИКОГДА не хранимое): порядок лестницы отвержений нормативен superseded→revoked→expired→exhausted→valid'
+    ConfirmationEventKindWord:
+      type: string
+      enum: [confirmed, superseded, revoked, consumed, authorization_conflict, authorization_blocked]
+      description: 'Словарь событий Confirmation (6 слов, append-only): consumed появляется ТОЛЬКО внутри транзакции авторизации; authorization_conflict/authorization_blocked — видимые исключения отвергнутых попыток'
+    OperationLedgerKindWord:
+      type: string
+      enum: [authorized]
+      description: 'Словарь записей Operation Ledger (1 слово среза, AD-13 append-only): 3-6 допишет dispatch-записи тем же механизмом'
+    OperationStateWord:
+      type: string
+      enum: [authorized, authorized/queued]
+      description: 'Произнесённое состояние Operation: словарь состояний = 1 слово (authorized), факт очереди (запись operation.queued в outbox) добавляет пару /queued; executed/failed НЕ существуют в срезе (словарь 3-6) и не выдумываются'
+    ConfirmationOwnerKindWord:
+      type: string
+      enum: [human, staffy]
+      description: 'Зеркало видов владельца ответа 2-4 (2 слова): тройка (kind, ref, epoch) — снимок согласия'
+    ConfirmationEventView:
+      type: object
+      additionalProperties: false
+      required: [version_no, event_no, kind, created_at]
+      properties:
+        version_no: { type: integer, minimum: 1 }
+        event_no: { type: integer, minimum: 1, description: 'Монотонный счётчик области версии — backstop гонок вставок' }
+        kind: { $ref: '#/components/schemas/ConfirmationEventKindWord' }
+        reason: { type: string, description: 'Точное слово причины (лестница отвержений, отзыва)' }
+        details: { type: string, description: 'Safe-details ≤500 рун' }
+        created_at: { type: string, format: date-time }
+    ConfirmationCardView:
+      type: object
+      additionalProperties: false
+      required: [confirmation_id, version_no, definition_id, definition_version, case_id, work_item_id, target_kind, target_ref, owner_kind, owner_ref, preview_id, preview_version_no, state, state_text, valid_until, consumption_text, events, created_at]
+      properties:
+        confirmation_id: { type: string, format: uuid }
+        version_no: { type: integer, minimum: 1, description: 'Монотонная версия нити: переподтверждение после правки preview = версия+1 с НОВЫМ пином preview' }
+        definition_id: { type: string }
+        definition_version: { type: string }
+        case_id: { type: string, format: uuid }
+        work_item_id: { type: string, format: uuid }
+        target_kind: { $ref: '#/components/schemas/PreviewTargetKind' }
+        target_ref: { type: string, format: uuid }
+        owner_kind: { $ref: '#/components/schemas/ConfirmationOwnerKindWord' }
+        owner_ref: { type: string, format: uuid }
+        preview_id: { type: string, format: uuid }
+        preview_version_no: { type: integer, minimum: 1, description: 'Биекция уровня версий: НИ одна версия preview не подтверждается дважды' }
+        state: { $ref: '#/components/schemas/ConfirmationStateWord' }
+        state_text: { type: string, description: 'Фиксированный честный текст слова (лестница отвержений поимённо, НИКОГДА замаскированное молчание)' }
+        valid_until: { type: string, format: date-time, description: 'Серверная истина (кламп 60..3600s от момента согласия)' }
+        consumption_text: { type: string, description: 'Потребление словами: «потреблено N из M» / unlimited — read-time счёт consumed-событий' }
+        events:
+          type: array
+          items: { $ref: '#/components/schemas/ConfirmationEventView' }
+        created_at: { type: string, format: date-time }
+    ConfirmationVersionOutcome:
+      type: object
+      additionalProperties: false
+      required: [command, confirmation_id, version_no, state, state_text, valid_until, consumption_text, preview_id, preview_version_no]
+      properties:
+        command: { type: string }
+        confirmation_id: { type: string, format: uuid }
+        version_no: { type: integer, minimum: 1 }
+        state: { $ref: '#/components/schemas/ConfirmationStateWord' }
+        state_text: { type: string }
+        valid_until: { type: string, format: date-time }
+        consumption_text: { type: string }
+        preview_id: { type: string, format: uuid }
+        preview_version_no: { type: integer, minimum: 1 }
+    ConfirmationRevocationOutcome:
+      type: object
+      additionalProperties: false
+      required: [command, confirmation_id, version_no, state, state_text, revocation_note]
+      properties:
+        command: { type: string }
+        confirmation_id: { type: string, format: uuid }
+        version_no: { type: integer, minimum: 1 }
+        state: { $ref: '#/components/schemas/ConfirmationStateWord' }
+        state_text: { type: string }
+        revocation_note: { type: string, description: 'Прошлое потребление остаётся фактом аудита: отзыв гасит будущие авторизации и никогда не отменяет потреблённое' }
+    OperationLedgerEntryView:
+      type: object
+      additionalProperties: false
+      required: [entry_no, kind, details, created_at]
+      properties:
+        entry_no: { type: integer, minimum: 1, description: 'Монотонный номер записи' }
+        kind: { $ref: '#/components/schemas/OperationLedgerKindWord' }
+        details: { type: string, description: 'Safe-details ≤500 рун — материал НИКОГДА' }
+        created_at: { type: string, format: date-time }
+    OperationCardView:
+      type: object
+      additionalProperties: false
+      required: [operation_id, definition_id, definition_version, preview_id, preview_version_no, confirmation_id, confirmation_version_no, case_id, work_item_id, target_kind, target_ref, owner_kind, owner_ref, owner_epoch, release_decision_no, profile_version, partition, idempotency_key, business_intent_key, material_digest, state, state_text, external_id_absent_text, dispatch_absent_text, ledger, created_at]
+      properties:
+        operation_id: { type: string, format: uuid }
+        definition_id: { type: string, description: 'Action type идентичности намерения' }
+        definition_version: { type: string, description: 'Пинится в строке ОТДЕЛЬНО от ключа: версия НЕ входит в business intent key' }
+        preview_id: { type: string, format: uuid }
+        preview_version_no: { type: integer, minimum: 1 }
+        confirmation_id: { type: string, format: uuid }
+        confirmation_version_no: { type: integer, minimum: 1 }
+        case_id: { type: string, format: uuid }
+        work_item_id: { type: string, format: uuid }
+        target_kind: { $ref: '#/components/schemas/PreviewTargetKind' }
+        target_ref: { type: string, format: uuid }
+        owner_kind: { $ref: '#/components/schemas/ConfirmationOwnerKindWord' }
+        owner_ref: { type: string, format: uuid }
+        owner_epoch: { type: integer, minimum: 1, description: 'Пин эпохи владельца согласия — policy-гейт сверяет с живой' }
+        release_decision_no: { type: integer, minimum: 0, description: 'Снимок релиза маршрута момента согласия' }
+        profile_version: { type: integer, minimum: 0 }
+        partition: { $ref: '#/components/schemas/PreviewPartitionWord' }
+        idempotency_key: { type: string, description: 'Клиентское слово повторов (UNIQUE (tenant, idempotency_key) — replay-дедуп структурен)' }
+        business_intent_key: { type: string, description: 'Серверная keyed-HMAC идентичность мутации (UNIQUE резервации (tenant, owning_system, business_intent_key)) — два пространства ключей невзаимозаменяемы' }
+        material_digest: { type: string, minLength: 64, maxLength: 64, description: 'Keyed-HMAC отпечаток пинов запроса (preview версия + confirmation пин): биекция пары = replay, другая версия = conflict' }
+        state: { $ref: '#/components/schemas/OperationStateWord' }
+        state_text: { type: string, description: 'authorized/queued словами — executed НИКОГДА не выводится (AC-11)' }
+        external_id_absent_text: { type: string, description: '«Внешний идентификатор не выдан» — колонок нет, слова не выдумываются' }
+        dispatch_absent_text: { type: string, description: '«Dispatch worker не существует» — записи outbox честно копятся pending до 3-6' }
+        ledger:
+          type: array
+          items: { $ref: '#/components/schemas/OperationLedgerEntryView' }
+        created_at: { type: string, format: date-time }
+    AuthorizationOutcome:
+      type: object
+      additionalProperties: false
+      required: [command, replay, reservation_reference, outcome_text, operation]
+      properties:
+        command: { type: string }
+        replay: { type: boolean, description: 'Идемпотентный возврат ПЕРВОНАЧАЛЬНОЙ Operation (200): потребление не повторилось, вторая outbox запись не создана — AC-7' }
+        reservation_reference: { type: boolean, description: 'Ссылка проигравшего резервной гонки (200): эквивалентное намерение уже зарезервировано, потребление проигравшего НЕ произошло — AC-9' }
+        outcome_text: { type: string, description: 'Фиксированный честный текст пути возврата' }
+        operation: { $ref: '#/components/schemas/OperationCardView' }
+    AuthorizationView:
+      type: object
+      additionalProperties: false
+      required: [tenant_id, case_id, confirmations, operations]
+      properties:
+        tenant_id: { type: string, format: uuid }
+        case_id: { type: string, format: uuid }
+        empty_text: { type: string, description: 'Честные слова пустого состояния: подтверждений и операций нет — подготовьте preview и подтвердите точную версию' }
+        confirmations:
+          type: array
+          items: { $ref: '#/components/schemas/ConfirmationCardView' }
+        operations:
+          type: array
+          items: { $ref: '#/components/schemas/OperationCardView' }
   responses:
     Problem:
       description: Безопасная ошибка
