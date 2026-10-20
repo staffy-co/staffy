@@ -343,6 +343,18 @@ func TestMain(m *testing.M) {
 	if _, err = adminPool.Exec(ctx, strings.Split(string(actionPreviewMigration), "-- +goose Down")[0]); err != nil {
 		panic(err)
 	}
+	// Story 3.5: the SECOND migration of the action module — the
+	// confirmation→authorization contour (six tables, one transactional
+	// identity). The registration stays in this hard list (the 3.3 lesson:
+	// a migration outside the list never applies its tables and the whole
+	// contour tests a world that does not exist).
+	actionReservationMigration, err := os.ReadFile("../../migrations/action/00002_operation_reservation.sql")
+	if err != nil {
+		panic(err)
+	}
+	if _, err = adminPool.Exec(ctx, strings.Split(string(actionReservationMigration), "-- +goose Down")[0]); err != nil {
+		panic(err)
+	}
 	if _, err = adminPool.Exec(ctx, "alter role staffy_app login password 'staffy-runtime-test'"); err != nil {
 		panic(err)
 	}
