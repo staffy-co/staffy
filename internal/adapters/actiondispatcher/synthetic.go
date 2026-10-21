@@ -40,9 +40,9 @@ type Synthetic struct {
 	mu                  sync.Mutex
 	outcome             string
 	externalCorrelation string
-	// externalObjectID/Version script the STRUCTURAL evidence of the
-	// committed rows (the external object identity — only committed
-	// claims carry it; the time is the call moment).
+	// servedCapability is the declared destination word (the composition
+	// root of the test contour declares it — NewServing above).
+	servedCapability      string
 	externalObjectID      string
 	externalObjectVersion string
 	failure               error
@@ -55,9 +55,32 @@ type Synthetic struct {
 
 // New constructs the synthetic mutation adapter with the default script:
 // the provider accepts the request (the accepted reception of AC-6 —
-// the non-terminal word without a receipt).
+// the non-terminal word without a receipt). The served capability is
+// the LIVE mutating declaration (command.send-sms — the catalog word
+// the guarantee read resolves).
 func New() *Synthetic {
-	return &Synthetic{outcome: "accepted"}
+	return &Synthetic{outcome: "accepted", servedCapability: sendSMSCapability}
+}
+
+// NewServing constructs the synthetic mutation adapter serving ONE
+// declared capability word of the test contour (the channel word the
+// dispatchable definitions require). The honest boundary the step-04
+// matrix caught LIVE: a MUTATING capability (command.send-sms) is never
+// probe-verifiable before the Action Gateway exists (the frozen 3-4
+// capability gate — capability_not_verified), so the operations that
+// pass the authorize-time gates ride the VERIFIED read-only channel
+// capability (the notify.manual-only pattern: the channel word is the
+// connection probe, the mutation semantics ride the definition's
+// delivery contract). The composition root of the test contour wires
+// the adapter over THAT word; the LIVE guarantee read resolves the
+// served word's catalog declaration (the guarantee rows without a live
+// declaration ride the documented ScriptGuarantee override — the 3-3
+// precedent).
+func NewServing(capability string) *Synthetic {
+	if capability == "" {
+		capability = sendSMSCapability
+	}
+	return &Synthetic{outcome: "accepted", servedCapability: capability}
 }
 
 // The structural pin: the synthetic satisfies the action port contract.
@@ -105,17 +128,17 @@ func (s *Synthetic) ScriptGuarantee(guaranteed bool) {
 // capability BEFORE the lease and the call — a foreign capability is the
 // honest refusal without a send, AC-4).
 func (s *Synthetic) ServesCapability() string {
-	return sendSMSCapability
+	return s.servedCapability
 }
 
 // liveGuarantee resolves the idempotency guarantee from the LIVE
 // declaration of the served capability (the stored word of the catalog —
 // the recorded fact the retry policy reads, never a test-side guess).
-func liveGuarantee() bool {
+func liveGuarantee(capability string) bool {
 	for _, definition := range catalog.List() {
-		for _, capability := range definition.Capabilities {
-			if capability.ID == sendSMSCapability {
-				return capability.Idempotent
+		for _, candidate := range definition.Capabilities {
+			if candidate.ID == capability {
+				return candidate.Idempotent
 			}
 		}
 	}
@@ -145,7 +168,7 @@ func (s *Synthetic) Dispatch(_ context.Context, _ tenancy.Context, request actio
 		// (the provider-side dedup, observed honestly).
 		correlation = "syn-" + request.ExternalIDempotencyKey[:16]
 	}
-	guarantee := liveGuarantee()
+	guarantee := liveGuarantee(s.servedCapability)
 	if override != nil {
 		// The scripted override of the guarantee word (the matrix rows
 		// where the provider declares no idempotency).

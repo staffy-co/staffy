@@ -161,16 +161,17 @@ test('operation-reservation: the consent ladder, the honest cards, the idempoten
     await expect(page).toHaveURL(/\?authorized=[0-9a-f-]+$/);
     await expect(page.locator('#page-notice')).toContainText('авторизована и в очереди на будущий dispatch');
     await expect(page.locator('#page-notice')).toContainText('одной транзакцией');
-    const operationCard = page.locator('.action-card').filter({ hasText: 'authorized/queued' }).first();
-    await expect(operationCard).toContainText('Состояние: authorized/queued');
+    const operationCard = page.locator('.action-card').filter({ hasText: 'Состояние жизни: authorized' }).first();
+    await expect(operationCard).toContainText('Состояние жизни: authorized');
     await expect(operationCard).toContainText('Operation Ledger (append-only)');
     await expect(operationCard).toContainText('authorized');
     await expect(operationCard).toContainText('Внешний идентификатор не выдан');
-    await expect(operationCard).toContainText('Dispatch worker не существует');
+    await expect(operationCard).toContainText('Dispatch — явная команда drain');
     const machineView = await (await api.get(machinePath)).json();
     const operationID = machineView.authorizations.operations[0].operation_id;
     expect(machineView.authorizations.operations[0].idempotency_key).toBe('journey-op-key-1');
-    expect(machineView.authorizations.operations[0].state).toBe('authorized/queued');
+    expect(machineView.authorizations.operations[0].state).toBe('authorized');
+    expect(machineView.authorizations.operations[0].queued).toBe(true);
     const pageText = await page.locator('#main').innerText();
     expect(pageText).not.toContain('executed');
 

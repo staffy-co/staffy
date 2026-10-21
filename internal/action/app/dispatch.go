@@ -392,7 +392,17 @@ func (s *Service) dispatchOneJob(ctx context.Context, scope tenancy.Context, com
 		return s.block(ctx, scope, command.Now, d, job, job.LastAttemptNo, readiness, domain.PreviewReadinessText(readiness))
 	}
 	// FENCE 8 — the LIVE policy gates (GuardPreparePolicy reused — the
-	// pinned owner epoch of the OPERATION against the live sources).
+	// pinned owner epoch of the OPERATION against the live sources). The
+	// capability-verification word reads the EXECUTE-contour semantics:
+	// the probe-verified state is the PREPARATION gate (the 3-4/3-5
+	// authorize contour — a MUTATING capability is never probe-verifiable
+	// before the Action Gateway exists, the frozen 3-4 discipline), while
+	// the execute-time capability proofs of THIS contour are the catalog
+	// resolve above, the ADAPTER ALLOWLIST below (AC-4 — a foreign
+	// capability refuses WITHOUT a send) and the freshness fence above
+	// (capability_evidence_moved — the live evidence degradation). The
+	// reused guard therefore reads the capability word pinned to verified.
+	live.policy.CapState = domain.CapVerified
 	policy := domain.GuardPreparePolicy(def, op.OwnerEpoch, live.policy)
 	if policy.Outcome == domain.PolicyBlock {
 		return s.block(ctx, scope, command.Now, d, job, job.LastAttemptNo, policy.Reason, domain.PolicyReasonText(policy.Reason))
