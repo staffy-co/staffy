@@ -85,6 +85,14 @@ type dispatchMemoryRepository struct {
 	outcomes      map[string][]dispatchOutcomeRow // tenant|operationID|attemptNo
 	receipts      map[string][]dispatchReceiptRow // tenant|operationID → versions asc
 	receiptOutbox []actionPort.ReceiptCreatedPayload
+
+	// reconcileNoEffectLocked is the 3-7 retry-unlock reader injected by
+	// the reconciliation wiring (wireActionReconcileWorld): nil in the
+	// dispatch-only worlds — no reconciliation verdicts exist there, the
+	// noEffect flag honestly stays false. The reader assumes the CALLER
+	// owns the shared auth mutex (the fixture composition synchronises
+	// on that ONE root).
+	reconcileNoEffectLocked func(scope tenancy.Context, operationID id.UUID) bool
 }
 
 // newDispatchMemoryRepository constructs the execution-contour repository
@@ -116,7 +124,7 @@ func dispatchOutcomeKey(scope tenancy.Context, operationID id.UUID, attemptNo in
 // classifyDispatchJob ports the PG classification EXACTLY (the ONE
 // dispatcher of decisions — every job is considered, not every job is
 // sent).
-func classifyDispatchJob(state string, attemptCount int, leaseActive bool, hasBlockedEntry bool) string {
+func classifyDispatchJob(state string, attemptCount int, leaseActive bool, hasBlockedEntry bool, noEffect bool) string {
 	if leaseActive {
 		return actionPort.PendingClassRacing
 	}
@@ -125,7 +133,18 @@ func classifyDispatchJob(state string, attemptCount int, leaseActive bool, hasBl
 		return actionPort.PendingClassRecoverable
 	case actionDomain.OperationUnknown:
 		return actionPort.PendingClassRetryable
-	case actionDomain.OperationAccepted, actionDomain.OperationCommitted, actionDomain.OperationFailed:
+	case actionDomain.OperationFailed:
+		// 3-7 retry-unlock (the production classifyPendingJob port): the
+		// recorded no_effect verdict is the PROVEN absence of the external
+		// effect — the proof of emptiness replaces the guarantee role of
+		// provider_idempotent, the retry unlocks WITHOUT the guarantee;
+		// failed without the verdict stays decided (a new launch demands a
+		// new Confirmation of 3-5).
+		if noEffect {
+			return actionPort.PendingClassRetryable
+		}
+		return actionPort.PendingClassDecided
+	case actionDomain.OperationAccepted, actionDomain.OperationCommitted:
 		return actionPort.PendingClassDecided
 	}
 	if attemptCount > 0 || hasBlockedEntry {
@@ -208,7 +227,17 @@ func (r *dispatchMemoryRepository) PendingDispatchJobs(_ context.Context, scope 
 				job.LastOutcomeGuarantee = outcome.GuaranteeRecorded
 			}
 		}
-		job.Classification = classifyDispatchJob(state, len(leases), job.LastLeaseActive, hasBlocked)
+		// The 3-7 retry-unlock input (the production lateral join port): the
+		// last recorded reconciliation verdict of the operation answers
+		// whether the absence of the external effect is PROVEN; the reader
+		// is injected by the reconciliation wiring (nil in the worlds
+		// without the contour — the flag honestly stays false).
+		noEffect := false
+		if r.reconcileNoEffectLocked != nil {
+			noEffect = r.reconcileNoEffectLocked(scope, unit.operation.OperationID)
+		}
+		job.ReconciliationNoEffect = noEffect
+		job.Classification = classifyDispatchJob(state, len(leases), job.LastLeaseActive, hasBlocked, noEffect)
 		jobs = append(jobs, job)
 	}
 	return jobs, nil
@@ -288,11 +317,24 @@ func (r *dispatchMemoryRepository) RecordDispatchOutcome(_ context.Context, p ac
 	verdictEntry.At = p.Now.UTC()
 	r.auth.ledger[operationKey] = append(r.auth.ledger[operationKey], verdictEntry)
 	if p.ReceiptWord != "" {
+		// The receipt version derives UNDER the lock as the monotonic
+		// continuation of the append-only chain (the production store port
+		// of the step-04 fix: the caller's pin is the expectation, the
+		// lock is the truth — the first deciding verdict lands v1, the 3-7
+		// retry-unlock verdict appends the NEXT version of its NEW policy
+		// decision over the recorded history).
+		lastVersion := int64(0)
+		if rows := r.receipts[operationKey]; len(rows) > 0 {
+			lastVersion = rows[len(rows)-1].ReceiptVersionNo
+		}
 		r.receipts[operationKey] = append(r.receipts[operationKey], dispatchReceiptRow{
-			ReceiptVersionNo: p.ReceiptVersionNo, Outcome: p.ReceiptWord,
+			ReceiptVersionNo: lastVersion + 1, Outcome: p.ReceiptWord,
 			References: p.ReceiptReferences, Details: p.ReceiptDetails, CreatedAt: p.Now.UTC(),
 		})
-		r.receiptOutbox = append(r.receiptOutbox, p.OutboxPayload)
+		payload := p.OutboxPayload
+		payload.ReceiptVersionNo = lastVersion + 1
+		payload.Outcome = p.ReceiptWord
+		r.receiptOutbox = append(r.receiptOutbox, payload)
 	}
 	return nil
 }

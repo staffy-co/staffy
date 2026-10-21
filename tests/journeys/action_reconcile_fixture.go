@@ -411,6 +411,22 @@ func (r *reconcileMemoryRepository) LastReconciliationNoEffect(_ context.Context
 	return false, nil
 }
 
+// lastReconciliationNoEffectLocked is the retry-unlock reader handed to
+// the dispatch repository by the wiring: the CALLER owns the shared auth
+// mutex (the fixture composition synchronises on that ONE root — this
+// locked reader never takes a lock of its own), it walks the
+// reconciliation outcomes of the operation backwards and answers whether
+// the LAST verdict is the proven absence.
+func (r *reconcileMemoryRepository) lastReconciliationNoEffectLocked(scope tenancy.Context, operationID id.UUID) bool {
+	operationKey := dispatchOperationKey(scope, operationID)
+	for attempt := len(r.leases[operationKey]); attempt >= 1; attempt-- {
+		if outcomes := r.outcomes[reconcileOutcomeKey(scope, operationID, attempt)]; len(outcomes) > 0 {
+			return outcomes[len(outcomes)-1].Verdict == actionDomain.ReconciliationVerdictNoEffect
+		}
+	}
+	return false
+}
+
 // wireActionReconcileWorld wires the reconciliation contour of the
 // fixture world: the in-memory reconciliation repository over the SAME
 // authorization rows and the SAME dispatch receipts and the synthetic
@@ -425,7 +441,13 @@ func (r *reconcileMemoryRepository) LastReconciliationNoEffect(_ context.Context
 // word). The app allowlist gate cross-checks the served word BEFORE the
 // lease and the query (FENCE 5).
 func wireActionReconcileWorld(auth *authorizationMemoryRepository, dispatch *dispatchMemoryRepository) (*reconcileMemoryRepository, *reconciliationsyn.Synthetic) {
-	return newReconcileMemoryRepository(auth, dispatch), reconciliationsyn.NewServing("query.trunk-status")
+	repo := newReconcileMemoryRepository(auth, dispatch)
+	// The 3-7 retry-unlock bridge: the dispatch pending classification
+	// reads the recorded no_effect verdicts of THIS repository (the
+	// production lateral join port — the locked reader, the caller owns
+	// the shared auth mutex).
+	dispatch.reconcileNoEffectLocked = repo.lastReconciliationNoEffectLocked
+	return repo, reconciliationsyn.NewServing("query.trunk-status")
 }
 
 // ---------------------------------------------------------------------------
