@@ -350,8 +350,10 @@ func (s *Postgres) AcquireDispatchLease(ctx context.Context, p actionPort.Acquir
 // stale holder NEVER writes history, AC-1). Inside ONE commit: the
 // outcome row (ONLY when the claim word is honest — the refused or
 // absent claims record no row, the lease/ledger/receipt speak the
-// guarded truth), the ledger kind entry, the receipt v1 (ONLY on the
-// first deciding verdict — accepted carries no receipt) and the outbox
+// guarded truth), the ledger kind entry, the receipt version of the
+// deciding verdict (the monotonic append derived under the lock: v1 on
+// the first deciding verdict, the next version on a 3-7 retry-unlock
+// verdict — accepted carries no receipt) and the outbox
 // receipt.created record. ANY failure rolls back the whole verdict. The
 // signature carries ZERO adapters.
 func (s *Postgres) RecordDispatchOutcome(ctx context.Context, p actionPort.RecordDispatchOutcomeParams) error {
@@ -423,10 +425,22 @@ func (s *Postgres) RecordDispatchOutcome(ctx context.Context, p actionPort.Recor
 		p.LedgerEntry.Details, p.Now.UTC().Truncate(time.Microsecond)); err != nil {
 		return mapDispatchInsertError(err)
 	}
-	// INSERT 3/4 — the receipt v1 (the FIRST deciding verdict only: the
-	// unique (tenant, operation, version) backstop; accepted carries no
-	// receipt — the business result is not confirmed yet).
+	// INSERT 3/4 — the receipt version of the deciding verdict: the
+	// version derives UNDER THE LOCK as the monotonic continuation of
+	// the append-only chain (max+1 — the first deciding verdict lands
+	// v1; a retry verdict of the 3-7 retry-unlock appends the NEXT
+	// version of its NEW policy decision over the recorded history;
+	// the unique (tenant, operation, version) backstop stays the
+	// loyal guard). accepted carries no receipt — the business result
+	// is not confirmed yet.
 	if p.ReceiptWord != "" {
+		var lastVersion int64
+		if err := tx.QueryRow(ctx, `
+                        select coalesce(max(receipt_version_no), 0) from action.action_receipts
+                        where tenant_id=$1 and operation_id=$2`,
+			tenantID, operationID).Scan(&lastVersion); err != nil {
+			return err
+		}
 		references, err := marshalJSON(p.ReceiptReferences)
 		if err != nil {
 			return err
@@ -434,17 +448,22 @@ func (s *Postgres) RecordDispatchOutcome(ctx context.Context, p actionPort.Recor
 		if _, err := tx.Exec(ctx, `
                         insert into action.action_receipts (tenant_id, operation_id, receipt_version_no, outcome, receipt_references, details, created_at)
                         values ($1,$2,$3,$4,$5,$6,$7)`,
-			tenantID, operationID, p.ReceiptVersionNo, p.ReceiptWord, references,
+			tenantID, operationID, lastVersion+1, p.ReceiptWord, references,
 			p.ReceiptDetails, p.Now.UTC().Truncate(time.Microsecond)); err != nil {
 			return mapDispatchInsertError(err)
 		}
-	}
-	// INSERT 4/4 — the outbox receipt.created record (AD-2: the Work
-	// Item/Conversation link rides THIS module's own outbox — the future
-	// consumer reads the pending records). ONLY when the verdict is
-	// deciding: accepted carries no receipt, no receipt event either.
-	if p.ReceiptWord != "" {
-		if err := insertOutboxReceiptRow(ctx, tx, tenantID, p.OutboxEventID, p.OutboxPayload,
+		// INSERT 4/4 — the outbox receipt.created record (AD-2: the Work
+		// Item/Conversation link rides THIS module's own outbox — the
+		// future consumer reads the pending records). ONLY when the
+		// verdict is deciding: accepted carries no receipt, no receipt
+		// event either. The payload's version and outcome ride the
+		// STORE-DERIVED truth of the monotonic append (the caller's pin
+		// is the expectation, the lock is the truth — the
+		// RecordReconciliationVerdict precedent of 3-7).
+		payload := p.OutboxPayload
+		payload.ReceiptVersionNo = lastVersion + 1
+		payload.Outcome = p.ReceiptWord
+		if err := insertOutboxReceiptRow(ctx, tx, tenantID, p.OutboxEventID, payload,
 			p.Now.UTC().Truncate(time.Microsecond)); err != nil {
 			return err
 		}
