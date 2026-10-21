@@ -167,9 +167,12 @@ func fixtureConfirmationCard() actionAPI.ConfirmationCardView {
 }
 
 // fixtureOperationCard builds one full immutable operation card: the
-// queued pair-word derived from the ledger fact and the outbox record,
-// the two key identities, the append-only ledger and the fixed honest
-// texts of the slice boundaries (AC-11 — executed never exists here).
+// six-word life state with the structured queue fact (3-6 step-03: the
+// spoken pair-word matured into the life words), the two key identities,
+// the append-only ledger, the progressive attempt with the recorded
+// verdict, the Action Receipt version with the identifier readback and
+// the fixed honest texts of the slice boundaries (AC-11 — executed never
+// exists here).
 func fixtureOperationCard() actionAPI.OperationCardView {
 	return actionAPI.OperationCardView{
 		OperationID:           testOperationID,
@@ -192,14 +195,47 @@ func fixtureOperationCard() actionAPI.OperationCardView {
 		IdempotencyKey:        "order-2026.10.20.001",
 		BusinessIntentKey:     "64hex-intent",
 		MaterialDigest:        "64hex-digest",
-		State:                 actionDomain.OperationAuthorized + "/queued",
+		State:                 actionDomain.OperationAuthorized,
 		StateText:             actionDomain.OperationAuthorizedText + " " + actionDomain.OperationQueuedText,
+		Queued:                true,
+		StateAt:               time.Unix(6, 0).UTC(),
+		OwningSystem:          "telephony",
+		NextStepText:          actionDomain.OperationNextStepText(actionDomain.OperationAuthorized),
 		ExternalIDAbsentText:  actionDomain.OperationExternalIDAbsentText,
 		DispatchAbsentText:    actionDomain.OperationDispatchAbsentText,
 		Ledger: []actionAPI.OperationLedgerEntryView{{
 			EntryNo: 1, Kind: actionDomain.LedgerEntryAuthorized,
 			Details:   "потребление single_use, резервация намерения, операция, ledger и outbox одной транзакцией",
 			CreatedAt: time.Unix(6, 0).UTC(),
+		}},
+		Attempts: []actionAPI.DispatchAttemptView{{
+			AttemptNo:         1,
+			LeaseCreatedAt:    time.Unix(7, 0).UTC(),
+			LeaseExpiresAt:    time.Unix(37, 0).UTC(),
+			RequestDigest:     "64hex-request-digest-attempt-1",
+			Outcome:           actionDomain.MutationOutcomeCommitted,
+			OutcomeRecorded:   true,
+			OutcomeText:       actionDomain.OperationCommittedText,
+			CorrelationID:     "syn-0123456789abcdef",
+			GuaranteeRecorded: true,
+			OutcomeCreatedAt:  time.Unix(8, 0).UTC(),
+		}},
+		Receipts: []actionAPI.ActionReceiptView{{
+			ReceiptVersionNo:      1,
+			Outcome:               actionDomain.ReceiptOutcomeCommitted,
+			OutcomeText:           actionDomain.OperationCommittedText,
+			CaseID:                testPreviewCaseID,
+			WorkItemID:            testPreviewWorkID,
+			PreviewID:             testPreviewID,
+			PreviewVersionNo:      1,
+			ConfirmationID:        testConfirmationID,
+			ConfirmationVersionNo: 1,
+			DefinitionID:          "notify.manual-only",
+			DefinitionVersion:     "1.0.0",
+			ExternalObjectID:      "msg-42",
+			ExternalObjectVersion: "3",
+			Details:               "квитанция v1: терминальный успех с полным тройником evidence",
+			CreatedAt:             time.Unix(8, 0).UTC(),
 		}},
 		CreatedAt: time.Unix(6, 0).UTC(),
 	}
@@ -263,8 +299,11 @@ func TestOperationsViewReadServesTheCardsWithTheVisibleExceptions(t *testing.T) 
 	if !strings.Contains(body, actionDomain.ConfirmationEventAuthorizationConflict) {
 		t.Fatalf("исключение конфликта обязано быть видимым (AC-8): %s", body)
 	}
-	if !strings.Contains(body, `"state":"authorized/queued"`) {
-		t.Fatalf("операция обязана нести парное слово состояния (факт outbox): %s", body)
+	if !strings.Contains(body, `"state":"authorized"`) || !strings.Contains(body, `"queued":true`) {
+		t.Fatalf("операция обязана нести слово жизни и факт очереди структурно: %s", body)
+	}
+	if !strings.Contains(body, actionDomain.OperationNextStepText(actionDomain.OperationAuthorized)) {
+		t.Fatalf("карточка операции обязана нести следующий шаг: %s", body)
 	}
 	if !strings.Contains(body, actionDomain.OperationExternalIDAbsentText) {
 		t.Fatalf("карточка операции обязана говорить честный текст границы внешнего идентификатора: %s", body)
@@ -908,7 +947,13 @@ func TestOperationReviewPageRendersTheConfirmFormAndTheCards(t *testing.T) {
 		"Operation Ledger (append-only)",
 		actionDomain.OperationExternalIDAbsentText,
 		actionDomain.OperationDispatchAbsentText,
-		"authorized/queued",
+		"authorized",
+		"В очереди на dispatch: да",
+		actionDomain.OperationNextStepText(actionDomain.OperationAuthorized),
+		"Попытки отправки (прогрессивный аудит, закрыто по умолчанию)",
+		"Карточка Action Receipt (квитанция — readback идентификаторов)",
+		"msg-42",
+		"syn-0123456789abcdef",
 	} {
 		if !strings.Contains(page, pin) {
 			t.Fatalf("страница обязана нести элемент (%s): %s", pin, page[:400])
@@ -1191,5 +1236,289 @@ func TestAuthorizeFormRedirectsWithTheHonestFlags(t *testing.T) {
 		if location := recorder.Header().Get("Location"); !strings.Contains(location, spec.flag) {
 			t.Fatalf("форма %s обязана нести флаг %s: %s", spec.name, spec.flag, location)
 		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// The Story 3.6 (step-03) dispatch surface: the drain gates and the page
+// ---------------------------------------------------------------------------
+
+// fakeDispatch serves the execution-contour surface with the scripted
+// answers and the captured commands (the fakeAuthorization precedent —
+// the counters pin the transport's own gate order: the strict decode
+// refuses BEFORE the service).
+type fakeDispatch struct {
+	drain     actionAPI.DispatchDrainResult
+	drainErr  error
+	drainCall int
+	lastDrain *actionAPI.DrainDispatchCommand
+}
+
+// The compile-time proof the fake satisfies the narrow transport contract.
+var _ actionAPI.DispatchService = (*fakeDispatch)(nil)
+
+func (f *fakeDispatch) DrainDispatchQueue(_ context.Context, c actionAPI.DrainDispatchCommand) (actionAPI.DispatchDrainResult, error) {
+	f.drainCall++
+	commandCopy := c
+	f.lastDrain = &commandCopy
+	if f.drainErr != nil {
+		return actionAPI.DispatchDrainResult{}, f.drainErr
+	}
+	return f.drain, nil
+}
+
+// newDispatchTestServer binds the fake through the production
+// BindDispatch — the narrow interface is type-asserted exactly the way
+// the real wiring does it (the authorization fake rides along for the
+// page reads).
+func newDispatchTestServer(t *testing.T, dispatch *fakeDispatch) *Server {
+	t.Helper()
+	server := newOperationTestServer(t, &fakeAuthorization{view: actionAPI.AuthorizationView{
+		TenantID: testTenantID, CaseID: testPreviewCaseID,
+		Confirmations: []actionAPI.ConfirmationCardView{},
+		Operations:    []actionAPI.OperationCardView{},
+	}})
+	server.BindDispatch(dispatch)
+	return server
+}
+
+// drainAPIPath builds the machine drain path of the fixture tenant.
+func drainAPIPath() string {
+	return "/v1/tenants/" + testTenantID.String() + "/operations/drain"
+}
+
+// TestDrainRefusesTheFreeFieldBeforeTheService — the strict decode of the
+// EMPTY body: a free «limit»/«force» field is the honest 400 BEFORE the
+// service is ever called (the drain carries NO parameters — the bounded
+// operator command of the domain); the wrong content type answers the
+// media rule words.
+func TestDrainRefusesTheFreeFieldBeforeTheService(t *testing.T) {
+	fake := &fakeDispatch{}
+	server := newDispatchTestServer(t, fake)
+	request := httptest.NewRequest(http.MethodPost, drainAPIPath(), strings.NewReader(`{"limit":50}`))
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("свободное поле обязано отвечать 400, пришло %d: %s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"code":"body"`) {
+		t.Fatalf("отказ обязан нести правило body: %s", recorder.Body.String())
+	}
+	request = httptest.NewRequest(http.MethodPost, drainAPIPath(), strings.NewReader(`{}`))
+	request.Header.Set("Content-Type", "text/plain")
+	recorder = httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusBadRequest || !strings.Contains(recorder.Body.String(), `"code":"content_type"`) {
+		t.Fatalf("неверный content-type обязан отвечать 400 правилом content_type: %d %s", recorder.Code, recorder.Body.String())
+	}
+	if fake.drainCall != 0 {
+		t.Fatalf("strict decode отказывает ДО сервиса, сервис видел %d", fake.drainCall)
+	}
+}
+
+// TestDrainAnswers201WithTheHonestReport — the empty strict body passes,
+// the command carries the actor, the tenant and the server clock
+// verbatim, and the 201 answer speaks the honest report: the counters and
+// the per-line words (every considered job leaves its line — FR-28).
+func TestDrainAnswers201WithTheHonestReport(t *testing.T) {
+	lineText := actionDomain.DispatchBlockedText("revoked")
+	fake := &fakeDispatch{drain: actionAPI.DispatchDrainResult{
+		Command: "dispatch_queued_operations", Considered: 2, Dispatched: 1, Blocked: 1, Skipped: 0,
+		Reports: []actionAPI.DispatchReportLineView{
+			{OperationID: testOperationID, AttemptNo: 1, Text: actionDomain.OperationCommittedText},
+			{OperationID: testOperationID, AttemptNo: 0, Text: lineText},
+		},
+	}}
+	server := newDispatchTestServer(t, fake)
+	request := httptest.NewRequest(http.MethodPost, drainAPIPath(), strings.NewReader(`{}`))
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("drain обязан отвечать 201 с отчётом, пришло %d: %s", recorder.Code, recorder.Body.String())
+	}
+	body := recorder.Body.String()
+	for _, pin := range []string{
+		`"drain":{`,
+		`"considered":2`,
+		`"dispatched":1`,
+		`"blocked":1`,
+		actionDomain.OperationCommittedText,
+		lineText,
+	} {
+		if !strings.Contains(body, pin) {
+			t.Fatalf("отчёт обязан нести счётчики и построчные слова (%s): %s", pin, body)
+		}
+	}
+	if fake.lastDrain == nil || fake.lastDrain.Actor.ID != testPrincipalID ||
+		fake.lastDrain.TenantID != testTenantID || !fake.lastDrain.Now.Equal(time.Unix(1, 0).UTC()) {
+		t.Fatalf("команда обязана нести актёра, тенент и серверное время дословно: %+v", fake.lastDrain)
+	}
+}
+
+// TestDrainSpeaksTheAG4RefusalWords — the honest production refusal of the
+// nil mutation adapter answers 403 with the EXACT words the app attached
+// at the wrap point (AG-4: the queue stays pending, zero sends — never a
+// masked success); the drain never touched the queue.
+func TestDrainSpeaksTheAG4RefusalWords(t *testing.T) {
+	fake := &fakeDispatch{drainErr: fmt.Errorf("%w: %s",
+		actionAPI.ErrDispatchRefusedAG4, "Исполнение не подключено — реальных провайдеров нет: очередь не тронута, отправок ноль (AG-4).")}
+	server := newDispatchTestServer(t, fake)
+	request := httptest.NewRequest(http.MethodPost, drainAPIPath(), strings.NewReader(`{}`))
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("AG-4 отказ обязан отвечать 403, пришло %d: %s", recorder.Code, recorder.Body.String())
+	}
+	body := recorder.Body.String()
+	if !strings.Contains(body, `"code":"mutation_execution_not_wired"`) {
+		t.Fatalf("AG-4 отказ обязан нести код mutation_execution_not_wired: %s", body)
+	}
+	if !strings.Contains(body, "очередь не тронута, отправок ноль") {
+		t.Fatalf("AG-4 отказ обязан нести честные слова приложения дословно: %s", body)
+	}
+}
+
+// TestDrainSpeaksTheScopeAndMissingWords — the rights gate of the app
+// answers 403 with the scope words the app attached (the operations scope
+// of the operator), the identity NotFound keeps the plain 404 (no
+// disclosure that the tenant dispatches actions at all).
+func TestDrainSpeaksTheScopeAndMissingWords(t *testing.T) {
+	fake := &fakeDispatch{drainErr: fmt.Errorf("%w: %s", actionDomain.ErrForbidden,
+		"Команда drain требует полномочия operations: запуск отправок очереди — операторная команда, участники без операторного полномочия очередь не трогают.")}
+	server := newDispatchTestServer(t, fake)
+	request := httptest.NewRequest(http.MethodPost, drainAPIPath(), strings.NewReader(`{}`))
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("отказ полномочия обязан отвечать 403, пришло %d: %s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), "полномочия operations") {
+		t.Fatalf("отказ полномочия обязан нести слова скоупа дословно: %s", recorder.Body.String())
+	}
+	fake = &fakeDispatch{drainErr: actionDomain.ErrNotFound}
+	server = newDispatchTestServer(t, fake)
+	request = httptest.NewRequest(http.MethodPost, drainAPIPath(), strings.NewReader(`{}`))
+	request.Header.Set("Content-Type", "application/json")
+	recorder = httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("не-участник обязан отвечать 404, пришло %d", recorder.Code)
+	}
+}
+
+// TestDrainFormRequiresTheCheckboxAndLandsPRG — the page drain form is the
+// PRG family (the external-commitments precedent): the explicit checkbox
+// is the UI discipline of the operator act, the missing checkbox refuses
+// BEFORE the service, the AG-4 refusal words ride the flash, the success
+// lands PRG with the considered counter; the foreign origin never reaches
+// the service.
+func TestDrainFormRequiresTheCheckboxAndLandsPRG(t *testing.T) {
+	formPath := "/app/tenants/" + testTenantID.String() + "/operations/drain"
+	fake := &fakeDispatch{}
+	server := newDispatchTestServer(t, fake)
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, operationsFormOf(http.MethodPost, formPath,
+		url.Values{"case_id": {testPreviewCaseID.String()}}))
+	if recorder.Code != http.StatusSeeOther {
+		t.Fatalf("дренаж без чекбокса обязан ответить PRG 303, пришло %d", recorder.Code)
+	}
+	if flash := operationsFlashOf(recorder); !strings.Contains(flash, "чекбокс согласия") {
+		t.Fatalf("дренаж без чекбокса обязан нести честные слова: %q", flash)
+	}
+	if fake.drainCall != 0 {
+		t.Fatalf("дренаж без чекбокса не доходит до сервиса, сервис видел %d", fake.drainCall)
+	}
+	fake = &fakeDispatch{drainErr: fmt.Errorf("%w: %s",
+		actionAPI.ErrDispatchRefusedAG4, "Исполнение не подключено — реальных провайдеров нет: очередь не тронута, отправок ноль (AG-4).")}
+	server = newDispatchTestServer(t, fake)
+	recorder = httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, operationsFormOf(http.MethodPost, formPath,
+		url.Values{"case_id": {testPreviewCaseID.String()}, "confirm_drain": {"yes"}}))
+	if recorder.Code != http.StatusSeeOther {
+		t.Fatalf("AG-4 отказ формы обязан ответить PRG, пришло %d", recorder.Code)
+	}
+	if flash := operationsFlashOf(recorder); !strings.Contains(flash, "очередь не тронута, отправок ноль") {
+		t.Fatalf("AG-4 отказ обязан нести слова во flash: %q", flash)
+	}
+	fake = &fakeDispatch{drain: actionAPI.DispatchDrainResult{
+		Command: "dispatch_queued_operations", Considered: 3, Dispatched: 2, Blocked: 1,
+		Reports: []actionAPI.DispatchReportLineView{},
+	}}
+	server = newDispatchTestServer(t, fake)
+	recorder = httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, operationsFormOf(http.MethodPost, formPath,
+		url.Values{"case_id": {testPreviewCaseID.String()}, "confirm_drain": {"yes"}}))
+	if recorder.Code != http.StatusSeeOther {
+		t.Fatalf("успешный дренаж обязан ответить PRG 303, пришло %d", recorder.Code)
+	}
+	if location := recorder.Header().Get("Location"); !strings.Contains(location, "drained=3") {
+		t.Fatalf("PRG обязан нести флаг drained со счётчиком: %s", location)
+	}
+	if location := recorder.Header().Get("Location"); !strings.Contains(location, "/cases/"+testPreviewCaseID.String()+"/operations") {
+		t.Fatalf("PRG обязан возвращать на страницу операций кейса: %s", location)
+	}
+	if fake.lastDrain == nil || fake.lastDrain.TenantID != testTenantID {
+		t.Fatalf("команда дренажа обязана нести тенент дословно: %+v", fake.lastDrain)
+	}
+	fake = &fakeDispatch{}
+	server = newDispatchTestServer(t, fake)
+	request := httptest.NewRequest(http.MethodPost, formPath, strings.NewReader(url.Values{
+		"case_id": {testPreviewCaseID.String()}, "confirm_drain": {"yes"},
+	}.Encode()))
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	request.Header.Set("Origin", "https://evil.example")
+	recorder = httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("чужой origin обязан отказать 403, пришло %d", recorder.Code)
+	}
+	if fake.drainCall != 0 {
+		t.Fatalf("origin-отказ происходит ДО сервиса, сервис видел %d", fake.drainCall)
+	}
+}
+
+// TestOperationReviewPageShowsTheDrainFormOnlyWhenBound — the page speaks
+// the drain form exactly when the dispatch surface is bound (the honest
+// absence: an unbound contour never pretends the command exists); the
+// drained notice flag carries the focus discipline and the counter
+// readback.
+func TestOperationReviewPageShowsTheDrainFormOnlyWhenBound(t *testing.T) {
+	fake := &fakeDispatch{}
+	server := newDispatchTestServer(t, fake)
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet,
+		operationsPageRoot()+"/operations?drained=3", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("страница обязана отвечать 200, пришло %d", recorder.Code)
+	}
+	page := recorder.Body.String()
+	for _, pin := range []string{
+		"Запустить дренаж очереди отправок (операторная команда тенента)",
+		`action="/app/tenants/` + testTenantID.String() + `/operations/drain"`,
+		`name="case_id" value="` + testPreviewCaseID.String() + `"`,
+		`name="confirm_drain" value="yes" required`,
+		"Дренировать очередь",
+		"Очередь отправок дренирована: рассмотрено заданий — 3",
+		`id="page-notice"`,
+		`tabindex="-1"`,
+		"getElementById('page-notice').focus()",
+	} {
+		if !strings.Contains(page, pin) {
+			t.Fatalf("страница с контуром обязана нести форму дренажа и уведомление (%s): %s", pin, page[:400])
+		}
+	}
+	server = newOperationTestServer(t, &fakeAuthorization{})
+	recorder = httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet,
+		operationsPageRoot()+"/operations", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("страница обязана отвечать 200, пришло %d", recorder.Code)
+	}
+	if page := recorder.Body.String(); strings.Contains(page, "Дренировать очередь") {
+		t.Fatalf("неподключённый контур НЕ показывает форму дренажа: %s", page[:400])
 	}
 }

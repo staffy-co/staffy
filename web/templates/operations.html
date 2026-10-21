@@ -5,6 +5,16 @@
 <h1>Operation Review — подтверждение и авторизация действия</h1>
 {{if .Notice}}<p class="status" role="status" tabindex="-1" id="page-notice">{{.Notice}}</p><script>addEventListener('DOMContentLoaded', () => document.getElementById('page-notice').focus());</script>{{end}}
 {{if .Flash}}<p class="alert" role="alert">{{.Flash}}</p>{{end}}
+{{if .HasDrain}}
+<details><summary>Запустить дренаж очереди отправок (операторная команда тенента)</summary>
+<form method="post" action="/app/tenants/{{.TenantID}}/operations/drain">
+<input type="hidden" name="case_id" value="{{.CaseID}}">
+<label><input type="checkbox" name="confirm_drain" value="yes" required> Подтверждаю запуск: дренаж обрабатывает очередь ОДНОГО ТЕНАНТА (все кейсы) до доменного предела батча, каждое задание проходит execute-time фенции по порядку</label>
+<p class="next-note">Dispatch — явная команда (демона нет): фонового планировщика не существует, очередь честно копится pending до этого запуска. Границы говорят точными словами причин: припаркованные операции остаются authorized с видимой причиной, ложного failed externally не бывает. В продакшене без подключённого провайдера команда честно отказывает (AG-4).</p>
+<button class="primary" type="submit">Дренировать очередь</button>
+</form>
+</details>
+{{end}}
 <h2 id="confirm-heading">Подтвердить точную версию preview (согласие человека)</h2>
 <form method="post" action="/app/tenants/{{.TenantID}}/cases/{{.CaseID}}/operations/confirmations">
 <label for="confirm_preview_id">Preview (UUID)</label>
@@ -58,16 +68,6 @@
 {{end}}
 {{if .HasOperations}}
 <h2 id="operations-heading">Операции (неизменяемые)</h2>
-{{if .HasDrain}}
-<details><summary>Запустить дренаж очереди отправок (операторная команда)</summary>
-<form method="post" action="/app/tenants/{{.TenantID}}/operations/drain">
-<input type="hidden" name="case_id" value="{{.CaseID}}">
-<label><input type="checkbox" name="confirm_drain" value="yes" required> Подтверждаю запуск: дренаж обрабатывает очередь ОДНОГО ТЕНАНТА до доменного предела батча, каждое задание проходит execute-time фенции по порядку</label>
-<p class="next-note">Dispatch — явная команда (демона нет): фонового планировщика не существует, очередь честно копится pending до этого запуска. Границы говорят точными словами причин: припаркованные операции остаются authorized с видимой причиной, ложного failed externally не бывает. В продакшене без подключённого провайдера команда честно отказывает (AG-4).</p>
-<button class="primary" type="submit">Дренировать очередь</button>
-</form>
-</details>
-{{end}}
 <ul class="action-catalog">
 {{range .Operations}}
 <li class="action-card">

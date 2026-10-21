@@ -1,13 +1,13 @@
 package actiondispatcher
 
 import (
-        "context"
-        "sync"
-        "time"
+	"context"
+	"sync"
+	"time"
 
-        actionPort "github.com/artemiosu/staffy/internal/action/port"
-        "github.com/artemiosu/staffy/internal/connector/catalog"
-        "github.com/artemiosu/staffy/internal/platform/tenancy"
+	actionPort "github.com/artemiosu/staffy/internal/action/port"
+	"github.com/artemiosu/staffy/internal/connector/catalog"
+	"github.com/artemiosu/staffy/internal/platform/tenancy"
 )
 
 // The capability identifier the synthetic mutation adapter serves the
@@ -37,27 +37,27 @@ const sendSMSCapability = "command.send-sms"
 // identities; the answer is the claim word, the correlation, the
 // evidence and the guarantee flag.
 type Synthetic struct {
-        mu                  sync.Mutex
-        outcome             string
-        externalCorrelation string
-        // externalObjectID/Version script the STRUCTURAL evidence of the
-        // committed rows (the external object identity — only committed
-        // claims carry it; the time is the call moment).
-        externalObjectID      string
-        externalObjectVersion string
-        failure               error
-        // guaranteeOverride scripts the recorded guarantee word OFF the
-        // live declaration (the timeout-without-guarantee rows of the
-        // matrix); nil answers the LIVE declaration of the served
-        // capability.
-        guaranteeOverride *bool
+	mu                  sync.Mutex
+	outcome             string
+	externalCorrelation string
+	// externalObjectID/Version script the STRUCTURAL evidence of the
+	// committed rows (the external object identity — only committed
+	// claims carry it; the time is the call moment).
+	externalObjectID      string
+	externalObjectVersion string
+	failure               error
+	// guaranteeOverride scripts the recorded guarantee word OFF the
+	// live declaration (the timeout-without-guarantee rows of the
+	// matrix); nil answers the LIVE declaration of the served
+	// capability.
+	guaranteeOverride *bool
 }
 
 // New constructs the synthetic mutation adapter with the default script:
 // the provider accepts the request (the accepted reception of AC-6 —
 // the non-terminal word without a receipt).
 func New() *Synthetic {
-        return &Synthetic{outcome: "accepted"}
+	return &Synthetic{outcome: "accepted"}
 }
 
 // The structural pin: the synthetic satisfies the action port contract.
@@ -70,11 +70,11 @@ var _ actionPort.MutationAdapter = (*Synthetic)(nil)
 // every attempt of one operation carries the SAME key, the synthetic
 // provider deduplicates it) and the optional adapter failure.
 func (s *Synthetic) Script(outcome, externalCorrelation string, failure error) {
-        s.mu.Lock()
-        defer s.mu.Unlock()
-        s.outcome = outcome
-        s.externalCorrelation = externalCorrelation
-        s.failure = failure
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.outcome = outcome
+	s.externalCorrelation = externalCorrelation
+	s.failure = failure
 }
 
 // ScriptEvidence scripts the STRUCTURAL evidence triple of the committed
@@ -83,10 +83,10 @@ func (s *Synthetic) Script(outcome, externalCorrelation string, failure error) {
 // the evidence guard into the honest unknown — the State/Authority
 // discipline rows of the matrix).
 func (s *Synthetic) ScriptEvidence(externalObjectID, externalObjectVersion string) {
-        s.mu.Lock()
-        defer s.mu.Unlock()
-        s.externalObjectID = externalObjectID
-        s.externalObjectVersion = externalObjectVersion
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.externalObjectID = externalObjectID
+	s.externalObjectVersion = externalObjectVersion
 }
 
 // ScriptGuarantee overrides the recorded guarantee word of the next
@@ -94,10 +94,10 @@ func (s *Synthetic) ScriptEvidence(externalObjectID, externalObjectVersion strin
 // until the next call — the default (nil) answers the LIVE capability
 // declaration.
 func (s *Synthetic) ScriptGuarantee(guaranteed bool) {
-        s.mu.Lock()
-        defer s.mu.Unlock()
-        value := guaranteed
-        s.guaranteeOverride = &value
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	value := guaranteed
+	s.guaranteeOverride = &value
 }
 
 // ServesCapability reports the destination allowlist word this adapter
@@ -105,21 +105,21 @@ func (s *Synthetic) ScriptGuarantee(guaranteed bool) {
 // capability BEFORE the lease and the call — a foreign capability is the
 // honest refusal without a send, AC-4).
 func (s *Synthetic) ServesCapability() string {
-        return sendSMSCapability
+	return sendSMSCapability
 }
 
 // liveGuarantee resolves the idempotency guarantee from the LIVE
 // declaration of the served capability (the stored word of the catalog —
 // the recorded fact the retry policy reads, never a test-side guess).
 func liveGuarantee() bool {
-        for _, definition := range catalog.List() {
-                for _, capability := range definition.Capabilities {
-                        if capability.ID == sendSMSCapability {
-                                return capability.Idempotent
-                        }
-                }
-        }
-        return false
+	for _, definition := range catalog.List() {
+		for _, capability := range definition.Capabilities {
+			if capability.ID == sendSMSCapability {
+				return capability.Idempotent
+			}
+		}
+	}
+	return false
 }
 
 // Dispatch answers one scripted send attempt: the request carries the
@@ -132,39 +132,39 @@ func liveGuarantee() bool {
 // structural evidence triple of the committed claims and the LIVE
 // guarantee word. NO secret ever travels on this port.
 func (s *Synthetic) Dispatch(_ context.Context, _ tenancy.Context, request actionPort.MutationRequest) (actionPort.MutationResult, error) {
-        s.mu.Lock()
-        outcome, correlation, objectID, objectVersion, failure, override := s.outcome, s.externalCorrelation, s.externalObjectID, s.externalObjectVersion, s.failure, s.guaranteeOverride
-        s.mu.Unlock()
-        if failure != nil {
-                return actionPort.MutationResult{}, failure
-        }
-        if correlation == "" && len(request.ExternalIDempotencyKey) >= 16 {
-                // The synthetic provider derives its correlation from the
-                // EXTERNAL idempotency key of the operation: the same
-                // operation answers the same correlation on every attempt
-                // (the provider-side dedup, observed honestly).
-                correlation = "syn-" + request.ExternalIDempotencyKey[:16]
-        }
-        guarantee := liveGuarantee()
-        if override != nil {
-                // The scripted override of the guarantee word (the matrix rows
-                // where the provider declares no idempotency).
-                guarantee = *override
-        }
-        var evidenceTime time.Time
-        if outcome == "committed" && objectID != "" {
-                // The structural evidence of a terminal success: the complete
-                // triple (id, version, time) — the domain guard accepts the
-                // committed claim ONLY with it.
-                evidenceTime = time.Now().UTC()
-        }
-        return actionPort.MutationResult{
-                Outcome:               outcome,
-                CorrelationID:         correlation,
-                ExternalObjectID:      objectID,
-                ExternalObjectVersion: objectVersion,
-                ExternalObjectTime:    evidenceTime,
-                GuaranteeLive:         guarantee,
-                Details:               "синтетический мутационный адаптер тестового контура: исход по сценарию",
-        }, nil
+	s.mu.Lock()
+	outcome, correlation, objectID, objectVersion, failure, override := s.outcome, s.externalCorrelation, s.externalObjectID, s.externalObjectVersion, s.failure, s.guaranteeOverride
+	s.mu.Unlock()
+	if failure != nil {
+		return actionPort.MutationResult{}, failure
+	}
+	if correlation == "" && len(request.ExternalIDempotencyKey) >= 16 {
+		// The synthetic provider derives its correlation from the
+		// EXTERNAL idempotency key of the operation: the same
+		// operation answers the same correlation on every attempt
+		// (the provider-side dedup, observed honestly).
+		correlation = "syn-" + request.ExternalIDempotencyKey[:16]
+	}
+	guarantee := liveGuarantee()
+	if override != nil {
+		// The scripted override of the guarantee word (the matrix rows
+		// where the provider declares no idempotency).
+		guarantee = *override
+	}
+	var evidenceTime time.Time
+	if outcome == "committed" && objectID != "" {
+		// The structural evidence of a terminal success: the complete
+		// triple (id, version, time) — the domain guard accepts the
+		// committed claim ONLY with it.
+		evidenceTime = time.Now().UTC()
+	}
+	return actionPort.MutationResult{
+		Outcome:               outcome,
+		CorrelationID:         correlation,
+		ExternalObjectID:      objectID,
+		ExternalObjectVersion: objectVersion,
+		ExternalObjectTime:    evidenceTime,
+		GuaranteeLive:         guarantee,
+		Details:               "синтетический мутационный адаптер тестового контура: исход по сценарию",
+	}, nil
 }

@@ -1,12 +1,12 @@
 package api
 
 import (
-        "context"
-        "time"
+	"context"
+	"time"
 
-        "github.com/artemiosu/staffy/internal/action/port"
-        identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-        "github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/artemiosu/staffy/internal/action/port"
+	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
+	"github.com/artemiosu/staffy/internal/platform/id"
 )
 
 // ---------------------------------------------------------------------------
@@ -31,18 +31,18 @@ import (
 // batch is bounded by the domain drain limit (DispatchDrainLimit=100) —
 // the rest stay queued for the next run, honestly.
 type DrainDispatchCommand struct {
-        Actor    identityDomain.Principal
-        TenantID id.UUID
-        Now      time.Time
+	Actor    identityDomain.Principal
+	TenantID id.UUID
+	Now      time.Time
 }
 
 // DispatchReportLineView is ONE spoken line of the drain report: the
 // operation, the attempt number of the line and the honest word (every
 // boundary names the exact cause and the allowed next step — FR-28).
 type DispatchReportLineView struct {
-        OperationID id.UUID `json:"operation_id"`
-        AttemptNo   int     `json:"attempt_no"`
-        Text        string  `json:"text"`
+	OperationID id.UUID `json:"operation_id"`
+	AttemptNo   int     `json:"attempt_no"`
+	Text        string  `json:"text"`
 }
 
 // DispatchDrainResult is the honest answer of the drain command: how many
@@ -50,12 +50,12 @@ type DispatchReportLineView struct {
 // fence and how many skipped (races, replays, alarms) — with the spoken
 // line of EVERY job (never a masked silence).
 type DispatchDrainResult struct {
-        Command    string                   `json:"command"`
-        Considered int                      `json:"considered"`
-        Dispatched int                      `json:"dispatched"`
-        Blocked    int                      `json:"blocked"`
-        Skipped    int                      `json:"skipped"`
-        Reports    []DispatchReportLineView `json:"reports"`
+	Command    string                   `json:"command"`
+	Considered int                      `json:"considered"`
+	Dispatched int                      `json:"dispatched"`
+	Blocked    int                      `json:"blocked"`
+	Skipped    int                      `json:"skipped"`
+	Reports    []DispatchReportLineView `json:"reports"`
 }
 
 // DispatchAttemptView is one progressive attempt of the operation card
@@ -67,16 +67,16 @@ type DispatchDrainResult struct {
 // attempt speaks the write-ahead resting text by name), the provider
 // correlation and the recorded guarantee word (the retry policy input).
 type DispatchAttemptView struct {
-        AttemptNo         int       `json:"attempt_no"`
-        LeaseCreatedAt    time.Time `json:"lease_created_at"`
-        LeaseExpiresAt    time.Time `json:"lease_expires_at"`
-        RequestDigest     string    `json:"request_digest"`
-        Outcome           string    `json:"outcome,omitempty"`
-        OutcomeRecorded   bool      `json:"outcome_recorded"`
-        OutcomeText       string    `json:"outcome_text"`
-        CorrelationID     string    `json:"correlation_id"`
-        GuaranteeRecorded bool      `json:"guarantee_recorded"`
-        OutcomeCreatedAt  time.Time `json:"outcome_recorded_at,omitempty"`
+	AttemptNo         int       `json:"attempt_no"`
+	LeaseCreatedAt    time.Time `json:"lease_created_at"`
+	LeaseExpiresAt    time.Time `json:"lease_expires_at"`
+	RequestDigest     string    `json:"request_digest"`
+	Outcome           string    `json:"outcome,omitempty"`
+	OutcomeRecorded   bool      `json:"outcome_recorded"`
+	OutcomeText       string    `json:"outcome_text"`
+	CorrelationID     string    `json:"correlation_id"`
+	GuaranteeRecorded bool      `json:"guarantee_recorded"`
+	OutcomeCreatedAt  time.Time `json:"outcome_recorded_at,omitempty"`
 }
 
 // ActionReceiptView is one version of the Action Receipt card (FR-31/AC-12:
@@ -86,21 +86,21 @@ type DispatchAttemptView struct {
 // WITHOUT the dialog; the sensitive material NEVER enters) and the safe
 // details.
 type ActionReceiptView struct {
-        ReceiptVersionNo      int64     `json:"receipt_version_no"`
-        Outcome               string    `json:"outcome"`
-        OutcomeText           string    `json:"outcome_text"`
-        CaseID                id.UUID   `json:"case_id"`
-        WorkItemID            id.UUID   `json:"work_item_id"`
-        PreviewID             id.UUID   `json:"preview_id"`
-        PreviewVersionNo      int64     `json:"preview_version_no"`
-        ConfirmationID        id.UUID   `json:"confirmation_id"`
-        ConfirmationVersionNo int64     `json:"confirmation_version_no"`
-        DefinitionID          string    `json:"definition_id"`
-        DefinitionVersion     string    `json:"definition_version"`
-        ExternalObjectID      string    `json:"external_object_id"`
-        ExternalObjectVersion string    `json:"external_object_version"`
-        Details               string    `json:"details"`
-        CreatedAt             time.Time `json:"created_at"`
+	ReceiptVersionNo      int64     `json:"receipt_version_no"`
+	Outcome               string    `json:"outcome"`
+	OutcomeText           string    `json:"outcome_text"`
+	CaseID                id.UUID   `json:"case_id"`
+	WorkItemID            id.UUID   `json:"work_item_id"`
+	PreviewID             id.UUID   `json:"preview_id"`
+	PreviewVersionNo      int64     `json:"preview_version_no"`
+	ConfirmationID        id.UUID   `json:"confirmation_id"`
+	ConfirmationVersionNo int64     `json:"confirmation_version_no"`
+	DefinitionID          string    `json:"definition_id"`
+	DefinitionVersion     string    `json:"definition_version"`
+	ExternalObjectID      string    `json:"external_object_id"`
+	ExternalObjectVersion string    `json:"external_object_version"`
+	Details               string    `json:"details"`
+	CreatedAt             time.Time `json:"created_at"`
 }
 
 // DispatchService is the narrow execution-contour surface the transport
@@ -111,29 +111,29 @@ type ActionReceiptView struct {
 // (the life state, the queue fact, the block cause, the attempts, the
 // receipts) through the SAME read.
 type DispatchService interface {
-        // DrainDispatchQueue runs the EXPLICIT bounded drain of the queued
-        // operations of the tenant (operator manage — the operations scope
-        // word; a non-member is the honest 404 BEFORE the queue is read).
-        // The nil mutation adapter of the production root refuses honestly
-        // FIRST (AG-4 — the queue stays untouched, zero sends); every job
-        // of the bounded batch walks the ordered fences — a boundary parks
-        // the operation with the EXACT reason word, never a false failed
-        // externally (AC-2).
-        DrainDispatchQueue(ctx context.Context, command DrainDispatchCommand) (DispatchDrainResult, error)
+	// DrainDispatchQueue runs the EXPLICIT bounded drain of the queued
+	// operations of the tenant (operator manage — the operations scope
+	// word; a non-member is the honest 404 BEFORE the queue is read).
+	// The nil mutation adapter of the production root refuses honestly
+	// FIRST (AG-4 — the queue stays untouched, zero sends); every job
+	// of the bounded batch walks the ordered fences — a boundary parks
+	// the operation with the EXACT reason word, never a false failed
+	// externally (AC-2).
+	DrainDispatchQueue(ctx context.Context, command DrainDispatchCommand) (DispatchDrainResult, error)
 }
 
 // The store-contract errors of the execution contour the transport maps
 // (the consumer-owned vocabulary of the repository boundary re-exported
 // for the render layer; the AuthorizationService precedent).
 var (
-        // ErrDispatchRefusedAG4 is the honest production refusal of the
-        // drain command at a nil mutation adapter (AG-4: no real providers
-        // exist — the queue honestly stays pending).
-        ErrDispatchRefusedAG4 = port.ErrDispatchRefusedAG4
-        // ErrLeaseStale is the honest fenced refusal (the stale holder
-        // never writes history — the drain report speaks the skip).
-        ErrLeaseStale = port.ErrLeaseStale
-        // ErrLeaseRaced is the honest racing skip (an active lease of
-        // another consideration owns the operation right now).
-        ErrLeaseRaced = port.ErrLeaseRaced
+	// ErrDispatchRefusedAG4 is the honest production refusal of the
+	// drain command at a nil mutation adapter (AG-4: no real providers
+	// exist — the queue honestly stays pending).
+	ErrDispatchRefusedAG4 = port.ErrDispatchRefusedAG4
+	// ErrLeaseStale is the honest fenced refusal (the stale holder
+	// never writes history — the drain report speaks the skip).
+	ErrLeaseStale = port.ErrLeaseStale
+	// ErrLeaseRaced is the honest racing skip (an active lease of
+	// another consideration owns the operation right now).
+	ErrLeaseRaced = port.ErrLeaseRaced
 )
