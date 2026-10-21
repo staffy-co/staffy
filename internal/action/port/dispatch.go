@@ -169,6 +169,12 @@ type PendingDispatchJob struct {
 	LastLeaseActive        bool
 	RequestDigest          string // the FIRST lease digest ("" when no lease ever)
 	ExternalIDempotencyKey string // the recorded external key ("" when no lease ever)
+	// ReconciliationNoEffect is the 3-7 retry-unlock fact of the pending
+	// classification: the LAST reconciliation outcome verdict of the
+	// operation reads no_effect (the PROVEN absence of the external effect —
+	// a failed operation unlocks a retry WITHOUT the provider-idempotent
+	// guarantee; the store lateral join of 3-7 step-02 reads the verdict).
+	ReconciliationNoEffect bool
 }
 
 // AcquireDispatchLeaseParams is the write-ahead transaction of the send

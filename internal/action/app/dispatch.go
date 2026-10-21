@@ -289,10 +289,10 @@ func (s *Service) dispatchOneJob(ctx context.Context, scope tenancy.Context, com
 		// re-read of the live declaration — the 3-3 «belt over braces»).
 		policy, err := domain.DeriveDispatchRetryPolicy(job.StateWord,
 			def.DeliveryContract.CapabilityClass, job.LastOutcomeGuarantee, job.LastAttemptNo,
-			// noEffectProven: вердикт сверки 3-7 читает pending-классификация
-			// хранилища (step-02) — retryable-попытка сама по себе эффекта
-			// не доказывает, честное false шага.
-			false)
+			// noEffectProven (3-7 retry-unlock): pending-классификация хранилища
+			// прочитала последний вердикт сверки — доказанное no_effect
+			// заменяет гарантию provider_idempotent (unlock без гарантии).
+			job.ReconciliationNoEffect)
 		if err != nil {
 			return err
 		}
@@ -317,8 +317,9 @@ func (s *Service) dispatchOneJob(ctx context.Context, scope tenancy.Context, com
 		}
 		policy, err := domain.DeriveDispatchRetryPolicy(job.StateWord,
 			def.DeliveryContract.CapabilityClass, guarantee, job.LastAttemptNo,
-			// noEffectProven: crash-resting попытка не имеет записанного
-			// вердикта сверки — unlock сверки 3-7 сюда не приходит.
+			// noEffectProven: crash-resting попытка (submitted без outcome)
+			// не имеет вердикта сверки по определению — unlock сверки 3-7
+			// сюда не приходит, честное false.
 			false)
 		if err != nil {
 			return err
