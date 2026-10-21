@@ -479,7 +479,7 @@ func TestDeriveExternalIdempotencyKeyProperties(t *testing.T) {
 	mac.Write([]byte("dispatch_key:v1:"))
 	mac.Write([]byte(strings.Join([]string{tenant.String(), operation.String()}, canonicalFieldSep)))
 	if want := hex.EncodeToString(mac.Sum(nil)); want != first {
-		t.Fatalf("внешний ключ обязан равняться ручной HMAC-перепроверке:\nожидалось %s\nполучено  %s", want, first)
+		t.Fatalf("внешний ключ обязан равняться ручной HMAC-перепроверке:\n ожидалось %s\n получено  %s", want, first)
 	}
 }
 
@@ -601,7 +601,7 @@ func TestDeriveDispatchRequestDigestDeterminismUnderShuffling(t *testing.T) {
 	mac.Write([]byte("dispatch_request:v1:"))
 	mac.Write(dispatchRequestCanonicalBytes(payload))
 	if want := hex.EncodeToString(mac.Sum(nil)); want != baseline {
-		t.Fatalf("digest обязан равняться ручной HMAC-перепроверке:\nожидалось %s\nполучено  %s", want, baseline)
+		t.Fatalf("digest обязан равняться ручной HMAC-перепроверке:\n ожидалось %s\n получено  %s", want, baseline)
 	}
 }
 
