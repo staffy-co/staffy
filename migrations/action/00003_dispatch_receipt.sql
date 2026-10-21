@@ -86,12 +86,15 @@ CREATE INDEX dispatch_outcomes_operation ON action.dispatch_outcomes (tenant_id,
 -- outcome, UNIQUE versions — v1 is byte-stable forever (the later
 -- evidence of 3-7 appends v2+; the append-only probes of the
 -- integration matrix pin the absence of the UPDATE/DELETE paths).
+-- The SAFE pin column is receipt_references (NEVER references: the
+-- SQL-reserved word is a syntax error at the live boundary — the
+-- step-04 live-PG finding of the honest naming).
 CREATE TABLE action.action_receipts (
  tenant_id uuid NOT NULL,
  operation_id uuid NOT NULL,
  receipt_version_no bigint NOT NULL CHECK (receipt_version_no >= 1),
  outcome text NOT NULL CHECK (outcome IN ('committed', 'failed', 'unknown')),
- references jsonb NOT NULL CHECK (jsonb_typeof(references) = 'object' AND octet_length(references::text) <= 4096),
+ receipt_references jsonb NOT NULL CHECK (jsonb_typeof(receipt_references) = 'object' AND octet_length(receipt_references::text) <= 4096),
  details text NOT NULL DEFAULT '' CHECK (char_length(details) <= 500),
  created_at timestamptz NOT NULL,
  PRIMARY KEY (tenant_id, operation_id, receipt_version_no)
