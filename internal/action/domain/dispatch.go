@@ -427,10 +427,17 @@ func DeriveConfirmationDispatchFence(confirmationState string) (string, error) {
 // operation: a repeat is allowed ONLY by the provider_idempotent class
 // AND the recorded guarantee AND the attempts within the bound
 // (MaxDispatchAttempts=3 — the 3-3 precedent: bounded, no blind loop).
-// The decided operations (committed/failed — terminal, AC-8: failed never
-// auto-repeats, a new launch is a NEW confirmation of the 3-5 contour;
-// accepted — не-терминальное waiting without a re-send) answer decided:
-// a repeat is not a policy question at all. The guarantee is the
+// The decided operations (committed — terminal, AC-8; accepted —
+// не-терминальное waiting without a re-send) answer decided: a repeat is
+// not a policy question at all. failed stays decided TOO — with ONE 3-7
+// exception: a RECORDED reconciliation verdict no_effect (the proven
+// absence of the external effect) unlocks a retry WITHOUT the
+// provider-idempotent guarantee (AC-3/AC-6 of the epic 3.7 — the proof
+// of the empty effect replaces the guarantee role in the blind-repeat
+// prohibition; the retry rides the SAME operation, the SAME external key
+// and request digest, NO new intent or reservation; the bound is still
+// checked FIRST — the unlock works INSIDE the MaxDispatchAttempts
+// budget, never above it). The guarantee is the
 // RECORDED word of the attempt (the live declaration is read at the
 // outcome-recording moment — the repeat decision reads the recorded fact,
 // the 3-3 «belt over braces» precedent); for a crashed attempt (no
@@ -440,7 +447,7 @@ func DeriveConfirmationDispatchFence(confirmationState string) (string, error) {
 // state/class words and on the attempt numbers outside [1..MaxDispatchAttempts]
 // — the first attempt is not a policy question (the ordered fences govern
 // it), and an attempt above the bound is structurally impossible.
-func DeriveDispatchRetryPolicy(operationState string, capabilityClass string, guarantee bool, attemptNo int) (string, error) {
+func DeriveDispatchRetryPolicy(operationState string, capabilityClass string, guarantee bool, attemptNo int, noEffectProven bool) (string, error) {
 	if !WordIn(OperationStateWords, operationState) {
 		return "", RuleError{Rule: "DeriveDispatchRetryPolicy", Reason: fmt.Sprintf(
 			"Состояние Operation «%s» вне словаря (%s).", operationState, strings.Join(OperationStateWords, ", "))}
@@ -454,8 +461,30 @@ func DeriveDispatchRetryPolicy(operationState string, capabilityClass string, gu
 			"Номер попытки %d вне окна повтора [1..%d]: первая попытка — не вопрос политики повтора, попытка выше предела структурно невозможна.",
 			attemptNo, MaxDispatchAttempts)}
 	}
+	if noEffectProven && operationState != OperationFailed {
+		return "", RuleError{Rule: "DeriveDispatchRetryPolicy", Reason: fmt.Sprintf(
+			"Доказанное no_effect (вердикт сверки 3-7) несовместимо с состоянием «%s»: вердикт записывается парой {ledger failed, receipt failed} одной транзакцией — несовпадение = порча данных, отказ (fail-closed).",
+			operationState)}
+	}
 	switch operationState {
-	case OperationAccepted, OperationCommitted, OperationFailed:
+	case OperationAccepted, OperationCommitted:
+		return DispatchRetryDecided, nil
+	case OperationFailed:
+		// Retry-unlock сверки 3-7 (AC-3/AC-6 эпика): записанный вердикт
+		// no_effect — доказательство пустоты внешнего эффекта — заменяет
+		// роль гарантии provider_idempotent в запрете слепого повтора
+		// (повтор не может дублировать эффект, которого доказанно нет).
+		// Повтор — НОВАЯ dispatch-попытка ТОЙ ЖЕ операции тем же внешним
+		// ключом и request_digest; НОВОГО intent/резервации нет (UNIQUE
+		// 3-5). Предел MaxDispatchAttempts продолжает действовать: unlock
+		// работает внутри бюджета, не сверх. Без вердикта no_effect —
+		// честный decided (новый запуск = новая Confirmation 3-5).
+		if noEffectProven {
+			if attemptNo >= MaxDispatchAttempts {
+				return DispatchRetryParkBound, nil
+			}
+			return DispatchRetryRetry, nil
+		}
 		return DispatchRetryDecided, nil
 	}
 	if attemptNo >= MaxDispatchAttempts {
@@ -512,6 +541,13 @@ const (
 	// DispatchEvidenceIncompleteText is the State/Authority refusal word
 	// (AC-6/AC-7): the terminal success is not confirmed.
 	DispatchEvidenceIncompleteText = "Evidence неполные — терминальный успех не подтверждён."
+	// DispatchNoEffectUnlockText is the retry-unlock word of the 3-7
+	// reconciliation (AC-3/AC-6 of the epic): the PROVEN absence of the
+	// external effect replaces the provider-idempotent guarantee role in
+	// the blind-repeat prohibition — the retry rides the SAME operation,
+	// the SAME external key and request digest, with NO new intent or
+	// reservation (the UNIQUE of 3-5 stays intact).
+	DispatchNoEffectUnlockText = "Эффект доказанно отсутствует — повтор разрешён решением политики: вердикт сверки no_effect заменяет гарантию идемпотентности, тот же внешний ключ и request digest, новой резервации нет."
 )
 
 // DispatchBlockedText renders the honest parking lead of the
@@ -573,7 +609,7 @@ var OperationNextStepTexts = map[string]string{
 	OperationAccepted:   "Следующий шаг: ожидание подтверждения бизнес-результата контуром сверки (3-7) — итога ещё нет.",
 	OperationCommitted:  "Следующего шага нет: терминальный успех подтверждён структурным evidence.",
 	OperationFailed:     "Следующий шаг: новый запуск требует новой Confirmation (контур 3-5) — авто-повтора нет.",
-	OperationUnknown:    "Следующий шаг: сверка исхода контуром сверки (3-7) — слепой повтор запрещён.",
+	OperationUnknown:    "Следующий шаг: сверка исхода командой reconcile (контур 3-7, запускает оператор — демона нет): система-владелец отвечает вердиктом, слепой повтор запрещён до доказанного no_effect.",
 }
 
 // OperationNextStepText speaks the next-step text of the state word; a

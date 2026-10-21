@@ -288,7 +288,11 @@ func (s *Service) dispatchOneJob(ctx context.Context, scope tenancy.Context, com
 		// RECORDED guarantee word of the attempt (the audit fact, never a
 		// re-read of the live declaration — the 3-3 «belt over braces»).
 		policy, err := domain.DeriveDispatchRetryPolicy(job.StateWord,
-			def.DeliveryContract.CapabilityClass, job.LastOutcomeGuarantee, job.LastAttemptNo)
+			def.DeliveryContract.CapabilityClass, job.LastOutcomeGuarantee, job.LastAttemptNo,
+			// noEffectProven: вердикт сверки 3-7 читает pending-классификация
+			// хранилища (step-02) — retryable-попытка сама по себе эффекта
+			// не доказывает, честное false шага.
+			false)
 		if err != nil {
 			return err
 		}
@@ -312,7 +316,10 @@ func (s *Service) dispatchOneJob(ctx context.Context, scope tenancy.Context, com
 			}
 		}
 		policy, err := domain.DeriveDispatchRetryPolicy(job.StateWord,
-			def.DeliveryContract.CapabilityClass, guarantee, job.LastAttemptNo)
+			def.DeliveryContract.CapabilityClass, guarantee, job.LastAttemptNo,
+			// noEffectProven: crash-resting попытка не имеет записанного
+			// вердикта сверки — unlock сверки 3-7 сюда не приходит.
+			false)
 		if err != nil {
 			return err
 		}

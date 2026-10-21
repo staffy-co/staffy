@@ -7310,8 +7310,8 @@ components:
       description: 'Словарь событий Confirmation (6 слов, append-only): consumed появляется ТОЛЬКО внутри транзакции авторизации; authorization_conflict/authorization_blocked — видимые исключения отвергнутых попыток'
     OperationLedgerKindWord:
       type: string
-      enum: [authorized, submitted, accepted, committed, failed, unknown, dispatch_blocked]
-      description: 'Словарь записей Operation Ledger (7 слов, AD-13 append-only): шесть state-bearing слов состояний + dispatch_blocked — видимая причина припарковки, НЕ state-bearing (состояние остаётся authorized)'
+      enum: [authorized, submitted, accepted, committed, failed, unknown, dispatch_blocked, reconciling]
+      description: 'Словарь записей Operation Ledger (8 слов, AD-13 append-only, 3-7 расширил): шесть state-bearing слов состояний + dispatch_blocked — видимая причина припарковки, НЕ state-bearing (состояние остаётся authorized) + reconciling — слово активности сверки 3-7, НЕ state-bearing (операция остаётся unknown при активной сверке: пара {состояние unknown, активность reconciling})'
     OperationStateWord:
       type: string
       enum: [authorized, submitted, accepted, committed, failed, unknown]

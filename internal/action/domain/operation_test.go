@@ -65,15 +65,17 @@ func ledgerFixture() []OperationLedgerEntry {
 }
 
 func TestOperationAndLedgerDictionariesByName(t *testing.T) {
-	// Словари 3-6: состояния — ровно шесть слов, ledger — ровно семь
-	// (dispatch_blocked — видимая причина припарковки, НЕ state-bearing);
+	// Словари 3-6+3-7: состояния — ровно шесть слов, ledger — ровно
+	// восемь (dispatch_blocked — видимая причина припарковки, НЕ
+	// state-bearing; reconciling 3-7 — слово активности сверки, НЕ
+	// state-bearing — операция ОСТАЁТСЯ unknown при активной сверке);
 	// вне-словарное слово структурно невозможно (константы + закрытые
 	// списки, рантайм-расширения нет).
 	wantStates := []string{"authorized", "submitted", "accepted", "committed", "failed", "unknown"}
 	if !reflect.DeepEqual(OperationStateWords, wantStates) {
 		t.Fatalf("словарь состояний Operation: %v, ожидалось ровно %v", OperationStateWords, wantStates)
 	}
-	wantLedger := []string{"authorized", "submitted", "accepted", "committed", "failed", "unknown", "dispatch_blocked"}
+	wantLedger := []string{"authorized", "submitted", "accepted", "committed", "failed", "unknown", "dispatch_blocked", "reconciling"}
 	if !reflect.DeepEqual(LedgerEntryKindWords, wantLedger) {
 		t.Fatalf("словарь записей ledger: %v, ожидалось ровно %v", LedgerEntryKindWords, wantLedger)
 	}
