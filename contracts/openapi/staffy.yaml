@@ -3614,6 +3614,24 @@ paths:
         '403': { description: 'Policy-гейт точным словом причины ДО транзакции; fail-closed nil-ридер «свежие данные владеющей системы недоступны» (AG-4); скоуп review|configuration', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
         '404': { description: 'Не-участник / мёртвые пины — ДО материала', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
         '409': { description: 'Лестница отвержений ТОЧНЫМ словом (confirmation_superseded / confirmation_revoked / confirmation_expired / confirmation_exhausted — БЕЗ потребления, видимое событие authorization_blocked); конфликт идемпотентности (тот же ключ, другой материал — событие authorization_conflict видно владельцу); изменённая Confirmation (digest разошёлся); freshness честной причиной словарём 3-4; материальное условие изменилось; лестница версий двинулась параллельным прогоном', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/operations/drain:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+    post:
+      operationId: drainOperations
+      summary: 'Дренировать очередь отправок Operations (3-6, операторная команда manage — прецедент external-commitments/drain 3-3, демона НЕТ): bounded-батч до доменного предела 100, каждое задание проходит ordered execute-time фенции (job-schema/fingerprint alarm → lease/fencing классификация → confirmation-fence {superseded, revoked, expired} БЕЗ exhausted → кейс/work_item живость → freshness словарём 3-4 → readiness → LIVE policy → материал последним); ЛЮБАЯ граница = dispatch_blocked с ТОЧНЫМ словом причины БЕЗ ложного failed externally (операция припаркована authorized); каждая рассмотренная строка отчёта говорит своим словом (FR-28); production nil-адаптер = честный отказ 403 словами AG-4 — очередь не тронута, отправок ноль'
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DrainOperationsRequest' }
+      responses:
+        '201': { description: 'Отчёт прогона существует: счётчики considered/dispatched/blocked/skipped + построчные честные слова (парковки с точными причинами, racing/replay/alarm пропуски)', content: { application/json: { schema: { type: object, required: [drain], properties: { drain: { $ref: '#/components/schemas/DispatchDrainResultView' } } } } } }
+        '400': { description: 'Строгий decode пустого тела: свободное поле = 400 — параметров drain не существует (bounded операторная команда)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'AG-4 честный отказ nil-адаптера словами («исполнение не подключено — очередь не тронута, отправок ноль»); скоуп operations словами ДО чтения очереди', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { description: 'Не-участник тенента — поверхность не раскрывается', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
 components:
   parameters:
     EmployeeID:
@@ -7292,12 +7310,12 @@ components:
       description: 'Словарь событий Confirmation (6 слов, append-only): consumed появляется ТОЛЬКО внутри транзакции авторизации; authorization_conflict/authorization_blocked — видимые исключения отвергнутых попыток'
     OperationLedgerKindWord:
       type: string
-      enum: [authorized]
-      description: 'Словарь записей Operation Ledger (1 слово среза, AD-13 append-only): 3-6 допишет dispatch-записи тем же механизмом'
+      enum: [authorized, submitted, accepted, committed, failed, unknown, dispatch_blocked]
+      description: 'Словарь записей Operation Ledger (7 слов, AD-13 append-only): шесть state-bearing слов состояний + dispatch_blocked — видимая причина припарковки, НЕ state-bearing (состояние остаётся authorized)'
     OperationStateWord:
       type: string
-      enum: [authorized, authorized/queued]
-      description: 'Произнесённое состояние Operation: словарь состояний = 1 слово (authorized), факт очереди (запись operation.queued в outbox) добавляет пару /queued; executed/failed НЕ существуют в срезе (словарь 3-6) и не выдумываются'
+      enum: [authorized, submitted, accepted, committed, failed, unknown]
+      description: 'Словарь состояний жизни Operation = 6 слов среза 3-6 (authorized/submitted/accepted/committed/failed/unknown — DeriveOperationState читает последнее state-bearing слово append-only ledger, dispatch_blocked пропускается: припарковка НЕ состояние); факт очереди говорит отдельным булевым queued на карточке (запись operation.queued в outbox — факт, не хранимое состояние; споукен-пара authorized/queued 3-5 уступила место словам жизни)'
     ConfirmationOwnerKindWord:
       type: string
       enum: [human, staffy]
@@ -7375,7 +7393,7 @@ components:
     OperationCardView:
       type: object
       additionalProperties: false
-      required: [operation_id, definition_id, definition_version, preview_id, preview_version_no, confirmation_id, confirmation_version_no, case_id, work_item_id, target_kind, target_ref, owner_kind, owner_ref, owner_epoch, release_decision_no, profile_version, partition, idempotency_key, business_intent_key, material_digest, state, state_text, external_id_absent_text, dispatch_absent_text, ledger, created_at]
+      required: [operation_id, definition_id, definition_version, preview_id, preview_version_no, confirmation_id, confirmation_version_no, case_id, work_item_id, target_kind, target_ref, owner_kind, owner_ref, owner_epoch, release_decision_no, profile_version, partition, idempotency_key, business_intent_key, material_digest, state, state_text, queued, state_at, owning_system, next_step_text, block_reason_text, external_id_absent_text, dispatch_absent_text, ledger, attempts, receipts, created_at]
       properties:
         operation_id: { type: string, format: uuid }
         definition_id: { type: string, description: 'Action type идентичности намерения' }
@@ -7398,12 +7416,25 @@ components:
         business_intent_key: { type: string, description: 'Серверная keyed-HMAC идентичность мутации (UNIQUE резервации (tenant, owning_system, business_intent_key)) — два пространства ключей невзаимозаменяемы' }
         material_digest: { type: string, minLength: 64, maxLength: 64, description: 'Keyed-HMAC отпечаток пинов запроса (preview версия + confirmation пин): биекция пары = replay, другая версия = conflict' }
         state: { $ref: '#/components/schemas/OperationStateWord' }
-        state_text: { type: string, description: 'authorized/queued словами — executed НИКОГДА не выводится (AC-11)' }
-        external_id_absent_text: { type: string, description: '«Внешний идентификатор не выдан» — колонок нет, слова не выдумываются' }
-        dispatch_absent_text: { type: string, description: '«Dispatch worker не существует» — записи outbox честно копятся pending до 3-6' }
+        state_text: { type: string, description: 'Слова жизни честным текстом (словарь 6) + факт очереди словами — executed НИКОГДА не выводится (AC-11)' }
+        queued: { type: boolean, description: 'Факт очереди: запись operation.queued существует в outbox (наличие — факт, не хранимое состояние)' }
+        state_at: { type: string, format: date-time, description: 'Момент состояния: время последней state-bearing записи ledger (dispatch_blocked не двигает)' }
+        owning_system: { type: string, description: 'Система-владелец исполнения (словарь 2-7 пиннутого определения); пусто = определение не резолвится против каталога' }
+        next_step_text: { type: string, description: 'Следующий шаг честным текстом по слову жизни (AC-13/FR-28): authorized → команда drain оператора; failed → новая Confirmation 3-5; unknown → сверка 3-7' }
+        block_reason_text: { type: string, description: 'Видимая причина остановки отправки: детали последней dispatch_blocked записи (операция остаётся authorized — припаркована с видимой причиной, НЕ ложный failed externally); пусто = блокировок не было' }
+        external_id_absent_text: { type: string, description: '«Внешний идентификатор не выдан» — до отправки не выдумывается; появляется записью dispatch-исхода' }
+        dispatch_absent_text: { type: string, description: '«Dispatch — явная команда drain: демона нет» — очередь до запуска честно копится pending' }
         ledger:
           type: array
           items: { $ref: '#/components/schemas/OperationLedgerEntryView' }
+        attempts:
+          type: array
+          description: 'Прогрессивный аудит попыток (≤3, закрытые details на странице — 320px без скролла аудита)'
+          items: { $ref: '#/components/schemas/DispatchAttemptView' }
+        receipts:
+          type: array
+          description: 'Версии Action Receipt (append-only, v1 неприкосновенна — позднее evidence 3-7 допишет v2+)'
+          items: { $ref: '#/components/schemas/ActionReceiptView' }
         created_at: { type: string, format: date-time }
     AuthorizationOutcome:
       type: object
@@ -7429,6 +7460,73 @@ components:
         operations:
           type: array
           items: { $ref: '#/components/schemas/OperationCardView' }
+    DrainOperationsRequest:
+      type: object
+      additionalProperties: false
+      description: 'Тело команды drain — ровно один ПУСТОЙ объект: параметров не существует (bounded операторная команда домена); свободное поле = 400 строгим decode'
+    DispatchReportLineView:
+      type: object
+      additionalProperties: false
+      required: [operation_id, attempt_no, text]
+      properties:
+        operation_id: { type: string, format: uuid }
+        attempt_no: { type: integer, minimum: 1, maximum: 3, description: 'Номер попытки строки (0 — задание без попыток: фенция ДО lease)' }
+        text: { type: string, description: 'Честные слова строки: точная причина парковки / пропуска / вердикта (FR-28)' }
+    DispatchDrainResultView:
+      type: object
+      additionalProperties: false
+      required: [command, considered, dispatched, blocked, skipped, reports]
+      properties:
+        command: { type: string, description: 'dispatch_queued_operations — имя явной команды (демона нет)' }
+        considered: { type: integer, minimum: 0, description: 'Рассмотрено заданий bounded-батча (доменный предел 100)' }
+        dispatched: { type: integer, minimum: 0, description: 'Отправлено с записанным вердиктом' }
+        blocked: { type: integer, minimum: 0, description: 'Припарковано на фенции (dispatch_blocked с точным словом причины)' }
+        skipped: { type: integer, minimum: 0, description: 'Честные пропуски (racing/replay/alarm)' }
+        reports:
+          type: array
+          description: 'Построчный отчёт каждого рассмотренного задания — слова, не молчание'
+          items: { $ref: '#/components/schemas/DispatchReportLineView' }
+    DispatchAttemptView:
+      type: object
+      additionalProperties: false
+      required: [attempt_no, lease_created_at, lease_expires_at, request_digest, outcome_recorded, outcome_text, correlation_id, guarantee_recorded]
+      description: 'Одна попытка отправки: write-ahead факты lease (право и момент закреплены ДО сетевого вызова), keyed digest (redacted след — сырой payload нигде), слово исхода адаптера КОГДА записано (словарь 4) и слово resting-состояния когда нет'
+      properties:
+        attempt_no: { type: integer, minimum: 1, maximum: 3, description: 'Монотонный fencing-токен (предел 3 — bounded)' }
+        lease_created_at: { type: string, format: date-time, description: 'Write-ahead: право и момент отправки закреплены до вызова' }
+        lease_expires_at: { type: string, format: date-time, description: 'Окно lease: timeout определения + grace' }
+        request_digest: { type: string, minLength: 64, maxLength: 64, description: 'Keyed-HMAC след материала (dispatch_request:v1:) — сверка повтора по следу, сырой payload НИКОГДА' }
+        outcome:
+          description: 'Честное слово исхода адаптера (словарь 4); отсутствует = исход не записан (write-ahead resting-состояние)'
+          oneOf:
+            - type: string
+              enum: [accepted, committed, failed, timeout]
+        outcome_recorded: { type: boolean, description: 'false = write-ahead resting-состояние краха: ответ не попал в историю, истёкшая lease покажет восстановление' }
+        outcome_text: { type: string, description: 'Честный текст исхода / resting-состояния (тексты домена)' }
+        correlation_id: { type: string, description: 'Корреляция провайдера; пусто = не выдана' }
+        guarantee_recorded: { type: boolean, description: 'Записанная гарантия провайдера (факт аудита — вход политики повтора, никогда живое перечитывание)' }
+        outcome_recorded_at: { type: string, format: date-time, description: 'Момент записи исхода (отсутствует = не записан)' }
+    ActionReceiptView:
+      type: object
+      additionalProperties: false
+      required: [receipt_version_no, outcome, outcome_text, case_id, work_item_id, preview_id, preview_version_no, confirmation_id, confirmation_version_no, definition_id, definition_version, external_object_id, external_object_version, details, created_at]
+      description: 'Одна версия Action Receipt (FR-31): readback идентификаторов — решение восстанавливается БЕЗ чтения диалога; SAFE-пины и слова, чувствительный материал НИКОГДА не дублируется'
+      properties:
+        receipt_version_no: { type: integer, minimum: 1, description: 'Append-only версия (v1 создаётся первым решающим исходом; позднее evidence 3-7 допишет v2+ — v1 неприкосновенна)' }
+        outcome: { type: string, enum: [committed, failed, unknown], description: 'Словарь исходов квитанции (3): accepted квитанции не несёт — итога ещё нет' }
+        outcome_text: { type: string, description: 'Честный текст исхода квитанции (тексты домена)' }
+        case_id: { type: string, format: uuid }
+        work_item_id: { type: string, format: uuid }
+        preview_id: { type: string, format: uuid }
+        preview_version_no: { type: integer, minimum: 1 }
+        confirmation_id: { type: string, format: uuid }
+        confirmation_version_no: { type: integer, minimum: 1 }
+        definition_id: { type: string }
+        definition_version: { type: string }
+        external_object_id: { type: string, description: 'Идентификатор внешнего объекта (только committed несёт тройку); пусто = не выдан' }
+        external_object_version: { type: string, description: 'Версия внешнего объекта; пусто = не выдана' }
+        details: { type: string, description: 'Safe-details ≤500 рун — идентификаторы и слова, материал НИКОГДА' }
+        created_at: { type: string, format: date-time }
   responses:
     Problem:
       description: Безопасная ошибка

@@ -4,7 +4,12 @@ test('knowledge row previews versions, stale and conflict at 320px with keyboard
   const page = await browser.newPage({ viewport: { width: 320, height: 800 } });
   await page.goto('/app/tenants/01994f64-6c00-7000-8000-000000000002/employees');
   await page.getByRole('button', { name: 'Создать ИИ-сотрудника' }).click();
-  if (!(await page.getByRole('heading', { name: 'Источники знаний' }).isVisible())) {
+  // The shared fixture world may carry a pinned pack AND a draft mid-settle:
+  // the heading races the page render, so the guard WAITS for it briefly and
+  // pins only when the pin button itself is present (the pinned world never
+  // renders the button — the heading is the truth, the button is the need).
+  const knowledgeHeading = page.getByRole('heading', { name: 'Источники знаний' });
+  if (!(await knowledgeHeading.waitFor({ state: 'visible', timeout: 5000 }).then(() => true, () => false))) {
     await page.getByLabel('Пакет и версия').selectOption('auto-parts@1.0.0');
     await page.locator('.pack-variants:not([hidden])').getByLabel('Интерес к деталям').selectOption('both');
     await page.getByRole('button', { name: 'Закрепить пакет для настройки' }).click();
@@ -73,10 +78,14 @@ test('synthetic source visibly moves from processing to non-publishable preview'
   const page = await browser.newPage({ viewport: { width: 320, height: 800 } });
   await page.goto('/app/tenants/01994f64-6c00-7000-8000-000000000002/employees');
   await page.getByRole('button', { name: 'Создать ИИ-сотрудника' }).click();
-  if (!(await page.getByRole('heading', { name: 'Источники знаний' }).isVisible())) {
+  // The same settling guard as the first row: the pinned world answers the
+  // heading (never the pin button) — the wait kills the render race.
+  const knowledgeHeading2 = page.getByRole('heading', { name: 'Источники знаний' });
+  if (!(await knowledgeHeading2.waitFor({ state: 'visible', timeout: 5000 }).then(() => true, () => false))) {
     await page.getByLabel('Пакет и версия').selectOption('auto-parts@1.0.0');
     await page.locator('.pack-variants:not([hidden])').getByLabel('Интерес к деталям').selectOption('both');
     await page.getByRole('button', { name: 'Закрепить пакет для настройки' }).click();
+    await expect(knowledgeHeading2).toBeVisible();
   }
   await page.getByRole('button', { name: 'Добавить тестовый источник' }).click();
   const row = page.locator('.knowledge-row').filter({ hasText: 'Тестовый документ' });

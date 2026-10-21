@@ -102,9 +102,12 @@ type OperationLedgerEntryView struct {
 // pins (definition, preview, confirmation, case, work item, target, owner
 // triple, release snapshot), the two key identities (the client
 // idempotency reference and the server business intent), the derived
-// state word (authorized/queued — executed NEVER exists here, AC-11),
-// the append-only ledger and the fixed honest texts of the slice
-// boundaries.
+// life state word of the six-word dictionary (3-6 step-03: the queue is
+// the structured FACT, the spoken pair-word of 3-5 matured into the life
+// words), the append-only ledger, the dispatch view extension (the state
+// moment, the Owning System, the next step, the visible block cause, the
+// progressive attempts, the Action Receipt versions) and the fixed honest
+// texts of the slice boundaries.
 type OperationCardView struct {
 	OperationID           id.UUID                    `json:"operation_id"`
 	DefinitionID          string                     `json:"definition_id"`
@@ -128,9 +131,16 @@ type OperationCardView struct {
 	MaterialDigest        string                     `json:"material_digest"`
 	State                 string                     `json:"state"`
 	StateText             string                     `json:"state_text"`
+	Queued                bool                       `json:"queued"`
+	StateAt               time.Time                  `json:"state_at"`
+	OwningSystem          string                     `json:"owning_system"`
+	NextStepText          string                     `json:"next_step_text"`
+	BlockReasonText       string                     `json:"block_reason_text"`
 	ExternalIDAbsentText  string                     `json:"external_id_absent_text"`
 	DispatchAbsentText    string                     `json:"dispatch_absent_text"`
 	Ledger                []OperationLedgerEntryView `json:"ledger"`
+	Attempts              []DispatchAttemptView      `json:"attempts"`
+	Receipts              []ActionReceiptView        `json:"receipts"`
 	CreatedAt             time.Time                  `json:"created_at"`
 }
 

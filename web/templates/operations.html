@@ -5,6 +5,16 @@
 <h1>Operation Review — подтверждение и авторизация действия</h1>
 {{if .Notice}}<p class="status" role="status" tabindex="-1" id="page-notice">{{.Notice}}</p><script>addEventListener('DOMContentLoaded', () => document.getElementById('page-notice').focus());</script>{{end}}
 {{if .Flash}}<p class="alert" role="alert">{{.Flash}}</p>{{end}}
+{{if .HasDrain}}
+<details><summary>Запустить дренаж очереди отправок (операторная команда тенента)</summary>
+<form method="post" action="/app/tenants/{{.TenantID}}/operations/drain">
+<input type="hidden" name="case_id" value="{{.CaseID}}">
+<label><input type="checkbox" name="confirm_drain" value="yes" required> Подтверждаю запуск: дренаж обрабатывает очередь ОДНОГО ТЕНАНТА (все кейсы) до доменного предела батча, каждое задание проходит execute-time фенции по порядку</label>
+<p class="next-note">Dispatch — явная команда (демона нет): фонового планировщика не существует, очередь честно копится pending до этого запуска. Границы говорят точными словами причин: припаркованные операции остаются authorized с видимой причиной, ложного failed externally не бывает. В продакшене без подключённого провайдера команда честно отказывает (AG-4).</p>
+<button class="primary" type="submit">Дренировать очередь</button>
+</form>
+</details>
+{{end}}
 <h2 id="confirm-heading">Подтвердить точную версию preview (согласие человека)</h2>
 <form method="post" action="/app/tenants/{{.TenantID}}/cases/{{.CaseID}}/operations/confirmations">
 <label for="confirm_preview_id">Preview (UUID)</label>
@@ -68,7 +78,12 @@
 <span><strong>Цель:</strong> {{.TargetText}}</span>
 <span><strong>Владелец:</strong> {{.OwnerText}}</span>
 <span><strong>Разграничение:</strong> {{.PartitionText}}</span>
-<span><strong>Состояние:</strong> {{.State}} — {{.StateText}}</span>
+<span><strong>Состояние жизни:</strong> {{.State}} — {{.StateText}}</span>
+<span>{{.QueuedText}}</span>
+{{if .OwningSystemText}}<span><strong>Owning System:</strong> {{.OwningSystemText}}</span>{{end}}
+{{if .StateAtText}}<span><strong>Момент состояния:</strong> {{.StateAtText}}</span>{{end}}
+<span><strong>Следующий шаг:</strong> {{.NextStepText}}</span>
+{{if .BlockReasonText}}<span class="alert" role="alert"><strong>Причина остановки отправки:</strong> {{.BlockReasonText}}</span>{{end}}
 <span><strong>Idempotency key (клиентское слово):</strong> {{.IdempotencyKey}}</span>
 <span><strong>Business intent key (серверная идентичность мутации):</strong> {{.BusinessIntentKey}}</span>
 <span><strong>Материальный digest пина запроса:</strong> {{.MaterialDigest}}</span>
@@ -77,6 +92,20 @@
 <details open><summary>Operation Ledger (append-only)</summary>
 <ul>
 {{range .Ledger}}<li>№{{.No}} {{.Kind}} — {{.Details}} — {{.At}}</li>{{end}}
+</ul>
+</details>
+{{end}}
+{{if .HasAttempts}}
+<details><summary>Попытки отправки (прогрессивный аудит, закрыто по умолчанию)</summary>
+<ul>
+{{range .Attempts}}<li>Попытка {{.No}}: право и момент отправки закреплены {{.LeaseAt}} (окно lease до {{.LeaseExpires}}) — keyed digest {{.RequestDigest}} — исход{{if .Outcome}} {{.Outcome}}{{else}} не записан{{end}}: {{.OutcomeText}}{{if .OutcomeAt}} — записан {{.OutcomeAt}}{{end}} — {{.CorrelationText}} — {{.GuaranteeText}}</li>{{end}}
+</ul>
+</details>
+{{end}}
+{{if .HasReceipts}}
+<details open><summary>Карточка Action Receipt (квитанция — readback идентификаторов)</summary>
+<ul>
+{{range .Receipts}}<li>Версия квитанции {{.VersionNo}} — исход {{.Outcome}} — {{.OutcomeText}}<br>Кейс {{.CaseID}} · рабочий элемент {{.WorkItemID}} · пин preview {{.PreviewPinText}} · пин Confirmation {{.ConfirmationPinText}} · определение {{.DefinitionText}}<br>{{.ExternalObjectText}}{{if .Details}}<br>{{.Details}}{{end}} — {{.CreatedAt}}</li>{{end}}
 </ul>
 </details>
 {{end}}

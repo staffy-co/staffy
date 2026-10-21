@@ -201,8 +201,8 @@ func TestOperationReservationMatrixRowsBySpec(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if authorized.Replay || authorized.ReservationReference || authorized.Operation.State != "authorized/queued" {
-			t.Fatalf("the first authorization is the creating outcome with the queued word, got %+v", authorized)
+		if authorized.Replay || authorized.ReservationReference || authorized.Operation.State != actionDomain.OperationAuthorized || !authorized.Operation.Queued {
+			t.Fatalf("the first authorization is the creating outcome with the life word and the queued fact, got %+v", authorized)
 		}
 		if authorized.Operation.ConfirmationID != confirmed.ConfirmationID || authorized.Operation.IdempotencyKey != "op-live-key-1" || len(authorized.Operation.Ledger) != 1 {
 			t.Fatalf("the immutable operation pins the consent, the client key and the one ledger entry, got %+v", authorized.Operation)
@@ -240,8 +240,8 @@ func TestOperationReservationMatrixRowsBySpec(t *testing.T) {
 		if stateText != actionDomain.ConfirmationExhausted || !strings.Contains(consumptionText, "Потреблено 1 из 1") {
 			t.Fatalf("the consumed single_use consent honestly reads exhausted with the one consumed unit, got state=%s consumption=%q", stateText, consumptionText)
 		}
-		if len(view.Operations) != 1 || view.Operations[0].State != "authorized/queued" {
-			t.Fatalf("exactly one operation card speaks authorized/queued, got %+v", view.Operations)
+		if len(view.Operations) != 1 || view.Operations[0].State != actionDomain.OperationAuthorized || !view.Operations[0].Queued {
+			t.Fatalf("exactly one operation card speaks the authorized life word with the queued fact, got %+v", view.Operations)
 		}
 		if view.Operations[0].ExternalIDAbsentText != actionDomain.OperationExternalIDAbsentText ||
 			view.Operations[0].DispatchAbsentText != actionDomain.OperationDispatchAbsentText {

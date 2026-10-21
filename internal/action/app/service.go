@@ -62,6 +62,17 @@ type Service struct {
 	// wiring — «3-5 читает тот же вывод»).
 	confirmations port.ConfirmationRepository
 	operations    port.OperationRepository
+
+	// Story 3.6 (step-02): the execution contour — the dispatch worker.
+	// The dispatch repository owns the THREE adapter-free transactions
+	// (the write-ahead lease, the fenced verdict, the raced-guarded
+	// parking); the mutation adapter is the consumer-owned door to the
+	// provider world — nil is the HONEST production state (AG-4: no
+	// real providers exist, the drain refuses in words, the queue
+	// honestly stays pending). The adapter is called ONLY outside every
+	// store transaction (persist-before-emit, AD-6).
+	dispatches      port.DispatchRepository
+	dispatchAdapter port.MutationAdapter
 }
 
 // New wires the service. The resolvers are the composition-root adapters
@@ -124,6 +135,19 @@ func (s *Service) WithPreviewDryRunner(runner port.DryRunner) *Service {
 func (s *Service) WithAuthorization(consents port.ConfirmationRepository, ops port.OperationRepository) *Service {
 	s.confirmations = consents
 	s.operations = ops
+	return s
+}
+
+// WithDispatch wires the execution contour of story 3.6 (the fixture and
+// the transport composition roots): the dispatch repository and the
+// mutation adapter. The adapter may stay nil — the HONEST production
+// state (AG-4: no real providers exist; the drain command refuses in
+// words, the queue honestly stays pending; the synthetic adapter of the
+// test contour is importable ONLY by the composition roots, never by the
+// product binary — the import-graph probe of step-04).
+func (s *Service) WithDispatch(dispatches port.DispatchRepository, adapter port.MutationAdapter) *Service {
+	s.dispatches = dispatches
+	s.dispatchAdapter = adapter
 	return s
 }
 

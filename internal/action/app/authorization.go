@@ -775,10 +775,16 @@ func (s *Service) AuthorizeOperation(ctx context.Context, command api.AuthorizeO
 }
 
 // operationCard renders the full card of one immutable operation: the
-// live state derivation over the append-only ledger, the queue FACT over
-// the outbox presence (the spoken word derives — nothing is stored) and
-// the fixed honest texts of the slice boundaries (the external outcome
-// and the dispatch worker are structurally absent — AC-11).
+// live life-state derivation over the append-only ledger (the six-word
+// dictionary — 3-6 step-03: the queue is the structured FACT, the spoken
+// pair-word of 3-5 matured into the life words), the state moment (the
+// time of the last state-bearing entry), the Owning System word of the
+// pinned definition, the honest next-step text, the visible block cause
+// (the latest dispatch_blocked entry — the operation stays authorized,
+// parked with a visible cause) and the dispatch view extension (the
+// progressive attempts and the Action Receipt versions — SAFE reads of
+// the execution contour's own append-only tables; the unwired contour
+// renders the honest empty lists).
 func (s *Service) operationCard(ctx context.Context, scope tenancy.Context, op domain.Operation) (api.OperationCardView, error) {
 	ledger, err := s.operations.ReadOperationLedger(ctx, scope, op.OperationID)
 	if err != nil {
@@ -788,9 +794,43 @@ func (s *Service) operationCard(ctx context.Context, scope tenancy.Context, op d
 	if err != nil {
 		return api.OperationCardView{}, err
 	}
-	spoken, err := domain.DeriveOperationViewWord(ledger, queued)
+	state, err := domain.DeriveOperationState(ledger)
 	if err != nil {
 		return api.OperationCardView{}, err
+	}
+	// The state moment (AC-13): the time of the LAST state-bearing
+	// entry — when the life word landed; the dispatch_blocked entries
+	// park visibly WITHOUT moving the state or its moment.
+	stateAt := op.CreatedAt
+	blockReason := ""
+	for _, entry := range ledger {
+		if entry.Kind == domain.LedgerEntryDispatchBlocked {
+			blockReason = entry.Details
+			continue
+		}
+		stateAt = entry.At
+	}
+	// The Owning System of the execution (AC-13): the 2-7 dictionary
+	// word of the pinned definition — the system that owns the mutation;
+	// an unresolvable pin keeps the honest empty word (the definition
+	// pins stay on the card for the operator).
+	owningSystem := ""
+	if def, ok := catalogDefinition(s, op.DefinitionID, op.DefinitionVersion); ok {
+		owningSystem = def.OwningSystem
+	}
+	attempts := []api.DispatchAttemptView{}
+	receipts := []api.ActionReceiptView{}
+	if s.dispatches != nil {
+		attemptRows, err := s.dispatches.ReadDispatchAttempts(ctx, scope, op.OperationID)
+		if err != nil {
+			return api.OperationCardView{}, err
+		}
+		attempts = dispatchAttemptViews(attemptRows)
+		receiptRows, err := s.dispatches.ReadActionReceipts(ctx, scope, op.OperationID)
+		if err != nil {
+			return api.OperationCardView{}, err
+		}
+		receipts = actionReceiptViews(receiptRows)
 	}
 	card := api.OperationCardView{
 		OperationID:           op.OperationID,
@@ -813,15 +853,34 @@ func (s *Service) operationCard(ctx context.Context, scope tenancy.Context, op d
 		IdempotencyKey:        op.IdempotencyKey,
 		BusinessIntentKey:     op.BusinessIntentKey,
 		MaterialDigest:        op.MaterialDigest,
-		State:                 spoken,
+		State:                 state,
 		StateText:             domain.OperationAuthorizedText,
+		Queued:                queued,
+		StateAt:               stateAt,
+		OwningSystem:          owningSystem,
+		NextStepText:          domain.OperationNextStepText(state),
+		BlockReasonText:       blockReason,
 		ExternalIDAbsentText:  domain.OperationExternalIDAbsentText,
 		DispatchAbsentText:    domain.OperationDispatchAbsentText,
 		Ledger:                []api.OperationLedgerEntryView{},
+		Attempts:              attempts,
+		Receipts:              receipts,
 		CreatedAt:             op.CreatedAt,
 	}
-	if queued {
+	if queued && state == domain.OperationAuthorized {
 		card.StateText = domain.OperationAuthorizedText + " " + domain.OperationQueuedText
+	}
+	switch state {
+	case domain.OperationSubmitted:
+		card.StateText = domain.OperationSubmittedText
+	case domain.OperationAccepted:
+		card.StateText = domain.OperationAcceptedText
+	case domain.OperationCommitted:
+		card.StateText = domain.OperationCommittedText
+	case domain.OperationFailed:
+		card.StateText = domain.OperationFailedText
+	case domain.OperationUnknown:
+		card.StateText = domain.OperationUnknownText
 	}
 	for _, entry := range ledger {
 		card.Ledger = append(card.Ledger, api.OperationLedgerEntryView{

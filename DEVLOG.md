@@ -545,7 +545,7 @@ done:
 - sprint-status.yaml: 1-13-утверждение-operating-profile-и-правил-измерения → ready-for-dev, last_updated 10-08-2026 (синхронность check-continuity соблюдена)
 - Коммит на ветке codex/story-1-13-operating-profile [skip ci]
 next: Dev step-03 — реализация Code Map по спеке: internal/employee/domain/profile.go (модель, словари, деривации, digest, валидация) + юнит-тесты, миграция 00011, port/app/store/api (порты участников и манифеста, UpdateDraft/ApproveProfile/DecideThreshold), transport+OpenAPI+шаблон operating-profile.html, privacy-класс, integration+journeys; полный регресс; затем DEVLOG dev-запись, push, PR, CHECKPOINT 2
-commit: TBD
+commit: b63f007
 
 ---
 date: 2026-10-08
@@ -642,7 +642,7 @@ done:
 - sprint-status.yaml: 1-14-readiness-проверка-и-контролируемая-публикация → ready-for-dev (синхронность check-continuity соблюдена)
 - Токен сессии утрачен вместе с env (не переживает границы вызовов инструментов, урок Task 16); коммит локальный [skip ci], push отложен — весь пакет ветки (checkpoint + dev + review-фиксы) будет запушен одним батчем после выдачи токена владельцем (прецедент 1-13: bd5b866..b2c43b5)
 next: Dev step-03 — bootstrap в foreground (Go 1.27.1 установлен, PG распаковать из third_party), затем реализация среза по спеке: домен readiness/gates/publication, миграция 00012, port/app/store/api, transport+OpenAPI+панель, тесты (unit/integration/journey/wire), полный регресс
-commit: TBD
+commit: b63f007
 
 ---
 date: 2026-10-08
@@ -663,7 +663,7 @@ decisions:
 - Privacy-класс release-admission: employee.gate_instances + employee.release_admissions (таблицы миграции), словарь 18
 - Commit предыдущей сессии (4efd497 CHECKPOINT 1) остаётся локальным; push всего пакета ветки одним батчем после STAFFY_GH_TOKEN (прецедент 1-13)
 next: review R1 (субагент) по спеке и коду → фиксы → R2 → спека/sprint-status → done → push → PR → CI → merge
-commit: TBD
+commit: b63f007
 
 ---
 date: 2026-10-08
@@ -685,7 +685,7 @@ decisions:
 - Порядок gate-проверок публикации: лестница → готовность → вставка; repeat-конфликт срабатывает даже если кандидат не готов (ровно одна запись — свойство истории, не готовности)
 - Красивый побочный эффект M2: сообщения об отказе честно называют стадию И решение №N кандидата (спека edge-case 47: «сообщение называет требуемую предыдущую стадию и её статус»)
 next: review R2 (субагент) — подтверждение закрытия M1/M2/M3 и отсутствия новых рисков
-commit: TBD
+commit: b63f007
 
 ---
 date: 2026-10-08
@@ -773,7 +773,7 @@ done:
 - sprint-status.yaml: 2-1 → ready-for-dev (синхронность check-continuity); epic-2 → in-progress; last_updated 10-09-2026
 - Токен сессии не переживает границы вызовов инструментов (урок 41-merge подтверждён повторно); коммит локальный [skip ci], push отложен — весь пакет ветки (checkpoint + dev + review-фиксы) будет запушен одним батчем после выдачи токена владельцем (прецедент 1-13/1-14)
 next: Dev step-03 — bootstrap в foreground, затем реализация среза по спеке: домен cases (модель события, словари, лестница адмиссии, идемпотентная семантика), миграция 00001, port/app/store/api, расширения employee/api (RouteFacts) и connector/api (ConnectionFactsByID), ingresssyn-адаптер, transport+OpenAPI+Cases UI, privacy-классы, тесты (unit/integration/journey/wire), полный регресс
-commit: TBD
+commit: b63f007
 
 ---
 date: 2026-10-09
@@ -802,7 +802,7 @@ decisions:
 - Карантинные записи видны в таймлайне кейса (state «Карантин») + отдельная панель исключений — оператор видит конфликт в контексте; ingress_rejections не содержат payload по построению
 - Спорные минуты форматирования: blanket gofmt вне story-файлов откачен (35+8 файлов), содержательные правки пере применены в исходной стилистике; правило retro-1-5 соблюдено
 next: review R1 (субагент) по спеке и коду → фиксы → R2 → спека/sprint-status → done → CHECKPOINT 2 (токен → push → PR → CI → merge)
-commit: TBD
+commit: b63f007
 
 ---
 date: 2026-10-09
@@ -824,7 +824,7 @@ decisions:
 - Untrusted-отказы ограничены, а не запрещены: матрица явно требует строку unknown_connection — напряжение клозул решено ограничением + честной записью в deferred-work (владелец решит судьбу тенант-нейтральной зоны)
 - In-flight-счётчик остаётся юнит-покрытым: интеграционный мир из 1000+ событий в окне — искусственная нагрузка без доказательной ценности; словарь фиксирован, логика чистая
 next: review R2 (субагент) — верификация фиксов R1 → при PASS спека/sprint-status → done → CHECKPOINT 2 владельцу (токен → push → PR → CI → merge)
-commit: TBD
+commit: b63f007
 
 ---
 date: 2026-10-09
@@ -845,7 +845,7 @@ decisions:
 - Provider-клеймо события остаётся свободным текстом (верификатор проверяет connection, не строку провайдера) — это делает N1-сценарий представимым и честно документировано: реальная дисциплина sender-identity — с провайдерскими адаптерами (AG-4, deferred-work)
 - Прогон тестов субагентом не состоялся из-за сбоя его инструментов — не блокирует: регресс прогнан main дважды (до R3 и после фиксов), R3 верифицировал код построчно
 next: спека/sprint-status → done; DEVLOG 43-close; CHECKPOINT 2 владельцу — STAFFY_GH_TOKEN → push ветки (5 коммитов: checkpoint+feat+fix R1+fix R2/R3+docs) → PR → CI (verify) → merge (merge_method=merge) → Epic 2 story 2-1 влита
-commit: TBD
+commit: b63f007
 
 ---
 date: 2026-10-09
@@ -914,7 +914,7 @@ done:
 - sprint-status.yaml: 2-2 → ready-for-dev (синхронность check-continuity); epic-2 in-progress; last_updated 10-09-2026
 - Коммит [skip ci] на ветке codex/story-2-2-work-items-facts (четвёртый: 8864c05 spec, fd0ec40 канон-хеш, b6814ab фикс-ап, checkpoint)
 next: Dev step-03 — bootstrap в foreground (окружение могло сброситься); push отложен до STAFFY_GH_TOKEN (батч-прецедент 1-13/1-14/2-1: helper существует, но токен в нём истёк — remote: Invalid username or token), затем реализация среза по спеке: домен cases (WI-версии, лестница состояний, taxonomy-пин, факты/provenance/конфликты/подтверждения), миграция 00002 (DROP work_items.state), port/app/store/api (10 идемпотентных команд, optimistic concurrency), employee фасад PackID/PackVersion/PackJourneys, расширение IngestEvent (пин+version 1+линк), транспорт+OpenAPI+Work Control Card, privacy-классы, тесты (unit/integration ×2 TZ/journey/wire); регресс 2-1 зелёный обязателен (15 cases-тестов)
-commit: TBD
+commit: b63f007
 ---
 date: 2026-10-09
 task: 44-dev
@@ -940,7 +940,7 @@ decisions:
 - Формы WCC: детерминированные idempotency-ключи из материала формы — двойной сабмит = replay, изменённый материал = новая команда под версионными стражами
 - work_items.state удалён миграцией: единственный носитель состояния — версии; чтение JOIN LATERAL максимальной версии (тип/название — последняя non-null строка)
 next: review R1 (субагент, свежий контекст) → фиксы → R2 → закрытие story → CHECKPOINT 2 владельцу (STAFFY_GH_TOKEN → батч-push → PR → CI → merge)
-commit: TBD
+commit: b63f007
 ---
 date: 2026-10-09
 task: 44-review
@@ -991,7 +991,7 @@ decisions:
 - Цикл ревью 2-2 = 3 итерации (2-1 также 3): R1 находит классы гонок/дисциплины, R2 — классы, внесённые самими фиксами (экспоненты jsonb, переформат), R3 — вердикт; конкурентные тесты теперь часть обязательного регресса
 - Урок инструмента записи: правки конвертируют табы→пробелы → gofmt -w после каждой серии правок (иначе однофайловый N2 повторяется)
 next: CHECKPOINT 2 владельцу — STAFFY_GH_TOKEN → батч-push 5 коммитов → PR через GitHub API → CI verify → merge (merge_method=merge) → DEVLOG 44-merge → Epic 2: 2/16 done
-commit: TBD
+commit: b63f007
 ---
 date: 2026-10-09
 task: 44-merge
@@ -1031,7 +1031,7 @@ decisions:
 - Оператор — инструмент проверки в срезе (issuer): синтетический адаптер verificationsyn валидирует eligibility и пропускает provider-код наблюдения; реальные верификаторы (AG-4) подставят код без изменения домена
 next: CHECKPOINT 1 владельцу — одобрение спеки первого среза 2-3 (после «одобряю»: спека+sprint-status → ready-for-dev, Dev step-03); токен для push не выдан этой сессии — оба коммита локальны
 unpushed: 2
-commit: TBD
+commit: b63f007
 ---
 date: 2026-10-09
 task: 45-checkpoint-1
@@ -1044,7 +1044,7 @@ done:
 - Коммит CHECKPOINT 1 на ветке codex/story-2-3-identity-verification [skip ci] (маркер лёгок: head перед PR будет без маркера — урок 2-2)
 next: Dev (step-03) — реализация первого среза 2-3 по спеке на ветке codex/story-2-3-identity-verification; затем review R1 свежим контекстом
 unpushed: 3
-commit: TBD
+commit: b63f007
 ---
 date: 2026-10-10
 task: 46-dev
@@ -1065,7 +1065,7 @@ decisions:
 - фикстура: factAnchors ключ кейс|ключ (дисциплина стора UNIQUE per case) — сломало 2-2 journey (ключ утёк в MaterialKey), исправлено стрипом префикса в FactsView
 next: review R1 (субагент, свежий контекст) — верификация спеки против diff baseline 82db159..HEAD
 unpushed: 4
-commit: TBD
+commit: b63f007
 ---
 date: 2026-10-10
 task: 46-review
@@ -1083,7 +1083,7 @@ decisions:
 - маска ревью-карточки — свойство СОВПАВШЕГО значения (версия, чей keyed-HMAC равен токену кандидата): поздняя перезапись факта не меняет материал ревью
 next: review R2 (субагент, свежий контекст) — верификация фиксов R1
 unpushed: 5
-commit: TBD
+commit: b63f007
 ---
 date: 2026-10-10
 task: 46-review-2
@@ -1100,7 +1100,7 @@ decisions:
 - Фикстура обязана зеркалить стор без «удобных» дефолтов — молчаливая подстановка маскировала дефект (урок R2)
 next: review R3 (субагент, свежий контекст) — вердикт по закрытию среза
 unpushed: 6
-commit: TBD
+commit: b63f007
 ---
 date: 2026-10-10
 task: 46-close
@@ -1118,7 +1118,7 @@ decisions:
 - Спор/уточнения Change Log фиксируются как loop-записи без правки замороженных секций (прецедент)
 next: CHECKPOINT 2 владельцу — STAFFY_GH_TOKEN → подготовить head без [skip ci] → батч-пуш 5 коммитов ветки + 3 main (docs) → PR через GitHub API → CI verify → merge → DEVLOG 46-merge; далее story 2-4 «Единственный response-owner и записывающий inbox»
 unpushed: 7
-commit: TBD
+commit: b63f007
 ---
 date: 2026-10-10
 task: 46-merge
@@ -1436,7 +1436,7 @@ done:
 - Коммит CHECKPOINT 1 на ветке codex/story-2-6-progressive-intake-policy-outcome: 30a9518 [skip ci] (дифф байт-в-байт прецеденту: 3+/2- в тех же 2 файлах)
 - Топология ветки: e8e2742 (SM-спека [skip ci]) → 30a9518 (CHECKPOINT 1 [skip ci]); main: 32a3b03 → эта запись
 next: Dev (step-03) — реализация первого среза 2-6 по спеке: domain policy.go (словари схем/интентов/классов, ComputeFactsDigest/DecisionDigest, EvaluatePolicy с дедупом, Guard-ы, ReplyPolicyError), миграция 00006 (ai_proposals + policy_outcomes RLS append-only, client_replies.policy_outcome_id, +2 команды, +2 события), wiring port/app/store/api (submit_ai_proposal + evaluate_policy + гейт политики в send_client_reply ПОСЛЕ раскрытия), транспорт/панель Progressive Intake/OpenAPI, интеграционные cases_policy_test.go + journeys policy-цепь + механические расширения продажных 2-5; затем review R1 свежим контекстом
-commit: TBD
+commit: b63f007
 date: 2026-10-11
 task: 49-dev
 role: main (Super Z)
@@ -1457,7 +1457,7 @@ decisions:
 - Исход № не возвращается в WorkOutcome команды (прецедент DisclosureNo 2-5): номер — производная чтения вью, дайджесты и история — источник правды
 - Хелпер policyConfirmedFactsTx в сторе + policyReadFactsSnapshot в app — зеркальные деривации одного словаря домена (ConfirmedFactView)
 next: review R1 свежим контекстом (субагент) — верификация спеки против diff baseline 30a9518..HEAD, живые пробы в независимой копии
-commit: TBD
+commit: b63f007
 date: 2026-10-11
 task: 49-review-r1
 role: main (Super Z)
@@ -1472,7 +1472,7 @@ decisions:
 - m6 решён записью интерпретации (не сужением): план вопросов = правило-таблица ∪ mandatory ∪ readback — иначе «readback остаётся» пуст для ключей вне правило∪mandatory, а матрица прямо говорит «readback → вопрос ОСТАЁТСЯ»
 - Асимметрия UUID-парсинга не правится в этом срезе (косметика, guard честен в обоих случаях — поле обязательно) — в deferred-work не внесена (ниже порога)
 next: review R2 (субагент, свежий контекст) — верификация фиксов R1 и подлинность покрытия
-commit: TBD
+commit: b63f007
 date: 2026-10-11
 task: 49-review-r2
 role: main (Super Z)
@@ -1490,7 +1490,7 @@ done:
 decisions:
 - Цикл review = 2 итерации (R1 PASS с 6 минорами → фиксы 3f4159f → R2 PASS без новых): R3 не требуется — R2 уже выполнил живые пробы и полный независимый регресс (прецедент цикла 2-2: количество итераций следует находкам)
 next: closure среза (спека+sprint-status → done, closure-коммит без [skip ci]) → CHECKPOINT 2 (PR + CI + merge)
-commit: TBD
+commit: b63f007
 ---
 date: 2026-10-12
 task: 49-merge
@@ -1587,7 +1587,7 @@ done:
 - Коммиты среза на ветке: 67ec5f0 (спека) → df0ffbc (CHECKPOINT 1) → 4476c81 (feat) → 23804c5 (review) → 82e1d6c (фиксы R1) → 55717d8 (merge main) → closure
 - check-continuity на ветке: OK (fail=0, warn=1 — ветка не опубликована; уйдёт при публикации)
 next: CHECKPOINT 2 — свежий токен владельца получен (чат 2026-10-12, inline env per-invocation): ls-remote-валидация → батч-пуш (ветка несёт main docs 010d2ac/542f565/100a35f в истории) → PR через GitHub API → CI (push + PR) → merge sha-pinned → main-run CI → синк локального main → DEVLOG 50-merge
-commit: TBD
+commit: b63f007
 ---
 date: 2026-10-12
 task: 50-merge
@@ -1683,7 +1683,7 @@ done:
 - Финальный регресс: build/vet, journeys 25/25 (полный), дерево чистое
 - unpushed: main 3 docs (51-sm ac4f8af, 51-dev 1ca9286, 51-review-r1 329d897) + ветка 9 коммитов (d5302ff, 8449411, 8522a6a, 489d98a, acc15ec, 83f7314, 16e9a3f, 11fcf20, 533c32f + closure) — публикация батчем при следующем GitHub-токене владельца
 next: CHECKPOINT 2 — свежий токен владельца: ls-remote-валидация → батч-пуш (main docs + ветка) → PR через GitHub API → CI (push + PR) → merge sha-pinned → main-run CI → синк main → DEVLOG 51-merge
-commit: TBD
+commit: b63f007
 
 ---
 date: 2026-10-13
@@ -1734,7 +1734,7 @@ done:
 - SM-закрытие: спека status backlog → ready-for-dev + Spec Change Log +1 (замороженные секции не тронуты — дифф только status/Change Log/Решение владельца), sprint-status 2-9 → ready-for-dev, last_updated 10-13-2026; коммит на ветке a1ece2792b9731e45bf64db8003ae0b00e0e3982 [skip ci] (прецедент 8449411)
 - Публикация по токену (паттерн 51-merge, docs-only без CI): ls-remote-валидация origin/main = b6d263e → батч-пуш main (52-sm 04d4d5d + 53-sm, [skip ci]) + первая публикация ветки 2-9 (a5bf416 + a1ece27, [skip ci])
 next: Dev-фаза 2-9 — пре-шаг: однострочный фикс флэйка profile_test.go order by occurred_at, audit_id (решение владельца, deferred-work employee 1-13) + закрытие записи deferred-work; затем step-01..05 по спеке (домен/словари → миграция 00009+store → команды/гейты/транспорт/поверхности → интеграция+journeys → регресс+closure без [skip ci])
-commit: TBD
+commit: b63f007
 
 ---
 date: 2026-10-13
@@ -1749,7 +1749,7 @@ done:
 - Верификация: bootstrap зелёный до конца; тест адресно 8/8 независимых прогонов зелёные (пояснение: -count=5 в одной инвокации не валиден — TestMain drop+re-apply миграций один раз, повторные миры коллизируют по сидам); verbose PASS подтверждает исполнение на живом PG
 - Коммит ветки cb1abbc [skip ci]: фикс + честная closure-запись deferred-work (исходное «audit_id» предложение откорректировано с evidence); DEVLOG 53-sm публикация уже на origin (main 563525f, ветка a1ece27)
 next: Dev step-01 по спеке 2-9 — домен и словари: internal/cases/domain/commitment.go (словари статусов/терминов/действий/метода/исходов/слов недействительности, MaterialTerms v1 канонизация+гварды, DeriveCommitmentReadiness, GuardCreate/Confirm/Decline, DeriveConfirmationValidity, CommitmentToken HMAC домен-сепарация), work.go +confirmed аддитивно (лестница 2-2, контрольная ветка), unit-тесты
-commit: TBD
+commit: b63f007
 
 ---
 date: 2026-10-13
@@ -1764,7 +1764,7 @@ done:
 - Регресс: go build/vet/gofmt чисто; go test ./... полный unit-контур зелёный (domain 0.005s)
 - Коммит ветки 632fb2d [skip ci]
 next: Dev step-02 — миграция 00009 (таблицы cases.commitments/confirmations/commitment_declines/commitment_hmac_keys: append-only, RLS+FORCE, INSERT/SELECT гранты, CHECK-словари, монотонный version_no, пара колонок client_replies, ALTER лестницы +confirmed) + internal/cases/store/commitment.go (монотонная версия под advisory-локами, ensure-ключ, чтения, транзит WI→confirmed) + зонды pg_class/INSERT/state-CHECK
-commit: TBD
+commit: b63f007
 
 ---
 date: 2026-10-13
@@ -1783,7 +1783,7 @@ done:
 - Регресс: bootstrap exit=0 — интеграция зелёная на живом PG (миграция применяется, зонды PASS), build/vet чисто, unit зелёный (privacy-периметр с регистрацией)
 - Коммит ветки 77a68e5 [skip ci] + публикация: ls-remote-валидация (ветка 632fb2d→77a68e5, main 7a9c418 без дрейфа), пуш по токену владельца (env STAFFY_GH_TOKEN через helper, на диск не попал); дифф +1368/−2, всё аддитивно, миграции 00001-00008 не тронуты, mode/policy/observation-файлы не тронуты
 next: Dev step-03 — app-команды с гейтами и replay (internal/cases/app/commitment.go: Create/Confirm/Decline — скоуп ДО стражей, участники, не-терминальность, версия+readiness, предъявление, evidence, freshness, authority, insert+outbox), связь в SendClientReply (только sales, версия offered до записи), API+PRG-формы, страница Commitment Review + панель case.html, OpenAPI+контракт-тест
-commit: TBD
+commit: b63f007
 
 ---
 date: 2026-10-13
@@ -1802,7 +1802,7 @@ done:
 - Регресс: bootstrap exit=0 (build/vet/unit/интеграция на живом PG); journeys 25/25 (chromium переустановлен после ресайкла); контракт зелёный; gofmt/дифф-чек по файлам диффа чисты; таб-коррупция Edit/Write-инструментов вылечена gofmt -w (урок сессии)
 - Коммит ветки 6158cb1 [skip ci] + публикация по токену владельца (ls-remote без дрейфа)
 next: Dev step-04 — интеграционная матрица 25 строк поимённо (tests/integration/cases_commitment_test.go поверх живых команд: гейты прав/словари/draft/unknown-цена/freshness/предъявление/выдуманные выдержки/assurance/duplicate/replay/версии/отказы/изоляция) + journeys-цепь zzz(19)-cases-commitment (создание→предъявление через sales-reply→PRG-confirm→состояние confirmed→decline/новая версия→superseded-бейдж→a11y/320px/фокус)
-commit: TBD
+commit: b63f007
 
 ---
 date: 2026-10-13
@@ -1819,7 +1819,7 @@ done:
 - Регресс: bootstrap exit=0 (build/vet/unit/интеграция на живом PG — 160 интеграционных тестов); зонды step-02 зелёные; gofmt/дифф-чек чисты
 - Коммит ветки 0391f8a [skip ci] + публикация по токену
 next: Dev step-04 (journeys-часть) — цепь zzz(19)-cases-commitment.spec.ts: happy-path create (PRG-форма страницы Commitment Review) → read_owning_system price → предъявление через sales-reply со связью → PRG-confirm (subject+turn+spans+assurance) → состояние WI confirmed → decline/новая версия → superseded-бейдж → a11y (320px, aria-live, перевод фокуса, confirm без preselect); затем step-05 полный регресс ×2 TZ + коммит feat без [skip ci] → QA-фаза по BMAD
-commit: TBD
+commit: b63f007
 
 ---
 date: 2026-10-13
@@ -1865,7 +1865,7 @@ done:
 - Полный регресс финальный: build/vet/unit 23 пакета, интеграция 160+161 (новый зонд) на живом PG, journeys 26/26, контракт зеркален, gofmt тронутых файлов чист
 - Дерево ветки: спека a5bf416 → CHECKPOINT 1 a1ece27 → флэйк cb1abbc → step-01..05 632fb2d/77a68e5/6158cb1/0391f8a/27b539f/a064af1 → R1-фикс a4c9ce4 → union 39263e0 → closure
 next: CHECKPOINT 2 — пуш closure (без [skip ci]) → CI на head → PR через GitHub API → CI (push+PR) → merge sha-pinned → синк main → DEVLOG 53-merge; токен владельца в руках (маска github_pat_***)
-commit: TBD
+commit: b63f007
 
 ---
 date: 2026-10-13
@@ -1926,7 +1926,7 @@ done:
 - Спека: status → ready-for-dev, поле «Решение владельца» заполнено, Change Log +1 (замороженные секции Intent/Boundaries/Matrix не тронуты); sprint-status 2-10 → ready-for-dev
 - Токен публикации в руках сессии — CHECKPOINT 2 (PR/CI/merge) пройдёт без паузы
 next: Dev step-01 — домен и словари продолжения (continuation.go: словари целей/использования, гварды issuance, DeriveContinuationLinkState, токен-кодирование; unit-тесты включая opaque-инвариант и порядок деривации)
-commit: TBD
+commit: b63f007
 
 ---
 date: 2026-10-14
@@ -2090,7 +2090,7 @@ done:
 - Регресс: build, vet, unit 23 пакета ok, контракт ok, gofmt диффа чист (изменённые файлы; 59 неформатированных файлов репо — пре-существующие, контрольная ветка на HEAD подтверждена)
 - Интеграция красна ОЖИДАЕМО до 00011: CHECK 00006 (reason/rule_version v1-словари) отказывает v2-строкам — миграция 00011 (step-02) обновляет словари БД (+active_alternatives, +accuracy_qualifier, case_accommodations, словарь команд/outbox); прецедент 2-10 step-01 — unit-регресс шага домена, интеграция со step-02
 next: step-02 — миграция 00011_accommodations.sql (cases.case_accommodations append-only RLS+FORCE INSERT/SELECT, CHECK словарь/флаг-значимость/пределы, UNIQUE ревизий; policy_outcomes +active_alternatives jsonb + CHECK v2 rule_version/reason; client_replies +accuracy_qualifier nullable; +1 команда record_accommodation; +1 outbox-тип; TestMain-регистрация) + store/accommodation.go (lock-план, record/replay, reads) + зонды pg_class/INSERT/периметр; затем интеграция зелёная ×2 TZ
-commit: TBD
+commit: b63f007
 
 ---
 date: 2026-10-14
@@ -2105,7 +2105,7 @@ done:
 - Инцидент: jsonb-рендер PG добавляет пробелы — конверт-зонд переведён на структурную проверку (Unmarshal в payload-тип), bytes-сравнение убрано
 - Регресс: build, vet, unit 23 ok, интеграция 172 ×2 TZ (UTC 15.0s / Europe/Moscow 13.4s, -count=1, живой PG), контракт, gofmt диффа чист
 next: step-03 — app-команда RecordAccommodation (гейты скоупа review ДО стражей, replay, идемпотентность), policy-wiring под локом (чтение preferences в EvaluatePolicy обоих плеч store+app, snapshot-штамп), гейт точности в лестнице send_client_reply (ПОСЛЕ возражения ДО CAS, sales-only, qualifier ∈ active_alternatives), api DTO + панель case.html секция preferences + карточка передачи владения + форма продажного ответа select квалификатора + подсказка continuation-формы, OpenAPI +1 путь + AccommodationView + расширения + контракт-тест; спека: _bmad-output/implementation-artifacts/spec-2-11-equal-access-alternative-paths.md (Code Map)
-commit: TBD
+commit: b63f007
 
 ---
 date: 2026-10-15
@@ -3485,3 +3485,110 @@ commit: 1f17fa7
 
 next: по сигналу владельца — SM 3-6 (execute-time revalidation, dispatch и Action Receipt: спека следующего среза; входы epics.md §3.6/PRD/ARCHITECTURE-SPINE, прецедент SM 136-sm) или поручения по веткам/сводке; ветка codex/story-3-5-operation-reservation слита — удаление на GitHub по поручению владельца (прецедент уборки после 3-4).
 commit: df7689d
+
+## DEVLOG 145 — SM 3-6: спека Execute-time revalidation, dispatch и Action Receipt (открыта, ждёт CHECKPOINT 1)
+
+- Сигнал владельца «продолжайте» исполнен: next DEVLOG 144-merge (SM 3-6 по сигналу) взят немедленно. Позиция восстановлена session-start по порядку доверия git > DEVLOG > worklog: main = da665b8 = origin RPO=0 (по локальным рефам — живая сверка ls-remote отложена до появления токена владельца: STAFFY_GH_TOKEN в env отсутствует, credential helper отвечает пусто), дерево чистое, check-continuity OK. Сводка контекста платформы устарела (заявляла продолжение dev-step-05/checkpoint — git-факт: story 3-5 полностью закрыта, Epic 3: 5/9, next = SM 3-6) — порядок доверия отработан 29-й раз.
+- Песочница после ресайкла: окружение было мёртво (Go/PG отсутствовали) + ~1000 файлов дерева с mode-шумом 644→755 (восстановление диск с exec-битами; контентных правок ноль — git diff 0/0) — шум снят локально core.fileMode=false (машинно-локальный конфиг, не коммит), окружение поднято bootstrap.sh лёгким режимом без токена (репо на месте: Go 1.27.1 установлена с go.dev, PG 16.4 распакован из third_party вендорен, миграции + интеграционные + unit зелёные при bootstrap, Playwright/chromium установлен).
+- Входы SM прочитаны ДО письма спеки: epics.md §3.6 (FR-28/FR-31, AC-блоки 1-13 дословно — leased job/fencing, execute-time revalidation список, материальная revalidation, composition root/allowlist, attempt-аудит, submitted-accepted-committed, failed/no_effect, unknown/reconciling, provider-idempotent redelivery, non-idempotent replay, receipt append-only, a11y состояний), PRD FR-28 (Safety Interrupt/pause инвалидируют queued intent ДО dispatch) и FR-31 (receipt: восстановимо без диалога, чувствительное не дублируется) с проверяемыми последствиями, ARCHITECTURE-SPINE AD-6 (пять законов, revalidate before dispatch, мутационные адаптеры импортируемы только dispatch composition root, narrow allowlist), AD-10/AD-13/AG-4, спеки 3-1 (DeliveryContract CapabilityClass/TerminalEvidence словари), 3-2, 3-3 (DrainExternalCommitments — золотой прецедент: integrity-проба первой, execute-time stale-фенции по порядку «газами» с честными словами, LIVE control-фенция, bounded retry MaxDispatchAttempts=3, гарантия из LIVE-декларации, synthetic dispatcher scriptable, nil-AG-4 отказ), 3-4 (freshness 7 причин/readiness/GuardPreparePolicy выводы reused), 3-5 (границы среза: дренер 3-6, словарь состояний {authorized} «3-6 расширит», executed/failed слова 3-6, внешний ID/Receipt «колонок нет», outbox payload SAFE «3-6 worker перестроит payload из неизменяемых строк», reconciliation_required слово 3-7), deferred-work — нацеленных на 3-6 долгов НЕТ (проверено, прецедент 2-11/136-sm).
+- Живые источники сверены в коде (не по памяти): internal/action/domain/operation.go (OperationStateWords/LedgerEntryKindWords по 1 слову, DeriveOperationState, honest-тексты DispatchAbsent/ExternalIDAbsent «3-6»), confirmation.go (лестница/события), port/authorization.go (ConfirmationRepository/OperationRepository контракты, ReadOutboxQueued), store/operation_store.go + migrations/action/00002 (outbox_events: PK event_id, CHECK {operation.queued}, append-only, БЕЗ UNIQUE на operation — at-least-once модель задания легальна), cases/app/external_commitment.go (DrainExternalCommitments полная структура), cases/port/dispatch.go (ExternalDispatcher контракт), internal/adapters/externaldispatcher/synthetic.go (прецедент 1:1: scriptable/GuamScript/liveGuarantee command.send-sms), connector/catalog/catalog.go (command.send-sms Idempotent=true ReceiptLevel committed), tests/journeys/actions_catalog_fixture.go (notify.order-ready DeliveryContract provider_idempotent/terminal-evidence), MaxDispatchAttempts=3.
+- Спека spec-3-6-dispatch-and-action-receipt.md (117 строк, формат 127-sm/d8b97f8 = спека 3-5) закоммичена 753e255 на ветке codex/story-3-6-dispatch-and-action-receipt: контур execution — дренер собственного outbox с leased dispatch jobs (write-ahead lease attempt_no 1..3 fencing + окно timeout+grace, advisory-замок, lease+ledger submitted ОДНОЙ транзакцией БЕЗ адаптеров — persist-before-emit), полная execute-time revalidation живыми источниками ПО ПОРЯДКУ ДО lease (job-schema/fingerprint alarm → confirmation-fence {superseded, revoked, expired} БЕЗ exhausted → кейс/work_item → freshness 7 причин reused → readiness → GuardPreparePolicy reused → материал последним), любая граница = dispatch_blocked с точным словом без ложного failed externally (операция припаркована, адаптер не вызван, lease не взята); детерминированная пересборка payload из неизменяемых строк + request_digest keyed HMAC dispatch_request:v1: (redacted) + внешний idempotency key keyed HMAC dispatch_key:v1: (один на операцию); мутационный порт MutationAdapter (ServesCapability allowlist, без секретов) + synthetic по прецеденту 3-3, production НЕ wired AG-4 (import-graph-зонд); GuardCommittedEvidence (State/Authority: committed требует external object id/version/time, без evidence = unknown «evidence неполные»); состояния {authorized} → {authorized, submitted, accepted, committed, failed, unknown} (submitted = write-ahead — слэш эпика разрешён парой переходов, задокументировано); retry только provider_idempotent с записанной гарантией в пределах 3, failed терминален, unknown без гарантии parked, crash-recovery истёкшая lease = «возможен предыдущий вызов — слепой повтор запрещён»; дубликат outbox события = decided-verify по digest; Action Receipt append-only v1 {committed, failed, unknown} + ссылка Work Item/Conversation событием receipt.created собственного outbox (AD-2, потребитель будущий); миграция 00003 (dispatch_leases/dispatch_outcomes/action_receipts RLS+FORCE + ALTER CHECK ledger → 7 слов, outbox → 2 слова); +POST /v1/tenants/{t}/operations/drain (operator manage, прецедент 3-3) + поверхность состояний жизни/attempts/receipt с a11y 320px; OpenAPI enum 6 + контракт-тест; НИКОГО фонового демона (drain явная команда); unit-матрица + интеграционная ~30 строк + journeys z34.
+- Ключевые решения среза (все задокументированы в Implementation Notes): submitted = write-ahead запись ДО сетевого вызова (persist-before-emit; resting-состояние краха между отправкой и записью исхода); exhausted НЕ фенция dispatch-гейта (потребление пост-авторизации ожидаемо — лестница 3-5 описывает отказ НОВОЙ авторизации, не диспетчерство созданной Operation; зонд: single_use с consumed=1 диспетчится при прочих зелёных); три пространства ключей разделены (клиентский idempotency_key / business_intent_key / внешний dispatch-ключ — ни один не выводится из другого); гарантия повтора = записанное слово аудита (LIVE читается в момент записи исхода — прецедент 3-3 belt-over-braces); failed терминален без авто-повтора (AC-8 — новый запуск = новая Confirmation 3-5); UNIQUE (tenant, operation_id) в outbox НЕТ намеренно (дубликат события = at-least-once задание, worker классифицирует pending SQL fresh/recoverable/retryable/decided/blocked/racing).
+- Скан-гигиена спеки до коммита: программный скан (python, сохранён scripts/sm_spec_scan.py песочницы) — 0 CJK / 0 mixed / 0 секретов (12 паттернов), VERDICT CLEAN; статус backlog уникален в спеке, sprint-ключ 3-6-execute-time-revalidation-dispatch-и-action-receipt = backlog (синхрон — check-continuity OK).
+- Публикация ветки отложена на CHECKPOINT 1 батчем со свежим токеном владельца (токен в сессии отсутствует — прецеденты 52-sm/56-sm/136-sm: SM-коммиты с [skip ci], CI-тишина ожидаема; спека+DEVLOG+чекпоинт уйдут одним пушем после одобрения).
+
+next: CHECKPOINT 1 — спека ждёт явного одобрения владельца «одобряю» (дисциплина 52-sm: самопродолжение чекпоинт не закрывает; прецеденты 3-5 137/3-4 2facf4e/3-3 9ce0e01); после одобрения: публикация ветки+DEVLOG батчем со свежим токеном владельца → sprint-status 3-6 → ready-for-dev → Dev шаги 01-05 → CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge); вне среза владельцу: ревокация PAT после закрытия чата (retro-2-6), удаление слитой ветки 3-5 на GitHub по поручению (прецедент уборки после 3-4).
+commit: 753e255
+
+## DEVLOG 146 — CHECKPOINT 1 story 3-6: спека Execute-time revalidation, dispatch и Action Receipt одобрена (закрыт)
+
+- Владелец ответил «одобряю» с fresh-токеном в том же сообщении (чат 2026-10-21) — CHECKPOINT 1 story 3-6 закрыт БЕЗ правок спеки (дисциплина 52-sm: самопродолжение чекпоинт не закрывает; прецеденты 3-5 137/3-4 2facf4e/3-3 9ce0e01); следующий next DEVLOG 145-sm исполнен точно по буквам: публикация ветки+DEVLOG батчем → sprint-status → ready-for-dev → Dev шаги.
+- Позиция восстановлена session-start по порядку доверия git > DEVLOG > worklog: сводка контекста (обрезанная платформенной компакцией, 28-е устаревание) заявляла «story 3-5 QA/closure → CHECKPOINT 2», git-факт: story 3-5 полностью закрыта (PR #36 merge df7689d, main da665b8, Epic 3: 5/9), SM 3-6 спека 753e255 + DEVLOG 145-sm 2eb3e89 ждали одобрения на ветке; дерево чистое, check-continuity OK (warn только «ветки нет на origin» — ожидаемо до публикации).
+- Токен верифицирован живым ДО git-операций: 200 на /user (login artemiosu) + 200 на /repos/artemiosu/staffy (private, push-права подтверждены; env-only инлайном в каждой команде — env умирает между вызовами шелла, урок повторён; на диск не попал, в remote-URL не попал, remote чистый https). Урок bash зафиксирован: VAR=x cmd "$VAR" расширяет переменную ДО применения префиксного присваивания — первый 401 на API был ЛОЖНЫМ (curl уходил с пустым Bearer), при этом git через credential-helper (дочерний процесс, env наследует) аутентичен — верить паре независимых зондов, не одному.
+- Флип статусов: спека status backlog → ready-for-dev + Change Log запись CHECKPOINT 1 свежей сверху (замороженные секции не тронуты — дифф = status + Change Log, форма прецедента 137 1:1, 2 файла +4/−2); sprint-status ключ 3-6-execute-time-revalidation-dispatch-и-action-receipt → ready-for-dev (last_updated уже 10-21-2026); уникальность status: 'backlog' в спеке проверена до правки (1 вхождение), sprint-ключ 80-я строка.
+- check-continuity после флипа: sync OK — статусы всех спек синхронны со sprint-status (FAIL только грязным деревом до чекпоинт-коммита; чекер читает фронт-маттер структурно — фикс 9b0e0d9 отработал на гигантском title 3-6, status прочитан корректно без 2500-байтного окна).
+- Скан-гигиена диффа до коммита (программный скан добавленных строк): CJK 0, секрет-паттерны 0 (github_pat_/ghp_/BEGIN-блоки), mixed 2 = идентификаторы ветки codex/story-3-6-dispatch-and-action-receipt и sprint-ключа (установленная конвенция именования — существующие ключи спринта легитимно миксуют кириллицу с латиницей).
+- Чекпоинт-коммит bfff334 [skip ci]; публикация ветки батчем 753e255+2eb3e89+bfff334 ОДНИМ пушем живым токеном через credential-helper (remote-URL чистый): RPO=0 верифицирован живым ls-remote (local = remote = bfff33428bb13553cf97af0425c28dcefc569504), CI-тишина верифицирована (0 ранов на bfff334 — все три коммита с маркерами [skip ci]), origin/main = da665b8 без движения; upstream ветки установлен (origin/codex/story-3-6-dispatch-and-action-receipt).
+
+next: Dev step-01 story 3-6 (bootstrap окружения первым — урок 69: окружение поднималось лёгким режимом на SM-сессии 145-sm, проверить source scripts/env.sh живым go/PG и поднять bootstrap при смерти; затем первый срез по спеке — dispatch.go: словари словами эпика/AC исходы адаптера 4/состояния 6/ledger 7/receipt-исходы 3/fences 3/retry-политика, DeriveExternalIdempotencyKey/DeriveDispatchRequestDigest keyed-HMAC, BuildAuthorizedActionPayload детерминизм, GuardMutationOutcome/GuardCommittedEvidence fail-closed, DeriveConfirmationDispatchFence без exhausted, lease-константы, honest-тексты; operation.go surgical словари 1→6/1→7; unit поимённо) → шаги 02-05 → CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge); вне среза владельцу: ревокация PAT после закрытия чата (retro-2-6), удаление слитой ветки 3-5 на GitHub по поручению (прецедент уборки после 3-4).
+commit: bfff334
+
+## DEVLOG 147 — Dev step-01 story 3-6: домен dispatch/receipt (закрыт)
+
+- Step-01 закрыт: dispatch.go (558 строк, новый) + dispatch_test.go (780 строк, 15 тестов поимённо) + operation.go surgical (словари 1→6/1→7, DeriveOperationState последнее state-bearing-слово) + operation_test.go + openapi зеркально (enum OperationLedgerKindWord 1→7 + описания словарей; enum OperationStateWord осознанно НЕ тронут — поверхность слов жизни приезжает step-03, контракт-тест зеркалит spoken-пару authorized/authorized+queued). Преемник r2: WIP предшественника (сессия умерла по таймауту платформы ПОСЛЕ написания кода, ДО регресса и коммита) верифицирован по спеке step-01 пункт-за-пунктом — ПОЛНЫЙ, доработок не потребовал; дерево грязное → чистое одним feat-коммитом.
+- Словари (все поимённо, вне-словарное слово структурно невозможно — константы + закрытые списки): исходы адаптера 4 {accepted, committed, failed, timeout} (форма dispatch-словаря 3-3: delivered→committed), состояния Operation 6 {authorized, submitted, accepted, committed, failed, unknown}, ledger 7 (шесть state-bearing + dispatch_blocked — видимая причина припарковки, НЕ state-bearing), receipt-исходы 3 {committed, failed, unknown}, fences {superseded, revoked, expired} БЕЗ exhausted (потребление пост-авторизации ожидаемо — задокументированное решение спеки, зонд TestDeriveConfirmationDispatchFenceWithoutExhausted), retry-слова 4 {retry, park_unknown, park_bound, decided}, outbox-события 2 {operation.queued, receipt.created}.
+- Функции: DeriveExternalIdempotencyKey keyed-HMAC dispatch_key:v1: над tenant/operation_id — ОДИН внешний ключ на операцию, стабильный между попытками (номер попытки в сигнатуру не входит), материал не входит; DeriveDispatchRequestDigest keyed-HMAC dispatch_request:v1: над каноническими байтами (sortedTypedInput/sortedSnapshot/sortedEffects — детерминизм при перетасовке); BuildAuthorizedActionPayload — пересборка из неизменяемых строк с fail-closed integrity-пинами (tenant/preview-пин/definition-пин/effects воспроизводятся определением); GuardMutationOutcome (чужое слово = отказ); GuardCommittedEvidence (committed без полного тройника external object id/version/time → unknown — терминальный успех не берётся на слово); DeriveMutationStateWord (timeout→unknown); DeriveReceiptOutcomeWord (accepted → пустое слово — квитанции нет, итога нет); DeriveConfirmationDispatchFence (valid/exhausted проходят); DeriveDispatchRetryPolicy (предел проверяется ПЕРВЫМ даже с гарантией; retry только provider_idempotent + гарантия; accepted/committed/failed = decided; попытки вне [1..3] отказывают); DeriveDispatchLeaseExpiresAt (timeout+grace, границы определения проверяются); lease-константы MaxDispatchAttempts=3/DispatchLeaseGraceMS=30000/DispatchDrainLimit=100; honest-тексты жизни (submitted/accepted/committed/failed/unknown) и границ (слепой повтор запрещён/предел/decided/evidence неполные) поимённо.
+- operation.go: DeriveOperationState — последнее state-bearing-слово (dispatch_blocked пропускается; ledger без state-bearing слов отказывает — порча, не честное слово; DeriveOperationViewWord добавляет /queued ТОЛЬКО к authorized — слова жизни говорят своими словами); тексты OperationDispatchAbsentText («явная команда drain, демона нет»)/OperationExternalIDAbsentText («появляется записью dispatch-исхода») — слова живого контура, легаси-слова 3-5 «worker не существует» сняты.
+- Зонды AD-10: TestNoRawUnsaltedHashOverMaterial — единственный sha256.Sum256 модуля action = легаси DeriveProposalKey (preview.go, вне среза, не тронут); TestDispatchKeySpacesSeparated — dispatch_key:v1:/dispatch_request:v1: отделены от business_intent:v1:/operation_material:v1:/action_preview:v1: и друг от друга; ключи детерминированы и различают tenant/operation.
+- Гейты: gofmt touched (4 Go-файла) — чист (легаси-шум не чурнился, прецедент 13к-чурна); go build ./... ok; go vet ./... ok; go test ./... -count=1 — ВСЕ 33 пакета ok, ноль FAIL (контракт-тест openapi зелёный с зеркальной правкой ledger-enum; action/domain 109 PASS verbose-прогоном). Скан-гигиена добавленных строк (1481 строк): CJK 0, секрет-паттерны 0, mixed-идентификаторы 0.
+- sprint-status НЕ тронут: прецедент 3-5 на dev-шагах статуса не менял (ready-for-dev с CHECKPOINT 1 до done на closure step-05) — 3-6 остаётся ready-for-dev.
+- feat-коммит 78716cd [skip ci] (5 файлов +1478/−71, код+тесты+openapi-зеркала одним коммитом); публикация одним пушем с docs-коммитом 147; RPO=0 живым ls-remote; CI-тишина (оба коммита с маркером [skip ci]).
+
+next: Dev step-02 story 3-6 (миграция 00003 dispatch_leases/dispatch_outcomes/action_receipts RLS+FORCE + ALTER CHECK словарей ledger 7/outbox 2 + append-only гранты INSERT/SELECT + TestMain-регистрация; dispatch_store advisory-замок (tenant, operation_id) + AcquireDispatchLease write-ahead БЕЗ адаптеров (lease+ledger submitted одной транзакцией) + RecordDispatchOutcome fenced (outcome+ledger+receipt+outbox receipt.created); port/dispatch.go MutationAdapter (Dispatch + ServesCapability, без секретов) + DispatchRepository (pending-классификация fresh/recoverable/retryable/decided/blocked/racing) + словарь ошибок ErrLeaseStale/ErrLeaseRaced/ErrDispatchRefusedAG4; app/dispatch.go DispatchQueuedOperations ordered-фенции с не-отправляющими блокировками; unit фейк-репо — фенции по порядку счётчиками, адаптер НЕ вызывается ни на одной газе, lease НЕ берётся, fencing-отказ устаревшей записи, replay digest-сверкой, rollback-зонд инжектом) → шаги 03-05 → CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge); вне среза владельцу: ревокация PAT после закрытия чата (retro-2-6), удаление слитой ветки 3-5 на GitHub по поручению (прецедент уборки после 3-4).
+commit: 78716cd
+
+## DEVLOG 148 — infra: протокол сбоя инструментов сессии записан в постоянную память; уборка веток по поручению владельца; WIP step-02 застрахован [SOS]
+
+- Поручение владельца «добавь в память информацию про проблему и как её решать» исполнено в канонические носители протокола (не в песочницу — память проекта живёт в репо, порядок доверия git > sprint-status > DEVLOG > пересказ): docs/CONTINUITY.md §4.1 — новый подраздел «Сбой инструментов сессии» (урок 2026-10-21, дважды пережит в production-режиме: симптомы 403 broken session / мгновенные отказы всего семейства инструментов Bash+Read+Glob; причина-лидер — /dev/tcp-пробы порта дважды вешали сессии намертво, ЗАПРЕЩЕНЫ навсегда, живость PG через pg_ctl status; контрмеры по возрастанию: неинтерактивные команды с таймаутами → зонд лёгким субагентом → делегирование Task со свежим шеллом → дробление тяжёлых задач с ранним wip [SOS] → перезапуск чата владельцем; сопутствующие bash-уроки 146: VAR=x cmd "$VAR" — ложный 401, верить паре независимых зондов, env между вызовами не живёт); строка в таблицу режимов отказа §4; AGENTS.md — пункт 3 протокола возобновления (СТОП повторам после 2 отказов, ссылка на §4.1) — все будущие сессии прочитают его первым делом.
+- Прецеденты субагентной схемы зафиксированы в уроке: DEVLOG 147 (step-01: писатель умер по таймауту после кода, преемник r2 закрыл с нулём доработок) и step-02 (агент убит server_shutdown после 1839 строк кода, WIP c13072b закоммичен+запушен по SOS немедленно при входе).
+- Уборка веток по поручению владельца «наведи порядок с ветками в github»: на GitHub остались ровно main (da665b8) + текущая рабочая codex/story-3-6-dispatch-and-action-receipt (c13072b); слитая ветка codex/story-3-5-operation-reservation удалена на GitHub (поручение из DEVLOG 144 исполнено, прецедент уборки после 3-4) и локально (git branch -d, was 0e38e47 — слита в main PR #36); старые PR-ветки #27-#35 были вычищены ранее и не возвращались.
+- WIP step-02 [SOS] c13072b (5 файлов +2105/−107): миграция 00003_dispatch_receipt.sql + port/dispatch.go + store/dispatch_store.go + app/dispatch.go + service.go wiring (+24 контентных строки); ИЗВЕСТНЫЙ дефект: ~107 строк whitespace-чурна таб→пробелы в service.go — преемник обязан вычистить (прецедент 13к-чурна 3-5 step-04); тестов/гейтов/DEVLOG-записи шага нет — преемник верифицирует по спеке, дописывает, чинит, фиксирует feat-коммитом.
+
+next: Dev step-02 story 3-6 — преемник поверх WIP c13072b: верификация по спеке (Tasks & Acceptance step-02), вычистка whitespace-чурна service.go, дописывание недостающего (unit-фейк-репо, тесты), гейты gofmt/build/vet/unit, feat-коммит + DEVLOG 149-dev-step-02 + Spec Change Log + push + RPO=0; затем step-03 (транспорт/страница/OpenAPI/wiring) → step-04 (матрица+journeys) → step-05 (QA) → CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge); вне среза владельцу: ревокация PAT после закрытия чата (retro-2-6).
+commit: c13072b
+
+## DEVLOG 149 — Dev step-02 story 3-6: миграция, store, app и порт dispatch (закрыт)
+
+- Стадия 0 (первой, чтобы дифф шага был честным): whitespace-чурн service.go ~107 строк таб→пробелы ВЫЧИЩЕН — git checkout 78716cd (step-01 feat) восстановил исходное форматирование, контентные +24 строки (поля dispatches/dispatchAdapter + метод WithDispatch + комментарии) применены заново табами; дифф service.go против 78716cd теперь ТОЛЬКО контентный (прецедент 13к-чурна 3-5 step-04 не повторился).
+- WIP предшественника c13072b верифицирован по спеке (Tasks & Acceptance step-02) поимённо чтением: миграция 00003 — RLS ENABLE+FORCE ×3 (dispatch_leases/dispatch_outcomes/action_receipts) по паттерну 00002, append-only гранты INSERT/SELECT + REVOKE UPDATE/DELETE/TRUNCATE, CHECK-словари словами домена (исходы 4, receipt 3, lease PK тройка attempt 1..3 + 64-hex токен/ключ/digest, receipt references jsonb SAFE ≤4096), ALTER CHECK operation_ledger 1→7 / outbox_events 1→2 goose-форматом, Down=DROP SCHEMA CASCADE как у 00002; port/dispatch.go — MutationAdapter consumer-owned без секретов + DispatchRepository (7 методов) + словарь ошибок 4; store/dispatch_store.go — advisory-замок action:dispatch:tenant:operation, pending-классификация state-driven, write-ahead lease+ledger submitted одной транзакцией, fenced verdict (attempt,token)+no-newer, raced-guarded parking — ВЕРДИКТ: архитектура спеке соответствует.
+- Дефекты WIP починены: (1) undefined drainError + глобальное состояние предшественника (drainCtx/jobScope/drainNow/ctxOf) — вычищено в явные параметры (ctx, scope, now) и возвраты ошибок (dispatchOneJob/decidedVerify/recordCrashUnknown/block), drain абортится честно по ошибке задания; (2) мёртвая ветка 23514 CHECK внутри 23505-зонда mapDispatchInsertError — вынесена отдельной проверкой (CHECK-бэкстоп теперь реально маппится в ErrLeaseStale); (3) три новых Go-файла WIP были написаны пробелами — прогнаны gofmt -w (в табы, без контентных изменений); (4) TestMain-регистрация миграции 00003 в tests/integration/tenant_test.go отсутствовала — добавлена по прецеденту 00001/00002 (урок 3-3: миграция вне списка = контур тестирует несуществующий мир).
+- Дописано недостающее: unit dispatch_test.go (1201 строка, 28 прогонов) — фейк-репо fakeDispatchRepo с живой семантикой стора (advisory-fencing, raced-отказы, all-or-nothing откаты) + фейк-адаптер со счётчиком вызовов; матрица: 11 fence-сценариев по порядку счётчиками (адаптер 0 вызовов, lease 0 на каждой газе; alarm-скипы job-schema/fingerprint БЕЗ ledger-записи; confirmation-fence {superseded, revoked, expired} ДО чтения кейса; freshness/readiness/policy/FreshReads-nil/material-changed точными словами причин), nil-адаптер AG-4 (очередь даже не читается), скоуп-гейт operations, happy committed (ledger authorized→submitted→committed, receipt v1 {committed} + SAFE-references + outbox receipt.created, ОДИН внешний ключ и digest в lease и вызове адаптера), accepted без квитанции/события, failed терминален с квитанцией, ошибка вызова→unknown без гарантии и без строки исхода, timeout с LIVE-гарантией записанной, committed без evidence→guarded unknown, fencing-отказ устаревшей пары (история НЕ пишется, write-ahead факты остаются), decided-replay digest-сверкой (совпадение=честный skip, расхождение=alarm), retryable по ЗАПИСАННОЙ гарантии (тот же внешний ключ на попытке 2), recoverable крах без LIVE-гарантии→парковка unknown на крахнутой попытке, rollback-зонды инжектом (вердикт/блок-запись — ничего не остаётся), reflect-зонд: транзакционные методы репозитория не принимают НИ ОДНОГО порта (context — единственный допустимый интерфейс).
+- Гейты: gofmt -l touched (6 файлов) — пусто; go build ./... ok; go vet ./... ok; go test ./... -count=1 — 33 пакета ok, ноль FAIL (19.1с); скан добавленных строк (1970 против 78716cd): CJK 0, секреты 0, mixed 0.
+- Коммит feat 327a912 [skip ci] (6 файлов +1864/−691: миграция 135 + port 363 + store 595 + app 840 + тесты 1201 + service wiring +24 + TestMain 13); Спека 3-6 Spec Change Log — свежая запись step-02 сверху (замороженные секции не тронуты); sprint-status не тронут (прецедент 3-5: dev-шаги статус не меняли).
+
+next: Dev step-03 — транспорт +POST /v1/tenants/{t}/operations/drain (strict decode пустого тела, operator manage) + GET-виды/страница Operation Review (состояние жизни/блок-причина/attempts закрытыми details/карточка Receipt, PRG+focus/a11y 320px) + OpenAPI поверхности (+1 путь, enum OperationStateWord 6, схемы DispatchAttemptView/ActionReceiptView/DispatchDrainResultView, additionalProperties false) + контракт-тест расширением + wiring main.go WithDispatch(nil) AG-4 + synthetic адаптер internal/adapters/actiondispatcher (прецедент externaldispatcher 3-3) + journeys fixture-подготовка (тумблеры /fixture/dispatch*); вне среза: ревокация PAT владельцу после закрытия чата (retro-2-6).
+commit: 327a912
+
+## DEVLOG 150 — Dev step-03 story 3-6: транспорт, страница, OpenAPI и wiring dispatch (закрыт)
+
+- Шаг закрыт завершителем r2 после платформенного таймаута писателя (прецедент 147/r2): писатель умер по дедлайну платформы ПОСЛЕ feat-коммита e6893ae (wip ecd3cbe [SOS] + feat поверх 509d29f — оба уже в истории), но ДО DEVLOG-записи, Spec Change Log, push-верификации и worklog — страховка раннего wip [SOS] сработала (урок 148); завершитель довершил ритуал фиксации: push feat живым токеном (remote стоял на ecd3cbe, отставание 1 коммит), полная независимая верификация гейтов, DEVLOG 150 + Spec Change Log step-03 + docs-коммит + RPO=0 + CI-тишина.
+- Сделано писателем (верифицировано по сообщению e6893ae и диффу): транспорт POST /v1/tenants/{t}/operations/drain — strict decode пустого тела (свободное поле = 400 ДО сервиса), гейт operator manage словами operations, nil-адаптер AG-4 = 403 mutation_execution_not_wired честными словами приложения, 201 отчётом с построчными словами FR-28; страница /app/tenants/{t}/operations/drain — PRG-форма с чекбоксом и скрытым case-пином (прецедент external-commitments/drain 3-3), focus ?drained=N; GET-виды: enum OperationStateWord → 6 слов жизни {authorized, submitted, accepted, committed, failed, unknown} (споукен-пара authorized/queued 3-5 уступила место структурному булеву queued — DeriveOperationViewWord удалён, DeriveOperationState говорит), карточка операции +queued/state_at/owning_system/next_step_text/block_reason_text/attempts/receipts (DispatchAttemptView — write-ahead lease факты/keyed digest/слово исхода словаря 4 либо resting-текст; ActionReceiptView — readback идентификаторов FR-31); страница словами домена (OperationNextStepTexts новые), блок-причина видимым alert, attempts закрытыми details (320px), карточка Receipt с readback; api/dispatch.go (DTO + DispatchService по прецеденту AuthorizationService) + app DrainDispatchQueue адаптер + var _ пин; OpenAPI: путь drain 201/400/401/403/404, схемы DrainOperationsRequest/DispatchReportLineView/DispatchDrainResultView/DispatchAttemptView/ActionReceiptView, OperationCardView required 26→33, additionalProperties false; контракт-тест зеркалит словари домена живьём (состояния 6/ledger 7/исходы 4 oneOf/receipt 3/предел попыток = MaxDispatchAttempts); wiring main.go WithDispatch(store, nil) AG-4 комментариями + BindDispatch; synthetic адаптер internal/adapters/actiondispatcher (прецедент externaldispatcher 3-3 1:1: scriptable исход/correlation/evidence-тройник/ошибка/override гарантии; LIVE-каталог command.send-sms; ServesCapability allowlist; production НЕ wired); journeys fixture: dispatchMemoryRepository над строками авторизации (фенцинг/классификация/вердикт портированы 1:1), WithDispatch(world, synthetic), тумблеры /fixture/action-dispatch-outcome (outcome/correlation/failure/guarantee) и /fixture/action-dispatch-evidence; транспорт unit-матрица +6 поимённо (TestDrainRefusesTheFreeFieldBeforeTheService/TestDrainAnswers201WithTheHonestReport/TestDrainSpeaksTheAG4RefusalWords/TestDrainSpeaksTheScopeAndMissingWords/TestDrainFormRequiresTheCheckboxAndLandsPRG/TestOperationReviewPageShowsTheDrainFormOnlyWhenBound) + обновлены GET-виды.
+- Форма диффа честно: WIP ecd3cbe [SOS] — 13 файлов (поверхности кода: api/dispatch.go, synthetic.go, расширение операций/страницы, main.go wiring; тестов не содержал), написан пробелами; feat e6893ae — 18 файлов +5335/−4378 raw = контент (транспорт-тесты +336, OpenAPI yaml +104/−6, контракт-тест +77/−19, journeys +379/+49/−2/+47/−1, operations.go +274/−7, html +30/−1, main.go +20/−7) + gofmt-нормализация пробельных WIP-файлов в табы (10 Go-файлов чистой whitespace-правкой — прецедент 149 «WIP пробелами → gofmt -w»); итог против 509d29f: 19 файлов +2308/−533 raw, контентный ~+1890/−115; main.go и operation_contract_test.go были gofmt-грязными (пробельными) ещё с 3-5 — как touched-файлы слайса нормализованы полностью, нетронутые легаси-файлы НЕ чурнились (правило «gofmt только touched-файлы» соблюдено).
+- Верификация завершителя (полная — писатель мог не успеть прогнать перед смертью): gofmt -l на 16 Go-файлах e6893ae — пусто; go build ./... ok; go vet ./... ok; go test ./... -count=1 — ВСЕ 33 пакета ok, ноль FAIL (6.1с); скан добавленных строк (+2308 против 509d29f): CJK 0, секрет-паттерны 0. КРАСНОГО не было — fix-коммиты не потребовались, финальный код шага = e6893ae.
+- Наблюдение вне среза (пре-существующее, НЕ чинилось — минимальное вмешательство завершителя): contracts/openapi/staffy.yaml ConfirmationOwnerKindWord.enum = «uman, staffy]» — потеря «[h» из «[human» приехала из 3-5 (bcb2216, wip-orphan checkpoint), шагом 3-6 линия НЕ тронута (контекст-строка диффа e6893ae); YAML парсится (enum-скаляр вместо списка), контракт-тест не ловит — кандидату в step-04/QA: восстановить [human, staffy] и усилить контракт-тест типом enum.
+
+next: Dev step-04 — интеграционная матрица ~30 строк живой PG (полный живой путь authorized→drain→accepted→committed с receipt v1 и outbox receipt.created; каждая фенция живыми мутациями; lease/fencing/crash-recovery; RLS+FORCE ×3; CHECK-словари) + journeys z34 (полный контур на 320px, scriptable исходы) + регресс ×2 TZ; затем step-05 (QA) → CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge); вне среза владельцу: ревокация PAT после закрытия чата (retro-2-6).
+commit: e6893ae
+
+## DEVLOG 151 — Dev step-04 story 3-6: интеграционная матрица и journeys (закрыт)
+
+- Step-04 закрыт по спеке (Tasks & Acceptance): интеграционная матрица tests/integration/action_dispatch_test.go 28/28 строк живой PG/RLS поимённо — полный путь authorized→drain→accepted→committed (receipt v1 + outbox receipt.created SQL-зондами; lease write-ahead submitted до вызова; fencing attempt_no; crash-recovery истёкшей lease с provider_idempotent-гарантией в пределах 3 / без гарантии unknown parked; дубликат outbox = decided-verify digest-сверкой без второй отправки; evidence-отказ committed→unknown; фенции живыми мутациями БЕЗ отправки и БЕЗ lease: superseded/revoked/expired БЕЗ exhausted — consumed single_use диспетчится, мёртвый кейс/work_item, freshness, readiness, policy, материал nil/stale/allowed_uncertain, integrity alarm; RLS+FORCE ×3, CHECK-словари, append-only).
+- ЖИВОЙ БАГ миграции пойман подготовкой матрицы: колонка references в action_receipts = зарезервированное слово PostgreSQL (миграция упала бы на живой PG) → receipt_references (миграция 00003 + dispatch_store INSERT/SELECT синхронно); латентный регресс интеграционного CI пойман: operation_reservation_test обновлён под поверхность step-03 (State=authorized доменной константой + Queued фактом вместо составного слова) — CI-ранов не было ([skip ci] маркеры), пойман до CHECKPOINT 2.
+- Journeys z34-action-dispatch.spec.ts (453 строки, 34-z): полный живой путь z33 reused → машинный drain strict-decode (свободное поле 400 ДО сервиса) + честный пустой drain → accepted не-терминален (closed attempts, БЕЗ квитанции) → decided-verify skip повтора по часам → committed со structural evidence (receipt v1 readback: кейс/work item/пины/определение/внешний объект, SAFE без телефона) → failed терминален → unknown при сбое адаптера (write-ahead resting попытка, receipt unknown) → слепой повтор запрещён (парк без гарантии, финальный drain dispatched=0) → права ops 403/foreign 404 → a11y 320px; fixture-фиксы: штамп времени ledger-записей (карта «момент состояния» раньше пустовала), app-фикс честности accepted/failed без навешанного details «Evidence неполные»; zz-knowledge флейк-фикс (рендер-рейс заголовка — waitFor 5с вместо мгновенного isVisible; пункт из DEVLOG 146 next).
+- РЕГРЕСС ФИНАЛЬНЫЙ свежими прогонами: gofmt touched чист, build/vet ok, unit ВСЕ 33 пакета ok -count=1, интеграция живой PG -tags=integration ×2 TZ зелёная (UTC 30.4с / Europe/Moscow 33.7с), journeys ПОЛНЫЙ сьют 39/39 passed 2.3m (chromium-1200 chrome-linux64 через STAFFY_TEST_CHROMIUM_BIN); скан добавленных строк: CJK 0, секреты 0.
+- Исполнение цепочкой из шести агентов с SOS-коммитами (платформенный дедлайн ~10 мин — урок CONTINUITY §4.1 отработал в бою): r1/r2 подготовка + живой баг references (WIP ed5683c/93e7547), r3 матрица 1547 строк (b767125), r4 доводка до зелёного 28/28 (216b23a), r5 z34 зелёный соло (efacf3b), финал сессии — гейты ×2 TZ + journeys 39/39 + feat fd50400; фиктивный «yaml-дефект uman» (12 строк «enum: uman, staffy]» по данным rg/sed-выводов) оказался АРТЕФАКТОМ ОТОБРАЖЕНИЯ tool-вывода: литеральные «[h» съедаются срезом ANSI-кодов (ESC[h = cursor home) — od-байты показывают enum: полный список, rg «enum: uman» по файлу даёт 0 находок, живой yaml-парсер даёт [human, staffy]; файл корректен с 3-5, НЕ чинился; НОВЫЙ УРОК записан в CONTINUITY §4.1 (верить od -c / rg-счётчикам / парсеру, НЕ наивному отображению строк с [h-префиксами) — артефакт пойман парой независимых зондов (правило 146 подтверждено).
+- Статусы: спека 3-6 Spec Change Log step-04 внесён; sprint-status не трогался (прецедент 3-5: готова до done на closure step-05).
+
+next: Dev step-05 story 3-6 — QA-саморевью и closure по живому диффу шагов 01-04 (базлайн da665b8..HEAD: фенции не отправляют и не расходуют; lease write-ahead до вызова; fencing на записях; три пространства ключей не выводятся друг из друга; словари-зеркала; секрет-скан 12 паттернов по добавленным строкам; CJK/mixed; финальный регресс всех контуров свежими прогонами ПОСЛЕ closure-правок) + Spec Change Log step-05 + спека → done + sprint-status 3-6 → done (Epic 3: 6/9) + публикация паттерном 3-4: feat-коммит и DEVLOG-запись головой БЕЗ маркеров [skip ci] — голова ветки ОБЯЗАНА триггерить CI (урок 2-14/ретро-2-1) → push → RPO=0 → CI наблюдение → CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge + DEVLOG-merge + напоминание владельцу отозвать PAT).
+commit: fd50400
+
+## DEVLOG 152 — infra: урок «инструменты оживают после рестарта сессии» дописан в §4.1; ветки перепроверены живым ls-remote
+
+- Поручение владельца «записать плейбук по сбоям инструментов в память» добито третьим уроком серии (продолжение DEVLOG 148-infra): третья смерть Bash/Read главной сессии (2026-10-21, после закрытия step-04) прошла САМА после платформенного рестарта/продолжения сессии — прямые вызовы снова живы без вмешательства. docs/CONTINUITY.md §4.1 дополнен контрмерой №5 «Инструменты ОЖИВАЮТ после рестарта сессии»: первое действие преемника после рестарта — прямой дешёвый зонд `echo alive && git status -sb` (секунды, без субагента): живо → работай сам, не платя накладные делегирования; мертво → субагенты по п.2 §4.1; сводка диалога об «умерших инструментах» НЕ истина — описывает сессию-предшественницу, а не текущую. Счётчик переживаний поднят до «трижды» в заголовке §4.1 и строке таблицы режимов отказа §4; AGENTS.md п.3 протокола возобновления дополнен той же краткой версией — все будущие сессии прочитают её первым делом.
+- Уборка веток по поручению владельца: перепроверено живым `git ls-remote --heads origin` с токеном — на GitHub ровно main (da665b8) + рабочая codex/story-3-6-dispatch-and-action-receipt (affffec), мусора нет, слитые ветки не возвращались (уборка DEVLOG 148 держится); локально тоже ровно 2 ветки, тегов нет. Дополнительных действий не требуется.
+- Сессия начата по протоколу возобновления: session-start.sh прогнан (дерево чистое, RPO=0, next=step-05); зонд `echo alive` сработал живьём сразу — новый урок отработан на себе же в момент записи.
+
+next: Dev step-05 story 3-6 — QA-саморевью и closure по живому диффу шагов 01-04 (базлайн da665b8..HEAD: фенции не отправляют и не расходуют; lease write-ahead до вызова; fencing на записях; три пространства ключей не выводятся друг из друга; словари-зеркала; секрет-скан 12 паттернов по добавленным строкам; CJK/mixed; финальный регресс всех контуров свежими прогонами ПОСЛЕ closure-правок) + Spec Change Log step-05 + спека → done + sprint-status 3-6 → done (Epic 3: 6/9) + публикация паттерном 3-4: feat-коммит и DEVLOG-запись головой БЕЗ маркеров [skip ci] — голова ветки ОБЯЗАНА триггерить CI (урок 2-14/ретро-2-1) → push → RPO=0 → CI наблюдение → CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge + DEVLOG-merge + напоминание владельцу отозвать PAT).
+commit: b63f007
+
+## DEVLOG 153 — Dev step-05 story 3-6: QA-саморевью и closure (закрыт)
+
+- QA-саморевью свежим контекстом по живому диффу da665b8..HEAD шагов 01-04 (36 файлов +9366/−627; скрипты и логи на диске песочницы scripts/: qa_step05_3_6_scan.py + qa_step05_3_6_results.txt + regress_step05_3_6.sh/.log + journeys_step05_3_6.log): (а) ТРИ пространства ключей не выводятся друг из друга — клиентский fingerprint operation_material:v1: (без IdempotencyKey/business_intent/dispatch_key), бизнес-интент business_intent:v1: (без confirmation-пинов/operation_material/dispatch_key), внешний dispatch-ключ dispatch_key:v1: (тело = только tenant+operation_id, без материала), digest dispatch_request:v1: (только канонические байты payload); вызовы: fingerprint/intent по 1 в authorization 3-5, внешний ключ 1 + digest 2 в воркере (send + decided-verify — по спеке); первая грубая нарезка тел функций дала 3 ложных срабатывания (срез захватывал док-комментарии и структуры МЕЖДУ функциями — та же болезнь, что в 143) — нарезка по закрывающей скобке колонки 0, все пробы True; (б) фенции 1-9 живым чтением dispatchOneJob по порядку (job-schema alarm → fingerprint alarm → lease/fencing классификация → confirmation fence БЕЗ exhausted → кейс/work_item → freshness → readiness → policy → материал), каждая = не-отправляющий block без lease; lease write-ahead ДО вызова (AcquireDispatchLease + ledger submitted одной транзакцией, адаптер вне транзакций под таймаутом определения, grace 30с); fencing на записях (RecordDispatchOutcome по паре (attempt_no, lease_token), ErrLeaseStale/ErrOutcomeDuplicate → честный skip); evidence-дисциплина (committed без тройника external object id/version/time → unknown, отказанные детали только отказанному); (в) SAFE-персистенция: миграция 00003 без phone/template/snapshot/typed_input колонок, keyed digest в lease/outcome, receipt_references bounded 4096; гранты INSERT/SELECT + REVOKE UPDATE/DELETE/TRUNCATE — append-only структурно; (г) import-graph: actiondispatcher импортирован ТОЛЬКО tests/integration + tests/journeys fixture, cmd/ чист, wiring WithDispatch(store, nil) AG-4; (д) секрет-скан 12 паттернов по 9366 добавленным строкам — реальных секретов 0: 3 попадания = фикстурный класс (2× синтетических 64-hex lease-токена в unit-фикстурах + 1× journeys-ключ sandbox-execution-key — класс sandbox-*-key 3-5/3-8, не продукт); pickaxe всей истории: реальных длинных паттернов github_pat_/ghp_ 0 (26 коммитов = класс-упоминания масок github_pat_*** в DEVLOG/AGENTS/спеках), текущее дерево/диск/remote-URL чисты (.git/config чист, ~/.git-credentials и ~/.netrc отсутствуют); CJK 0; mixed 0 — 2 исходных попадания = артефакт regex на \n-escape перед кириллицей в t.Fatalf-сообщениях dispatch_test.go, правка пробелом после escape (файл не заморожен, 2 строки).
+- УРОК ИНСТРУМЕНТА (записан здесь для преемников): правка Go-файла через Edit-инструмент сессии КОНВЕРТИРОВАЛА табы→пробелы всего файла (1178-строчный чурн при 2-строчной правке) — пойман gofmt-гейтом финального регресса; лечение: git checkout файла + байтово-точный sed; правило: после КАЖДОЙ инструментальной правки Go-файла сверять git diff --stat (ожидаемая величина) до коммита.
+- Вердикт: Major-находок НЕТ; Minor закрыты правкой (mixed-артефакт) и документированием (фикстурный класс секретов).
+- Closure по прецеденту 143/1f17fa7: Spec Change Log запись step-05 (153-dev-step-05) внесена головой секции (история шагов 01-05 полная — трассировка DEVLOG↔спека), статус спеки ready-for-dev → done, sprint-status.yaml 3-6 → done (Epic 3: 6/9).
+- Финальный регресс всех контуров свежими прогонами ПОСЛЕ closure-правок: gofmt touched (25 файлов) чист; build/vet ok; unit ВСЕ 33 пакета ok -count=1 ноль FAIL (контракт-тест в составе); интеграция живой PG -tags=integration ×2 TZ зелёная (UTC 36.5с / Europe/Moscow 34.7с); матрица TestActionDispatchMatrixRowsBySpec 28/28 строк PASS повтором (6.8с); journeys ПОЛНЫЙ сьют 39/39 passed 2.4m (chromium-1200 через STAFFY_TEST_CHROMIUM_BIN, прецедент шага 04).
+- Публикация паттерном 3-4 (урок 2-14/ретро-2-1): feat-коммит closure + эта DEVLOG-запись головой, ОБА БЕЗ маркеров [skip ci] — голова ветки ОБЯЗАНА триггерить CI.
+
+next: push ветки (feat closure + DEVLOG 153 головой, оба без маркеров — CI-запуск на голове обязателен) по токену владельца → RPO=0 живым ls-remote → наблюдение CI-прогона ветки → worklog сессии (Task ID dev-step-05-3-6) → CHECKPOINT 2 по прецедентам 3-5 (PR #36, DEVLOG 144-merge) и 3-4: PR из ветки в main через GitHub API → CI ×3 зелёный (push-run + PR-run + main-run после merge) → sha-pinned merge → DEVLOG-запись merge → sprint-status/worklog → напоминание владельцу отозвать PAT-токен (передавался открытым текстом в чатах).
+commit: bc1f22c

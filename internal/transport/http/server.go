@@ -39,6 +39,7 @@ type Server struct {
 	actionCatalog       actionAPI.ActionCatalogService
 	actionPreviews      actionAPI.PreviewService
 	authorization       actionAPI.AuthorizationService
+	dispatch            actionAPI.DispatchService
 	controls            controlAPI.ControlService
 	employee            employeeAPI.Service
 	knowledge           employeeAPI.KnowledgeService

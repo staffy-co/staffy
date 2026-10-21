@@ -832,8 +832,8 @@ func TestAuthorizeOperationFullChain(t *testing.T) {
 		t.Fatalf("первая авторизация не является ни повтором, ни ссылкой: %+v", outcome)
 	}
 	card := outcome.Operation
-	if card.State != "authorized/queued" {
-		t.Fatalf("вид обязан говорить authorized/queued (никогда executed): %q", card.State)
+	if card.State != domain.OperationAuthorized || !card.Queued {
+		t.Fatalf("вид обязан говорить authorized с фактом очереди (никогда executed): %q/%v", card.State, card.Queued)
 	}
 	if card.ExternalIDAbsentText != domain.OperationExternalIDAbsentText || card.DispatchAbsentText != domain.OperationDispatchAbsentText {
 		t.Fatalf("карточка обязана нести честные тексты границ: %+v", card)
@@ -1382,8 +1382,11 @@ func TestReadAuthorizationViewDerivesLiveWords(t *testing.T) {
 		t.Fatalf("история обязана показывать confirmed и consumed: %+v", consent.Events)
 	}
 	card := view.Operations[0]
-	if card.State != "authorized/queued" || card.StateText == "" {
-		t.Fatalf("карточка операции обязана говорить authorized/queued: %+v", card)
+	if card.State != domain.OperationAuthorized || !card.Queued || card.StateText == "" {
+		t.Fatalf("карточка операции обязана говорить authorized с фактом очереди: %+v", card)
+	}
+	if card.NextStepText == "" || card.BlockReasonText != "" || len(card.Attempts) != 0 || len(card.Receipts) != 0 {
+		t.Fatalf("карточка обязана нести следующий шаг и честные пустые dispatch-поля: %+v", card)
 	}
 }
 

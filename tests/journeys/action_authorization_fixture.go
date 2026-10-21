@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"sort"
 	"sync"
 	"time"
@@ -64,6 +65,12 @@ type authorizationMemoryRepository struct {
 	caseOps    map[string][]actionDomain.Operation            // tenant|caseID → operations by time
 	ledger     map[string][]actionDomain.OperationLedgerEntry // tenant|operationID → entries by EntryNo
 	outbox     map[string]bool                                // tenant|operationID → the queue fact
+
+	// Story 3.6 (step-03): the queued-row material of the fixture drain —
+	// the at-least-once delivery units (the duplicate rows of one
+	// operation are LEGAL — the classification governs the repeat). The
+	// dispatch memory repository reads these rows under the SAME mutex.
+	outboxRows map[string][]authorizationOutboxRow // tenant|operationID → rows by time
 }
 
 // newAuthorizationMemoryRepository constructs the repositories of the
@@ -81,6 +88,7 @@ func newAuthorizationMemoryRepository(previews *previewMemoryRepository) *author
 		caseOps:       map[string][]actionDomain.Operation{},
 		ledger:        map[string][]actionDomain.OperationLedgerEntry{},
 		outbox:        map[string]bool{},
+		outboxRows:    map[string][]authorizationOutboxRow{},
 	}
 }
 
@@ -429,12 +437,26 @@ func (r *authorizationMemoryRepository) ReserveOperation(_ context.Context, p ac
 	r.byKey[idempotencyKey] = p.Operation
 	caseKey := p.Scope.TenantID().String() + "|" + p.Operation.CaseID.String()
 	r.caseOps[caseKey] = append(r.caseOps[caseKey], p.Operation)
-	// INSERT 4/5 — the ledger authorized entry (AD-13).
+	// INSERT 4/5 — the ledger authorized entry (AD-13): the entry
+	// moment lands the SAME server truth the PG store stamps (the
+	// fixture never serves a zero time — the card state moment of
+	// 3-6 derives from the entries).
+	authorizedEntry := p.LedgerEntry
+	authorizedEntry.At = p.Now.UTC()
 	r.ledger[authorizationOperationKey(p.Scope, p.Operation.OperationID)] = append(
-		r.ledger[authorizationOperationKey(p.Scope, p.Operation.OperationID)], p.LedgerEntry)
+		r.ledger[authorizationOperationKey(p.Scope, p.Operation.OperationID)], authorizedEntry)
 	// INSERT 5/5 — the outbox operation.queued record (the SAFE payload —
-	// the material NEVER enters; the drain contour is 3-6).
-	r.outbox[authorizationOperationKey(p.Scope, p.Operation.OperationID)] = true
+	// the material NEVER enters; the fixture drain of 3-6 reads the SAME
+	// rows through the dispatch memory repository).
+	operationKey := authorizationOperationKey(p.Scope, p.Operation.OperationID)
+	r.outbox[operationKey] = true
+	payloadBytes, err := json.Marshal(p.OutboxPayload)
+	if err != nil {
+		return err
+	}
+	r.outboxRows[operationKey] = append(r.outboxRows[operationKey], authorizationOutboxRow{
+		EventID: p.OutboxEventID, Payload: payloadBytes, CreatedAt: p.Now.UTC(),
+	})
 	return nil
 }
 
@@ -512,4 +534,34 @@ func (f *actionsFixture) ReadAuthorizationView(ctx context.Context, actor identi
 		return actionAPI.AuthorizationView{}, actionDomain.RuleError{Rule: "read_authorization_view", Reason: authorizationNotConfiguredText}
 	}
 	return service.ReadAuthorizationView(ctx, actor, tenantID, caseID, journeyClock.Now())
+}
+
+// ---------------------------------------------------------------------------
+// The Story 3.6 delegation of the actions fixture: the execution contour
+// lives on the SAME world service (WithDispatch extends the one service —
+// the ordered fences of the REAL app answer through the fixture path).
+// ---------------------------------------------------------------------------
+
+// The compile-time proof the fixture serves the narrow dispatch surface
+// the transport type-asserts.
+var _ actionAPI.DispatchService = (*actionsFixture)(nil)
+
+// DrainDispatchQueue delegates to the active authorization contour (the
+// REAL ordered fences run there — the write-ahead lease, the fenced
+// verdict, the honest report of every considered job); the contours
+// without the repositories answer the honest refusal.
+func (f *actionsFixture) DrainDispatchQueue(ctx context.Context, command actionAPI.DrainDispatchCommand) (actionAPI.DispatchDrainResult, error) {
+	f.mu.Lock()
+	service := f.authorizationService()
+	f.mu.Unlock()
+	if service == nil {
+		return actionAPI.DispatchDrainResult{}, actionDomain.RuleError{Rule: "drain_dispatch_queue", Reason: authorizationNotConfiguredText}
+	}
+	dispatch, ok := service.(actionAPI.DispatchService)
+	if !ok {
+		return actionAPI.DispatchDrainResult{}, actionDomain.RuleError{Rule: "drain_dispatch_queue", Reason: authorizationNotConfiguredText}
+	}
+	return dispatch.DrainDispatchQueue(ctx, actionAPI.DrainDispatchCommand{
+		Actor: command.Actor, TenantID: command.TenantID, Now: journeyClock.Now(),
+	})
 }
