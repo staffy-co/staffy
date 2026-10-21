@@ -93,11 +93,11 @@ func TestActionDispatchMatrixRowsBySpec(t *testing.T) {
 		t.Skip("no runtime pool")
 	}
 	ctx := context.Background()
-	w, svc, adapter, reader := actionDispatchWorld(t, 356)
+	w, svc, adapter, reader, operator := actionDispatchWorld(t, 356)
 	caseID, workItemID := w.acceptedCase(t, "evt-dis-m1", "sess-dis-m1", `{"call":"inbound-call","from":"+79000000601"}`)
 	// The invited members of the matrix: the operations-only operator (the
 	// honest 403 of the drain scope gate) over the LIVE identity service.
-	identityLive := identityApp.New(identityStore.NewPostgres(runtimePool), fixedClock{actionDispatchNow}, newPrivacyIDs(13600))
+	identityLive := identityApp.New(identityStore.NewPostgres(runtimePool), fixedClock{time.Now().UTC()}, newPrivacyIDs(13600))
 	auditor := inviteMember(t, identityLive, w.owner, w.tenant, "dispatch-audit@example.org", identityDomain.ExpertQA, []identityDomain.Scope{identityDomain.Audit}, "00000000b805", "00000000b806")
 	// The LIVE control service of the freshness rows (the control
 	// generation move of the scoped autonomy class route).
@@ -463,10 +463,14 @@ func TestActionDispatchMatrixRowsBySpec(t *testing.T) {
 	// attempts — the provider deduplicates the repeats).
 	t.Run("row-8 the attempts bound: park_bound, ONE external key", func(t *testing.T) {
 		op := dispatchAuthorizedOperation(t, w, svc, owner, caseID, workItemID, 8, authorizeMatrixUnlimited, map[string]string{"phone": "+79000000611"}, nil, nil, "dis-live-key-8", 3600, actionDispatchNow)
+		// The seeded attempts of the "previous worker" walk their own
+		// honest windows: every next lease lands after the previous
+		// one expired (the store refuses an active twin with the
+		// racing signal — the seeding never fights the fence).
 		token1 := dispatchSeedLease(t, w, owner, op, 2, actionDispatchNow, actionDispatchNow.Add(35*time.Second))
-		token2 := dispatchSeedLease(t, w, owner, op, 3, actionDispatchNow, actionDispatchNow.Add(35*time.Second))
-		token3 := dispatchSeedLease(t, w, owner, op, 4, actionDispatchNow, actionDispatchNow.Add(35*time.Second))
-		dispatchSeedOutcome(t, w, owner, op, 3, token3, actionDomain.MutationOutcomeTimeout, actionDomain.OperationUnknown, true, 5, actionDispatchNow)
+		token2 := dispatchSeedLease(t, w, owner, op, 3, actionDispatchNow.Add(36*time.Second), actionDispatchNow.Add(71*time.Second))
+		token3 := dispatchSeedLease(t, w, owner, op, 4, actionDispatchNow.Add(72*time.Second), actionDispatchNow.Add(107*time.Second))
+		dispatchSeedOutcome(t, w, owner, op, 3, token3, actionDomain.MutationOutcomeTimeout, actionDomain.OperationUnknown, true, 5, actionDispatchNow.Add(108*time.Second))
 		_ = token1
 		_ = token2
 		adapter.reset()
@@ -497,8 +501,10 @@ func TestActionDispatchMatrixRowsBySpec(t *testing.T) {
 	// (the append-only audit stays one row per attempt, AC-1).
 	t.Run("row-9 fencing: the stale holder never writes history", func(t *testing.T) {
 		op := dispatchAuthorizedOperation(t, w, svc, owner, caseID, workItemID, 9, authorizeMatrixUnlimited, map[string]string{"phone": "+79000000612"}, nil, nil, "dis-live-key-9", 3600, actionDispatchNow)
+		// The second seeded attempt lands after the first window
+		// expired (the honest seeding of the newer holder).
 		token1 := dispatchSeedLease(t, w, owner, op, 2, actionDispatchNow, actionDispatchNow.Add(35*time.Second))
-		token2 := dispatchSeedLease(t, w, owner, op, 3, actionDispatchNow, actionDispatchNow.Add(35*time.Second))
+		token2 := dispatchSeedLease(t, w, owner, op, 3, actionDispatchNow.Add(36*time.Second), actionDispatchNow.Add(71*time.Second))
 		store := actionStore.NewPostgres(runtimePool)
 		scope, err := tenancy.New(owner.ID, w.tenant)
 		if err != nil {
@@ -507,7 +513,7 @@ func TestActionDispatchMatrixRowsBySpec(t *testing.T) {
 		if err := store.RecordDispatchOutcome(ctx, actionPort.RecordDispatchOutcomeParams{
 			Scope: scope, Operation: op, AttemptNo: 1, LeaseToken: token1,
 			OutcomeWord: actionDomain.MutationOutcomeAccepted, StateWord: actionDomain.OperationAccepted,
-			LedgerEntry: actionDomain.OperationLedgerEntry{EntryNo: 4, Kind: actionDomain.OperationAccepted, Details: "fencing probe"},
+			LedgerEntry:      actionDomain.OperationLedgerEntry{EntryNo: 4, Kind: actionDomain.OperationAccepted, Details: "fencing probe"},
 			ReceiptVersionNo: 1, OutboxEventID: id.MustParse("01994f64-6c00-7000-8000-00000000b831"), Now: actionDispatchNow,
 		}); !errors.Is(err, actionPort.ErrLeaseStale) {
 			t.Fatalf("the older holder behind a newer attempt refuses, got %v", err)
@@ -515,7 +521,7 @@ func TestActionDispatchMatrixRowsBySpec(t *testing.T) {
 		if err := store.RecordDispatchOutcome(ctx, actionPort.RecordDispatchOutcomeParams{
 			Scope: scope, Operation: op, AttemptNo: 2, LeaseToken: strings.Repeat("f", 64),
 			OutcomeWord: actionDomain.MutationOutcomeAccepted, StateWord: actionDomain.OperationAccepted,
-			LedgerEntry: actionDomain.OperationLedgerEntry{EntryNo: 4, Kind: actionDomain.OperationAccepted, Details: "fencing probe"},
+			LedgerEntry:      actionDomain.OperationLedgerEntry{EntryNo: 4, Kind: actionDomain.OperationAccepted, Details: "fencing probe"},
 			ReceiptVersionNo: 1, OutboxEventID: id.MustParse("01994f64-6c00-7000-8000-00000000b832"), Now: actionDispatchNow,
 		}); !errors.Is(err, actionPort.ErrLeaseStale) {
 			t.Fatalf("the foreign token refuses, got %v", err)
@@ -523,7 +529,7 @@ func TestActionDispatchMatrixRowsBySpec(t *testing.T) {
 		if err := store.RecordDispatchOutcome(ctx, actionPort.RecordDispatchOutcomeParams{
 			Scope: scope, Operation: op, AttemptNo: 2, LeaseToken: token2,
 			OutcomeWord: actionDomain.MutationOutcomeAccepted, StateWord: actionDomain.OperationAccepted,
-			LedgerEntry: actionDomain.OperationLedgerEntry{EntryNo: 4, Kind: actionDomain.OperationAccepted, Details: "fencing probe"},
+			LedgerEntry:      actionDomain.OperationLedgerEntry{EntryNo: 4, Kind: actionDomain.OperationAccepted, Details: "fencing probe"},
 			ReceiptVersionNo: 1, OutboxEventID: id.MustParse("01994f64-6c00-7000-8000-00000000b833"), Now: actionDispatchNow,
 		}); err != nil {
 			t.Fatalf("the current holder records its verdict: %v", err)
@@ -531,7 +537,7 @@ func TestActionDispatchMatrixRowsBySpec(t *testing.T) {
 		if err := store.RecordDispatchOutcome(ctx, actionPort.RecordDispatchOutcomeParams{
 			Scope: scope, Operation: op, AttemptNo: 2, LeaseToken: token2,
 			OutcomeWord: actionDomain.MutationOutcomeAccepted, StateWord: actionDomain.OperationAccepted,
-			LedgerEntry: actionDomain.OperationLedgerEntry{EntryNo: 5, Kind: actionDomain.OperationAccepted, Details: "fencing probe"},
+			LedgerEntry:      actionDomain.OperationLedgerEntry{EntryNo: 5, Kind: actionDomain.OperationAccepted, Details: "fencing probe"},
 			ReceiptVersionNo: 1, OutboxEventID: id.MustParse("01994f64-6c00-7000-8000-00000000b834"), Now: actionDispatchNow,
 		}); !errors.Is(err, actionPort.ErrOutcomeDuplicate) {
 			t.Fatalf("the verdict of one attempt never lands twice, got %v", err)
@@ -639,9 +645,17 @@ func TestActionDispatchMatrixRowsBySpec(t *testing.T) {
 	// and a dead work-item pin each block with the case_closed word
 	// BEFORE any send (the queued intent of a finished world dies, FR-28).
 	t.Run("row-12 the liveness fence: the dead case, the dead work item", func(t *testing.T) {
-		deadCase := dispatchProbeOperation(t, w, svc, owner, caseID, workItemID, 14, 15, id.MustParse("01994f64-6c00-7000-8000-00000000b821"), workItemID, "dis-live-key-12a", actionDispatchNow)
-		deadWork := dispatchProbeOperation(t, w, svc, owner, caseID, workItemID, 16, 17, caseID, id.MustParse("01994f64-6c00-7000-8000-00000000b822"), "dis-live-key-12b", actionDispatchNow)
+		// The base scaffolding operations of the probes settle their
+		// own honest live path FIRST (their dispatch leaves the
+		// queue — the probes alone remain for the fence row).
+		baseA := dispatchAuthorizedOperation(t, w, svc, owner, caseID, workItemID, 14, authorizeMatrixUnlimited, map[string]string{"phone": "+79000000640"}, nil, nil, "dis-live-key-12a-base", 3600, actionDispatchNow)
+		baseB := dispatchAuthorizedOperation(t, w, svc, owner, caseID, workItemID, 16, authorizeMatrixUnlimited, map[string]string{"phone": "+79000000641"}, nil, nil, "dis-live-key-12b-base", 3600, actionDispatchNow)
+		adapter.inner.Script(actionDomain.MutationOutcomeCommitted, "", nil)
+		adapter.inner.ScriptEvidence("ext-dis-12a", "1")
+		drain(16)
 		adapter.reset()
+		deadCase := dispatchProbeOperation(t, w, owner, baseA, 15, id.MustParse("01994f64-6c00-7000-8000-00000000b821"), workItemID, "dis-live-key-12a", actionDispatchNow)
+		deadWork := dispatchProbeOperation(t, w, owner, baseB, 17, caseID, id.MustParse("01994f64-6c00-7000-8000-00000000b822"), "dis-live-key-12b", actionDispatchNow)
 		report := drain(17)
 		for _, op := range []actionDomain.Operation{deadCase, deadWork} {
 			if text := linesOf(report, op.OperationID); !strings.Contains(text, actionDomain.DispatchBlockedText("case_closed")) {
@@ -663,13 +677,6 @@ func TestActionDispatchMatrixRowsBySpec(t *testing.T) {
 	// intent with the EXACT reason word, the adapter never called, the
 	// lease never taken.
 	t.Run("row-13 the freshness fences: six reasons by name", func(t *testing.T) {
-		blockedLine := func(op actionDomain.Operation, reason string) {
-			t.Helper()
-			adapter.reset()
-			report := drain(reason[0])
-			_ = report
-		}
-		_ = blockedLine
 		// fact_changed: the supporting fact version moved after the
 		// authorization.
 		factCase, factWork := w.acceptedCase(t, "evt-dis-m2", "sess-dis-m2", `{"call":"inbound-call","from":"+79000000618"}`)
@@ -696,7 +703,7 @@ func TestActionDispatchMatrixRowsBySpec(t *testing.T) {
 			Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: epochCase, ExpectedEpoch: 1,
 			ToOwnerKind: casesDomain.OwnerKindHuman, ToOwnerRef: w.backup,
 			WritableSurface: casesDomain.WritableSurfaceInbox, Reason: "передача владения на время отпуска",
-			IdempotencyKey:  "dis-transfer-1", Now: actionDispatchNow,
+			IdempotencyKey: "dis-transfer-1", Now: actionDispatchNow,
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -716,7 +723,7 @@ func TestActionDispatchMatrixRowsBySpec(t *testing.T) {
 		// fence — the moved pin is named first).
 		genCase, genWork := w.acceptedCase(t, "evt-dis-m5", "sess-dis-m5", `{"call":"inbound-call","from":"+79000000624"}`)
 		genOp := dispatchAuthorizedOperation(t, w, svc, owner, genCase, genWork, 23, authorizeMatrixUnlimited, map[string]string{"phone": "+79000000625"}, nil, nil, "dis-live-key-13d", 3600, actionDispatchNow)
-		if _, err := controls.Set(ctx, operatorPrincipal(w), w.tenant, controlAPI.SetRequest{
+		if _, err := controls.Set(ctx, operator, w.tenant, controlAPI.SetRequest{
 			Kind: controlDomain.ScopeKindAutonomyClass, Ref: "assisted", Mode: controlDomain.ControlModePaused,
 			Reason:             "смена поколения контроля матрицы 3-6",
 			ExpectedGeneration: 0, CorrelationID: id.MustParse("01994f64-6c00-7000-8000-00000000b841"),
@@ -726,7 +733,7 @@ func TestActionDispatchMatrixRowsBySpec(t *testing.T) {
 		if text := linesOf(drain(21), genOp.OperationID); !strings.Contains(text, actionDomain.DispatchBlockedText(actionDomain.FreshnessControlGenerationMoved)) {
 			t.Fatalf("the moved control generation answers its exact word, got %q", text)
 		}
-		if _, err := controls.Resume(ctx, operatorPrincipal(w), w.tenant, controlAPI.ResumeRequest{
+		if _, err := controls.Resume(ctx, operator, w.tenant, controlAPI.ResumeRequest{
 			Kind: controlDomain.ScopeKindAutonomyClass, Ref: "assisted",
 			Reason: "контроль снят", ExpectedGeneration: 1,
 			CorrelationID: id.MustParse("01994f64-6c00-7000-8000-00000000b842"),
@@ -880,8 +887,8 @@ func TestActionDispatchMatrixRowsBySpec(t *testing.T) {
 			t.Fatal(err)
 		}
 		if _, err := adminPool.Exec(ctx, `
-			insert into action.outbox_events (tenant_id, event_id, event_type, case_id, operation_id, payload, created_at)
-			values ($1, $2, 'operation.queued', $3, $4, '{"event_type":"operation.queued","operation_id":"01994f64-6c00-7000-8000-00000000b861"}'::jsonb, $5)`,
+                        insert into action.outbox_events (tenant_id, event_id, event_type, case_id, operation_id, payload, created_at)
+                        values ($1, $2, 'operation.queued', $3, $4, '{"event_type":"operation.queued","operation_id":"01994f64-6c00-7000-8000-00000000b861"}'::jsonb, $5)`,
 			w.tenant, id.MustParse("01994f64-6c00-7000-8000-00000000b871"), caseID, operationID, actionDispatchNow.Add(30*time.Minute)); err != nil {
 			t.Fatal(err)
 		}
@@ -919,9 +926,9 @@ func TestActionDispatchMatrixRowsBySpec(t *testing.T) {
 			t.Fatal(err)
 		}
 		if _, err := adminPool.Exec(ctx, `
-			insert into action.outbox_events (tenant_id, event_id, event_type, case_id, operation_id, payload, created_at)
-			select tenant_id, $2, event_type, case_id, operation_id, payload, created_at
-			from action.outbox_events where tenant_id=$1 and operation_id=$3 and event_type='operation.queued' limit 1`,
+                        insert into action.outbox_events (tenant_id, event_id, event_type, case_id, operation_id, payload, created_at)
+                        select tenant_id, $2, event_type, case_id, operation_id, payload, created_at
+                        from action.outbox_events where tenant_id=$1 and operation_id=$3 and event_type='operation.queued' limit 1`,
 			w.tenant, id.MustParse("01994f64-6c00-7000-8000-00000000b872"), operationID); err != nil {
 			t.Fatal(err)
 		}
@@ -972,6 +979,19 @@ func TestActionDispatchMatrixRowsBySpec(t *testing.T) {
 			w.tenant, op.MaterialDigest, op.OperationID); err != nil {
 			t.Fatal(err)
 		}
+		// The heal restores the row: the next consideration of the
+		// honest job dispatches it through the full live path (the
+		// alarm was the skip of ONE pass, never a permanent park).
+		adapter.inner.Script(actionDomain.MutationOutcomeCommitted, "", nil)
+		adapter.inner.ScriptEvidence("ext-dis-19", "9")
+		adapter.reset()
+		healed := drain(32)
+		if text := linesOf(healed, op.OperationID); !strings.Contains(text, actionDomain.OperationCommittedText) {
+			t.Fatalf("the healed operation dispatches on the next consideration, got %q", text)
+		}
+		if adapter.total() != 1 {
+			t.Fatalf("the healed operation sends exactly once, got %d", adapter.total())
+		}
 	})
 
 	// Row 20 — the decided-verify DIGEST DIVERGENCE: the recorded trace of
@@ -1018,6 +1038,7 @@ func TestActionDispatchMatrixRowsBySpec(t *testing.T) {
 	t.Run("row-22 the nil reader: the fail-closed material gate", func(t *testing.T) {
 		op := dispatchAuthorizedOperation(t, w, svc, owner, caseID, workItemID, 32, authorizeMatrixUnlimited, map[string]string{"phone": "+79000000636"}, nil, nil, "dis-live-key-22", 3600, actionDispatchNow)
 		nilReaderService := w.buildActionDispatchService(adapter, nil, actionPreviewIDs(3660, 64))
+		adapter.reset()
 		report, err := nilReaderService.DispatchQueuedOperations(ctx, actionApp.DispatchDrainCommand{
 			Actor: owner, TenantID: w.tenant, Now: actionDispatchNow.Add(34 * time.Minute),
 		})
@@ -1110,7 +1131,7 @@ func TestActionDispatchMatrixRowsBySpec(t *testing.T) {
 		for _, table := range tables {
 			var rls, force bool
 			if err := adminPool.QueryRow(ctx, `select relrowsecurity, relforcerowsecurity from pg_class
-				where relnamespace = 'action'::regnamespace and relname = $1`, table).Scan(&rls, &force); err != nil {
+                                where relnamespace = 'action'::regnamespace and relname = $1`, table).Scan(&rls, &force); err != nil {
 				t.Fatal(err)
 			}
 			if !rls || !force {
@@ -1152,29 +1173,29 @@ func TestActionDispatchMatrixRowsBySpec(t *testing.T) {
 			t.Fatal(err)
 		}
 		if _, err := adminPool.Exec(ctx, `
-			insert into action.dispatch_outcomes (tenant_id, operation_id, attempt_no, lease_token, outcome,
-				correlation_id, external_object_id, external_object_version, external_object_time,
-				guarantee_recorded, details, created_at)
-			values ($1, $2, 3, $3, 'delivered', '', '', '', null, false, 'probe', $4)`,
+                        insert into action.dispatch_outcomes (tenant_id, operation_id, attempt_no, lease_token, outcome,
+                                correlation_id, external_object_id, external_object_version, external_object_time,
+                                guarantee_recorded, details, created_at)
+                        values ($1, $2, 3, $3, 'delivered', '', '', '', null, false, 'probe', $4)`,
 			w.tenant, liveOperation, liveToken, actionDispatchNow); err == nil {
 			t.Fatal("the foreign outcome word refuses at the CHECK backstop")
 		}
 		if _, err := adminPool.Exec(ctx, `
-			insert into action.action_receipts (tenant_id, operation_id, receipt_version_no, outcome, receipt_references, details, created_at)
-			values ($1, $2, 1, 'reconciling', '{}'::jsonb, 'probe', $3)`,
+                        insert into action.action_receipts (tenant_id, operation_id, receipt_version_no, outcome, receipt_references, details, created_at)
+                        values ($1, $2, 1, 'reconciling', '{}'::jsonb, 'probe', $3)`,
 			w.tenant, liveOperation, actionDispatchNow); err == nil {
 			t.Fatal("the foreign receipt outcome refuses at the CHECK backstop")
 		}
 		if _, err := adminPool.Exec(ctx, `
-			insert into action.dispatch_leases (tenant_id, operation_id, attempt_no, lease_token,
-				definition_id, definition_version, external_idempotency_key, request_digest, lease_expires_at, created_at)
-			values ($1, $2, 4, $3, 'x', '1.0.0', $4, $5, $6, $6)`,
+                        insert into action.dispatch_leases (tenant_id, operation_id, attempt_no, lease_token,
+                                definition_id, definition_version, external_idempotency_key, request_digest, lease_expires_at, created_at)
+                        values ($1, $2, 4, $3, 'x', '1.0.0', $4, $5, $6, $6)`,
 			w.tenant, liveOperation, liveToken, strings.Repeat("e", 64), strings.Repeat("f", 64), actionDispatchNow); err == nil {
 			t.Fatal("the out-of-bound attempt number refuses at the CHECK backstop")
 		}
 		if _, err := adminPool.Exec(ctx, `
-			insert into action.outbox_events (tenant_id, event_id, event_type, case_id, operation_id, payload, created_at)
-			values ($1, $2, 'receipt.updated', $3, $4, '{}'::jsonb, $5)`,
+                        insert into action.outbox_events (tenant_id, event_id, event_type, case_id, operation_id, payload, created_at)
+                        values ($1, $2, 'receipt.updated', $3, $4, '{}'::jsonb, $5)`,
 			w.tenant, id.MustParse("01994f64-6c00-7000-8000-00000000b881"), caseID, liveOperation, actionDispatchNow); err == nil {
 			t.Fatal("the foreign outbox event word refuses at the CHECK backstop")
 		}
@@ -1189,7 +1210,10 @@ func TestActionDispatchMatrixRowsBySpec(t *testing.T) {
 		if err := adminPool.QueryRow(ctx, `select operation_id from action.dispatch_leases where tenant_id=$1 limit 1`, w.tenant).Scan(&liveOperation); err != nil {
 			t.Fatal(err)
 		}
-		for _, probe := range []struct{ query string; args []any }{
+		for _, probe := range []struct {
+			query string
+			args  []any
+		}{
 			{`update action.dispatch_leases set lease_token=$2 where tenant_id=$1 and operation_id=$3`, []any{w.tenant, strings.Repeat("a", 64), liveOperation}},
 			{`delete from action.dispatch_leases where tenant_id=$1 and operation_id=$2`, []any{w.tenant, liveOperation}},
 			{`update action.dispatch_outcomes set details='rewritten' where tenant_id=$1 and operation_id=$2`, []any{w.tenant, liveOperation}},
@@ -1197,8 +1221,8 @@ func TestActionDispatchMatrixRowsBySpec(t *testing.T) {
 			{`update action.action_receipts set details='rewritten' where tenant_id=$1 and operation_id=$2`, []any{w.tenant, liveOperation}},
 			{`delete from action.action_receipts where tenant_id=$1 and operation_id=$2`, []any{w.tenant, liveOperation}},
 		} {
-			if err := dispatchRuntimeRefuses(t, w.tenant, probe.query, probe.args...); err != nil {
-				t.Fatalf("%s must refuse on the append-only surface: %v", probe.query, err)
+			if err := dispatchRuntimeRefuses(t, w.tenant, probe.query, probe.args...); err == nil {
+				t.Fatalf("%s must refuse on the append-only surface (the grants are absent)", probe.query)
 			}
 		}
 	})
@@ -1255,13 +1279,24 @@ func (c *countingMutationAdapter) Dispatch(ctx context.Context, scope tenancy.Co
 func (c *countingMutationAdapter) reset()       { atomic.StoreInt64(&c.calls, 0) }
 func (c *countingMutationAdapter) total() int64 { return atomic.LoadInt64(&c.calls) }
 
-// operatorPrincipal answers the operations-scoped operator principal of
-// the matrix (the invitee of the world construction — the scoped control
-// commands demand the operator manage surface).
-func operatorPrincipal(w *casesWorld) identityDomain.Principal {
-	principal := w.membersOperator()
-	principal.StepUpVerified = true
-	return principal
+// actionDispatchWorld builds the matrix world: the cases world of the
+// suite plus the REAL execution contour with the counting synthetic
+// mutation adapter over the verified channel capability word.
+func actionDispatchWorld(t *testing.T, seed int) (*casesWorld, *actionApp.Service, *countingMutationAdapter, *owningsystem.Synthetic, identityDomain.Principal) {
+	t.Helper()
+	w := newCasesWorld(t, seed)
+	// The 512-value id pools of the world (the case commands and the
+	// action service share the free 36xx range with the headroom).
+	w.cases = w.buildCasesServiceClock(actionPreviewIDs(seed*10+500, 512), fixedClock{operationNow})
+	reader := owningsystem.New()
+	adapter := &countingMutationAdapter{inner: actiondispatcher.NewServing("query.trunk-status")}
+	service := w.buildActionDispatchService(adapter, reader, actionPreviewIDs(seed*10+400, 512))
+	// The operations-scoped operator member of the scoped-control rows
+	// (the control Set/Resume demands the operator manage surface).
+	identityLive := identityApp.New(identityStore.NewPostgres(runtimePool), fixedClock{time.Now().UTC()}, newPrivacyIDs(13600))
+	operator := inviteMember(t, identityLive, w.owner, w.tenant, "dispatch-ops@example.org", identityDomain.Operator, []identityDomain.Scope{identityDomain.Operations}, "00000000b801", "00000000b802")
+	operator.StepUpVerified = true
+	return w, service, adapter, reader, operator
 }
 
 // buildActionDispatchService wires the REAL app service of the Story 3-6
@@ -1299,25 +1334,6 @@ func (w *casesWorld) buildActionDispatchService(adapter actionPort.MutationAdapt
 	return service
 }
 
-// actionDispatchWorld builds the matrix world: the cases world of the
-// suite plus the REAL execution contour with the counting synthetic
-// mutation adapter over the verified channel capability word.
-func actionDispatchWorld(t *testing.T, seed int) (*casesWorld, *actionApp.Service, *countingMutationAdapter, *owningsystem.Synthetic) {
-	t.Helper()
-	w := newCasesWorld(t, seed)
-	// The 512-value id pools of the world (the case commands and the
-	// action service share the free 36xx range with the headroom).
-	w.cases = w.buildCasesServiceClock(actionPreviewIDs(seed*10+500, 512), fixedClock{operationNow})
-	reader := owningsystem.New()
-	adapter := &countingMutationAdapter{inner: actiondispatcher.NewServing("query.trunk-status")}
-	service := w.buildActionDispatchService(adapter, reader, actionPreviewIDs(seed*10+400, 512))
-	// The operations-scoped operator member of the scoped-control rows
-	// (the control Set/Resume demands the operator manage surface).
-	identityLive := identityApp.New(identityStore.NewPostgres(runtimePool), fixedClock{actionDispatchNow}, newPrivacyIDs(13600))
-	inviteMember(t, identityLive, w.owner, w.tenant, "dispatch-ops@example.org", identityDomain.Operator, []identityDomain.Scope{identityDomain.Operations}, "00000000b801", "00000000b802")
-	return w, service, adapter, reader
-}
-
 // dispatchAuthorizedOperation walks the FULL live path to ONE queued job
 // of the matrix: the typed-valid proposal, the human confirmation (the
 // step-up act, the requested window) and the machine authorization —
@@ -1338,7 +1354,19 @@ func dispatchAuthorizedOperation(t *testing.T, w *casesWorld, svc *actionApp.Ser
 	if err != nil || authorized.Replay || authorized.ReservationReference {
 		t.Fatalf("the fresh authorization of the queued intent, got %+v err=%v", authorized, err)
 	}
-	return authorized.Operation
+	// The immutable domain row reads back through the REAL store by
+	// its client key (the honest row of the queued intent — the card
+	// view of the outcome is the flat projection, the store row keeps
+	// the full pins for the seeded helpers).
+	scope, err := tenancy.New(actor.ID, w.tenant)
+	if err != nil {
+		t.Fatal(err)
+	}
+	op, found, err := actionStore.NewPostgres(runtimePool).FindOperationByIdempotencyKey(context.Background(), scope, key)
+	if err != nil || !found {
+		t.Fatalf("the queued operation reads back by its client key, found=%v err=%v", found, err)
+	}
+	return op
 }
 
 // dispatchSeedLease writes the WRITE-AHEAD lease of a "previous worker"
@@ -1370,7 +1398,7 @@ func dispatchSeedLeaseWithDigest(t *testing.T, w *casesWorld, actor identityDoma
 	if digest == "" {
 		digest = dispatchRebuiltDigest(t, store, scope, op, hmacKey)
 	}
-	token := fmt.Sprintf("%064d", dispatchSeedCounter.next())
+	token := fmt.Sprintf("%064d", dispatchSeedCounter.mint())
 	if _, err := store.AcquireDispatchLease(ctx, actionPort.AcquireDispatchLeaseParams{
 		Scope:                  scope,
 		Operation:              op,
@@ -1414,7 +1442,7 @@ func dispatchSeedOutcome(t *testing.T, w *casesWorld, actor identityDomain.Princ
 			EntryNo: entryNo, Kind: stateWord, Details: "seeded verdict of the probe",
 		},
 		ReceiptVersionNo: 1,
-		OutboxEventID:    id.MustParse(fmt.Sprintf("01994f64-6c00-7000-8000-%012d", dispatchSeedCounter.next())),
+		OutboxEventID:    id.MustParse(fmt.Sprintf("01994f64-6c00-7000-8000-%012d", dispatchSeedCounter.mint())),
 		Now:              now,
 	}); err != nil {
 		t.Fatalf("the seeded verdict must land through the real fenced transaction: %v", err)
@@ -1428,7 +1456,7 @@ var dispatchSeedCounter = &dispatchSeedIDs{next: 1}
 
 type dispatchSeedIDs struct{ next int }
 
-func (s *dispatchSeedIDs) next() int {
+func (s *dispatchSeedIDs) mint() int {
 	s.next++
 	return s.next * 1001
 }
@@ -1463,15 +1491,14 @@ func dispatchDefinitionOf(definitionID string) actionDomain.ActionDefinition {
 
 // dispatchProbeOperation builds the PROBE operation row of the liveness
 // fence (the honest ReserveOperation store transaction over the LIVE PG —
-// the row-19 precedent of the 3-5 matrix): the full live path authorizes
-// the base operation, then the probe copy pins the GIVEN case/work-item
-// (the dead-case and the dead-work-item simulations of the world moving
-// on) with the honest derived identities.
-func dispatchProbeOperation(t *testing.T, w *casesWorld, svc *actionApp.Service, actor identityDomain.Principal,
-	caseID, workItemID id.UUID, row, probeRow int64, probeCaseID, probeWorkItemID id.UUID, key string, now time.Time) actionDomain.Operation {
+// the row-19 precedent of the 3-5 matrix): the GIVEN already-authorized
+// base operation pins the probe copy to the dead case/work-item (the
+// dead-case and the dead-work-item simulations of the world moving on)
+// with the honest derived identities.
+func dispatchProbeOperation(t *testing.T, w *casesWorld, actor identityDomain.Principal, base actionDomain.Operation,
+	probeRow int64, probeCaseID, probeWorkItemID id.UUID, key string, now time.Time) actionDomain.Operation {
 	t.Helper()
 	ctx := context.Background()
-	base := dispatchAuthorizedOperation(t, w, svc, actor, caseID, workItemID, row, authorizeMatrixUnlimited, map[string]string{"phone": "+79000000640"}, nil, nil, key+"-base", 3600, now)
 	store := actionStore.NewPostgres(runtimePool)
 	scope, err := tenancy.New(actor.ID, w.tenant)
 	if err != nil {
@@ -1489,11 +1516,11 @@ func dispatchProbeOperation(t *testing.T, w *casesWorld, svc *actionApp.Service,
 	probeTarget := dispatchTargetID(probeRow)
 	intentKey := actionDomain.DeriveBusinessIntentKey(hmacKey, actionDomain.BusinessIntentInput{
 		TenantID: base.TenantID, OwningSystem: def.OwningSystem, DefinitionID: def.ID,
-		Target: actionDomain.ProposalTarget{Kind: base.Target.Kind, Ref: probeTarget},
+		Target:     actionDomain.ProposalTarget{Kind: base.Target.Kind, Ref: probeTarget},
 		TypedInput: preview.TypedInput, Snapshot: preview.Snapshot,
 	})
 	probe := base
-	probe.OperationID = id.MustParse(fmt.Sprintf("01994f64-6c00-7000-8000-%012d", dispatchSeedCounter.next()))
+	probe.OperationID = id.MustParse(fmt.Sprintf("01994f64-6c00-7000-8000-%012d", dispatchSeedCounter.mint()))
 	probe.CaseID = probeCaseID
 	probe.WorkItemID = probeWorkItemID
 	probe.Target = actionDomain.ProposalTarget{Kind: base.Target.Kind, Ref: probeTarget}
@@ -1504,11 +1531,11 @@ func dispatchProbeOperation(t *testing.T, w *casesWorld, svc *actionApp.Service,
 		Operation:       probe,
 		ConsumptionRule: actionDomain.ConsumptionUnlimited,
 		ActorID:         actor.ID,
-		ConsumedEventID: id.MustParse(fmt.Sprintf("01994f64-6c00-7000-8000-%012d", dispatchSeedCounter.next())),
+		ConsumedEventID: id.MustParse(fmt.Sprintf("01994f64-6c00-7000-8000-%012d", dispatchSeedCounter.mint())),
 		LedgerEntry: actionDomain.OperationLedgerEntry{
 			EntryNo: 1, Kind: actionDomain.LedgerEntryAuthorized, Details: "probe row of the liveness fence",
 		},
-		OutboxEventID: id.MustParse(fmt.Sprintf("01994f64-6c00-7000-8000-%012d", dispatchSeedCounter.next())),
+		OutboxEventID: id.MustParse(fmt.Sprintf("01994f64-6c00-7000-8000-%012d", dispatchSeedCounter.mint())),
 		OutboxPayload: actionPort.OperationQueuedPayload{
 			EventType: actionDomain.OutboxEventOperationQueued, TenantID: w.tenant,
 			OperationID: probe.OperationID, CaseID: probeCaseID, WorkItemID: probeWorkItemID,
