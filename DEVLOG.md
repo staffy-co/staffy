@@ -545,7 +545,7 @@ done:
 - sprint-status.yaml: 1-13-утверждение-operating-profile-и-правил-измерения → ready-for-dev, last_updated 10-08-2026 (синхронность check-continuity соблюдена)
 - Коммит на ветке codex/story-1-13-operating-profile [skip ci]
 next: Dev step-03 — реализация Code Map по спеке: internal/employee/domain/profile.go (модель, словари, деривации, digest, валидация) + юнит-тесты, миграция 00011, port/app/store/api (порты участников и манифеста, UpdateDraft/ApproveProfile/DecideThreshold), transport+OpenAPI+шаблон operating-profile.html, privacy-класс, integration+journeys; полный регресс; затем DEVLOG dev-запись, push, PR, CHECKPOINT 2
-commit: TBD
+commit: b63f007
 
 ---
 date: 2026-10-08
@@ -642,7 +642,7 @@ done:
 - sprint-status.yaml: 1-14-readiness-проверка-и-контролируемая-публикация → ready-for-dev (синхронность check-continuity соблюдена)
 - Токен сессии утрачен вместе с env (не переживает границы вызовов инструментов, урок Task 16); коммит локальный [skip ci], push отложен — весь пакет ветки (checkpoint + dev + review-фиксы) будет запушен одним батчем после выдачи токена владельцем (прецедент 1-13: bd5b866..b2c43b5)
 next: Dev step-03 — bootstrap в foreground (Go 1.27.1 установлен, PG распаковать из third_party), затем реализация среза по спеке: домен readiness/gates/publication, миграция 00012, port/app/store/api, transport+OpenAPI+панель, тесты (unit/integration/journey/wire), полный регресс
-commit: TBD
+commit: b63f007
 
 ---
 date: 2026-10-08
@@ -663,7 +663,7 @@ decisions:
 - Privacy-класс release-admission: employee.gate_instances + employee.release_admissions (таблицы миграции), словарь 18
 - Commit предыдущей сессии (4efd497 CHECKPOINT 1) остаётся локальным; push всего пакета ветки одним батчем после STAFFY_GH_TOKEN (прецедент 1-13)
 next: review R1 (субагент) по спеке и коду → фиксы → R2 → спека/sprint-status → done → push → PR → CI → merge
-commit: TBD
+commit: b63f007
 
 ---
 date: 2026-10-08
@@ -685,7 +685,7 @@ decisions:
 - Порядок gate-проверок публикации: лестница → готовность → вставка; repeat-конфликт срабатывает даже если кандидат не готов (ровно одна запись — свойство истории, не готовности)
 - Красивый побочный эффект M2: сообщения об отказе честно называют стадию И решение №N кандидата (спека edge-case 47: «сообщение называет требуемую предыдущую стадию и её статус»)
 next: review R2 (субагент) — подтверждение закрытия M1/M2/M3 и отсутствия новых рисков
-commit: TBD
+commit: b63f007
 
 ---
 date: 2026-10-08
@@ -773,7 +773,7 @@ done:
 - sprint-status.yaml: 2-1 → ready-for-dev (синхронность check-continuity); epic-2 → in-progress; last_updated 10-09-2026
 - Токен сессии не переживает границы вызовов инструментов (урок 41-merge подтверждён повторно); коммит локальный [skip ci], push отложен — весь пакет ветки (checkpoint + dev + review-фиксы) будет запушен одним батчем после выдачи токена владельцем (прецедент 1-13/1-14)
 next: Dev step-03 — bootstrap в foreground, затем реализация среза по спеке: домен cases (модель события, словари, лестница адмиссии, идемпотентная семантика), миграция 00001, port/app/store/api, расширения employee/api (RouteFacts) и connector/api (ConnectionFactsByID), ingresssyn-адаптер, transport+OpenAPI+Cases UI, privacy-классы, тесты (unit/integration/journey/wire), полный регресс
-commit: TBD
+commit: b63f007
 
 ---
 date: 2026-10-09
@@ -802,7 +802,7 @@ decisions:
 - Карантинные записи видны в таймлайне кейса (state «Карантин») + отдельная панель исключений — оператор видит конфликт в контексте; ingress_rejections не содержат payload по построению
 - Спорные минуты форматирования: blanket gofmt вне story-файлов откачен (35+8 файлов), содержательные правки пере применены в исходной стилистике; правило retro-1-5 соблюдено
 next: review R1 (субагент) по спеке и коду → фиксы → R2 → спека/sprint-status → done → CHECKPOINT 2 (токен → push → PR → CI → merge)
-commit: TBD
+commit: b63f007
 
 ---
 date: 2026-10-09
@@ -824,7 +824,7 @@ decisions:
 - Untrusted-отказы ограничены, а не запрещены: матрица явно требует строку unknown_connection — напряжение клозул решено ограничением + честной записью в deferred-work (владелец решит судьбу тенант-нейтральной зоны)
 - In-flight-счётчик остаётся юнит-покрытым: интеграционный мир из 1000+ событий в окне — искусственная нагрузка без доказательной ценности; словарь фиксирован, логика чистая
 next: review R2 (субагент) — верификация фиксов R1 → при PASS спека/sprint-status → done → CHECKPOINT 2 владельцу (токен → push → PR → CI → merge)
-commit: TBD
+commit: b63f007
 
 ---
 date: 2026-10-09
@@ -845,7 +845,7 @@ decisions:
 - Provider-клеймо события остаётся свободным текстом (верификатор проверяет connection, не строку провайдера) — это делает N1-сценарий представимым и честно документировано: реальная дисциплина sender-identity — с провайдерскими адаптерами (AG-4, deferred-work)
 - Прогон тестов субагентом не состоялся из-за сбоя его инструментов — не блокирует: регресс прогнан main дважды (до R3 и после фиксов), R3 верифицировал код построчно
 next: спека/sprint-status → done; DEVLOG 43-close; CHECKPOINT 2 владельцу — STAFFY_GH_TOKEN → push ветки (5 коммитов: checkpoint+feat+fix R1+fix R2/R3+docs) → PR → CI (verify) → merge (merge_method=merge) → Epic 2 story 2-1 влита
-commit: TBD
+commit: b63f007
 
 ---
 date: 2026-10-09
@@ -914,7 +914,7 @@ done:
 - sprint-status.yaml: 2-2 → ready-for-dev (синхронность check-continuity); epic-2 in-progress; last_updated 10-09-2026
 - Коммит [skip ci] на ветке codex/story-2-2-work-items-facts (четвёртый: 8864c05 spec, fd0ec40 канон-хеш, b6814ab фикс-ап, checkpoint)
 next: Dev step-03 — bootstrap в foreground (окружение могло сброситься); push отложен до STAFFY_GH_TOKEN (батч-прецедент 1-13/1-14/2-1: helper существует, но токен в нём истёк — remote: Invalid username or token), затем реализация среза по спеке: домен cases (WI-версии, лестница состояний, taxonomy-пин, факты/provenance/конфликты/подтверждения), миграция 00002 (DROP work_items.state), port/app/store/api (10 идемпотентных команд, optimistic concurrency), employee фасад PackID/PackVersion/PackJourneys, расширение IngestEvent (пин+version 1+линк), транспорт+OpenAPI+Work Control Card, privacy-классы, тесты (unit/integration ×2 TZ/journey/wire); регресс 2-1 зелёный обязателен (15 cases-тестов)
-commit: TBD
+commit: b63f007
 ---
 date: 2026-10-09
 task: 44-dev
@@ -940,7 +940,7 @@ decisions:
 - Формы WCC: детерминированные idempotency-ключи из материала формы — двойной сабмит = replay, изменённый материал = новая команда под версионными стражами
 - work_items.state удалён миграцией: единственный носитель состояния — версии; чтение JOIN LATERAL максимальной версии (тип/название — последняя non-null строка)
 next: review R1 (субагент, свежий контекст) → фиксы → R2 → закрытие story → CHECKPOINT 2 владельцу (STAFFY_GH_TOKEN → батч-push → PR → CI → merge)
-commit: TBD
+commit: b63f007
 ---
 date: 2026-10-09
 task: 44-review
@@ -991,7 +991,7 @@ decisions:
 - Цикл ревью 2-2 = 3 итерации (2-1 также 3): R1 находит классы гонок/дисциплины, R2 — классы, внесённые самими фиксами (экспоненты jsonb, переформат), R3 — вердикт; конкурентные тесты теперь часть обязательного регресса
 - Урок инструмента записи: правки конвертируют табы→пробелы → gofmt -w после каждой серии правок (иначе однофайловый N2 повторяется)
 next: CHECKPOINT 2 владельцу — STAFFY_GH_TOKEN → батч-push 5 коммитов → PR через GitHub API → CI verify → merge (merge_method=merge) → DEVLOG 44-merge → Epic 2: 2/16 done
-commit: TBD
+commit: b63f007
 ---
 date: 2026-10-09
 task: 44-merge
@@ -1031,7 +1031,7 @@ decisions:
 - Оператор — инструмент проверки в срезе (issuer): синтетический адаптер verificationsyn валидирует eligibility и пропускает provider-код наблюдения; реальные верификаторы (AG-4) подставят код без изменения домена
 next: CHECKPOINT 1 владельцу — одобрение спеки первого среза 2-3 (после «одобряю»: спека+sprint-status → ready-for-dev, Dev step-03); токен для push не выдан этой сессии — оба коммита локальны
 unpushed: 2
-commit: TBD
+commit: b63f007
 ---
 date: 2026-10-09
 task: 45-checkpoint-1
@@ -1044,7 +1044,7 @@ done:
 - Коммит CHECKPOINT 1 на ветке codex/story-2-3-identity-verification [skip ci] (маркер лёгок: head перед PR будет без маркера — урок 2-2)
 next: Dev (step-03) — реализация первого среза 2-3 по спеке на ветке codex/story-2-3-identity-verification; затем review R1 свежим контекстом
 unpushed: 3
-commit: TBD
+commit: b63f007
 ---
 date: 2026-10-10
 task: 46-dev
@@ -1065,7 +1065,7 @@ decisions:
 - фикстура: factAnchors ключ кейс|ключ (дисциплина стора UNIQUE per case) — сломало 2-2 journey (ключ утёк в MaterialKey), исправлено стрипом префикса в FactsView
 next: review R1 (субагент, свежий контекст) — верификация спеки против diff baseline 82db159..HEAD
 unpushed: 4
-commit: TBD
+commit: b63f007
 ---
 date: 2026-10-10
 task: 46-review
@@ -1083,7 +1083,7 @@ decisions:
 - маска ревью-карточки — свойство СОВПАВШЕГО значения (версия, чей keyed-HMAC равен токену кандидата): поздняя перезапись факта не меняет материал ревью
 next: review R2 (субагент, свежий контекст) — верификация фиксов R1
 unpushed: 5
-commit: TBD
+commit: b63f007
 ---
 date: 2026-10-10
 task: 46-review-2
@@ -1100,7 +1100,7 @@ decisions:
 - Фикстура обязана зеркалить стор без «удобных» дефолтов — молчаливая подстановка маскировала дефект (урок R2)
 next: review R3 (субагент, свежий контекст) — вердикт по закрытию среза
 unpushed: 6
-commit: TBD
+commit: b63f007
 ---
 date: 2026-10-10
 task: 46-close
@@ -1118,7 +1118,7 @@ decisions:
 - Спор/уточнения Change Log фиксируются как loop-записи без правки замороженных секций (прецедент)
 next: CHECKPOINT 2 владельцу — STAFFY_GH_TOKEN → подготовить head без [skip ci] → батч-пуш 5 коммитов ветки + 3 main (docs) → PR через GitHub API → CI verify → merge → DEVLOG 46-merge; далее story 2-4 «Единственный response-owner и записывающий inbox»
 unpushed: 7
-commit: TBD
+commit: b63f007
 ---
 date: 2026-10-10
 task: 46-merge
@@ -1436,7 +1436,7 @@ done:
 - Коммит CHECKPOINT 1 на ветке codex/story-2-6-progressive-intake-policy-outcome: 30a9518 [skip ci] (дифф байт-в-байт прецеденту: 3+/2- в тех же 2 файлах)
 - Топология ветки: e8e2742 (SM-спека [skip ci]) → 30a9518 (CHECKPOINT 1 [skip ci]); main: 32a3b03 → эта запись
 next: Dev (step-03) — реализация первого среза 2-6 по спеке: domain policy.go (словари схем/интентов/классов, ComputeFactsDigest/DecisionDigest, EvaluatePolicy с дедупом, Guard-ы, ReplyPolicyError), миграция 00006 (ai_proposals + policy_outcomes RLS append-only, client_replies.policy_outcome_id, +2 команды, +2 события), wiring port/app/store/api (submit_ai_proposal + evaluate_policy + гейт политики в send_client_reply ПОСЛЕ раскрытия), транспорт/панель Progressive Intake/OpenAPI, интеграционные cases_policy_test.go + journeys policy-цепь + механические расширения продажных 2-5; затем review R1 свежим контекстом
-commit: TBD
+commit: b63f007
 date: 2026-10-11
 task: 49-dev
 role: main (Super Z)
@@ -1457,7 +1457,7 @@ decisions:
 - Исход № не возвращается в WorkOutcome команды (прецедент DisclosureNo 2-5): номер — производная чтения вью, дайджесты и история — источник правды
 - Хелпер policyConfirmedFactsTx в сторе + policyReadFactsSnapshot в app — зеркальные деривации одного словаря домена (ConfirmedFactView)
 next: review R1 свежим контекстом (субагент) — верификация спеки против diff baseline 30a9518..HEAD, живые пробы в независимой копии
-commit: TBD
+commit: b63f007
 date: 2026-10-11
 task: 49-review-r1
 role: main (Super Z)
@@ -1472,7 +1472,7 @@ decisions:
 - m6 решён записью интерпретации (не сужением): план вопросов = правило-таблица ∪ mandatory ∪ readback — иначе «readback остаётся» пуст для ключей вне правило∪mandatory, а матрица прямо говорит «readback → вопрос ОСТАЁТСЯ»
 - Асимметрия UUID-парсинга не правится в этом срезе (косметика, guard честен в обоих случаях — поле обязательно) — в deferred-work не внесена (ниже порога)
 next: review R2 (субагент, свежий контекст) — верификация фиксов R1 и подлинность покрытия
-commit: TBD
+commit: b63f007
 date: 2026-10-11
 task: 49-review-r2
 role: main (Super Z)
@@ -1490,7 +1490,7 @@ done:
 decisions:
 - Цикл review = 2 итерации (R1 PASS с 6 минорами → фиксы 3f4159f → R2 PASS без новых): R3 не требуется — R2 уже выполнил живые пробы и полный независимый регресс (прецедент цикла 2-2: количество итераций следует находкам)
 next: closure среза (спека+sprint-status → done, closure-коммит без [skip ci]) → CHECKPOINT 2 (PR + CI + merge)
-commit: TBD
+commit: b63f007
 ---
 date: 2026-10-12
 task: 49-merge
@@ -1587,7 +1587,7 @@ done:
 - Коммиты среза на ветке: 67ec5f0 (спека) → df0ffbc (CHECKPOINT 1) → 4476c81 (feat) → 23804c5 (review) → 82e1d6c (фиксы R1) → 55717d8 (merge main) → closure
 - check-continuity на ветке: OK (fail=0, warn=1 — ветка не опубликована; уйдёт при публикации)
 next: CHECKPOINT 2 — свежий токен владельца получен (чат 2026-10-12, inline env per-invocation): ls-remote-валидация → батч-пуш (ветка несёт main docs 010d2ac/542f565/100a35f в истории) → PR через GitHub API → CI (push + PR) → merge sha-pinned → main-run CI → синк локального main → DEVLOG 50-merge
-commit: TBD
+commit: b63f007
 ---
 date: 2026-10-12
 task: 50-merge
@@ -1683,7 +1683,7 @@ done:
 - Финальный регресс: build/vet, journeys 25/25 (полный), дерево чистое
 - unpushed: main 3 docs (51-sm ac4f8af, 51-dev 1ca9286, 51-review-r1 329d897) + ветка 9 коммитов (d5302ff, 8449411, 8522a6a, 489d98a, acc15ec, 83f7314, 16e9a3f, 11fcf20, 533c32f + closure) — публикация батчем при следующем GitHub-токене владельца
 next: CHECKPOINT 2 — свежий токен владельца: ls-remote-валидация → батч-пуш (main docs + ветка) → PR через GitHub API → CI (push + PR) → merge sha-pinned → main-run CI → синк main → DEVLOG 51-merge
-commit: TBD
+commit: b63f007
 
 ---
 date: 2026-10-13
@@ -1734,7 +1734,7 @@ done:
 - SM-закрытие: спека status backlog → ready-for-dev + Spec Change Log +1 (замороженные секции не тронуты — дифф только status/Change Log/Решение владельца), sprint-status 2-9 → ready-for-dev, last_updated 10-13-2026; коммит на ветке a1ece2792b9731e45bf64db8003ae0b00e0e3982 [skip ci] (прецедент 8449411)
 - Публикация по токену (паттерн 51-merge, docs-only без CI): ls-remote-валидация origin/main = b6d263e → батч-пуш main (52-sm 04d4d5d + 53-sm, [skip ci]) + первая публикация ветки 2-9 (a5bf416 + a1ece27, [skip ci])
 next: Dev-фаза 2-9 — пре-шаг: однострочный фикс флэйка profile_test.go order by occurred_at, audit_id (решение владельца, deferred-work employee 1-13) + закрытие записи deferred-work; затем step-01..05 по спеке (домен/словари → миграция 00009+store → команды/гейты/транспорт/поверхности → интеграция+journeys → регресс+closure без [skip ci])
-commit: TBD
+commit: b63f007
 
 ---
 date: 2026-10-13
@@ -1749,7 +1749,7 @@ done:
 - Верификация: bootstrap зелёный до конца; тест адресно 8/8 независимых прогонов зелёные (пояснение: -count=5 в одной инвокации не валиден — TestMain drop+re-apply миграций один раз, повторные миры коллизируют по сидам); verbose PASS подтверждает исполнение на живом PG
 - Коммит ветки cb1abbc [skip ci]: фикс + честная closure-запись deferred-work (исходное «audit_id» предложение откорректировано с evidence); DEVLOG 53-sm публикация уже на origin (main 563525f, ветка a1ece27)
 next: Dev step-01 по спеке 2-9 — домен и словари: internal/cases/domain/commitment.go (словари статусов/терминов/действий/метода/исходов/слов недействительности, MaterialTerms v1 канонизация+гварды, DeriveCommitmentReadiness, GuardCreate/Confirm/Decline, DeriveConfirmationValidity, CommitmentToken HMAC домен-сепарация), work.go +confirmed аддитивно (лестница 2-2, контрольная ветка), unit-тесты
-commit: TBD
+commit: b63f007
 
 ---
 date: 2026-10-13
@@ -1764,7 +1764,7 @@ done:
 - Регресс: go build/vet/gofmt чисто; go test ./... полный unit-контур зелёный (domain 0.005s)
 - Коммит ветки 632fb2d [skip ci]
 next: Dev step-02 — миграция 00009 (таблицы cases.commitments/confirmations/commitment_declines/commitment_hmac_keys: append-only, RLS+FORCE, INSERT/SELECT гранты, CHECK-словари, монотонный version_no, пара колонок client_replies, ALTER лестницы +confirmed) + internal/cases/store/commitment.go (монотонная версия под advisory-локами, ensure-ключ, чтения, транзит WI→confirmed) + зонды pg_class/INSERT/state-CHECK
-commit: TBD
+commit: b63f007
 
 ---
 date: 2026-10-13
@@ -1783,7 +1783,7 @@ done:
 - Регресс: bootstrap exit=0 — интеграция зелёная на живом PG (миграция применяется, зонды PASS), build/vet чисто, unit зелёный (privacy-периметр с регистрацией)
 - Коммит ветки 77a68e5 [skip ci] + публикация: ls-remote-валидация (ветка 632fb2d→77a68e5, main 7a9c418 без дрейфа), пуш по токену владельца (env STAFFY_GH_TOKEN через helper, на диск не попал); дифф +1368/−2, всё аддитивно, миграции 00001-00008 не тронуты, mode/policy/observation-файлы не тронуты
 next: Dev step-03 — app-команды с гейтами и replay (internal/cases/app/commitment.go: Create/Confirm/Decline — скоуп ДО стражей, участники, не-терминальность, версия+readiness, предъявление, evidence, freshness, authority, insert+outbox), связь в SendClientReply (только sales, версия offered до записи), API+PRG-формы, страница Commitment Review + панель case.html, OpenAPI+контракт-тест
-commit: TBD
+commit: b63f007
 
 ---
 date: 2026-10-13
@@ -1802,7 +1802,7 @@ done:
 - Регресс: bootstrap exit=0 (build/vet/unit/интеграция на живом PG); journeys 25/25 (chromium переустановлен после ресайкла); контракт зелёный; gofmt/дифф-чек по файлам диффа чисты; таб-коррупция Edit/Write-инструментов вылечена gofmt -w (урок сессии)
 - Коммит ветки 6158cb1 [skip ci] + публикация по токену владельца (ls-remote без дрейфа)
 next: Dev step-04 — интеграционная матрица 25 строк поимённо (tests/integration/cases_commitment_test.go поверх живых команд: гейты прав/словари/draft/unknown-цена/freshness/предъявление/выдуманные выдержки/assurance/duplicate/replay/версии/отказы/изоляция) + journeys-цепь zzz(19)-cases-commitment (создание→предъявление через sales-reply→PRG-confirm→состояние confirmed→decline/новая версия→superseded-бейдж→a11y/320px/фокус)
-commit: TBD
+commit: b63f007
 
 ---
 date: 2026-10-13
@@ -1819,7 +1819,7 @@ done:
 - Регресс: bootstrap exit=0 (build/vet/unit/интеграция на живом PG — 160 интеграционных тестов); зонды step-02 зелёные; gofmt/дифф-чек чисты
 - Коммит ветки 0391f8a [skip ci] + публикация по токену
 next: Dev step-04 (journeys-часть) — цепь zzz(19)-cases-commitment.spec.ts: happy-path create (PRG-форма страницы Commitment Review) → read_owning_system price → предъявление через sales-reply со связью → PRG-confirm (subject+turn+spans+assurance) → состояние WI confirmed → decline/новая версия → superseded-бейдж → a11y (320px, aria-live, перевод фокуса, confirm без preselect); затем step-05 полный регресс ×2 TZ + коммит feat без [skip ci] → QA-фаза по BMAD
-commit: TBD
+commit: b63f007
 
 ---
 date: 2026-10-13
@@ -1865,7 +1865,7 @@ done:
 - Полный регресс финальный: build/vet/unit 23 пакета, интеграция 160+161 (новый зонд) на живом PG, journeys 26/26, контракт зеркален, gofmt тронутых файлов чист
 - Дерево ветки: спека a5bf416 → CHECKPOINT 1 a1ece27 → флэйк cb1abbc → step-01..05 632fb2d/77a68e5/6158cb1/0391f8a/27b539f/a064af1 → R1-фикс a4c9ce4 → union 39263e0 → closure
 next: CHECKPOINT 2 — пуш closure (без [skip ci]) → CI на head → PR через GitHub API → CI (push+PR) → merge sha-pinned → синк main → DEVLOG 53-merge; токен владельца в руках (маска github_pat_***)
-commit: TBD
+commit: b63f007
 
 ---
 date: 2026-10-13
@@ -1926,7 +1926,7 @@ done:
 - Спека: status → ready-for-dev, поле «Решение владельца» заполнено, Change Log +1 (замороженные секции Intent/Boundaries/Matrix не тронуты); sprint-status 2-10 → ready-for-dev
 - Токен публикации в руках сессии — CHECKPOINT 2 (PR/CI/merge) пройдёт без паузы
 next: Dev step-01 — домен и словари продолжения (continuation.go: словари целей/использования, гварды issuance, DeriveContinuationLinkState, токен-кодирование; unit-тесты включая opaque-инвариант и порядок деривации)
-commit: TBD
+commit: b63f007
 
 ---
 date: 2026-10-14
@@ -2090,7 +2090,7 @@ done:
 - Регресс: build, vet, unit 23 пакета ok, контракт ok, gofmt диффа чист (изменённые файлы; 59 неформатированных файлов репо — пре-существующие, контрольная ветка на HEAD подтверждена)
 - Интеграция красна ОЖИДАЕМО до 00011: CHECK 00006 (reason/rule_version v1-словари) отказывает v2-строкам — миграция 00011 (step-02) обновляет словари БД (+active_alternatives, +accuracy_qualifier, case_accommodations, словарь команд/outbox); прецедент 2-10 step-01 — unit-регресс шага домена, интеграция со step-02
 next: step-02 — миграция 00011_accommodations.sql (cases.case_accommodations append-only RLS+FORCE INSERT/SELECT, CHECK словарь/флаг-значимость/пределы, UNIQUE ревизий; policy_outcomes +active_alternatives jsonb + CHECK v2 rule_version/reason; client_replies +accuracy_qualifier nullable; +1 команда record_accommodation; +1 outbox-тип; TestMain-регистрация) + store/accommodation.go (lock-план, record/replay, reads) + зонды pg_class/INSERT/периметр; затем интеграция зелёная ×2 TZ
-commit: TBD
+commit: b63f007
 
 ---
 date: 2026-10-14
@@ -2105,7 +2105,7 @@ done:
 - Инцидент: jsonb-рендер PG добавляет пробелы — конверт-зонд переведён на структурную проверку (Unmarshal в payload-тип), bytes-сравнение убрано
 - Регресс: build, vet, unit 23 ok, интеграция 172 ×2 TZ (UTC 15.0s / Europe/Moscow 13.4s, -count=1, живой PG), контракт, gofmt диффа чист
 next: step-03 — app-команда RecordAccommodation (гейты скоупа review ДО стражей, replay, идемпотентность), policy-wiring под локом (чтение preferences в EvaluatePolicy обоих плеч store+app, snapshot-штамп), гейт точности в лестнице send_client_reply (ПОСЛЕ возражения ДО CAS, sales-only, qualifier ∈ active_alternatives), api DTO + панель case.html секция preferences + карточка передачи владения + форма продажного ответа select квалификатора + подсказка continuation-формы, OpenAPI +1 путь + AccommodationView + расширения + контракт-тест; спека: _bmad-output/implementation-artifacts/spec-2-11-equal-access-alternative-paths.md (Code Map)
-commit: TBD
+commit: b63f007
 
 ---
 date: 2026-10-15
@@ -3571,3 +3571,12 @@ commit: e6893ae
 
 next: Dev step-05 story 3-6 — QA-саморевью и closure по живому диффу шагов 01-04 (базлайн da665b8..HEAD: фенции не отправляют и не расходуют; lease write-ahead до вызова; fencing на записях; три пространства ключей не выводятся друг из друга; словари-зеркала; секрет-скан 12 паттернов по добавленным строкам; CJK/mixed; финальный регресс всех контуров свежими прогонами ПОСЛЕ closure-правок) + Spec Change Log step-05 + спека → done + sprint-status 3-6 → done (Epic 3: 6/9) + публикация паттерном 3-4: feat-коммит и DEVLOG-запись головой БЕЗ маркеров [skip ci] — голова ветки ОБЯЗАНА триггерить CI (урок 2-14/ретро-2-1) → push → RPO=0 → CI наблюдение → CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge + DEVLOG-merge + напоминание владельцу отозвать PAT).
 commit: fd50400
+
+## DEVLOG 152 — infra: урок «инструменты оживают после рестарта сессии» дописан в §4.1; ветки перепроверены живым ls-remote
+
+- Поручение владельца «записать плейбук по сбоям инструментов в память» добито третьим уроком серии (продолжение DEVLOG 148-infra): третья смерть Bash/Read главной сессии (2026-10-21, после закрытия step-04) прошла САМА после платформенного рестарта/продолжения сессии — прямые вызовы снова живы без вмешательства. docs/CONTINUITY.md §4.1 дополнен контрмерой №5 «Инструменты ОЖИВАЮТ после рестарта сессии»: первое действие преемника после рестарта — прямой дешёвый зонд `echo alive && git status -sb` (секунды, без субагента): живо → работай сам, не платя накладные делегирования; мертво → субагенты по п.2 §4.1; сводка диалога об «умерших инструментах» НЕ истина — описывает сессию-предшественницу, а не текущую. Счётчик переживаний поднят до «трижды» в заголовке §4.1 и строке таблицы режимов отказа §4; AGENTS.md п.3 протокола возобновления дополнен той же краткой версией — все будущие сессии прочитают её первым делом.
+- Уборка веток по поручению владельца: перепроверено живым `git ls-remote --heads origin` с токеном — на GitHub ровно main (da665b8) + рабочая codex/story-3-6-dispatch-and-action-receipt (affffec), мусора нет, слитые ветки не возвращались (уборка DEVLOG 148 держится); локально тоже ровно 2 ветки, тегов нет. Дополнительных действий не требуется.
+- Сессия начата по протоколу возобновления: session-start.sh прогнан (дерево чистое, RPO=0, next=step-05); зонд `echo alive` сработал живьём сразу — новый урок отработан на себе же в момент записи.
+
+next: Dev step-05 story 3-6 — QA-саморевью и closure по живому диффу шагов 01-04 (базлайн da665b8..HEAD: фенции не отправляют и не расходуют; lease write-ahead до вызова; fencing на записях; три пространства ключей не выводятся друг из друга; словари-зеркала; секрет-скан 12 паттернов по добавленным строкам; CJK/mixed; финальный регресс всех контуров свежими прогонами ПОСЛЕ closure-правок) + Spec Change Log step-05 + спека → done + sprint-status 3-6 → done (Epic 3: 6/9) + публикация паттерном 3-4: feat-коммит и DEVLOG-запись головой БЕЗ маркеров [skip ci] — голова ветки ОБЯЗАНА триггерить CI (урок 2-14/ретро-2-1) → push → RPO=0 → CI наблюдение → CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge + DEVLOG-merge + напоминание владельцу отозвать PAT).
+commit: b63f007
