@@ -541,11 +541,13 @@ func (s *Service) dispatchOneJob(ctx context.Context, scope tenancy.Context, com
 					// The honest committed claim with the complete triple.
 					claim = domain.MutationOutcomeCommitted
 					honest = domain.OperationCommitted
-				} else {
+				} else if result.Outcome == domain.MutationOutcomeCommitted {
 					// The refused terminal claim (no structural evidence):
 					// NO outcome row — the ledger and the receipt speak the
 					// guarded unknown (the terminal success is never taken
-					// on word, AC-6/AC-7).
+					// on word, AC-6/AC-7). The non-committed claim words
+					// keep their OWN honest details below — the accepted
+					// reception never speaks the evidence refusal.
 					honest = domain.OperationUnknown
 					details = domain.DispatchEvidenceIncompleteText
 				}

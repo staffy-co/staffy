@@ -437,9 +437,14 @@ func (r *authorizationMemoryRepository) ReserveOperation(_ context.Context, p ac
 	r.byKey[idempotencyKey] = p.Operation
 	caseKey := p.Scope.TenantID().String() + "|" + p.Operation.CaseID.String()
 	r.caseOps[caseKey] = append(r.caseOps[caseKey], p.Operation)
-	// INSERT 4/5 — the ledger authorized entry (AD-13).
+	// INSERT 4/5 — the ledger authorized entry (AD-13): the entry
+	// moment lands the SAME server truth the PG store stamps (the
+	// fixture never serves a zero time — the card state moment of
+	// 3-6 derives from the entries).
+	authorizedEntry := p.LedgerEntry
+	authorizedEntry.At = p.Now.UTC()
 	r.ledger[authorizationOperationKey(p.Scope, p.Operation.OperationID)] = append(
-		r.ledger[authorizationOperationKey(p.Scope, p.Operation.OperationID)], p.LedgerEntry)
+		r.ledger[authorizationOperationKey(p.Scope, p.Operation.OperationID)], authorizedEntry)
 	// INSERT 5/5 — the outbox operation.queued record (the SAFE payload —
 	// the material NEVER enters; the fixture drain of 3-6 reads the SAME
 	// rows through the dispatch memory repository).
