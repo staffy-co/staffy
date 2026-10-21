@@ -64,15 +64,18 @@ func ledgerFixture() []OperationLedgerEntry {
 	}}
 }
 
-func TestOperationAndLedgerDictionariesSingleWord(t *testing.T) {
-	// Словарь состояний операции — ровно одно слово: authorized (очередь —
-	// факт outbox, не состояние; executed/failed — словарь 3-6, здесь их
-	// нет структурно).
-	if len(OperationStateWords) != 1 || OperationStateWords[0] != OperationAuthorized {
-		t.Fatalf("словарь состояний Operation: %v, ожидался ровно [authorized]", OperationStateWords)
+func TestOperationAndLedgerDictionariesByName(t *testing.T) {
+	// Словари 3-6: состояния — ровно шесть слов, ledger — ровно семь
+	// (dispatch_blocked — видимая причина припарковки, НЕ state-bearing);
+	// вне-словарное слово структурно невозможно (константы + закрытые
+	// списки, рантайм-расширения нет).
+	wantStates := []string{"authorized", "submitted", "accepted", "committed", "failed", "unknown"}
+	if !reflect.DeepEqual(OperationStateWords, wantStates) {
+		t.Fatalf("словарь состояний Operation: %v, ожидалось ровно %v", OperationStateWords, wantStates)
 	}
-	if len(LedgerEntryKindWords) != 1 || LedgerEntryKindWords[0] != LedgerEntryAuthorized {
-		t.Fatalf("словарь записей ledger: %v, ожидался ровно [authorized]", LedgerEntryKindWords)
+	wantLedger := []string{"authorized", "submitted", "accepted", "committed", "failed", "unknown", "dispatch_blocked"}
+	if !reflect.DeepEqual(LedgerEntryKindWords, wantLedger) {
+		t.Fatalf("словарь записей ledger: %v, ожидалось ровно %v", LedgerEntryKindWords, wantLedger)
 	}
 }
 
@@ -99,13 +102,15 @@ func TestDeriveOperationStateFailClosed(t *testing.T) {
 	if _, err := DeriveOperationState(nil); err == nil {
 		t.Fatal("пустой ledger обязан отказывать fail-closed")
 	}
-	// Слова 3-6 (executed/failed/dispatched) в этом срезе НЕ выводятся —
-	// зонд отсутствия: иностранное слово отказывает поимённо.
-	for _, foreign := range []string{"executed", "failed", "dispatched", "cancelled", "", "Authorized"} {
+	// Вне-словарные слова (executed/dispatched — слова других контуров)
+	// отказывают поимённо; словарные слова 3-6 БОЛЬШЕ не отказывают —
+	// контур исполнения живёт в этом словаре (проверено поимённо в
+	// dispatch_test.go: TestDeriveOperationStateLastStateBearingWord).
+	for _, foreign := range []string{"executed", "dispatched", "cancelled", "", "Authorized"} {
 		ledger := []OperationLedgerEntry{{EntryNo: 1, Kind: foreign, At: time.Now().UTC()}}
 		_, err := DeriveOperationState(ledger)
 		if err == nil {
-			t.Fatalf("запись %q обязана отказывать — слово 3-6 в срезе не выводится", foreign)
+			t.Fatalf("запись %q обязана отказывать — слово вне словаря ledger", foreign)
 		}
 		ruleErr := ruleErrorOf(t, err)
 		if !strings.Contains(ruleErr.Reason, "вне словаря") {
@@ -115,8 +120,9 @@ func TestDeriveOperationStateFailClosed(t *testing.T) {
 }
 
 func TestDeriveOperationViewWordSpokenState(t *testing.T) {
-	// AC-11: карточка говорит authorized/queued, а не executed — очередь
-	// это факт наличия outbox записи, слово выводится, не хранится.
+	// AC-11/AC-13: карточка говорит authorized/queued, а не executed —
+	// очередь это факт наличия outbox записи, слово выводится, не
+	// хранится; слова жизни остальных состояний — своими словами.
 	got, err := DeriveOperationViewWord(ledgerFixture(), true)
 	if err != nil {
 		t.Fatal(err)
@@ -130,6 +136,19 @@ func TestDeriveOperationViewWordSpokenState(t *testing.T) {
 	}
 	if got != OperationAuthorized {
 		t.Fatalf("вид без очереди: %q, ожидалось authorized", got)
+	}
+	// dispatch_blocked в истории не меняет слово вида (состояние остаётся
+	// authorized — припарковка с видимой причиной, не состояние).
+	blocked := append(ledgerFixture(), OperationLedgerEntry{EntryNo: 2, Kind: LedgerEntryDispatchBlocked,
+		Details: "Confirmation отозвана", At: time.Now().UTC()})
+	if got, _ := DeriveOperationViewWord(blocked, true); got != "authorized/queued" {
+		t.Fatalf("dispatch_blocked не state-bearing: вид %q, ожидался authorized/queued", got)
+	}
+	// Слова жизни не добавляют /queued: контур исполнения говорит своими
+	// словами (submitted/accepted/committed/failed/unknown).
+	submitted := append(ledgerFixture(), OperationLedgerEntry{EntryNo: 2, Kind: LedgerEntrySubmitted, At: time.Now().UTC()})
+	if got, _ := DeriveOperationViewWord(submitted, true); got != OperationSubmitted {
+		t.Fatalf("вид жизни submitted: %q, ожидалось submitted без /queued", got)
 	}
 	if _, err := DeriveOperationViewWord(nil, true); err == nil {
 		t.Fatal("пустой ledger обязан отказывать и в виде")
@@ -390,14 +409,15 @@ func TestOperationPinsMirrorTheRequestSurface(t *testing.T) {
 }
 
 func TestOperationHonestTextsPinned(t *testing.T) {
-	// AC-11: honest-слова пиннуты точными фразами — «внешний идентификатор
-	// не выдан», «Dispatch worker не существует»; replay говорит о
+	// AC-11/AC-13: honest-слова пиннуты точными фразами — слова живого
+	// контура 3-6: dispatch — явная команда drain без демона; внешний
+	// идентификатор до отправки не выдан; replay говорит о
 	// непотреблении; проигравший говорит о резервировании.
 	for text, needle := range map[string]string{
 		OperationAuthorizedText:       "authorized",
 		OperationQueuedText:           "queued",
-		OperationDispatchAbsentText:   "Dispatch worker не существует",
-		OperationExternalIDAbsentText: "Внешний идентификатор не выдан",
+		OperationDispatchAbsentText:   "явная команда drain",
+		OperationExternalIDAbsentText: "не выдан",
 		IdempotentReplayText:          "повторно не потребляется",
 		ReservationDuplicateText:      "уже зарезервировано",
 		ReconciliationReservedText:    "3-7",

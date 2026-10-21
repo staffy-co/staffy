@@ -7292,12 +7292,12 @@ components:
       description: 'Словарь событий Confirmation (6 слов, append-only): consumed появляется ТОЛЬКО внутри транзакции авторизации; authorization_conflict/authorization_blocked — видимые исключения отвергнутых попыток'
     OperationLedgerKindWord:
       type: string
-      enum: [authorized]
-      description: 'Словарь записей Operation Ledger (1 слово среза, AD-13 append-only): 3-6 допишет dispatch-записи тем же механизмом'
+      enum: [authorized, submitted, accepted, committed, failed, unknown, dispatch_blocked]
+      description: 'Словарь записей Operation Ledger (7 слов, AD-13 append-only): шесть state-bearing слов состояний + dispatch_blocked — видимая причина припарковки, НЕ state-bearing (состояние остаётся authorized)'
     OperationStateWord:
       type: string
       enum: [authorized, authorized/queued]
-      description: 'Произнесённое состояние Operation: словарь состояний = 1 слово (authorized), факт очереди (запись operation.queued в outbox) добавляет пару /queued; executed/failed НЕ существуют в срезе (словарь 3-6) и не выдумываются'
+      description: 'Произнесённое состояние Operation: словарь состояний = 6 слов среза 3-6 (authorized/submitted/accepted/committed/failed/unknown — DeriveOperationState читает ledger), поверхность среза 3-5 говорит authorized/queued (факт очереди — запись operation.queued в outbox); слова жизни исполнения приезжают поверхностью 3-6 step-03'
     ConfirmationOwnerKindWord:
       type: string
       enum: [human, staffy]

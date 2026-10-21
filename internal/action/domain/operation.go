@@ -12,16 +12,18 @@ import (
 	"github.com/artemiosu/staffy/internal/platform/id"
 )
 
-// Module action — story 3.5 slice 1 (step-01): the Operation domain core
-// (FR-28/FR-29, AC-4..AC-7, AC-9..AC-11). This file owns the IMMUTABLE
-// Operation shape (the pins, the effects copy, the client key word, the
-// server intent key word, the keyed material digest), the business-intent
-// key (the keyed HMAC space business_intent:v1: — the identity of ONE
-// MUTATION), the idempotency fingerprint (the space operation_material:v1:
-// — the material identity of ONE REQUEST), the single-word ledger
-// dictionary and the read-time state derivation (authorized — executed and
-// failed belong to 3-6 and are structurally absent here), with the honest
-// texts of the view. The words are frozen in code.
+// Module action — story 3.5 slice 1 (step-01), extended by story 3.6
+// (step-01): the Operation domain core (FR-28/FR-29, AC-4..AC-7,
+// AC-9..AC-11). This file owns the IMMUTABLE Operation shape (the pins,
+// the effects copy, the client key word, the server intent key word, the
+// keyed material digest), the business-intent key (the keyed HMAC space
+// business_intent:v1: — the identity of ONE MUTATION), the idempotency
+// fingerprint (the space operation_material:v1: — the material identity
+// of ONE REQUEST), the six-word state dictionary and the seven-word
+// ledger dictionary with the read-time state derivation (the last
+// state-bearing word of the append-only ledger — dispatch.go owns the
+// dispatch-side derivations of the 3-6 execution contour), with the
+// honest texts of the view. The words are frozen in code.
 //
 // ONLY the action module builds the Authorized Action (AD-6/AC-10): the
 // type and its derivations live here; no other module imports them (the
@@ -31,27 +33,56 @@ import (
 // transport pins it structurally.
 
 // ---------------------------------------------------------------------------
-// The operation state and ledger dictionaries (1 word each)
+// The operation state and ledger dictionaries (6 and 7 words)
 // ---------------------------------------------------------------------------
 
-// Operation state words: the authorization contour has EXACTLY ONE state
-// word — authorized. The queue is a FACT (the outbox record presence),
-// never a stored state; executed/failed are the 3-6 dictionary and are
-// structurally absent here (the unit matrix pins the absence — the view
-// never invents an external outcome, AC-11).
-const OperationAuthorized = "authorized"
+// Operation state words: the six states of the execution contour
+// (3-6/AC-6). authorized — the reservation contour of 3-5 (the queue is a
+// FACT, the outbox record presence — never a stored state); submitted —
+// the write-ahead lease record BEFORE the network call (persist-before-
+// emit, the resting state of a crash between the send and the outcome);
+// accepted — the provider confirmed the request reception, no business
+// result yet (non-terminal); committed and failed — terminal (the
+// evidence discipline and the no-auto-repeat of dispatch.go); unknown —
+// the honest uncertainty (never a success and never a no-effect). The
+// view never invents an external outcome (AC-11) — the word derives from
+// the ledger alone.
+const (
+	OperationAuthorized = "authorized"
+	OperationSubmitted  = "submitted"
+	OperationAccepted   = "accepted"
+	OperationCommitted  = "committed"
+	OperationFailed     = "failed"
+	OperationUnknown    = "unknown"
+)
 
-// OperationStateWords is the full dictionary (1 word).
-var OperationStateWords = []string{OperationAuthorized}
+// OperationStateWords is the full dictionary (6 words).
+var OperationStateWords = []string{
+	OperationAuthorized, OperationSubmitted, OperationAccepted,
+	OperationCommitted, OperationFailed, OperationUnknown,
+}
 
-// Ledger entry kind words: the slice writes EXACTLY the authorized entry;
-// 3-6 will extend this dictionary with the dispatch words through the
-// same append-only mechanism (AD-13: the Operation Ledger is append-only
-// — the INSERT/SELECT grants are structural).
-const LedgerEntryAuthorized = "authorized"
+// Ledger entry kind words: the seven append-only kinds of the Operation
+// Ledger (AD-13). The six state-bearing kinds mirror the state dictionary
+// one-to-one; dispatch_blocked is NOT state-bearing — it is the visible
+// parking cause of a blocked send (the operation stays authorized, the
+// adapter was never called — never a false failed externally, AC-2).
+const (
+	LedgerEntryAuthorized      = "authorized"
+	LedgerEntrySubmitted       = "submitted"
+	LedgerEntryAccepted        = "accepted"
+	LedgerEntryCommitted       = "committed"
+	LedgerEntryFailed          = "failed"
+	LedgerEntryUnknown         = "unknown"
+	LedgerEntryDispatchBlocked = "dispatch_blocked"
+)
 
-// LedgerEntryKindWords is the full dictionary (1 word).
-var LedgerEntryKindWords = []string{LedgerEntryAuthorized}
+// LedgerEntryKindWords is the full dictionary (7 words).
+var LedgerEntryKindWords = []string{
+	LedgerEntryAuthorized, LedgerEntrySubmitted, LedgerEntryAccepted,
+	LedgerEntryCommitted, LedgerEntryFailed, LedgerEntryUnknown,
+	LedgerEntryDispatchBlocked,
+}
 
 // ---------------------------------------------------------------------------
 // The Operation: one immutable row per authorized action
@@ -61,10 +92,11 @@ var LedgerEntryKindWords = []string{LedgerEntryAuthorized}
 // operation, NO versions (the authorization is a one-time act; a change
 // is a conflict or a NEW operation through a NEW confirmation, never a
 // mutation of this row). The state is NEVER stored (DeriveOperationState
-// reads the append-only ledger at every read); the external identifier
-// and the Action Receipt are structurally absent — no columns exist, 3-6
-// owns them, the honest texts below speak the absence. AD-6: only the
-// action module builds this type.
+// reads the append-only ledger at every read); the external identifiers
+// and the Action Receipt stay OUTSIDE this row — the dispatch contour of
+// 3-6 records them in its own append-only tables (dispatch_outcomes /
+// action_receipts, step-02), the honest texts below speak the pre-dispatch
+// truth. AD-6: only the action module builds this type.
 //
 // The two key words are NOT interchangeable (FR-29): IdempotencyKey is
 // the CLIENT's request identity (the repeats carry it again — the
@@ -108,7 +140,7 @@ type Operation struct {
 // (AD-13): the monotonic entry number, the kind word, the safe details
 // (identifiers and words only — never a material value; the store CHECK
 // keeps the 500-rune bound) and the moment. The history is never
-// rewritten; 3-6 will append the dispatch words through the same
+// rewritten; the 3-6 dispatch contour appends its words through the same
 // mechanism.
 type OperationLedgerEntry struct {
 	EntryNo int64     `json:"entry_no"`
@@ -237,38 +269,52 @@ func DeriveIdempotencyFingerprint(key []byte, tenant id.UUID, pins OperationRequ
 // DeriveOperationState derives the read-time state word of one operation
 // from its append-only ledger: every entry kind must be in the ledger
 // dictionary (fail-closed on a foreign word — the honest refusal, never a
-// masked silence; the executed/failed words of 3-6 refuse here until the
-// future slice extends the dictionary), an empty ledger refuses (the
-// authorization is evidenced by the authorized entry — its absence is a
-// data corruption, not an honest state), and the slice's single word is
-// authorized. The queue is a FACT (the outbox record presence) — never a
-// stored state.
+// masked silence), an empty ledger refuses (the authorization is
+// evidenced by the authorized entry — its absence is a data corruption,
+// not an honest state), a ledger WITHOUT a state-bearing word refuses the
+// same way (only dispatch_blocked rows = the authorized evidence is
+// missing — corruption, never an honest word), and the LAST STATE-BEARING
+// word wins (the entries arrive in the append order — the store reads
+// them by entry_no): dispatch_blocked is skipped (a visible parking
+// cause, never a state — the operation stays what it was), every other
+// kind carries the state forward. The queue is a FACT (the outbox record
+// presence) — never a stored state; the dispatch words of the execution
+// contour (3-6) derive from the same ledger.
 func DeriveOperationState(ledger []OperationLedgerEntry) (string, error) {
 	if len(ledger) == 0 {
 		return "", RuleError{Rule: "DeriveOperationState",
 			Reason: "Ledger операции пуст — слово состояния не выводится (fail-closed)."}
 	}
+	state := ""
 	for _, e := range ledger {
 		if !WordIn(LedgerEntryKindWords, e.Kind) {
 			return "", RuleError{Rule: "DeriveOperationState", Reason: fmt.Sprintf(
 				"Запись Operation Ledger «%s» вне словаря (%s).", e.Kind, strings.Join(LedgerEntryKindWords, ", "))}
 		}
+		if e.Kind != LedgerEntryDispatchBlocked {
+			state = e.Kind
+		}
 	}
-	return OperationAuthorized, nil
+	if state == "" {
+		return "", RuleError{Rule: "DeriveOperationState",
+			Reason: "В ledger нет ни одного state-bearing слова — запись authorized (доказательство авторизации) отсутствует: порча данных, а не честное слово (fail-closed)."}
+	}
+	return state, nil
 }
 
 // DeriveOperationViewWord derives the SPOKEN state of the operation card
-// (AC-11: the state shows as authorized/queued, never executed): the
-// ledger derivation plus the queue fact — the outbox record presence
-// speaks the queued word honestly (the dispatch worker does not exist in
-// this slice; the record is the fact, the word is derived, nothing is
-// stored).
+// (AC-11/AC-13): the ledger derivation plus the queue fact — the outbox
+// record presence speaks the queued word honestly for an authorized
+// operation (the inherited 3-5 semantics: authorized/queued); the other
+// life states speak their own word (submitted/accepted/committed/failed/
+// unknown — the honest texts of dispatch.go; nothing is stored, every
+// word derives).
 func DeriveOperationViewWord(ledger []OperationLedgerEntry, outboxPresent bool) (string, error) {
 	state, err := DeriveOperationState(ledger)
 	if err != nil {
 		return "", err
 	}
-	if outboxPresent {
+	if outboxPresent && state == OperationAuthorized {
 		return state + "/queued", nil
 	}
 	return state, nil
@@ -287,11 +333,14 @@ const (
 	OperationAuthorizedText = "Operation авторизована (authorized) — разрешение получено и закреплено записью Operation Ledger."
 	// OperationQueuedText speaks the queue fact: the outbox record exists.
 	OperationQueuedText = "Operation в очереди на будущий dispatch (queued) — запись operation.queued существует в outbox."
-	// OperationDispatchAbsentText speaks the 3-6 boundary honestly.
-	OperationDispatchAbsentText = "Dispatch worker не существует — записи outbox честно копятся pending до контура исполнения 3-6."
-	// OperationExternalIDAbsentText speaks the structural absence of the
-	// external outcome: no column, no word, no invention.
-	OperationExternalIDAbsentText = "Внешний идентификатор не выдан — внешний correlation ID и Action Receipt появятся в контуре 3-6 и здесь не выдумываются."
+	// OperationDispatchAbsentText speaks the living dispatch contour of
+	// 3-6: the send is an EXPLICIT drain command — no background daemon
+	// (the scheduler is a future infrastructure, the honest boundary).
+	OperationDispatchAbsentText = "Dispatch — явная команда drain: отправку запускает оператор, фонового демона нет (планировщик — будущая инфраструктура); очередь до запуска честно копится pending."
+	// OperationExternalIDAbsentText speaks the honest absence of the
+	// external outcome BEFORE the dispatch: the identifiers appear by the
+	// recorded attempt outcome — no word is invented here.
+	OperationExternalIDAbsentText = "Внешний идентификатор не выдан: он появляется записью dispatch-исхода (correlation ID, внешний объект) — до отправки не выдумывается."
 	// IdempotentReplayText is the honest 200 of the replay (AC-7): the
 	// return speaks the idempotency contract.
 	IdempotentReplayText = "Повтор запроса с тем же idempotency key и тем же материалом: возвращена первоначальная Operation и её состояние — Confirmation повторно не потребляется, вторая outbox запись не создаётся."
