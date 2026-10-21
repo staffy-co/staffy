@@ -368,6 +368,18 @@ func TestMain(m *testing.M) {
 	if _, err = adminPool.Exec(ctx, strings.Split(string(actionDispatchMigration), "-- +goose Down")[0]); err != nil {
 		panic(err)
 	}
+	// Story 3.7: the FOURTH migration of the action module — the
+	// reconciliation contour (reconciliation leases, reconciliation
+	// outcomes, the widened ledger dictionary: reconciling is NOT
+	// state-bearing). The registration stays in this hard list (the
+	// 3.3 lesson).
+	actionReconciliationMigration, err := os.ReadFile("../../migrations/action/00004_reconciliation.sql")
+	if err != nil {
+		panic(err)
+	}
+	if _, err = adminPool.Exec(ctx, strings.Split(string(actionReconciliationMigration), "-- +goose Down")[0]); err != nil {
+		panic(err)
+	}
 	if _, err = adminPool.Exec(ctx, "alter role staffy_app login password 'staffy-runtime-test'"); err != nil {
 		panic(err)
 	}
