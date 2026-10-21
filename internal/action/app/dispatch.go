@@ -191,16 +191,21 @@ func (d *dispatchDrain) skip(operationID id.UUID, attemptNo int, text string) {
 // entry with the EXACT reason word — the adapter was never called, the
 // lease was never taken, the operation stays authorized (AC-2). A raced
 // append (an active lease appeared) is the honest skip (the
-// GasExternalCommitmentQueue precedent).
-func (s *Service) block(d *dispatchDrain, job *port.PendingDispatchJob, attemptNo int, reason, details string) {
+// GasExternalCommitmentQueue precedent). The explicit (ctx, scope, now)
+// triple carries the per-job pass state — the drain is strictly
+// sequential, one job at a time; a storage error of the append aborts
+// the drain honestly (the committed jobs stay committed — each job's
+// writes are independent transactions).
+func (s *Service) block(ctx context.Context, scope tenancy.Context, now time.Time,
+	d *dispatchDrain, job *port.PendingDispatchJob, attemptNo int, reason, details string) error {
 	entryNo := int64(1)
 	for _, entry := range job.Ledger {
 		if entry.EntryNo >= entryNo {
 			entryNo = entry.EntryNo + 1
 		}
 	}
-	err := s.dispatches.AppendDispatchBlocked(ctxOf(), port.AppendDispatchBlockedParams{
-		Scope:       jobScope,
+	err := s.dispatches.AppendDispatchBlocked(ctx, port.AppendDispatchBlockedParams{
+		Scope:       scope,
 		OperationID: job.Operation.OperationID,
 		Reason:      reason,
 		Details:     boundDetails(details),
@@ -209,44 +214,27 @@ func (s *Service) block(d *dispatchDrain, job *port.PendingDispatchJob, attemptN
 			Kind:    domain.LedgerEntryDispatchBlocked,
 			Details: boundDetails(details),
 		},
-		Now: drainNow,
+		Now: now,
 	})
 	if err != nil {
 		if errors.Is(err, port.ErrLeaseRaced) {
-			d.report.Skipped++
-			d.line(job.Operation.OperationID, attemptNo, dispatchRacingSkipText)
-			return
+			d.skip(job.Operation.OperationID, attemptNo, dispatchRacingSkipText)
+			return nil
 		}
-		drainError = err
-		return
+		return err
 	}
 	d.report.Blocked++
 	d.line(job.Operation.OperationID, attemptNo, domain.DispatchBlockedText(reason))
+	return nil
 }
 
-// The per-job pass state (the closures above read them — the drain is
-// strictly sequential, one job at a time; the fields are set by
-// dispatchOneJob before any block call).
-var (
-	jobScope tenancy.Context
-	drainNow time.Time
-	drainErr error
-)
-
-// ctxOf returns the ambient context of the current job pass (set by
-// dispatchOneJob; the sequential drain makes this safe).
-func ctxOf() context.Context { return drainCtx }
-
-var drainCtx context.Context
-
 // dispatchOneJob processes ONE queued job through the ordered fences.
-// The sequential drain state (drainCtx/jobScope/drainNow/drainError) is
-// set here; a transport/storage error of a fence append aborts the drain
-// honestly (the committed jobs stay committed — each job's writes are
-// independent transactions).
+// The pass state (ctx/scope/now) rides the explicit parameters (the
+// drain is strictly sequential, one job at a time); a transport/storage
+// error of any append aborts the drain honestly (the committed jobs stay
+// committed — each job's writes are independent transactions).
 func (s *Service) dispatchOneJob(ctx context.Context, scope tenancy.Context, command DispatchDrainCommand,
-	d *dispatchDrain, job *port.PendingDispatchJob) {
-	drainCtx, jobScope, drainNow, drainErr = ctx, scope, command.Now, nil
+	d *dispatchDrain, job *port.PendingDispatchJob) error {
 	op := job.Operation
 	// FENCE 1 — the job-schema alarm (never a gas, never a send): the
 	// outbox record must decode into the SAFE canonical payload of the
@@ -259,14 +247,13 @@ func (s *Service) dispatchOneJob(ctx context.Context, scope tenancy.Context, com
 		payload.CaseID != op.CaseID ||
 		payload.WorkItemID != op.WorkItemID {
 		d.skip(op.OperationID, job.LastAttemptNo, dispatchJobSchemaAlarmText)
-		return
+		return nil
 	}
 	// The HMAC key of the tenant (the same per-tenant commitment key the
 	// authorization derived the fingerprints with — the ensure pattern).
 	hmacKey, err := s.previews.ReadPreviewKey(ctx, scope, command.Now)
 	if err != nil {
-		drainErr = err
-		return
+		return err
 	}
 	// FENCE 2 — the fingerprint integrity alarm (never a gas, never a
 	// send): the material digest of the immutable row re-derived from the
@@ -279,24 +266,22 @@ func (s *Service) dispatchOneJob(ctx context.Context, scope tenancy.Context, com
 	})
 	if fingerprint != op.MaterialDigest {
 		d.skip(op.OperationID, job.LastAttemptNo, dispatchFingerprintAlarmText)
-		return
+		return nil
 	}
 	// The definition resolve of the operation pins (the honest refusal of
 	// an unknown pin — the catalog is compile-time).
 	def, ok := catalogDefinition(s, op.DefinitionID, op.DefinitionVersion)
 	if !ok {
-		drainErr = domain.ErrNotFound
-		return
+		return domain.ErrNotFound
 	}
 	// FENCE 3 — the lease/fencing classification: the ONE dispatcher of
 	// decisions (every job is considered, not every job is sent).
 	switch job.Classification {
 	case port.PendingClassRacing:
 		d.skip(op.OperationID, job.LastAttemptNo, dispatchRacingSkipText)
-		return
+		return nil
 	case port.PendingClassDecided:
-		s.decidedVerify(ctx, scope, command, d, job, hmacKey, def)
-		return
+		return s.decidedVerify(ctx, scope, command, d, job, hmacKey, def)
 	case port.PendingClassRetryable:
 		// The recorded unknown verdict: the retry policy reads the
 		// RECORDED guarantee word of the attempt (the audit fact, never a
@@ -304,12 +289,11 @@ func (s *Service) dispatchOneJob(ctx context.Context, scope tenancy.Context, com
 		policy, err := domain.DeriveDispatchRetryPolicy(job.StateWord,
 			def.DeliveryContract.CapabilityClass, job.LastOutcomeGuarantee, job.LastAttemptNo)
 		if err != nil {
-			drainErr = err
-			return
+			return err
 		}
 		if policy != domain.DispatchRetryRetry {
 			d.skip(op.OperationID, job.LastAttemptNo, domain.DispatchRetryText(policy))
-			return
+			return nil
 		}
 	case port.PendingClassRecoverable:
 		// The crash resting state (submitted, the lease expired, no
@@ -329,12 +313,10 @@ func (s *Service) dispatchOneJob(ctx context.Context, scope tenancy.Context, com
 		policy, err := domain.DeriveDispatchRetryPolicy(job.StateWord,
 			def.DeliveryContract.CapabilityClass, guarantee, job.LastAttemptNo)
 		if err != nil {
-			drainErr = err
-			return
+			return err
 		}
 		if policy != domain.DispatchRetryRetry {
-			s.recordCrashUnknown(ctx, scope, command, d, job)
-			return
+			return s.recordCrashUnknown(ctx, scope, command, d, job)
 		}
 	case port.PendingClassFresh, port.PendingClassBlocked:
 		// The fences re-run (a parked cause may have healed): the ordered
@@ -346,27 +328,22 @@ func (s *Service) dispatchOneJob(ctx context.Context, scope tenancy.Context, com
 	// authorizations, not the dispatch of the created Operation).
 	confirmation, err := s.confirmations.ReadConfirmationVersion(ctx, scope, op.ConfirmationID, op.ConfirmationVersionNo)
 	if err != nil {
-		drainErr = err
-		return
+		return err
 	}
 	consentEvents, err := s.confirmations.ReadConfirmationVersionEvents(ctx, scope, op.ConfirmationID, op.ConfirmationVersionNo)
 	if err != nil {
-		drainErr = err
-		return
+		return err
 	}
 	consentState, err := domain.DeriveConfirmationState(def.Conditions.ConsumptionRule, confirmation.ValidUntil, consentEvents, command.Now)
 	if err != nil {
-		drainErr = err
-		return
+		return err
 	}
 	fence, err := domain.DeriveConfirmationDispatchFence(consentState)
 	if err != nil {
-		drainErr = err
-		return
+		return err
 	}
 	if fence != "" {
-		s.block(d, job, job.LastAttemptNo, fence, domain.DispatchFenceText(fence))
-		return
+		return s.block(ctx, scope, command.Now, d, job, job.LastAttemptNo, fence, domain.DispatchFenceText(fence))
 	}
 	// FENCE 5 — the case/work_item liveness (the live read of the case
 	// api; a dead case or an unanchored work item kills the queued intent
@@ -374,61 +351,50 @@ func (s *Service) dispatchOneJob(ctx context.Context, scope tenancy.Context, com
 	caseView, err := s.caseMaterial.CaseView(ctx, command.Actor, command.TenantID, op.CaseID)
 	if err != nil {
 		if errors.Is(err, casesDomain.ErrNotFound) {
-			s.block(d, job, job.LastAttemptNo, dispatchCaseClosedReason, dispatchCaseClosedText)
-			return
+			return s.block(ctx, scope, command.Now, d, job, job.LastAttemptNo, dispatchCaseClosedReason, dispatchCaseClosedText)
 		}
-		drainErr = err
-		return
+		return err
 	}
 	material := caseViewMaterial{view: caseView}
 	if !material.workItemAnchored(op.WorkItemID) {
-		s.block(d, job, job.LastAttemptNo, dispatchCaseClosedReason, dispatchCaseClosedText)
-		return
+		return s.block(ctx, scope, command.Now, d, job, job.LastAttemptNo, dispatchCaseClosedReason, dispatchCaseClosedText)
 	}
 	// The pinned preview version (the linked material of every
 	// re-check — the live row of the exact pin).
 	preview, err := s.operations.ReadPinnedPreviewVersion(ctx, scope, op.PreviewID, op.PreviewVersionNo)
 	if err != nil {
-		drainErr = err
-		return
+		return err
 	}
 	// FENCE 6 — the freshness re-check (the 3-4 derivation reused — the
 	// same dictionary, the seven reasons BY NAME).
 	live, err := s.gatherPreviewLive(ctx, command.Actor, scope, def, material)
 	if err != nil {
-		drainErr = err
-		return
+		return err
 	}
 	facts, err := s.caseMaterial.FactsView(ctx, command.Actor, command.TenantID, op.CaseID)
 	if err != nil {
 		if errors.Is(err, casesDomain.ErrNotFound) {
-			s.block(d, job, job.LastAttemptNo, dispatchCaseClosedReason, dispatchCaseClosedText)
-			return
+			return s.block(ctx, scope, command.Now, d, job, job.LastAttemptNo, dispatchCaseClosedReason, dispatchCaseClosedText)
 		}
-		drainErr = err
-		return
+		return err
 	}
 	fresh, err := s.previewFreshnessLive(ctx, command.Actor, scope, preview, material, live, facts)
 	if err != nil {
-		drainErr = err
-		return
+		return err
 	}
 	if derivation := domain.DerivePreviewFreshness(preview, fresh); derivation.Stale {
-		s.block(d, job, job.LastAttemptNo, derivation.Reason, domain.FreshnessReasonText(derivation.Reason))
-		return
+		return s.block(ctx, scope, command.Now, d, job, job.LastAttemptNo, derivation.Reason, domain.FreshnessReasonText(derivation.Reason))
 	}
 	// FENCE 7 — the readiness re-check (the blocked material is never
 	// sent).
 	if readiness := domain.DerivePreviewReadiness(def, preview.Snapshot); readiness != domain.PreviewReady {
-		s.block(d, job, job.LastAttemptNo, readiness, domain.PreviewReadinessText(readiness))
-		return
+		return s.block(ctx, scope, command.Now, d, job, job.LastAttemptNo, readiness, domain.PreviewReadinessText(readiness))
 	}
 	// FENCE 8 — the LIVE policy gates (GuardPreparePolicy reused — the
 	// pinned owner epoch of the OPERATION against the live sources).
 	policy := domain.GuardPreparePolicy(def, op.OwnerEpoch, live.policy)
 	if policy.Outcome == domain.PolicyBlock {
-		s.block(d, job, job.LastAttemptNo, policy.Reason, domain.PolicyReasonText(policy.Reason))
-		return
+		return s.block(ctx, scope, command.Now, d, job, job.LastAttemptNo, policy.Reason, domain.PolicyReasonText(policy.Reason))
 	}
 	// FENCE 9 — the LAST material check (AC-3/AG-4): the required facts of
 	// the definition read through the consumer-owned reader; the NIL
@@ -436,8 +402,7 @@ func (s *Service) dispatchOneJob(ctx context.Context, scope tenancy.Context, com
 	// passes EXPLICITLY by the declaration.
 	if len(def.Conditions.RequiredFacts) > 0 {
 		if s.previewReader == nil {
-			s.block(d, job, job.LastAttemptNo, dispatchFreshReadsReason, domain.FreshReadsUnavailableText)
-			return
+			return s.block(ctx, scope, command.Now, d, job, job.LastAttemptNo, dispatchFreshReadsReason, domain.FreshReadsUnavailableText)
 		}
 		rows := s.readPreviewMaterial(ctx, scope, def, preview)
 		byField := map[string]domain.MaterialSnapshotRow{}
@@ -447,21 +412,18 @@ func (s *Service) dispatchOneJob(ctx context.Context, scope tenancy.Context, com
 		for _, required := range def.Conditions.RequiredFacts {
 			row, present := byField[required.MaterialField]
 			if !present {
-				s.block(d, job, job.LastAttemptNo, dispatchMaterialChangedReason, domain.MaterialConditionChangedText)
-				return
+				return s.block(ctx, scope, command.Now, d, job, job.LastAttemptNo, dispatchMaterialChangedReason, domain.MaterialConditionChangedText)
 			}
 			switch row.Status {
 			case domain.SnapshotFresh, domain.SnapshotAllowedUncertain:
 				// The fresh field passes; the allowed uncertainty passes
 				// EXPLICITLY by the definition's declaration.
 			case domain.SnapshotStale, domain.SnapshotConflicting, domain.SnapshotUnknown:
-				s.block(d, job, job.LastAttemptNo, dispatchMaterialChangedReason, domain.MaterialConditionChangedText)
-				return
+				return s.block(ctx, scope, command.Now, d, job, job.LastAttemptNo, dispatchMaterialChangedReason, domain.MaterialConditionChangedText)
 			default:
 				// A foreign status word fails closed (a lying adapter can
 				// never smuggle a pass in).
-				s.block(d, job, job.LastAttemptNo, dispatchMaterialChangedReason, domain.MaterialConditionChangedText)
-				return
+				return s.block(ctx, scope, command.Now, d, job, job.LastAttemptNo, dispatchMaterialChangedReason, domain.MaterialConditionChangedText)
 			}
 		}
 	}
@@ -473,7 +435,7 @@ func (s *Service) dispatchOneJob(ctx context.Context, scope tenancy.Context, com
 		// The integrity refusal of the rebuild: the alarm skip (never a
 		// gas, never a send — the mixed rows never dispatch).
 		d.skip(op.OperationID, job.LastAttemptNo, dispatchFingerprintAlarmText)
-		return
+		return nil
 	}
 	externalKey := domain.DeriveExternalIdempotencyKey(hmacKey, scope.TenantID(), op.OperationID)
 	requestDigest := domain.DeriveDispatchRequestDigest(hmacKey, payloadRebuilt)
@@ -481,17 +443,15 @@ func (s *Service) dispatchOneJob(ctx context.Context, scope tenancy.Context, com
 	// must serve the definition's required capability (AC-4).
 	if s.dispatchAdapter.ServesCapability() != def.RequiredCapability.CapabilityID {
 		d.skip(op.OperationID, job.LastAttemptNo, dispatchCapabilityForeignText)
-		return
+		return nil
 	}
 	leaseToken, err := dispatchMintLeaseToken()
 	if err != nil {
-		drainErr = err
-		return
+		return err
 	}
 	leaseExpires, err := domain.DeriveDispatchLeaseExpiresAt(command.Now, def.Conditions.TimeoutMS)
 	if err != nil {
-		drainErr = err
-		return
+		return err
 	}
 	entryNo := int64(1)
 	for _, entry := range job.Ledger {
@@ -521,14 +481,13 @@ func (s *Service) dispatchOneJob(ctx context.Context, scope tenancy.Context, com
 	if err != nil {
 		if errors.Is(err, port.ErrLeaseRaced) {
 			d.skip(op.OperationID, job.LastAttemptNo, dispatchRacingSkipText)
-			return
+			return nil
 		}
 		if errors.Is(err, port.ErrLeaseStale) {
 			d.skip(op.OperationID, job.LastAttemptNo, domain.DispatchAttemptsBoundText)
-			return
+			return nil
 		}
-		drainErr = err
-		return
+		return err
 	}
 	// The ONE adapter call — OUTSIDE every store transaction, under the
 	// definition timeout (the lease window outlives it by the grace).
@@ -597,32 +556,29 @@ func (s *Service) dispatchOneJob(ctx context.Context, scope tenancy.Context, com
 	}
 	stateWord, err := domain.DeriveMutationStateWord(honest)
 	if err != nil {
-		drainErr = err
-		return
+		return err
 	}
 	receiptWord, err := domain.DeriveReceiptOutcomeWord(honest)
 	if err != nil {
-		drainErr = err
-		return
+		return err
 	}
 	outboxEventID, err := s.ids.New(command.Now)
 	if err != nil {
-		drainErr = err
-		return
+		return err
 	}
 	var outboxPayload port.ReceiptCreatedPayload
 	if receiptWord != "" {
 		outboxPayload = port.ReceiptCreatedPayload{
-			EventType:             domain.OutboxEventReceiptCreated,
-			TenantID:              scope.TenantID(),
-			OperationID:           op.OperationID,
-			CaseID:                op.CaseID,
-			WorkItemID:            op.WorkItemID,
-			DefinitionID:          op.DefinitionID,
-			ReceiptVersionNo:      1,
-			Outcome:               receiptWord,
-			ExternalObjectID:      evidence.ExternalObjectID,
-			CreatedAt:             command.Now.UTC().Truncate(time.Microsecond),
+			EventType:        domain.OutboxEventReceiptCreated,
+			TenantID:         scope.TenantID(),
+			OperationID:      op.OperationID,
+			CaseID:           op.CaseID,
+			WorkItemID:       op.WorkItemID,
+			DefinitionID:     op.DefinitionID,
+			ReceiptVersionNo: 1,
+			Outcome:          receiptWord,
+			ExternalObjectID: evidence.ExternalObjectID,
+			CreatedAt:        command.Now.UTC().Truncate(time.Microsecond),
 		}
 	}
 	// The fenced verdict transaction (the signature carries ZERO
@@ -668,13 +624,13 @@ func (s *Service) dispatchOneJob(ctx context.Context, scope tenancy.Context, com
 	if err != nil {
 		if errors.Is(err, port.ErrLeaseStale) || errors.Is(err, port.ErrOutcomeDuplicate) {
 			d.skip(op.OperationID, attemptNo, dispatchFencedRefusalText)
-			return
+			return nil
 		}
-		drainErr = err
-		return
+		return err
 	}
 	d.report.Dispatched++
 	d.line(op.OperationID, attemptNo, verdictDetails(honest, guarantee))
+	return nil
 }
 
 // verdictDetails speaks the honest verdict word of one attempt (the
@@ -713,24 +669,24 @@ func catalogDefinition(s *Service, definitionID, version string) (domain.ActionD
 // new send, no new intent), a divergence is the integrity alarm (the
 // corruption is never masked).
 func (s *Service) decidedVerify(ctx context.Context, scope tenancy.Context, command DispatchDrainCommand,
-	d *dispatchDrain, job *port.PendingDispatchJob, hmacKey []byte, def domain.ActionDefinition) {
+	d *dispatchDrain, job *port.PendingDispatchJob, hmacKey []byte, def domain.ActionDefinition) error {
 	op := job.Operation
 	preview, err := s.operations.ReadPinnedPreviewVersion(ctx, scope, op.PreviewID, op.PreviewVersionNo)
 	if err != nil {
-		drainErr = err
-		return
+		return err
 	}
 	payload, err := domain.BuildAuthorizedActionPayload(op, preview, def)
 	if err != nil {
 		d.skip(op.OperationID, job.LastAttemptNo, dispatchReplayAlarmText)
-		return
+		return nil
 	}
 	digest := domain.DeriveDispatchRequestDigest(hmacKey, payload)
 	if job.RequestDigest == "" || digest != job.RequestDigest {
 		d.skip(op.OperationID, job.LastAttemptNo, dispatchReplayAlarmText)
-		return
+		return nil
 	}
 	d.skip(op.OperationID, job.LastAttemptNo, domain.DispatchRedeliveryDecidedText)
+	return nil
 }
 
 // recordCrashUnknown records the honest unknown verdict ON THE CRASHED
@@ -740,12 +696,11 @@ func (s *Service) decidedVerify(ctx context.Context, scope tenancy.Context, comm
 // (there is no honest claim), NO new attempt («возможен предыдущий
 // вызов — слепой повтор запрещён»), the Operation stays the single one.
 func (s *Service) recordCrashUnknown(ctx context.Context, scope tenancy.Context, command DispatchDrainCommand,
-	d *dispatchDrain, job *port.PendingDispatchJob) {
+	d *dispatchDrain, job *port.PendingDispatchJob) error {
 	op := job.Operation
 	outboxEventID, err := s.ids.New(command.Now)
 	if err != nil {
-		drainErr = err
-		return
+		return err
 	}
 	entryNo := int64(1)
 	for _, entry := range job.Ledger {
@@ -754,13 +709,13 @@ func (s *Service) recordCrashUnknown(ctx context.Context, scope tenancy.Context,
 		}
 	}
 	err = s.dispatches.RecordDispatchOutcome(ctx, port.RecordDispatchOutcomeParams{
-		Scope:             scope,
-		Operation:         op,
-		AttemptNo:         job.LastAttemptNo,
-		LeaseToken:        job.LastLeaseToken,
-		OutcomeWord:       "",
-		StateWord:         domain.OperationUnknown,
-		ReceiptWord:       domain.ReceiptOutcomeUnknown,
+		Scope:       scope,
+		Operation:   op,
+		AttemptNo:   job.LastAttemptNo,
+		LeaseToken:  job.LastLeaseToken,
+		OutcomeWord: "",
+		StateWord:   domain.OperationUnknown,
+		ReceiptWord: domain.ReceiptOutcomeUnknown,
 		LedgerEntry: domain.OperationLedgerEntry{
 			EntryNo: entryNo,
 			Kind:    domain.OperationUnknown,
@@ -795,13 +750,13 @@ func (s *Service) recordCrashUnknown(ctx context.Context, scope tenancy.Context,
 	if err != nil {
 		if errors.Is(err, port.ErrLeaseStale) || errors.Is(err, port.ErrOutcomeDuplicate) {
 			d.skip(op.OperationID, job.LastAttemptNo, dispatchFencedRefusalText)
-			return
+			return nil
 		}
-		drainErr = err
-		return
+		return err
 	}
 	d.report.Blocked++
 	d.line(op.OperationID, job.LastAttemptNo, domain.DispatchBlindRepeatForbiddenText)
+	return nil
 }
 
 // requireDispatchPorts refuses honestly when the execution contour is not
@@ -877,9 +832,8 @@ func (s *Service) DispatchQueuedOperations(ctx context.Context, command Dispatch
 		adapterHits: &adapterHits,
 	}
 	for i := range jobs {
-		s.dispatchOneJob(ctx, scope, command, d, &jobs[i])
-		if drainErr != nil {
-			return *d.report, drainErr
+		if err := s.dispatchOneJob(ctx, scope, command, d, &jobs[i]); err != nil {
+			return *d.report, err
 		}
 	}
 	return *d.report, nil

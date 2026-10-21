@@ -355,6 +355,19 @@ func TestMain(m *testing.M) {
 	if _, err = adminPool.Exec(ctx, strings.Split(string(actionReservationMigration), "-- +goose Down")[0]); err != nil {
 		panic(err)
 	}
+	// Story 3.6: the THIRD migration of the action module — the
+	// execution contour (dispatch leases, dispatch outcomes, action
+	// receipts, the widened ledger/outbox dictionaries). The
+	// registration stays in this hard list (the 3.3 lesson: a
+	// migration outside the list never applies its tables and the
+	// whole contour tests a world that does not exist).
+	actionDispatchMigration, err := os.ReadFile("../../migrations/action/00003_dispatch_receipt.sql")
+	if err != nil {
+		panic(err)
+	}
+	if _, err = adminPool.Exec(ctx, strings.Split(string(actionDispatchMigration), "-- +goose Down")[0]); err != nil {
+		panic(err)
+	}
 	if _, err = adminPool.Exec(ctx, "alter role staffy_app login password 'staffy-runtime-test'"); err != nil {
 		panic(err)
 	}

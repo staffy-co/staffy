@@ -1,17 +1,17 @@
 package app
 
 import (
-        "context"
-        "errors"
-        "fmt"
+	"context"
+	"errors"
+	"fmt"
 
-        "github.com/artemiosu/staffy/internal/action/api"
-        actionCatalog "github.com/artemiosu/staffy/internal/action/catalog"
-        "github.com/artemiosu/staffy/internal/action/domain"
-        "github.com/artemiosu/staffy/internal/action/port"
-        identityAPI "github.com/artemiosu/staffy/internal/identity/api"
-        identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-        "github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/artemiosu/staffy/internal/action/api"
+	actionCatalog "github.com/artemiosu/staffy/internal/action/catalog"
+	"github.com/artemiosu/staffy/internal/action/domain"
+	"github.com/artemiosu/staffy/internal/action/port"
+	identityAPI "github.com/artemiosu/staffy/internal/identity/api"
+	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
+	"github.com/artemiosu/staffy/internal/platform/id"
 )
 
 // actionCatalogScopeText is the honest scope refusal of the catalog read:
@@ -37,42 +37,42 @@ var _ api.ActionCatalogService = (*Service)(nil)
 // an unwired 3-4 port is the HONEST refusal, never an assumed "ok"
 // (the ConnectionsFacts precedent).
 type Service struct {
-        identity identityAPI.MembershipService
-        packs    domain.PackRefResolver
-        caps     domain.CapabilityRefResolver
-        defs     []domain.ActionDefinition
+	identity identityAPI.MembershipService
+	packs    domain.PackRefResolver
+	caps     domain.CapabilityRefResolver
+	defs     []domain.ActionDefinition
 
-        // Story 3-4 (step-02): the preparation contour.
-        previews       port.PreviewRepository  // the append-only store (mandatory for the contour)
-        previewReader  port.OwningSystemReader // nil = the honest blocked_material (AG-4)
-        dryRunner      port.DryRunner          // nil = the honest refusal in words (AG-4)
-        previewControl port.ControlEffectiveReader
-        caseMaterial   port.CaseMaterialSource
-        members        port.MembersSource
-        entitlement    port.EntitlementSource
-        readiness      port.ReadinessSource
-        connectors     port.ConnectorFactsSource
-        routeFacts     port.RouteFactsSource
-        ids            api.IDGenerator
+	// Story 3-4 (step-02): the preparation contour.
+	previews       port.PreviewRepository  // the append-only store (mandatory for the contour)
+	previewReader  port.OwningSystemReader // nil = the honest blocked_material (AG-4)
+	dryRunner      port.DryRunner          // nil = the honest refusal in words (AG-4)
+	previewControl port.ControlEffectiveReader
+	caseMaterial   port.CaseMaterialSource
+	members        port.MembersSource
+	entitlement    port.EntitlementSource
+	readiness      port.ReadinessSource
+	connectors     port.ConnectorFactsSource
+	routeFacts     port.RouteFactsSource
+	ids            api.IDGenerator
 
-        // Story 3.5 (step-02): the confirmation→authorization contour. The two
-        // repositories of the consent and the operations share the SAME
-        // Postgres store of the module; the LIVE fact sources above are the
-        // ones the freshness/policy re-checks of the gateway read (the 3-4
-        // wiring — «3-5 читает тот же вывод»).
-        confirmations port.ConfirmationRepository
-        operations    port.OperationRepository
+	// Story 3.5 (step-02): the confirmation→authorization contour. The two
+	// repositories of the consent and the operations share the SAME
+	// Postgres store of the module; the LIVE fact sources above are the
+	// ones the freshness/policy re-checks of the gateway read (the 3-4
+	// wiring — «3-5 читает тот же вывод»).
+	confirmations port.ConfirmationRepository
+	operations    port.OperationRepository
 
-        // Story 3.6 (step-02): the execution contour — the dispatch worker.
-        // The dispatch repository owns the THREE adapter-free transactions
-        // (the write-ahead lease, the fenced verdict, the raced-guarded
-        // parking); the mutation adapter is the consumer-owned door to the
-        // provider world — nil is the HONEST production state (AG-4: no
-        // real providers exist, the drain refuses in words, the queue
-        // honestly stays pending). The adapter is called ONLY outside every
-        // store transaction (persist-before-emit, AD-6).
-        dispatches      port.DispatchRepository
-        dispatchAdapter port.MutationAdapter
+	// Story 3.6 (step-02): the execution contour — the dispatch worker.
+	// The dispatch repository owns the THREE adapter-free transactions
+	// (the write-ahead lease, the fenced verdict, the raced-guarded
+	// parking); the mutation adapter is the consumer-owned door to the
+	// provider world — nil is the HONEST production state (AG-4: no
+	// real providers exist, the drain refuses in words, the queue
+	// honestly stays pending). The adapter is called ONLY outside every
+	// store transaction (persist-before-emit, AD-6).
+	dispatches      port.DispatchRepository
+	dispatchAdapter port.MutationAdapter
 }
 
 // New wires the service. The resolvers are the composition-root adapters
@@ -83,7 +83,7 @@ type Service struct {
 // slice — fixtures never live in the product binary). The slice is treated
 // as immutable from here on; every read returns a defensive copy.
 func New(identity identityAPI.MembershipService, packs port.PackRefResolver, caps port.CapabilityRefResolver, defs []domain.ActionDefinition) *Service {
-        return &Service{identity: identity, packs: packs, caps: caps, defs: defs}
+	return &Service{identity: identity, packs: packs, caps: caps, defs: defs}
 }
 
 // WithPreviews wires the whole preparation contour of story 3-4 in one
@@ -94,35 +94,35 @@ func New(identity identityAPI.MembershipService, packs port.PackRefResolver, cap
 // (nil reader = the blocked_material readiness word, nil runner = the
 // spoken unsupported refusal).
 func (s *Service) WithPreviews(repository port.PreviewRepository, control port.ControlEffectiveReader,
-        material port.CaseMaterialSource, memberFacts port.MembersSource,
-        admissions port.EntitlementSource, readinessFacts port.ReadinessSource,
-        connections port.ConnectorFactsSource, routes port.RouteFactsSource, ids api.IDGenerator) *Service {
-        s.previews = repository
-        s.previewControl = control
-        s.caseMaterial = material
-        s.members = memberFacts
-        s.entitlement = admissions
-        s.readiness = readinessFacts
-        s.connectors = connections
-        s.routeFacts = routes
-        s.ids = ids
-        return s
+	material port.CaseMaterialSource, memberFacts port.MembersSource,
+	admissions port.EntitlementSource, readinessFacts port.ReadinessSource,
+	connections port.ConnectorFactsSource, routes port.RouteFactsSource, ids api.IDGenerator) *Service {
+	s.previews = repository
+	s.previewControl = control
+	s.caseMaterial = material
+	s.members = memberFacts
+	s.entitlement = admissions
+	s.readiness = readinessFacts
+	s.connectors = connections
+	s.routeFacts = routes
+	s.ids = ids
+	return s
 }
 
 // WithPreviewReader wires the material reader of the snapshot (the test
 // contour wires the synthetic adapter; the production root wires NOTHING
 // — AG-4: no real providers exist, the readiness honestly blocks).
 func (s *Service) WithPreviewReader(reader port.OwningSystemReader) *Service {
-        s.previewReader = reader
-        return s
+	s.previewReader = reader
+	return s
 }
 
 // WithPreviewDryRunner wires the validation adapter (the test contour
 // only — AG-4: the production root wires nothing, the dry-run surface
 // honestly refuses in words).
 func (s *Service) WithPreviewDryRunner(runner port.DryRunner) *Service {
-        s.dryRunner = runner
-        return s
+	s.dryRunner = runner
+	return s
 }
 
 // WithAuthorization wires the confirmation→authorization contour of story
@@ -133,9 +133,9 @@ func (s *Service) WithPreviewDryRunner(runner port.DryRunner) *Service {
 // wiring — its absence is the HONEST fail-closed authorization refusal
 // (the production root wires nothing).
 func (s *Service) WithAuthorization(consents port.ConfirmationRepository, ops port.OperationRepository) *Service {
-        s.confirmations = consents
-        s.operations = ops
-        return s
+	s.confirmations = consents
+	s.operations = ops
+	return s
 }
 
 // WithDispatch wires the execution contour of story 3.6 (the fixture and
@@ -146,9 +146,9 @@ func (s *Service) WithAuthorization(consents port.ConfirmationRepository, ops po
 // test contour is importable ONLY by the composition roots, never by the
 // product binary — the import-graph probe of step-04).
 func (s *Service) WithDispatch(dispatches port.DispatchRepository, adapter port.MutationAdapter) *Service {
-        s.dispatches = dispatches
-        s.dispatchAdapter = adapter
-        return s
+	s.dispatches = dispatches
+	s.dispatchAdapter = adapter
+	return s
 }
 
 // authorize is the read gate, in the honest order:
@@ -164,58 +164,58 @@ func (s *Service) WithDispatch(dispatches port.DispatchRepository, adapter port.
 // The member-with-integrations path is one Authorize call; only the
 // integrations-less member pays the second (configuration) call.
 func (s *Service) authorize(ctx context.Context, actor identityDomain.Principal, tenantID id.UUID) error {
-        if !actor.ID.Valid() || !tenantID.Valid() {
-                return domain.ErrNotFound
-        }
-        integrationsErr := s.identity.Authorize(ctx, actor, tenantID, identityDomain.Integrations)
-        if integrationsErr == nil {
-                return nil
-        }
-        if errors.Is(integrationsErr, identityDomain.ErrForbidden) {
-                // The member exists: configuration is the second honest way in.
-                configurationErr := s.identity.Authorize(ctx, actor, tenantID, identityDomain.Configuration)
-                if configurationErr == nil {
-                        return nil
-                }
-                if errors.Is(configurationErr, identityDomain.ErrForbidden) {
-                        return fmt.Errorf("%w: %s", domain.ErrForbidden, actionCatalogScopeText)
-                }
-                if errors.Is(configurationErr, identityDomain.ErrNotFound) {
-                        // The membership vanished between the two calls: the honest 404.
-                        return domain.ErrNotFound
-                }
-                return configurationErr
-        }
-        if errors.Is(integrationsErr, identityDomain.ErrNotFound) {
-                // A non-member of the tenant: the module's own 404 identity (the
-                // transport maps the action domain error, never the identity one).
-                return domain.ErrNotFound
-        }
-        return integrationsErr
+	if !actor.ID.Valid() || !tenantID.Valid() {
+		return domain.ErrNotFound
+	}
+	integrationsErr := s.identity.Authorize(ctx, actor, tenantID, identityDomain.Integrations)
+	if integrationsErr == nil {
+		return nil
+	}
+	if errors.Is(integrationsErr, identityDomain.ErrForbidden) {
+		// The member exists: configuration is the second honest way in.
+		configurationErr := s.identity.Authorize(ctx, actor, tenantID, identityDomain.Configuration)
+		if configurationErr == nil {
+			return nil
+		}
+		if errors.Is(configurationErr, identityDomain.ErrForbidden) {
+			return fmt.Errorf("%w: %s", domain.ErrForbidden, actionCatalogScopeText)
+		}
+		if errors.Is(configurationErr, identityDomain.ErrNotFound) {
+			// The membership vanished between the two calls: the honest 404.
+			return domain.ErrNotFound
+		}
+		return configurationErr
+	}
+	if errors.Is(integrationsErr, identityDomain.ErrNotFound) {
+		// A non-member of the tenant: the module's own 404 identity (the
+		// transport maps the action domain error, never the identity one).
+		return domain.ErrNotFound
+	}
+	return integrationsErr
 }
 
 // List serves the newest version of every definition of the injected
 // dictionary (the read gate FIRST; a defensive copy — the caller may
 // mutate the result, never the dictionary).
 func (s *Service) List(ctx context.Context, actor identityDomain.Principal, tenantID id.UUID) ([]domain.ActionDefinition, error) {
-        if err := s.authorize(ctx, actor, tenantID); err != nil {
-                return nil, err
-        }
-        return actionCatalog.ListFrom(s.defs), nil
+	if err := s.authorize(ctx, actor, tenantID); err != nil {
+		return nil, err
+	}
+	return actionCatalog.ListFrom(s.defs), nil
 }
 
 // Get pins one definition by id and exact version (AC-8). The read gate
 // runs FIRST; an unknown or unparseable pin is the honest ErrNotFound —
 // the pinned past stays resolvable, the invented future does not exist.
 func (s *Service) Get(ctx context.Context, actor identityDomain.Principal, tenantID id.UUID, definitionID, version string) (domain.ActionDefinition, error) {
-        if err := s.authorize(ctx, actor, tenantID); err != nil {
-                return domain.ActionDefinition{}, err
-        }
-        def, ok := actionCatalog.GetFrom(s.defs, definitionID, version)
-        if !ok {
-                return domain.ActionDefinition{}, domain.ErrNotFound
-        }
-        return def, nil
+	if err := s.authorize(ctx, actor, tenantID); err != nil {
+		return domain.ActionDefinition{}, err
+	}
+	def, ok := actionCatalog.GetFrom(s.defs, definitionID, version)
+	if !ok {
+		return domain.ActionDefinition{}, domain.ErrNotFound
+	}
+	return def, nil
 }
 
 // ValidateBinaryCatalog walks the PRODUCTION binary dictionary through the
@@ -228,14 +228,14 @@ func (s *Service) Get(ctx context.Context, actor identityDomain.Principal, tenan
 // truth. Nothing here touches the injected fixture dictionary — the
 // product binary is the subject.
 func (s *Service) ValidateBinaryCatalog() error {
-        defs := actionCatalog.All()
-        if err := domain.CatalogIntegrity(defs); err != nil {
-                return err
-        }
-        for _, d := range defs {
-                if err := domain.ValidateDefinitionRefs(d, s.packs, s.caps); err != nil {
-                        return err
-                }
-        }
-        return nil
+	defs := actionCatalog.All()
+	if err := domain.CatalogIntegrity(defs); err != nil {
+		return err
+	}
+	for _, d := range defs {
+		if err := domain.ValidateDefinitionRefs(d, s.packs, s.caps); err != nil {
+			return err
+		}
+	}
+	return nil
 }

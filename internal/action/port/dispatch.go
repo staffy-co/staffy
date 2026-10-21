@@ -97,14 +97,14 @@ var PendingClassWords = []string{
 // request digest (the redacted trace of exactly this material). The raw
 // payload travels ONLY here — it is never stored anywhere (AD-10/AC-5).
 type MutationRequest struct {
-	TenantID              id.UUID
-	OperationID           id.UUID
-	AttemptNo             int
+	TenantID               id.UUID
+	OperationID            id.UUID
+	AttemptNo              int
 	ExternalIDempotencyKey string
-	RequestDigest         string
-	DefinitionID          string
-	DefinitionVersion     string
-	Payload               domain.AuthorizedActionPayload
+	RequestDigest          string
+	DefinitionID           string
+	DefinitionVersion      string
+	Payload                domain.AuthorizedActionPayload
 }
 
 // MutationResult is the honest answer of the adapter: the claim word (the
@@ -182,16 +182,16 @@ type PendingDispatchJob struct {
 // the advisory lock; ANY failure rolls back the lease AND the ledger
 // entry together.
 type AcquireDispatchLeaseParams struct {
-	Scope                 tenancy.Context
-	Operation             domain.Operation
-	DefinitionID          string
-	DefinitionVersion     string
-	LeaseToken            string
+	Scope                  tenancy.Context
+	Operation              domain.Operation
+	DefinitionID           string
+	DefinitionVersion      string
+	LeaseToken             string
 	ExternalIDempotencyKey string
-	RequestDigest         string
-	LeaseExpiresAt        time.Time
-	LedgerEntry           domain.OperationLedgerEntry
-	Now                   time.Time
+	RequestDigest          string
+	LeaseExpiresAt         time.Time
+	LedgerEntry            domain.OperationLedgerEntry
+	Now                    time.Time
 }
 
 // ReceiptReferences is the SAFE pin set of the Action Receipt (FR-31: the
@@ -217,16 +217,16 @@ type ReceiptReferences struct {
 // module's tables never happens; the future consumer reads the pending
 // records, the 3-5 mirror precedent).
 type ReceiptCreatedPayload struct {
-	EventType             string    `json:"event_type"`
-	TenantID              id.UUID   `json:"tenant_id"`
-	OperationID           id.UUID   `json:"operation_id"`
-	CaseID                id.UUID   `json:"case_id"`
-	WorkItemID            id.UUID   `json:"work_item_id"`
-	DefinitionID          string    `json:"definition_id"`
-	ReceiptVersionNo      int64     `json:"receipt_version_no"`
-	Outcome               string    `json:"outcome"`
-	ExternalObjectID      string    `json:"external_object_id"`
-	CreatedAt             time.Time `json:"created_at"`
+	EventType        string    `json:"event_type"`
+	TenantID         id.UUID   `json:"tenant_id"`
+	OperationID      id.UUID   `json:"operation_id"`
+	CaseID           id.UUID   `json:"case_id"`
+	WorkItemID       id.UUID   `json:"work_item_id"`
+	DefinitionID     string    `json:"definition_id"`
+	ReceiptVersionNo int64     `json:"receipt_version_no"`
+	Outcome          string    `json:"outcome"`
+	ExternalObjectID string    `json:"external_object_id"`
+	CreatedAt        time.Time `json:"created_at"`
 }
 
 // RecordDispatchOutcomeParams is the fenced verdict transaction: the
@@ -279,10 +279,10 @@ type AppendDispatchBlockedParams struct {
 // evidence appends a new receipt version; the verdict transaction of
 // RecordDispatchOutcome performs the same insert INSIDE its commit).
 type AppendOutboxReceiptCreatedParams struct {
-	Scope     tenancy.Context
-	EventID   id.UUID
-	Payload   ReceiptCreatedPayload
-	Now       time.Time
+	Scope   tenancy.Context
+	EventID id.UUID
+	Payload ReceiptCreatedPayload
+	Now     time.Time
 }
 
 // DispatchAttemptRow is one attempt of the view material: the lease facts
