@@ -3632,6 +3632,24 @@ paths:
         '401': { $ref: '#/components/responses/Problem' }
         '403': { description: 'AG-4 честный отказ nil-адаптера словами («исполнение не подключено — очередь не тронута, отправок ноль»); скоуп operations словами ДО чтения очереди', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
         '404': { description: 'Не-участник тенента — поверхность не раскрывается', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/operations/reconcile:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+    post:
+      operationId: reconcileOperations
+      summary: 'Сверка unknown-операций (3-7, операторная команда manage — прецедент drain 3-3/3-6, демона НЕТ): bounded-батч до доменного предела 100 pending-целей (операция unknown выводом ledger: последняя версия квитанции unknown), каждая цель проходит лёгкую read-only лестницу фенций (классификация racing/exhausted/decided/waiting честными строками БЕЗ права → fingerprint integrity alarm → сверка объявлена ОБЕ половины — LIVE-слово декларации коннектора + ReconciliationQuery определения, голый 404 = no_answer → paused control живым чтением scoped controls → ServesCapability-гейт); ЛЮБАЯ фенция = honest-строка отчёта, запрос НЕ сделан, lease НЕ взята, операция остаётся при своей квитанции; зелёный путь: reconciliation lease write-ahead (attempt 1..3, fencing-токен, окно timeout+grace, backoff+jitter записан) + ledger reconciling НЕ state-bearing → запрос ЕДИНСТВЕННЫЙ раз вне транзакций (внешний idempotency key тот же что отправка, correlation последней dispatch-попытки, keyed digest — сырой материал НИКОГДА) → нормализация fail-closed → терминальный замок ДО записи (alarm человеку / skip подтверждения / append квитанции v2+) → fenced-запись вердикта; вердикты {committed с evidence-тройником, no_effect при объявленной семантике, in_progress, no_answer}; production nil-адаптер = честный отказ 403 словами AG-4 — очередь сверки не тронута, запросов ноль'
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReconcileOperationsRequest' }
+      responses:
+        '201': { description: 'Отчёт прогона существует: счётчики considered/queried/decided/skipped + построчные честные слова (записанные вердикты, фенции без права, гонки, тревоги терминального замка)', content: { application/json: { schema: { type: object, required: [reconcile], properties: { reconcile: { $ref: '#/components/schemas/ReconcileResultView' } } } } } }
+        '400': { description: 'Строгий decode пустого тела: свободное поле = 400 — параметров reconcile не существует (bounded операторная команда)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'AG-4 честный отказ nil-адаптера словами («сверка не подключена — реальных систем-владельцев нет: очередь сверки не тронута, запросов ноль»); скоуп operations словами ДО чтения целей', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { description: 'Не-участник тенента — поверхность не раскрывается', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
 components:
   parameters:
     EmployeeID:
@@ -7393,7 +7411,7 @@ components:
     OperationCardView:
       type: object
       additionalProperties: false
-      required: [operation_id, definition_id, definition_version, preview_id, preview_version_no, confirmation_id, confirmation_version_no, case_id, work_item_id, target_kind, target_ref, owner_kind, owner_ref, owner_epoch, release_decision_no, profile_version, partition, idempotency_key, business_intent_key, material_digest, state, state_text, queued, state_at, owning_system, next_step_text, block_reason_text, external_id_absent_text, dispatch_absent_text, ledger, attempts, receipts, created_at]
+      required: [operation_id, definition_id, definition_version, preview_id, preview_version_no, confirmation_id, confirmation_version_no, case_id, work_item_id, target_kind, target_ref, owner_kind, owner_ref, owner_epoch, release_decision_no, profile_version, partition, idempotency_key, business_intent_key, material_digest, state, state_text, queued, state_at, owning_system, next_step_text, block_reason_text, external_id_absent_text, dispatch_absent_text, reconcile_absent_text, ledger, attempts, receipts, reconciliation_attempts, created_at]
       properties:
         operation_id: { type: string, format: uuid }
         definition_id: { type: string, description: 'Action type идентичности намерения' }
@@ -7424,6 +7442,7 @@ components:
         block_reason_text: { type: string, description: 'Видимая причина остановки отправки: детали последней dispatch_blocked записи (операция остаётся authorized — припаркована с видимой причиной, НЕ ложный failed externally); пусто = блокировок не было' }
         external_id_absent_text: { type: string, description: '«Внешний идентификатор не выдан» — до отправки не выдумывается; появляется записью dispatch-исхода' }
         dispatch_absent_text: { type: string, description: '«Dispatch — явная команда drain: демона нет» — очередь до запуска честно копится pending' }
+        reconcile_absent_text: { type: string, description: '«Reconcile — явная команда сверки: демона нет» — unknown-операции честно остаются при своих квитанциях до запуска оператора' }
         ledger:
           type: array
           items: { $ref: '#/components/schemas/OperationLedgerEntryView' }
@@ -7435,6 +7454,10 @@ components:
           type: array
           description: 'Версии Action Receipt (append-only, v1 неприкосновенна — позднее evidence 3-7 допишет v2+)'
           items: { $ref: '#/components/schemas/ActionReceiptView' }
+        reconciliation_attempts:
+          type: array
+          description: 'Попытки сверки (≤3, закрытые details на странице — 320px без скролла аудита; вердикт словами словаря 4)'
+          items: { $ref: '#/components/schemas/ReconciliationAttemptView' }
         created_at: { type: string, format: date-time }
     AuthorizationOutcome:
       type: object
@@ -7527,6 +7550,55 @@ components:
         external_object_version: { type: string, description: 'Версия внешнего объекта; пусто = не выдана' }
         details: { type: string, description: 'Safe-details ≤500 рун — идентификаторы и слова, материал НИКОГДА' }
         created_at: { type: string, format: date-time }
+    ReconcileOperationsRequest:
+      type: object
+      additionalProperties: false
+      description: 'Тело команды reconcile — ровно один ПУСТОЙ объект: параметров не существует (bounded операторная команда домена); свободное поле = 400 строгим decode'
+    ReconciliationVerdictWord:
+      type: string
+      enum: [committed, no_effect, in_progress, no_answer]
+      description: 'Словарь вердиктов сверки (4 слова): committed — терминальный успех с обязательным evidence-тройником (внешний объект id/версия/время); no_effect — доказанное отсутствие эффекта (только при объявленной семантике отсутствия: LIVE-слово декларации + ReconciliationQuery определения; голый 404 = no_answer); in_progress — промежуточное состояние системы-владельца (операция остаётся unknown); no_answer — честное «не отвечено» (ошибка/таймаут/чужое слово/неполные evidence) — НЕ failed и НЕ успех'
+    ReconcileReportLineView:
+      type: object
+      additionalProperties: false
+      required: [operation_id, attempt_no, text]
+      properties:
+        operation_id: { type: string, format: uuid }
+        attempt_no: { type: integer, minimum: 0, maximum: 3, description: 'Номер попытки строки (0 — цель без попыток: фенция ДО lease)' }
+        text: { type: string, description: 'Честные слова строки: записанный вердикт с фиксированным текстом / точная причина пропуска (фенция без права, гонка, тревога терминального замка) — FR-30' }
+    ReconcileResultView:
+      type: object
+      additionalProperties: false
+      required: [command, considered, queried, decided, skipped, reports]
+      properties:
+        command: { type: string, description: 'reconcile_unknown_operations — имя явной команды (демона нет)' }
+        considered: { type: integer, minimum: 0, description: 'Рассмотрено целей bounded-батча (доменный предел 100)' }
+        queried: { type: integer, minimum: 0, description: 'Запрошено у систем-владельцев (единственный сетевой вызов на попытку, вне транзакций)' }
+        decided: { type: integer, minimum: 0, description: 'Записано вердиктов (попытка всегда пишет исход — guarded truth)' }
+        skipped: { type: integer, minimum: 0, description: 'Честные пропуски (фенции без права, гонки, тревоги)' }
+        reports:
+          type: array
+          description: 'Построчный отчёт каждой рассмотренной цели — слова, не молчание'
+          items: { $ref: '#/components/schemas/ReconcileReportLineView' }
+    ReconciliationAttemptView:
+      type: object
+      additionalProperties: false
+      required: [attempt_no, lease_created_at, lease_expires_at, next_eligible_at, verdict_recorded, verdict_text, correlation_id, external_object_id]
+      description: 'Одна попытка сверки: write-ahead факты lease (право и момент запроса закреплены ДО сетевого вызова), материальное окно backoff (next_eligible_at), честное слово вердикта КОГДА записано (словарь 4) и слово resting-состояния когда нет'
+      properties:
+        attempt_no: { type: integer, minimum: 1, maximum: 3, description: 'Монотонный номер попытки сверки (предел 3 — bounded)' }
+        lease_created_at: { type: string, format: date-time, description: 'Write-ahead: право и момент запроса закреплены до вызова' }
+        lease_expires_at: { type: string, format: date-time, description: 'Окно lease: timeout определения + grace' }
+        next_eligible_at: { type: string, format: date-time, description: 'Материальное окно backoff: base 30000 + jitter ≤5000 — следующая команда уважает его' }
+        verdict:
+          description: 'Честное слово вердикта (словарь 4); отсутствует = вердикт не записан (write-ahead resting-состояние)'
+          oneOf:
+            - $ref: '#/components/schemas/ReconciliationVerdictWord'
+        verdict_recorded: { type: boolean, description: 'false = write-ahead resting-состояние краха: ответ не попал в историю, истёкшая lease покажет восстановление' }
+        verdict_text: { type: string, description: 'Честный текст вердикта / resting-состояния (тексты домена)' }
+        correlation_id: { type: string, description: 'Корреляция провайдера; пусто = не выдана' }
+        external_object_id: { type: string, description: 'Идентификатор внешнего объекта evidence (только committed); пусто = не выдан' }
+        verdict_recorded_at: { type: string, format: date-time, description: 'Момент записи вердикта (отсутствует = не записан)' }
   responses:
     Problem:
       description: Безопасная ошибка

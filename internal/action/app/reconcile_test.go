@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/artemiosu/staffy/internal/action/api"
 	"github.com/artemiosu/staffy/internal/action/domain"
 	"github.com/artemiosu/staffy/internal/action/port"
 	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
@@ -1012,5 +1013,104 @@ func assertNoInterfaceFields(t *testing.T, typ reflect.Type, owner string, depth
 		for i := 0; i < typ.NumField(); i++ {
 			assertNoInterfaceFields(t, typ.Field(i).Type, owner, depth+1)
 		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Story 3.7 step-03: the api projection of the contour (the transport
+// renders the DTO layer only — a private copy would drift)
+// ---------------------------------------------------------------------------
+
+// TestReconcileOperationsBridgeMapsTheReport — the api projection carries
+// the honest report verbatim: the command word, the counters (considered,
+// queried, decided, skipped) and the spoken line of every target; the
+// command fields (the actor, the tenant, the moment) travel unchanged.
+func TestReconcileOperationsBridgeMapsTheReport(t *testing.T) {
+	f := newReconcileFixture(t)
+	f.adapter.result = committedReconcileResult()
+	service := f.reconcileService(f.adapter, nil, nil)
+	result, err := service.ReconcileOperations(context.Background(), api.ReconcileOperationsCommand{
+		Actor: testActor, TenantID: testTenant, Now: f.command().Now,
+	})
+	if err != nil {
+		t.Fatalf("живой путь сверки обязан проходить через мост: %v", err)
+	}
+	if result.Command != "reconcile_unknown_operations" {
+		t.Fatalf("мост несёт слово команды: %q", result.Command)
+	}
+	if result.Considered != 1 || result.Queried != 1 || result.Decided != 1 || result.Skipped != 0 {
+		t.Fatalf("мост несёт счётчики отчёта дословно: %+v", result)
+	}
+	if len(result.Reports) != 1 || result.Reports[0].OperationID != f.op.OperationID {
+		t.Fatalf("мост несёт построчные слова каждой цели: %+v", result.Reports)
+	}
+	if !strings.Contains(result.Reports[0].Text, domain.ReconciliationVerdictText(domain.ReconciliationVerdictCommitted)) {
+		t.Fatalf("строка обязана нести фиксированный текст вердикта: %q", result.Reports[0].Text)
+	}
+	// The AG-4 boundary passes through UNTOUCHED: the bridge never invents
+	// its own words — the app wrap point owns the honest text.
+	refused := f.reconcileService(nil, nil, nil)
+	if _, err := refused.ReconcileOperations(context.Background(), api.ReconcileOperationsCommand{
+		Actor: testActor, TenantID: testTenant, Now: f.command().Now,
+	}); !errors.Is(err, api.ErrReconcileRefusedAG4) {
+		t.Fatalf("nil-адаптер обязан отвечать AG-4 отказом через мост: %v", err)
+	}
+}
+
+// TestReconciliationAttemptViewsSpeakTheHonestWords — the view mapping of
+// the reconciliation attempts: the recorded verdict word with its fixed
+// text, the un-recorded resting word by name and the FOREIGN stored word
+// reading as the resting absence (the integrity fail-closed — never a
+// masked state, the attemptOutcomeText precedent of 3-6).
+func TestReconciliationAttemptViewsSpeakTheHonestWords(t *testing.T) {
+	rows := []port.ReconciliationAttemptRow{{
+		AttemptNo:          1,
+		LeaseToken:         "token-1",
+		LeaseExpiresAt:     time.Unix(40, 0).UTC(),
+		NextEligibleAt:     time.Unix(70, 0).UTC(),
+		LeaseCreatedAt:     time.Unix(10, 0).UTC(),
+		ReconciliationWord: "объявлена",
+		OutcomeVerdict:     domain.ReconciliationVerdictCommitted,
+		CorrelationID:      "corr-1",
+		ExternalObjectID:   "ext-1",
+		OutcomeCreatedAt:   time.Unix(11, 0).UTC(),
+	}, {
+		AttemptNo:      2,
+		LeaseToken:     "token-2",
+		LeaseExpiresAt: time.Unix(80, 0).UTC(),
+		NextEligibleAt: time.Unix(110, 0).UTC(),
+		LeaseCreatedAt: time.Unix(50, 0).UTC(),
+	}, {
+		AttemptNo:      3,
+		LeaseToken:     "token-3",
+		LeaseExpiresAt: time.Unix(120, 0).UTC(),
+		NextEligibleAt: time.Unix(150, 0).UTC(),
+		LeaseCreatedAt: time.Unix(90, 0).UTC(),
+		OutcomeVerdict: "executed",
+	}}
+	views := reconciliationAttemptViews(rows)
+	if len(views) != 3 {
+		t.Fatalf("каждая попытка отображается: %d", len(views))
+	}
+	if views[0].Verdict != domain.ReconciliationVerdictCommitted || !views[0].VerdictRecorded {
+		t.Fatalf("записанный вердикт несёт слово и флаг: %+v", views[0])
+	}
+	if views[0].VerdictText != domain.ReconciliationVerdictText(domain.ReconciliationVerdictCommitted) {
+		t.Fatalf("текст вердикта — фиксированный текст домена: %q", views[0].VerdictText)
+	}
+	if views[0].CorrelationID != "corr-1" || views[0].ExternalObjectID != "ext-1" {
+		t.Fatalf("попытка несёт correlation и внешний объект evidence: %+v", views[0])
+	}
+	if views[1].Verdict != "" || views[1].VerdictRecorded {
+		t.Fatalf("незаписанный вердикт не маскируется: %+v", views[1])
+	}
+	if views[1].VerdictText != domain.ReconciliationAttemptRestingText {
+		t.Fatalf("resting-текст по имени: %q", views[1].VerdictText)
+	}
+	if views[2].Verdict != "executed" || !views[2].VerdictRecorded {
+		t.Fatalf("чужое слово хранимой строки читается дословно (аудит-истина строки): %+v", views[2])
+	}
+	if views[2].VerdictText != domain.ReconciliationAttemptRestingText {
+		t.Fatalf("текст чужого слова — resting-отсутствие (fail-closed, никогда замаскированное состояние): %q", views[2].VerdictText)
 	}
 }

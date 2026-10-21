@@ -20,10 +20,12 @@ import (
 // carry no material to refuse); the enum mirrors are EXACT (length AND
 // membership — every wire word a compile-time dictionary word, drift
 // turns this test red: confirmation states 5 / confirmation events 6 /
-// ledger kinds 7 / partition 2 / operation states 6 — the life words of
+// ledger kinds 8 / partition 2 / operation states 6 — the life words of
 // 3-6 step-03, the queue fact moved to the structured boolean / the
 // adapter outcome words 4 / the receipt outcome words 3 / owner kinds
-// 2); the idempotency bounds mirror the domain constants; the required
+// 2 / the reconciliation verdict words 4 — the 3-7 step-03 mirror); the
+// reconcile path (3-7) carries the honest ladder 201/400/401/403/404
+// (the AG-4 nil-adapter refusal speaks 403 with the honest words); the idempotency bounds mirror the domain constants; the required
 // lists are complete and additionalProperties is false everywhere.
 func TestOperationContractIsHonest(t *testing.T) {
 	content, err := os.ReadFile("staffy.yaml")
@@ -206,6 +208,10 @@ func TestOperationContractIsHonest(t *testing.T) {
 	outcomeMember, _ := oneOf[0].(map[string]any)
 	assertEnumMirrors(t, outcomeMember["enum"], actionDomain.MutationOutcomeWords, "mutation_outcome")
 	assertEnumMirrors(t, mapping(t, mapping(t, mapping(t, schemas, "ActionReceiptView"), "properties"), "outcome")["enum"], actionDomain.ReceiptOutcomeWords, "receipt_outcome")
+	// The reconciliation dictionary (3-7 step-03): the verdict words
+	// (4 — the referenced enum schema mirrors the LIVE domain
+	// dictionary).
+	assertEnumMirrors(t, mapping(t, schemas, "ReconciliationVerdictWord")["enum"], actionDomain.ReconciliationVerdictWords, "reconciliation_verdict")
 
 	// The drain path (3-6 step-03): the explicit operator command — the
 	// honest ladder 201/400/401/403/404, the EMPTY strict body, the
@@ -246,6 +252,45 @@ func TestOperationContractIsHonest(t *testing.T) {
 		t.Errorf("the attempt number bound must mirror the domain MaxDispatchAttempts %d, got %v", actionDomain.MaxDispatchAttempts, attemptNo["maximum"])
 	}
 
+	// The reconcile path (3-7 step-03): the explicit operator command —
+	// the honest ladder 201/400/401/403/404, the EMPTY strict body, the
+	// principal boundary, the report wrapper and the attempts bound
+	// mirroring the domain constant.
+	reconcilePost := mapping(t, mapping(t, paths, "/v1/tenants/{tenant_id}/operations/reconcile"), "post")
+	if reconcilePost["operationId"] != "reconcileOperations" {
+		t.Errorf("the reconcile operation id is wrong: %v", reconcilePost["operationId"])
+	}
+	if required, _ := reconcilePost["x-staffy-principal-required"].(bool); !required {
+		t.Errorf("the reconcile does not document the principal boundary")
+	}
+	reconcileResponses := mapping(t, reconcilePost, "responses")
+	for _, code := range []string{"201", "400", "401", "403", "404"} {
+		if _, documented := reconcileResponses[code]; !documented {
+			t.Errorf("the reconcile does not document the honest %s answer", code)
+		}
+	}
+	for _, forbidden := range []string{"200", "409", "500"} {
+		if _, documented := reconcileResponses[forbidden]; documented {
+			t.Errorf("the reconcile must not document a %s: the explicit command answers 201 with the report or refuses by the honest ladder", forbidden)
+		}
+	}
+	reconcileRefusal, _ := reconcileResponses["403"].(map[string]any)["description"].(string)
+	if reconcileRefusal == "" || !contains(reconcileRefusal, "AG-4") {
+		t.Errorf("the reconcile 403 answer must document the honest AG-4 nil-adapter refusal words, got %q", reconcileRefusal)
+	}
+	reconcileBody := mapping(t, mapping(t, mapping(t, reconcilePost, "requestBody"), "content"), "application/json")
+	if ref, _ := reconcileBody["schema"].(map[string]any)["$ref"].(string); ref != "#/components/schemas/ReconcileOperationsRequest" {
+		t.Errorf("the reconcile request body must reference ReconcileOperationsRequest, got %v", reconcileBody["schema"])
+	}
+	reconcileSchema := mapping(t, mapping(t, mapping(t, mapping(t, mapping(t, reconcileResponses, "201"), "content"), "application/json"), "schema"), "properties")
+	if ref, _ := reconcileSchema["reconcile"].(map[string]any)["$ref"].(string); ref != "#/components/schemas/ReconcileResultView" {
+		t.Errorf("the reconcile 201 answer must reference ReconcileResultView, got %v", reconcileSchema["reconcile"])
+	}
+	reconcileAttemptNo := mapping(t, mapping(t, mapping(t, schemas, "ReconciliationAttemptView"), "properties"), "attempt_no")
+	if bound, _ := reconcileAttemptNo["maximum"].(int); bound != actionDomain.MaxReconciliationAttempts {
+		t.Errorf("the reconcile attempt number bound must mirror the domain MaxReconciliationAttempts %d, got %v", actionDomain.MaxReconciliationAttempts, reconcileAttemptNo["maximum"])
+	}
+
 	// The closed shapes: additionalProperties false and the complete
 	// required lists (the wire never accepts silence).
 	for _, spec := range []struct {
@@ -260,7 +305,7 @@ func TestOperationContractIsHonest(t *testing.T) {
 		{"ConfirmationVersionOutcome", 9},
 		{"ConfirmationRevocationOutcome", 6},
 		{"OperationLedgerEntryView", 4},
-		{"OperationCardView", 33},
+		{"OperationCardView", 35},
 		{"AuthorizationOutcome", 5},
 		{"AuthorizationView", 4},
 		{"DrainOperationsRequest", 0},
@@ -268,6 +313,10 @@ func TestOperationContractIsHonest(t *testing.T) {
 		{"DispatchDrainResultView", 6},
 		{"DispatchAttemptView", 8},
 		{"ActionReceiptView", 15},
+		{"ReconcileOperationsRequest", 0},
+		{"ReconcileReportLineView", 3},
+		{"ReconcileResultView", 6},
+		{"ReconciliationAttemptView", 8},
 	} {
 		schema := mapping(t, schemas, spec.name)
 		if additional, ok := schema["additionalProperties"].(bool); !ok || additional {

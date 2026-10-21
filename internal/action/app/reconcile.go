@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/artemiosu/staffy/internal/action/api"
 	"github.com/artemiosu/staffy/internal/action/domain"
 	"github.com/artemiosu/staffy/internal/action/port"
 	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
@@ -526,4 +527,88 @@ func (s *Service) reconcileOneTarget(ctx context.Context, scope tenancy.Context,
 	}
 	r.decided(op.OperationID, attemptNo, domain.ReconciliationVerdictText(verdict))
 	return nil
+}
+
+// ---------------------------------------------------------------------------
+// Story 3.7 (step-03): the api projection of the contour (the transport
+// renders the DTO layer only — a private copy would drift; the
+// DrainDispatchQueue precedent of 3-6)
+// ---------------------------------------------------------------------------
+
+// The compile-time proof of the narrow transport registration.
+var _ api.ReconcileService = (*Service)(nil)
+
+// ReconcileOperations is the api projection of the EXPLICIT reconcile
+// command: the honest report of the bounded run, every considered target
+// spoken by its line (FR-30 — never a masked silence).
+func (s *Service) ReconcileOperations(ctx context.Context, command api.ReconcileOperationsCommand) (api.ReconcileResultView, error) {
+	report, err := s.ReconcileUnknownOperations(ctx, ReconcileCommand{
+		Actor: command.Actor, TenantID: command.TenantID, Now: command.Now,
+	})
+	if err != nil {
+		return api.ReconcileResultView{}, err
+	}
+	result := api.ReconcileResultView{
+		Command:    report.Command,
+		Considered: report.Considered,
+		Queried:    report.Queried,
+		Decided:    report.Decided,
+		Skipped:    report.Skipped,
+		Reports:    []api.ReconcileReportLineView{},
+	}
+	for _, line := range report.Reports {
+		result.Reports = append(result.Reports, api.ReconcileReportLineView{
+			OperationID: line.OperationID, AttemptNo: line.AttemptNo, Text: line.Text,
+		})
+	}
+	return result, nil
+}
+
+// reconcileVerdictKnown answers whether the stored verdict word belongs
+// to the four-word dictionary (the honest integrity check of a stored
+// row — a foreign word reads as the resting absence, never a masked
+// state; the attemptOutcomeText precedent of 3-6).
+func reconcileVerdictKnown(word string) bool {
+	for _, candidate := range domain.ReconciliationVerdictWords {
+		if candidate == word {
+			return true
+		}
+	}
+	return false
+}
+
+// reconcileVerdictText speaks the honest text of one attempt's verdict
+// word (the verdict texts of the domain reused — never a private copy);
+// the un-recorded attempt speaks the write-ahead resting word by name.
+func reconcileVerdictText(word string) string {
+	if word == "" || !reconcileVerdictKnown(word) {
+		return domain.ReconciliationAttemptRestingText
+	}
+	return domain.ReconciliationVerdictText(word)
+}
+
+// reconciliationAttemptViews maps the attempt rows onto the SAFE view
+// material: the write-ahead lease facts (the right and the moment of the
+// query landed BEFORE the network call), the material backoff moment, the
+// honest verdict word WHEN recorded (the four-word dictionary), the
+// provider correlation and the external object identity of the committed
+// evidence — identifiers and words only, the material NEVER enters
+// (AC-5/AD-10).
+func reconciliationAttemptViews(rows []port.ReconciliationAttemptRow) []api.ReconciliationAttemptView {
+	views := make([]api.ReconciliationAttemptView, 0, len(rows))
+	for _, row := range rows {
+		views = append(views, api.ReconciliationAttemptView{
+			AttemptNo:        row.AttemptNo,
+			LeaseCreatedAt:   row.LeaseCreatedAt,
+			LeaseExpiresAt:   row.LeaseExpiresAt,
+			NextEligibleAt:   row.NextEligibleAt,
+			Verdict:          row.OutcomeVerdict,
+			VerdictRecorded:  row.OutcomeVerdict != "",
+			VerdictText:      reconcileVerdictText(row.OutcomeVerdict),
+			CorrelationID:    row.CorrelationID,
+			ExternalObjectID: row.ExternalObjectID,
+			VerdictCreatedAt: row.OutcomeCreatedAt,
+		})
+	}
+	return views
 }

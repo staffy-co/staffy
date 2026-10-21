@@ -91,6 +91,16 @@ func (s *Server) operationsProblem(w http.ResponseWriter, r *http.Request, err e
 			reason = "Исполнение не подключено — реальных провайдеров нет: очередь не тронута, отправок ноль (AG-4)."
 		}
 		s.problem(w, r, http.StatusForbidden, "mutation_execution_not_wired", reason, false, nil)
+	case errors.Is(err, actionAPI.ErrReconcileRefusedAG4):
+		// The honest production refusal of the reconcile (3-7, AG-4): no
+		// real owning systems exist — the pending targets honestly stay;
+		// the words the app attached at the wrap point ARE the message
+		// (the drain precedent of 3-6).
+		reason := operationsWrappedReason(err, actionAPI.ErrReconcileRefusedAG4)
+		if reason == "" {
+			reason = actionDomain.ReconciliationNotWiredText
+		}
+		s.problem(w, r, http.StatusForbidden, "reconciliation_not_wired", reason, false, nil)
 	case errors.As(err, &rejected):
 		// The rejection ladder BY NAME (AC-1): the code carries the exact
 		// state word, the message is the fixed domain text of the word.
@@ -215,6 +225,8 @@ func operationsFormMessage(err error) string {
 		return "Подтверждение и авторизация действия требуют полномочия review или configuration."
 	case errors.Is(err, actionAPI.ErrDispatchRefusedAG4):
 		return operationsFormMessageAG4(err)
+	case errors.Is(err, actionAPI.ErrReconcileRefusedAG4):
+		return operationsFormMessageReconcileAG4(err)
 	case errors.Is(err, domain.ErrStepUpRequired):
 		return "Для подтверждения или отзыва требуется повторное подтверждение личности. Включите подтверждение личности и повторите."
 	}
@@ -230,6 +242,17 @@ func operationsFormMessageAG4(err error) string {
 		return reason
 	}
 	return "Исполнение не подключено — реальных провайдеров нет: очередь не тронута, отправок ноль (AG-4)."
+}
+
+// operationsFormMessageReconcileAG4 renders the honest flash text of the
+// reconcile refusal at the nil read-only adapter (3-7, AG-4): the words
+// the app attached at the wrap point ARE the flash; the pending targets
+// stay, the operator reads why.
+func operationsFormMessageReconcileAG4(err error) string {
+	if reason := operationsWrappedReason(err, actionAPI.ErrReconcileRefusedAG4); reason != "" {
+		return reason
+	}
+	return actionDomain.ReconciliationNotWiredText
 }
 
 // operationsReviewTarget answers the PRG target of the page forms — the
@@ -577,38 +600,59 @@ type actionReceiptRowView struct {
 }
 
 // operationCardRowView is the page projection of one immutable operation
+// reconcileAttemptRowView is one reconciliation attempt of the page
+// card (AC-13: the attempts render in CLOSED details — the card stays
+// legible at 320px without scrolling through the audit): the write-ahead
+// lease facts, the material backoff moment, the honest verdict word with
+// its text, the correlation and the external object identity of the
+// committed evidence.
+type reconcileAttemptRowView struct {
+	No              string
+	LeaseAt         string
+	LeaseExpires    string
+	NextEligible    string
+	Verdict         string
+	VerdictText     string
+	CorrelationText string
+	ExternalText    string
+	VerdictAt       string
+}
+
 // card: the pins, the two key identities, the derived life state word of
 // the six-word dictionary with the queue fact, the state moment, the
 // Owning System, the next step, the visible block cause, the progressive
 // attempts, the Action Receipt versions and the fixed honest texts of
 // the slice boundaries.
 type operationCardRowView struct {
-	OperationID         string
-	DefinitionText      string
-	PreviewPinText      string
-	ConfirmationPinText string
-	TargetText          string
-	OwnerText           string
-	PartitionText       string
-	IdempotencyKey      string
-	BusinessIntentKey   string
-	MaterialDigest      string
-	State               string
-	StateText           string
-	QueuedText          string
-	StateAtText         string
-	OwningSystemText    string
-	NextStepText        string
-	BlockReasonText     string
-	ExternalIDText      string
-	DispatchText        string
-	Ledger              []operationLedgerRowView
-	HasLedger           bool
-	Attempts            []dispatchAttemptRowView
-	HasAttempts         bool
-	Receipts            []actionReceiptRowView
-	HasReceipts         bool
-	CreatedAt           string
+	OperationID            string
+	DefinitionText         string
+	PreviewPinText         string
+	ConfirmationPinText    string
+	TargetText             string
+	OwnerText              string
+	PartitionText          string
+	IdempotencyKey         string
+	BusinessIntentKey      string
+	MaterialDigest         string
+	State                  string
+	StateText              string
+	QueuedText             string
+	StateAtText            string
+	OwningSystemText       string
+	NextStepText           string
+	BlockReasonText        string
+	ExternalIDText         string
+	DispatchText           string
+	Ledger                 []operationLedgerRowView
+	HasLedger              bool
+	Attempts               []dispatchAttemptRowView
+	HasAttempts            bool
+	Receipts               []actionReceiptRowView
+	HasReceipts            bool
+	ReconciliationAttempts []reconcileAttemptRowView
+	HasReconcileAttempts   bool
+	ReconcileText          string
+	CreatedAt              string
 }
 
 // operationsPageView carries the page material: the tenant and the case,
@@ -631,6 +675,7 @@ type operationsPageView struct {
 	ConfirmVersion   string
 	ConfirmLifetime  string
 	HasDrain         bool
+	HasReconcile     bool
 }
 
 // operationNotice speaks the PRG status of a successful form mutation:
@@ -655,6 +700,9 @@ func operationNotice(r *http.Request) string {
 	}
 	if raw := r.URL.Query().Get("drained"); raw != "" {
 		return "Очередь отправок дренирована: рассмотрено заданий — " + raw + " (ограничение батча — доменный предел); каждое рассмотренное задание говорило своей строкой отчёта — отправленные, припаркованные с точной причиной и честные пропуски. Фокус переведён на этот статус."
+	}
+	if raw := r.URL.Query().Get("reconciled"); raw != "" {
+		return "Сверка unknown-операций выполнена: рассмотрено целей — " + raw + " (ограничение батча — доменный предел); каждая рассмотренная цель говорила своей строкой отчёта — записанные вердикты с честными текстами и честные пропуски с точными причинами (фенции без права, гонки, тревоги). Фокус переведён на этот статус."
 	}
 	return ""
 }
@@ -703,27 +751,28 @@ func newConfirmationCardRowView(card actionAPI.ConfirmationCardView) confirmatio
 // attempts, the Action Receipt versions and the honest boundary texts.
 func newOperationCardRowView(card actionAPI.OperationCardView) operationCardRowView {
 	row := operationCardRowView{
-		OperationID:         card.OperationID.String(),
-		DefinitionText:      card.DefinitionID + "@" + card.DefinitionVersion,
-		PreviewPinText:      card.PreviewID.String() + ":" + strconv.FormatInt(card.PreviewVersionNo, 10),
-		ConfirmationPinText: card.ConfirmationID.String() + ":" + strconv.FormatInt(card.ConfirmationVersionNo, 10),
-		TargetText:          card.TargetKind + " " + card.TargetRef.String(),
-		OwnerText:           card.OwnerKind + " " + card.OwnerRef.String() + " (эпоха " + strconv.FormatInt(card.OwnerEpoch, 10) + ")",
-		PartitionText:       actionDomain.ExecutionPartitionText(card.Partition),
-		IdempotencyKey:      card.IdempotencyKey,
-		BusinessIntentKey:   card.BusinessIntentKey,
-		MaterialDigest:      card.MaterialDigest,
-		State:               card.State,
-		StateText:           card.StateText,
-		QueuedText:          operationQueuedWords(card.Queued),
-		OwningSystemText:    operationOwningSystemWords(card.OwningSystem),
-		NextStepText:        card.NextStepText,
-		BlockReasonText:     card.BlockReasonText,
-		ExternalIDText:      card.ExternalIDAbsentText,
-		DispatchText:        card.DispatchAbsentText,
-		Ledger:              []operationLedgerRowView{},
-		Attempts:            []dispatchAttemptRowView{},
-		Receipts:            []actionReceiptRowView{},
+		OperationID:            card.OperationID.String(),
+		DefinitionText:         card.DefinitionID + "@" + card.DefinitionVersion,
+		PreviewPinText:         card.PreviewID.String() + ":" + strconv.FormatInt(card.PreviewVersionNo, 10),
+		ConfirmationPinText:    card.ConfirmationID.String() + ":" + strconv.FormatInt(card.ConfirmationVersionNo, 10),
+		TargetText:             card.TargetKind + " " + card.TargetRef.String(),
+		OwnerText:              card.OwnerKind + " " + card.OwnerRef.String() + " (эпоха " + strconv.FormatInt(card.OwnerEpoch, 10) + ")",
+		PartitionText:          actionDomain.ExecutionPartitionText(card.Partition),
+		IdempotencyKey:         card.IdempotencyKey,
+		BusinessIntentKey:      card.BusinessIntentKey,
+		MaterialDigest:         card.MaterialDigest,
+		State:                  card.State,
+		StateText:              card.StateText,
+		QueuedText:             operationQueuedWords(card.Queued),
+		OwningSystemText:       operationOwningSystemWords(card.OwningSystem),
+		NextStepText:           card.NextStepText,
+		BlockReasonText:        card.BlockReasonText,
+		ExternalIDText:         card.ExternalIDAbsentText,
+		DispatchText:           card.DispatchAbsentText,
+		Ledger:                 []operationLedgerRowView{},
+		Attempts:               []dispatchAttemptRowView{},
+		Receipts:               []actionReceiptRowView{},
+		ReconciliationAttempts: []reconcileAttemptRowView{},
 	}
 	if !card.StateAt.IsZero() {
 		row.StateAtText = card.StateAt.UTC().Format("2006-01-02T15:04:05Z07:00")
@@ -770,6 +819,25 @@ func newOperationCardRowView(card actionAPI.OperationCardView) operationCardRowV
 			CreatedAt:           receipt.CreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
 		})
 	}
+	// The reconciliation view extension (3-7 step-03): the attempts of the
+	// reconcile contour in CLOSED details (the card stays legible at
+	// 320px), the verdict word with its honest text, the absent-contour
+	// word of the living boundary.
+	row.HasReconcileAttempts = len(card.ReconciliationAttempts) > 0
+	for _, attempt := range card.ReconciliationAttempts {
+		row.ReconciliationAttempts = append(row.ReconciliationAttempts, reconcileAttemptRowView{
+			No:              strconv.Itoa(attempt.AttemptNo),
+			LeaseAt:         attempt.LeaseCreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
+			LeaseExpires:    attempt.LeaseExpiresAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
+			NextEligible:    attempt.NextEligibleAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
+			Verdict:         attempt.Verdict,
+			VerdictText:     attempt.VerdictText,
+			CorrelationText: reconcileCorrelationWords(attempt.CorrelationID),
+			ExternalText:    reconcileExternalWords(attempt.ExternalObjectID),
+			VerdictAt:       attempt.VerdictCreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
+		})
+	}
+	row.ReconcileText = card.ReconcileAbsentText
 	return row
 }
 
@@ -861,6 +929,7 @@ func (s *Server) operationReviewPage(w http.ResponseWriter, r *http.Request) {
 		Operations:      []operationCardRowView{},
 		ConfirmLifetime: "3600",
 		HasDrain:        s.dispatch != nil,
+		HasReconcile:    s.reconcile != nil,
 	}
 	if raw := r.URL.Query().Get("confirm"); raw != "" {
 		page.ConfirmPreview, page.ConfirmVersion = splitPreviewConfirmPin(raw)
@@ -1160,4 +1229,127 @@ func (s *Server) BindDispatch(service actionAPI.DispatchService) {
 	s.dispatch = service
 	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/operations/drain", s.drainOperationsAPI)
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/operations/drain", s.drainOperationsForm)
+}
+
+// ---------------------------------------------------------------------------
+// Story 3.7 (step-03): the reconcile command of the reconciliation contour
+// ---------------------------------------------------------------------------
+
+// reconcileOperationsInput is the strict machine shape of the reconcile
+// request: the body carries NOTHING (the reconcile is the bounded
+// operator command — NO parameters exist; a free field is the honest 400,
+// the strict decode refuses it BEFORE the service is ever called).
+type reconcileOperationsInput struct{}
+
+// reconcileOperationsAPI answers the machine reconcile of the pending
+// unknown targets: the strict decode of the EMPTY body, the operator
+// manage gate and the bounded honest report (201 — the report of the run
+// exists now; every considered target leaves its spoken line, FR-30).
+// The nil read-only adapter of the production root refuses honestly
+// FIRST (AG-4 — the 403 words, the pending targets stay, zero queries;
+// the DrainExternalCommitments precedent of 3-3, the drain of 3-6).
+func (s *Server) reconcileOperationsAPI(w http.ResponseWriter, r *http.Request) {
+	actor, tenant, ok := s.casesActor(w, r)
+	if !ok {
+		return
+	}
+	if s.reconcile == nil {
+		s.notFound(w, r, actor)
+		return
+	}
+	var input reconcileOperationsInput
+	if err := decodeActionPreviewsJSON(w, r, &input); err != nil {
+		s.operationsProblem(w, r, err)
+		return
+	}
+	result, err := s.reconcile.ReconcileOperations(r.Context(), actionAPI.ReconcileOperationsCommand{
+		Actor: actor, TenantID: tenant, Now: s.clock.Now().UTC(),
+	})
+	if err != nil {
+		s.operationsProblem(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{"reconcile": result})
+}
+
+// reconcileOperationsForm answers the page reconcile form of the
+// Operation Review surface (the drain form precedent of 3-6): the
+// explicit confirmation checkbox (the deliberate operator act), the
+// hidden case pin of the PRG return, the honest report landing PRG with
+// the considered counter (the notice speaks the words, the focus moves
+// onto it); the AG-4 refusal words land as the flash (the production
+// root wires no read-only adapter — the pending targets stay, the state
+// stays honest).
+func (s *Server) reconcileOperationsForm(w http.ResponseWriter, r *http.Request) {
+	actor, tenant, ok := s.casesActor(w, r)
+	if !ok {
+		return
+	}
+	if s.reconcile == nil {
+		s.notFound(w, r, actor)
+		return
+	}
+	if !validFormOrigin(r) {
+		s.operationsProblem(w, r, fmt.Errorf("%w: %s", domain.ErrForbidden, "форма сверки доступна только из браузера приложения (origin)."))
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 16<<10)
+	if err := r.ParseForm(); err != nil {
+		setFlashError(w, tenant, "Проверьте данные формы.")
+		http.Redirect(w, r, "/app/tenants/"+tenant.String()+"/cases", http.StatusSeeOther)
+		return
+	}
+	caseID, err := id.Parse(r.FormValue("case_id"))
+	if err != nil {
+		setFlashError(w, tenant, "Не удалось вернуться на страницу операций: страница кейса не найдена.")
+		http.Redirect(w, r, "/app/tenants/"+tenant.String()+"/cases", http.StatusSeeOther)
+		return
+	}
+	if r.FormValue("confirm_reconcile") != "yes" {
+		setFlashError(w, tenant, "Сверка требует явного подтверждения: отметьте чекбокс согласия.")
+		http.Redirect(w, r, operationsReviewTarget(tenant, caseID, "x", "1"), http.StatusSeeOther)
+		return
+	}
+	result, err := s.reconcile.ReconcileOperations(r.Context(), actionAPI.ReconcileOperationsCommand{
+		Actor: actor, TenantID: tenant, Now: s.clock.Now().UTC(),
+	})
+	if err != nil {
+		setFlashError(w, tenant, operationsFormMessage(err))
+		http.Redirect(w, r, operationsReviewTarget(tenant, caseID, "x", "1"), http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, operationsReviewTarget(tenant, caseID, "reconciled", strconv.Itoa(result.Considered)), http.StatusSeeOther)
+}
+
+// reconcileCorrelationWords speaks the provider correlation of one
+// reconciliation attempt (empty — not issued).
+func reconcileCorrelationWords(correlation string) string {
+	if correlation != "" {
+		return "Корреляция провайдера: " + correlation
+	}
+	return "Корреляция провайдера: не выдана."
+}
+
+// reconcileExternalWords speaks the external object identity of the
+// committed evidence (only the committed verdicts carry it — the
+// structural evidence of the terminal success).
+func reconcileExternalWords(objectID string) string {
+	if objectID != "" {
+		return "Внешний объект сверки: " + objectID + " — структурное evidence терминального успеха (записан вердиктом committed)."
+	}
+	return "Внешний объект сверки не выдан: evidence появляется только вердиктом committed — слово не выдумывается."
+}
+
+// BindReconcile registers the reconciliation-contour surface of story
+// 3.7: the machine reconcile path of the tenant pending targets and the
+// page reconcile form (the hidden case pin carries the PRG return). The
+// service is the narrow api.ReconcileService (the BindDispatch
+// type-assert precedent — the app Service carries the compile-time
+// proof); the production root binds the REAL service with the nil
+// read-only adapter (AG-4 — the command refuses honestly in words, the
+// pending targets stay).
+func (s *Server) BindReconcile(service actionAPI.ReconcileService) {
+	s.reconcile = service
+	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/operations/reconcile", s.reconcileOperationsAPI)
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/operations/reconcile", s.reconcileOperationsForm)
 }

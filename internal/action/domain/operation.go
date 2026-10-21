@@ -329,6 +329,11 @@ const (
 	// 3-6: the send is an EXPLICIT drain command — no background daemon
 	// (the scheduler is a future infrastructure, the honest boundary).
 	OperationDispatchAbsentText = "Dispatch — явная команда drain: отправку запускает оператор, фонового демона нет (планировщик — будущая инфраструктура); очередь до запуска честно копится pending."
+	// OperationReconcileAbsentText speaks the living reconciliation
+	// contour of 3-7: the reconcile is an EXPLICIT operator command — no
+	// background daemon (the OperationDispatchAbsentText precedent 1:1);
+	// the pending unknown targets honestly stay until the command.
+	OperationReconcileAbsentText = "Reconcile — явная команда сверки: сверку unknown-операций запускает оператор, фонового демона нет (планировщик — будущая инфраструктура); до запуска операция честно остаётся unknown при своей квитанции."
 	// OperationExternalIDAbsentText speaks the honest absence of the
 	// external outcome BEFORE the dispatch: the identifiers appear by the
 	// recorded attempt outcome — no word is invented here.

@@ -832,40 +832,55 @@ func (s *Service) operationCard(ctx context.Context, scope tenancy.Context, op d
 		}
 		receipts = actionReceiptViews(receiptRows)
 	}
+	// The reconciliation view extension (3-7 step-03): the attempts of
+	// the reconcile contour ride the SAME card read — the unwired contour
+	// renders the honest empty list (the dispatch reads precedent); the
+	// receipt versions grow with the terminal-locked appends of the verdict
+	// transactions through the SAME receipts list of the dispatch view.
+	reconciliationAttempts := []api.ReconciliationAttemptView{}
+	if s.reconciliations != nil {
+		reconcileRows, err := s.reconciliations.ReadReconciliationAttempts(ctx, scope, op.OperationID)
+		if err != nil {
+			return api.OperationCardView{}, err
+		}
+		reconciliationAttempts = reconciliationAttemptViews(reconcileRows)
+	}
 	card := api.OperationCardView{
-		OperationID:           op.OperationID,
-		DefinitionID:          op.DefinitionID,
-		DefinitionVersion:     op.DefinitionVersion,
-		PreviewID:             op.PreviewID,
-		PreviewVersionNo:      op.PreviewVersionNo,
-		ConfirmationID:        op.ConfirmationID,
-		ConfirmationVersionNo: op.ConfirmationVersionNo,
-		CaseID:                op.CaseID,
-		WorkItemID:            op.WorkItemID,
-		TargetKind:            op.Target.Kind,
-		TargetRef:             op.Target.Ref,
-		OwnerKind:             op.OwnerKind,
-		OwnerRef:              op.OwnerRef,
-		OwnerEpoch:            op.OwnerEpoch,
-		ReleaseDecisionNo:     op.ReleaseDecisionNo,
-		ProfileVersion:        op.ProfileVersion,
-		Partition:             op.Partition,
-		IdempotencyKey:        op.IdempotencyKey,
-		BusinessIntentKey:     op.BusinessIntentKey,
-		MaterialDigest:        op.MaterialDigest,
-		State:                 state,
-		StateText:             domain.OperationAuthorizedText,
-		Queued:                queued,
-		StateAt:               stateAt,
-		OwningSystem:          owningSystem,
-		NextStepText:          domain.OperationNextStepText(state),
-		BlockReasonText:       blockReason,
-		ExternalIDAbsentText:  domain.OperationExternalIDAbsentText,
-		DispatchAbsentText:    domain.OperationDispatchAbsentText,
-		Ledger:                []api.OperationLedgerEntryView{},
-		Attempts:              attempts,
-		Receipts:              receipts,
-		CreatedAt:             op.CreatedAt,
+		OperationID:            op.OperationID,
+		DefinitionID:           op.DefinitionID,
+		DefinitionVersion:      op.DefinitionVersion,
+		PreviewID:              op.PreviewID,
+		PreviewVersionNo:       op.PreviewVersionNo,
+		ConfirmationID:         op.ConfirmationID,
+		ConfirmationVersionNo:  op.ConfirmationVersionNo,
+		CaseID:                 op.CaseID,
+		WorkItemID:             op.WorkItemID,
+		TargetKind:             op.Target.Kind,
+		TargetRef:              op.Target.Ref,
+		OwnerKind:              op.OwnerKind,
+		OwnerRef:               op.OwnerRef,
+		OwnerEpoch:             op.OwnerEpoch,
+		ReleaseDecisionNo:      op.ReleaseDecisionNo,
+		ProfileVersion:         op.ProfileVersion,
+		Partition:              op.Partition,
+		IdempotencyKey:         op.IdempotencyKey,
+		BusinessIntentKey:      op.BusinessIntentKey,
+		MaterialDigest:         op.MaterialDigest,
+		State:                  state,
+		StateText:              domain.OperationAuthorizedText,
+		Queued:                 queued,
+		StateAt:                stateAt,
+		OwningSystem:           owningSystem,
+		NextStepText:           domain.OperationNextStepText(state),
+		BlockReasonText:        blockReason,
+		ExternalIDAbsentText:   domain.OperationExternalIDAbsentText,
+		DispatchAbsentText:     domain.OperationDispatchAbsentText,
+		Ledger:                 []api.OperationLedgerEntryView{},
+		Attempts:               attempts,
+		Receipts:               receipts,
+		ReconcileAbsentText:    domain.OperationReconcileAbsentText,
+		ReconciliationAttempts: reconciliationAttempts,
+		CreatedAt:              op.CreatedAt,
 	}
 	if queued && state == domain.OperationAuthorized {
 		card.StateText = domain.OperationAuthorizedText + " " + domain.OperationQueuedText

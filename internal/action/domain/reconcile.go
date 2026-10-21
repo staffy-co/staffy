@@ -415,5 +415,10 @@ const (
 	// word (AC-2: the committed claim without the evidence triple spends
 	// the attempt as no_answer — the terminal success is never taken on
 	// word).
-	ReconciliationEvidenceIncompleteText = "Evidence неполные — терминальная заявка сверки отвергнута: попытка записана как no_answer, операция остаётся unknown."
+	// ReconciliationAttemptRestingText speaks the honest word of a
+	// reconciliation attempt WITHOUT a recorded verdict (the write-ahead
+	// resting state of a crash between the query and the verdict — the
+	// attempt view renders it by name, never a masked silence; the
+	// DispatchAttemptRestingText precedent of 3-6).
+	ReconciliationAttemptRestingText = "Вердикт попытки сверки не записан: write-ahead resting-состояние — ответ не попал в историю; истёкшая lease позволит новую попытку в пределах 3."
 )

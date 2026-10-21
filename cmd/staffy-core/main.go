@@ -196,11 +196,25 @@ func run(logger *slog.Logger) error {
 		// 3-3); the synthetic mutation adapter lives in the
 		// test-contour package this root NEVER imports (the
 		// import-graph probe of step-04 pins it structurally).
-		WithDispatch(actionStore.NewPostgres(pool), nil)
+		WithDispatch(actionStore.NewPostgres(pool), nil).
+		// The reconciliation contour (Story 3.7): the reconciliation
+		// repository owns the TWO adapter-free transactions (the
+		// write-ahead query lease, the fenced verdict with the terminal
+		// lock) and the view reads (the attempts of the operation cards;
+		// the receipt versions grow with the terminal-locked appends).
+		// The READ-ONLY query adapter is deliberately nil — AG-4: no
+		// real owning systems exist, the reconcile command honestly
+		// refuses in words and the pending unknown targets honestly stay
+		// at their receipts (the drain precedent of 3-6); the synthetic
+		// read-only adapter lives in the test-contour package this root
+		// NEVER imports (the import-graph probe of step-04 pins it
+		// structurally).
+		WithReconcile(actionStore.NewPostgres(pool), nil)
 	transport.BindActionCatalog(actionService)
 	transport.BindActionPreviews(actionService)
 	transport.BindAuthorization(actionService)
 	transport.BindDispatch(actionService)
+	transport.BindReconcile(actionService)
 	// The scoped controls surface (Story 3.2): the operator emergency
 	// restriction module over its own PG store, the live identity gates
 	// and the connector ref resolution through the consumer-owned port
