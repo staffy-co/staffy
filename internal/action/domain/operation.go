@@ -1,15 +1,15 @@
 package domain
 
 import (
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
-	"fmt"
-	"sort"
-	"strings"
-	"time"
+        "crypto/hmac"
+        "crypto/sha256"
+        "encoding/hex"
+        "fmt"
+        "sort"
+        "strings"
+        "time"
 
-	"github.com/artemiosu/staffy/internal/platform/id"
+        "github.com/artemiosu/staffy/internal/platform/id"
 )
 
 // Module action — story 3.5 slice 1 (step-01), extended by story 3.6
@@ -48,18 +48,18 @@ import (
 // view never invents an external outcome (AC-11) — the word derives from
 // the ledger alone.
 const (
-	OperationAuthorized = "authorized"
-	OperationSubmitted  = "submitted"
-	OperationAccepted   = "accepted"
-	OperationCommitted  = "committed"
-	OperationFailed     = "failed"
-	OperationUnknown    = "unknown"
+        OperationAuthorized = "authorized"
+        OperationSubmitted  = "submitted"
+        OperationAccepted   = "accepted"
+        OperationCommitted  = "committed"
+        OperationFailed     = "failed"
+        OperationUnknown    = "unknown"
 )
 
 // OperationStateWords is the full dictionary (6 words).
 var OperationStateWords = []string{
-	OperationAuthorized, OperationSubmitted, OperationAccepted,
-	OperationCommitted, OperationFailed, OperationUnknown,
+        OperationAuthorized, OperationSubmitted, OperationAccepted,
+        OperationCommitted, OperationFailed, OperationUnknown,
 }
 
 // Ledger entry kind words: the seven append-only kinds of the Operation
@@ -68,20 +68,20 @@ var OperationStateWords = []string{
 // parking cause of a blocked send (the operation stays authorized, the
 // adapter was never called — never a false failed externally, AC-2).
 const (
-	LedgerEntryAuthorized      = "authorized"
-	LedgerEntrySubmitted       = "submitted"
-	LedgerEntryAccepted        = "accepted"
-	LedgerEntryCommitted       = "committed"
-	LedgerEntryFailed          = "failed"
-	LedgerEntryUnknown         = "unknown"
-	LedgerEntryDispatchBlocked = "dispatch_blocked"
+        LedgerEntryAuthorized      = "authorized"
+        LedgerEntrySubmitted       = "submitted"
+        LedgerEntryAccepted        = "accepted"
+        LedgerEntryCommitted       = "committed"
+        LedgerEntryFailed          = "failed"
+        LedgerEntryUnknown         = "unknown"
+        LedgerEntryDispatchBlocked = "dispatch_blocked"
 )
 
 // LedgerEntryKindWords is the full dictionary (7 words).
 var LedgerEntryKindWords = []string{
-	LedgerEntryAuthorized, LedgerEntrySubmitted, LedgerEntryAccepted,
-	LedgerEntryCommitted, LedgerEntryFailed, LedgerEntryUnknown,
-	LedgerEntryDispatchBlocked,
+        LedgerEntryAuthorized, LedgerEntrySubmitted, LedgerEntryAccepted,
+        LedgerEntryCommitted, LedgerEntryFailed, LedgerEntryUnknown,
+        LedgerEntryDispatchBlocked,
 }
 
 // ---------------------------------------------------------------------------
@@ -112,28 +112,28 @@ var LedgerEntryKindWords = []string{
 // mutation is defined by the type plus the intent, not by a definition
 // release — the unit matrix pins the equivalence with a probe).
 type Operation struct {
-	TenantID              id.UUID         `json:"tenant_id"`
-	OperationID           id.UUID         `json:"operation_id"`
-	DefinitionID          string          `json:"definition_id"`
-	DefinitionVersion     string          `json:"definition_version"`
-	PreviewID             id.UUID         `json:"preview_id"`
-	PreviewVersionNo      int64           `json:"preview_version_no"`
-	ConfirmationID        id.UUID         `json:"confirmation_id"`
-	ConfirmationVersionNo int64           `json:"confirmation_version_no"`
-	CaseID                id.UUID         `json:"case_id"`
-	WorkItemID            id.UUID         `json:"work_item_id"`
-	Target                ProposalTarget  `json:"target"`
-	OwnerKind             string          `json:"owner_kind"`
-	OwnerRef              id.UUID         `json:"owner_ref"`
-	OwnerEpoch            int64           `json:"owner_epoch"`
-	ReleaseDecisionNo     int64           `json:"release_decision_no"`
-	ProfileVersion        int64           `json:"profile_version"`
-	Partition             string          `json:"partition"`
-	Effects               []PreviewEffect `json:"effects"`
-	BusinessIntentKey     string          `json:"business_intent_key"`
-	IdempotencyKey        string          `json:"idempotency_key"`
-	MaterialDigest        string          `json:"material_digest"`
-	CreatedAt             time.Time       `json:"created_at"`
+        TenantID              id.UUID         `json:"tenant_id"`
+        OperationID           id.UUID         `json:"operation_id"`
+        DefinitionID          string          `json:"definition_id"`
+        DefinitionVersion     string          `json:"definition_version"`
+        PreviewID             id.UUID         `json:"preview_id"`
+        PreviewVersionNo      int64           `json:"preview_version_no"`
+        ConfirmationID        id.UUID         `json:"confirmation_id"`
+        ConfirmationVersionNo int64           `json:"confirmation_version_no"`
+        CaseID                id.UUID         `json:"case_id"`
+        WorkItemID            id.UUID         `json:"work_item_id"`
+        Target                ProposalTarget  `json:"target"`
+        OwnerKind             string          `json:"owner_kind"`
+        OwnerRef              id.UUID         `json:"owner_ref"`
+        OwnerEpoch            int64           `json:"owner_epoch"`
+        ReleaseDecisionNo     int64           `json:"release_decision_no"`
+        ProfileVersion        int64           `json:"profile_version"`
+        Partition             string          `json:"partition"`
+        Effects               []PreviewEffect `json:"effects"`
+        BusinessIntentKey     string          `json:"business_intent_key"`
+        IdempotencyKey        string          `json:"idempotency_key"`
+        MaterialDigest        string          `json:"material_digest"`
+        CreatedAt             time.Time       `json:"created_at"`
 }
 
 // OperationLedgerEntry is one append-only row of the operation ledger
@@ -143,10 +143,10 @@ type Operation struct {
 // rewritten; the 3-6 dispatch contour appends its words through the same
 // mechanism.
 type OperationLedgerEntry struct {
-	EntryNo int64     `json:"entry_no"`
-	Kind    string    `json:"kind"`
-	Details string    `json:"details"`
-	At      time.Time `json:"at"`
+        EntryNo int64     `json:"entry_no"`
+        Kind    string    `json:"kind"`
+        Details string    `json:"details"`
+        At      time.Time `json:"at"`
 }
 
 // ---------------------------------------------------------------------------
@@ -163,12 +163,12 @@ type OperationLedgerEntry struct {
 // snapshot (the external ids/versions — the statuses, the observed times
 // and the evidence are NOT intent and never enter).
 type BusinessIntentInput struct {
-	TenantID     id.UUID
-	OwningSystem string
-	DefinitionID string
-	Target       ProposalTarget
-	TypedInput   map[string]string
-	Snapshot     []MaterialSnapshotRow
+        TenantID     id.UUID
+        OwningSystem string
+        DefinitionID string
+        Target       ProposalTarget
+        TypedInput   map[string]string
+        Snapshot     []MaterialSnapshotRow
 }
 
 // sortedSnapshotIdentity renders the owning-system identity words of the
@@ -176,17 +176,17 @@ type BusinessIntentInput struct {
 // version — sorted by the material field word (the status, the observed
 // time and the evidence reference never enter the intent).
 func sortedSnapshotIdentity(rows []MaterialSnapshotRow) string {
-	ordered := append([]MaterialSnapshotRow(nil), rows...)
-	sort.Slice(ordered, func(i, j int) bool { return ordered[i].MaterialField < ordered[j].MaterialField })
-	records := make([]string, 0, len(ordered))
-	for _, row := range ordered {
-		records = append(records, strings.Join([]string{
-			row.MaterialField,
-			row.ExternalID,
-			row.ExternalVersion,
-		}, canonicalRecordSep))
-	}
-	return strings.Join(records, canonicalGroupSep)
+        ordered := append([]MaterialSnapshotRow(nil), rows...)
+        sort.Slice(ordered, func(i, j int) bool { return ordered[i].MaterialField < ordered[j].MaterialField })
+        records := make([]string, 0, len(ordered))
+        for _, row := range ordered {
+                records = append(records, strings.Join([]string{
+                        row.MaterialField,
+                        row.ExternalID,
+                        row.ExternalVersion,
+                }, canonicalRecordSep))
+        }
+        return strings.Join(records, canonicalGroupSep)
 }
 
 // DeriveBusinessIntentKey derives the server-side identity of ONE
@@ -202,19 +202,19 @@ func sortedSnapshotIdentity(rows []MaterialSnapshotRow) string {
 // keyed HMAC (AD-10 — the unit matrix pins the keyed property with a
 // probe).
 func DeriveBusinessIntentKey(key []byte, in BusinessIntentInput) string {
-	fields := []string{
-		in.TenantID.String(),
-		in.OwningSystem,
-		in.DefinitionID,
-		in.Target.Kind,
-		in.Target.Ref.String(),
-		sortedTypedInput(in.TypedInput),
-		sortedSnapshotIdentity(in.Snapshot),
-	}
-	mac := hmac.New(sha256.New, key)
-	mac.Write([]byte("business_intent:v1:"))
-	mac.Write([]byte(strings.Join(fields, canonicalFieldSep)))
-	return hex.EncodeToString(mac.Sum(nil))
+        fields := []string{
+                in.TenantID.String(),
+                in.OwningSystem,
+                in.DefinitionID,
+                in.Target.Kind,
+                in.Target.Ref.String(),
+                sortedTypedInput(in.TypedInput),
+                sortedSnapshotIdentity(in.Snapshot),
+        }
+        mac := hmac.New(sha256.New, key)
+        mac.Write([]byte("business_intent:v1:"))
+        mac.Write([]byte(strings.Join(fields, canonicalFieldSep)))
+        return hex.EncodeToString(mac.Sum(nil))
 }
 
 // ---------------------------------------------------------------------------
@@ -231,10 +231,10 @@ func DeriveBusinessIntentKey(key []byte, in BusinessIntentInput) string {
 // conflict of AC-8 — the webhook repeat with the same key after a
 // re-confirmation of a new version is the honest conflict).
 type OperationRequestPins struct {
-	PreviewID             id.UUID
-	PreviewVersionNo      int64
-	ConfirmationID        id.UUID
-	ConfirmationVersionNo int64
+        PreviewID             id.UUID
+        PreviewVersionNo      int64
+        ConfirmationID        id.UUID
+        ConfirmationVersionNo int64
 }
 
 // DeriveIdempotencyFingerprint derives the keyed material digest of one
@@ -249,17 +249,17 @@ type OperationRequestPins struct {
 // against the fresh derivation, the conflict would be impossible
 // otherwise).
 func DeriveIdempotencyFingerprint(key []byte, tenant id.UUID, pins OperationRequestPins) string {
-	fields := []string{
-		tenant.String(),
-		pins.PreviewID.String(),
-		fmt.Sprintf("%d", pins.PreviewVersionNo),
-		pins.ConfirmationID.String(),
-		fmt.Sprintf("%d", pins.ConfirmationVersionNo),
-	}
-	mac := hmac.New(sha256.New, key)
-	mac.Write([]byte("operation_material:v1:"))
-	mac.Write([]byte(strings.Join(fields, canonicalFieldSep)))
-	return hex.EncodeToString(mac.Sum(nil))
+        fields := []string{
+                tenant.String(),
+                pins.PreviewID.String(),
+                fmt.Sprintf("%d", pins.PreviewVersionNo),
+                pins.ConfirmationID.String(),
+                fmt.Sprintf("%d", pins.ConfirmationVersionNo),
+        }
+        mac := hmac.New(sha256.New, key)
+        mac.Write([]byte("operation_material:v1:"))
+        mac.Write([]byte(strings.Join(fields, canonicalFieldSep)))
+        return hex.EncodeToString(mac.Sum(nil))
 }
 
 // ---------------------------------------------------------------------------
@@ -281,43 +281,25 @@ func DeriveIdempotencyFingerprint(key []byte, tenant id.UUID, pins OperationRequ
 // presence) — never a stored state; the dispatch words of the execution
 // contour (3-6) derive from the same ledger.
 func DeriveOperationState(ledger []OperationLedgerEntry) (string, error) {
-	if len(ledger) == 0 {
-		return "", RuleError{Rule: "DeriveOperationState",
-			Reason: "Ledger операции пуст — слово состояния не выводится (fail-closed)."}
-	}
-	state := ""
-	for _, e := range ledger {
-		if !WordIn(LedgerEntryKindWords, e.Kind) {
-			return "", RuleError{Rule: "DeriveOperationState", Reason: fmt.Sprintf(
-				"Запись Operation Ledger «%s» вне словаря (%s).", e.Kind, strings.Join(LedgerEntryKindWords, ", "))}
-		}
-		if e.Kind != LedgerEntryDispatchBlocked {
-			state = e.Kind
-		}
-	}
-	if state == "" {
-		return "", RuleError{Rule: "DeriveOperationState",
-			Reason: "В ledger нет ни одного state-bearing слова — запись authorized (доказательство авторизации) отсутствует: порча данных, а не честное слово (fail-closed)."}
-	}
-	return state, nil
-}
-
-// DeriveOperationViewWord derives the SPOKEN state of the operation card
-// (AC-11/AC-13): the ledger derivation plus the queue fact — the outbox
-// record presence speaks the queued word honestly for an authorized
-// operation (the inherited 3-5 semantics: authorized/queued); the other
-// life states speak their own word (submitted/accepted/committed/failed/
-// unknown — the honest texts of dispatch.go; nothing is stored, every
-// word derives).
-func DeriveOperationViewWord(ledger []OperationLedgerEntry, outboxPresent bool) (string, error) {
-	state, err := DeriveOperationState(ledger)
-	if err != nil {
-		return "", err
-	}
-	if outboxPresent && state == OperationAuthorized {
-		return state + "/queued", nil
-	}
-	return state, nil
+        if len(ledger) == 0 {
+                return "", RuleError{Rule: "DeriveOperationState",
+                        Reason: "Ledger операции пуст — слово состояния не выводится (fail-closed)."}
+        }
+        state := ""
+        for _, e := range ledger {
+                if !WordIn(LedgerEntryKindWords, e.Kind) {
+                        return "", RuleError{Rule: "DeriveOperationState", Reason: fmt.Sprintf(
+                                "Запись Operation Ledger «%s» вне словаря (%s).", e.Kind, strings.Join(LedgerEntryKindWords, ", "))}
+                }
+                if e.Kind != LedgerEntryDispatchBlocked {
+                        state = e.Kind
+                }
+        }
+        if state == "" {
+                return "", RuleError{Rule: "DeriveOperationState",
+                        Reason: "В ledger нет ни одного state-bearing слова — запись authorized (доказательство авторизации) отсутствует: порча данных, а не честное слово (fail-closed)."}
+        }
+        return state, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -329,25 +311,25 @@ func DeriveOperationViewWord(ledger []OperationLedgerEntry, outboxPresent bool) 
 // spoken, never masked. The card, the API view and the page share these
 // exact texts (an app-private copy would drift).
 const (
-	// OperationAuthorizedText speaks the single state word.
-	OperationAuthorizedText = "Operation авторизована (authorized) — разрешение получено и закреплено записью Operation Ledger."
-	// OperationQueuedText speaks the queue fact: the outbox record exists.
-	OperationQueuedText = "Operation в очереди на будущий dispatch (queued) — запись operation.queued существует в outbox."
-	// OperationDispatchAbsentText speaks the living dispatch contour of
-	// 3-6: the send is an EXPLICIT drain command — no background daemon
-	// (the scheduler is a future infrastructure, the honest boundary).
-	OperationDispatchAbsentText = "Dispatch — явная команда drain: отправку запускает оператор, фонового демона нет (планировщик — будущая инфраструктура); очередь до запуска честно копится pending."
-	// OperationExternalIDAbsentText speaks the honest absence of the
-	// external outcome BEFORE the dispatch: the identifiers appear by the
-	// recorded attempt outcome — no word is invented here.
-	OperationExternalIDAbsentText = "Внешний идентификатор не выдан: он появляется записью dispatch-исхода (correlation ID, внешний объект) — до отправки не выдумывается."
-	// IdempotentReplayText is the honest 200 of the replay (AC-7): the
-	// return speaks the idempotency contract.
-	IdempotentReplayText = "Повтор запроса с тем же idempotency key и тем же материалом: возвращена первоначальная Operation и её состояние — Confirmation повторно не потребляется, вторая outbox запись не создаётся."
-	// ReservationDuplicateText is the honest return of the cross-case
-	// loser (AC-9): the reference speaks the reservation.
-	ReservationDuplicateText = "Эквивалентное бизнес-намерение уже зарезервировано — возвращена ссылка на существующую Operation; потребление Confirmation проигравшего не произошло."
-	// ReconciliationReservedText documents the reserved word of 3-7: the
-	// honest boundary of the slice (the word is NOT returned here).
-	ReconciliationReservedText = "Слово reconciliation_required зарезервировано контуром 3-7 и в этом срезе не возвращается."
+        // OperationAuthorizedText speaks the single state word.
+        OperationAuthorizedText = "Operation авторизована (authorized) — разрешение получено и закреплено записью Operation Ledger."
+        // OperationQueuedText speaks the queue fact: the outbox record exists.
+        OperationQueuedText = "Operation в очереди на будущий dispatch (queued) — запись operation.queued существует в outbox."
+        // OperationDispatchAbsentText speaks the living dispatch contour of
+        // 3-6: the send is an EXPLICIT drain command — no background daemon
+        // (the scheduler is a future infrastructure, the honest boundary).
+        OperationDispatchAbsentText = "Dispatch — явная команда drain: отправку запускает оператор, фонового демона нет (планировщик — будущая инфраструктура); очередь до запуска честно копится pending."
+        // OperationExternalIDAbsentText speaks the honest absence of the
+        // external outcome BEFORE the dispatch: the identifiers appear by the
+        // recorded attempt outcome — no word is invented here.
+        OperationExternalIDAbsentText = "Внешний идентификатор не выдан: он появляется записью dispatch-исхода (correlation ID, внешний объект) — до отправки не выдумывается."
+        // IdempotentReplayText is the honest 200 of the replay (AC-7): the
+        // return speaks the idempotency contract.
+        IdempotentReplayText = "Повтор запроса с тем же idempotency key и тем же материалом: возвращена первоначальная Operation и её состояние — Confirmation повторно не потребляется, вторая outbox запись не создаётся."
+        // ReservationDuplicateText is the honest return of the cross-case
+        // loser (AC-9): the reference speaks the reservation.
+        ReservationDuplicateText = "Эквивалентное бизнес-намерение уже зарезервировано — возвращена ссылка на существующую Operation; потребление Confirmation проигравшего не произошло."
+        // ReconciliationReservedText documents the reserved word of 3-7: the
+        // honest boundary of the slice (the word is NOT returned here).
+        ReconciliationReservedText = "Слово reconciliation_required зарезервировано контуром 3-7 и в этом срезе не возвращается."
 )

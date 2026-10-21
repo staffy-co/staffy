@@ -71,7 +71,10 @@ func operationsWrappedReason(err error, sentinel error) string {
 // blocks answer 403; the module's ErrNotFound and the identity ErrNotFound
 // are the plain 404 (no disclosure); the identity step-up sentinel is
 // the 403 with the step-up words; the structural integrity alarm is the
-// loud 500 with the server-side log.
+// loud 500 with the server-side log. The dispatch contour (3-6 step-03)
+// adds the AG-4 honest refusal of the drain command — the nil mutation
+// adapter of the production root answers 403 with the honest words (the
+// queue stays pending, zero sends — never a masked success).
 func (s *Server) operationsProblem(w http.ResponseWriter, r *http.Request, err error) {
 	var rule actionDomain.RuleError
 	var rejected actionPort.ConfirmationRejectedError
@@ -79,6 +82,15 @@ func (s *Server) operationsProblem(w http.ResponseWriter, r *http.Request, err e
 	switch {
 	case errors.As(err, &rule):
 		s.problem(w, r, http.StatusBadRequest, rule.Rule, rule.Reason, false, nil)
+	case errors.Is(err, actionAPI.ErrDispatchRefusedAG4):
+		// The honest production refusal of the drain (AG-4): no real
+		// providers exist — the queue honestly stays pending; the honest
+		// words the app attached at the wrap point ARE the message.
+		reason := operationsWrappedReason(err, actionAPI.ErrDispatchRefusedAG4)
+		if reason == "" {
+			reason = "Исполнение не подключено — реальных провайдеров нет: очередь не тронута, отправок ноль (AG-4)."
+		}
+		s.problem(w, r, http.StatusForbidden, "mutation_execution_not_wired", reason, false, nil)
 	case errors.As(err, &rejected):
 		// The rejection ladder BY NAME (AC-1): the code carries the exact
 		// state word, the message is the fixed domain text of the word.
@@ -201,10 +213,23 @@ func operationsFormMessage(err error) string {
 		return "Обращение, версия preview, Confirmation или Operation не найдены: перечитайте страницу и повторите."
 	case errors.Is(err, actionDomain.ErrForbidden), errors.Is(err, domain.ErrForbidden):
 		return "Подтверждение и авторизация действия требуют полномочия review или configuration."
+	case errors.Is(err, actionAPI.ErrDispatchRefusedAG4):
+		return operationsFormMessageAG4(err)
 	case errors.Is(err, domain.ErrStepUpRequired):
 		return "Для подтверждения или отзыва требуется повторное подтверждение личности. Включите подтверждение личности и повторите."
 	}
 	return "Команда контура не выполнена. Повторите позднее."
+}
+
+// operationsFormMessageAG4 renders the honest flash text of the drain
+// refusal at the nil mutation adapter (AG-4): the words the app attached
+// at the wrap point ARE the flash; the queue stays pending, the operator
+// reads why.
+func operationsFormMessageAG4(err error) string {
+	if reason := operationsWrappedReason(err, actionAPI.ErrDispatchRefusedAG4); reason != "" {
+		return reason
+	}
+	return "Исполнение не подключено — реальных провайдеров нет: очередь не тронута, отправок ноль (AG-4)."
 }
 
 // operationsReviewTarget answers the PRG target of the page forms — the
@@ -517,10 +542,46 @@ type operationLedgerRowView struct {
 	At      string
 }
 
+// dispatchAttemptRowView is one progressive attempt of the page card
+// (AC-13: the attempts render in CLOSED details — the card stays legible
+// at 320px without scrolling through the audit): the write-ahead lease
+// facts, the keyed digest trace, the honest claim word with its text,
+// the correlation and the recorded guarantee word.
+type dispatchAttemptRowView struct {
+	No              string
+	LeaseAt         string
+	LeaseExpires    string
+	RequestDigest   string
+	Outcome         string
+	OutcomeText     string
+	CorrelationText string
+	GuaranteeText   string
+	OutcomeAt       string
+}
+
+// actionReceiptRowView is one Action Receipt version of the page card
+// (FR-31: the identifier readback — the decision reconstructs WITHOUT
+// the dialog; the sensitive material never enters).
+type actionReceiptRowView struct {
+	VersionNo           string
+	Outcome             string
+	OutcomeText         string
+	CaseID              string
+	WorkItemID          string
+	PreviewPinText      string
+	ConfirmationPinText string
+	DefinitionText      string
+	ExternalObjectText  string
+	Details             string
+	CreatedAt           string
+}
+
 // operationCardRowView is the page projection of one immutable operation
-// card: the pins, the two key identities, the derived state word
-// (authorized/queued — executed NEVER exists here), the ledger and the
-// fixed honest texts of the slice boundaries.
+// card: the pins, the two key identities, the derived life state word of
+// the six-word dictionary with the queue fact, the state moment, the
+// Owning System, the next step, the visible block cause, the progressive
+// attempts, the Action Receipt versions and the fixed honest texts of
+// the slice boundaries.
 type operationCardRowView struct {
 	OperationID         string
 	DefinitionText      string
@@ -534,17 +595,28 @@ type operationCardRowView struct {
 	MaterialDigest      string
 	State               string
 	StateText           string
+	QueuedText          string
+	StateAtText         string
+	OwningSystemText    string
+	NextStepText        string
+	BlockReasonText     string
 	ExternalIDText      string
 	DispatchText        string
 	Ledger              []operationLedgerRowView
 	HasLedger           bool
+	Attempts            []dispatchAttemptRowView
+	HasAttempts         bool
+	Receipts            []actionReceiptRowView
+	HasReceipts         bool
 	CreatedAt           string
 }
 
 // operationsPageView carries the page material: the tenant and the case,
 // the confirmation and operation cards, the honest empty state, the
 // confirm form with the prefill pin of the 3-4 primary transition, the
-// flash error and the PRG notice.
+// operator drain form of the execution contour (3-6 step-03 — shown
+// when the dispatch surface is bound), the flash error and the PRG
+// notice.
 type operationsPageView struct {
 	TenantID         string
 	CaseID           string
@@ -558,6 +630,7 @@ type operationsPageView struct {
 	ConfirmPreview   string
 	ConfirmVersion   string
 	ConfirmLifetime  string
+	HasDrain         bool
 }
 
 // operationNotice speaks the PRG status of a successful form mutation:
@@ -579,6 +652,9 @@ func operationNotice(r *http.Request) string {
 	}
 	if raw := r.URL.Query().Get("referenced"); raw != "" {
 		return "Эквивалентное бизнес-намерение уже зарезервировано: возвращена ссылка на существующую Operation " + raw + "; потребление Confirmation проигравшего не произошло. Фокус переведён на этот статус."
+	}
+	if raw := r.URL.Query().Get("drained"); raw != "" {
+		return "Очередь отправок дренирована: рассмотрено заданий — " + raw + " (ограничение батча — доменный предел); каждое рассмотренное задание говорило своей строкой отчёта — отправленные, припаркованные с точной причиной и честные пропуски. Фокус переведён на этот статус."
 	}
 	return ""
 }
@@ -621,8 +697,10 @@ func newConfirmationCardRowView(card actionAPI.ConfirmationCardView) confirmatio
 }
 
 // newOperationCardRowView maps one api card onto the page projection:
-// the derived state word (authorized/queued — executed NEVER exists),
-// the pins, the two key identities and the honest boundary texts.
+// the derived life state word of the six-word dictionary with the queue
+// fact, the state moment, the Owning System, the next step, the visible
+// block cause, the pins, the two key identities, the progressive
+// attempts, the Action Receipt versions and the honest boundary texts.
 func newOperationCardRowView(card actionAPI.OperationCardView) operationCardRowView {
 	row := operationCardRowView{
 		OperationID:         card.OperationID.String(),
@@ -637,9 +715,18 @@ func newOperationCardRowView(card actionAPI.OperationCardView) operationCardRowV
 		MaterialDigest:      card.MaterialDigest,
 		State:               card.State,
 		StateText:           card.StateText,
+		QueuedText:          operationQueuedWords(card.Queued),
+		OwningSystemText:    operationOwningSystemWords(card.OwningSystem),
+		NextStepText:        card.NextStepText,
+		BlockReasonText:     card.BlockReasonText,
 		ExternalIDText:      card.ExternalIDAbsentText,
 		DispatchText:        card.DispatchAbsentText,
 		Ledger:              []operationLedgerRowView{},
+		Attempts:            []dispatchAttemptRowView{},
+		Receipts:            []actionReceiptRowView{},
+	}
+	if !card.StateAt.IsZero() {
+		row.StateAtText = card.StateAt.UTC().Format("2006-01-02T15:04:05Z07:00")
 	}
 	if !card.CreatedAt.IsZero() {
 		row.CreatedAt = card.CreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00")
@@ -653,7 +740,83 @@ func newOperationCardRowView(card actionAPI.OperationCardView) operationCardRowV
 			At:      entry.CreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
 		})
 	}
+	row.HasAttempts = len(card.Attempts) > 0
+	for _, attempt := range card.Attempts {
+		row.Attempts = append(row.Attempts, dispatchAttemptRowView{
+			No:              strconv.Itoa(attempt.AttemptNo),
+			LeaseAt:         attempt.LeaseCreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
+			LeaseExpires:    attempt.LeaseExpiresAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
+			RequestDigest:   attempt.RequestDigest,
+			Outcome:         attempt.Outcome,
+			OutcomeText:     attempt.OutcomeText,
+			CorrelationText: attemptCorrelationWords(attempt.CorrelationID),
+			GuaranteeText:   attemptGuaranteeWords(attempt.GuaranteeRecorded),
+			OutcomeAt:       attempt.OutcomeCreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
+		})
+	}
+	row.HasReceipts = len(card.Receipts) > 0
+	for _, receipt := range card.Receipts {
+		row.Receipts = append(row.Receipts, actionReceiptRowView{
+			VersionNo:           strconv.FormatInt(receipt.ReceiptVersionNo, 10),
+			Outcome:             receipt.Outcome,
+			OutcomeText:         receipt.OutcomeText,
+			CaseID:              receipt.CaseID.String(),
+			WorkItemID:          receipt.WorkItemID.String(),
+			PreviewPinText:      receipt.PreviewID.String() + ":" + strconv.FormatInt(receipt.PreviewVersionNo, 10),
+			ConfirmationPinText: receipt.ConfirmationID.String() + ":" + strconv.FormatInt(receipt.ConfirmationVersionNo, 10),
+			DefinitionText:      receipt.DefinitionID + "@" + receipt.DefinitionVersion,
+			ExternalObjectText:  receiptExternalObjectWords(receipt.ExternalObjectID, receipt.ExternalObjectVersion),
+			Details:             receipt.Details,
+			CreatedAt:           receipt.CreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
+		})
+	}
 	return row
+}
+
+// operationQueuedWords speaks the queue fact of the card honestly: the
+// outbox record presence is a FACT, never a stored state.
+func operationQueuedWords(queued bool) string {
+	if queued {
+		return "В очереди на dispatch: да — запись operation.queued существует в outbox (факт, не хранимое состояние)."
+	}
+	return "В очереди на dispatch: нет — записи operation.queued в outbox не существует."
+}
+
+// operationOwningSystemWords speaks the Owning System word of the
+// pinned definition (the unresolvable pin keeps the honest refusal).
+func operationOwningSystemWords(word string) string {
+	if word != "" {
+		return "Система-владелец исполнения (Owning System): " + word + " — слово словаря 2-7 пиннутого определения."
+	}
+	return "Система-владелец исполнения (Owning System): определение не резолвится против каталога — слово отсутствует."
+}
+
+// attemptCorrelationWords speaks the provider correlation of one attempt
+// (empty — the provider did not issue one).
+func attemptCorrelationWords(correlation string) string {
+	if correlation != "" {
+		return "Корреляция провайдера: " + correlation
+	}
+	return "Корреляция провайдера: не выдана."
+}
+
+// attemptGuaranteeWords speaks the recorded guarantee word (the retry
+// policy input — the audit fact, never a live re-read).
+func attemptGuaranteeWords(recorded bool) string {
+	if recorded {
+		return "Гарантия провайдера записана: повтор разрешён политикой в пределах 3."
+	}
+	return "Гарантия провайдера не записана: слепой повтор запрещён."
+}
+
+// receiptExternalObjectWords speaks the external object identity readback
+// (the structural evidence of a terminal success — only committed
+// carries the complete triple).
+func receiptExternalObjectWords(objectID, objectVersion string) string {
+	if objectID != "" {
+		return "Внешний объект: " + objectID + " (версия " + objectVersion + ") — структурное evidence терминального успеха."
+	}
+	return "Внешний объект не выдан: evidence появляется записью dispatch-исхода — слово не выдумывается."
 }
 
 // splitPreviewConfirmPin cuts the ?confirm= prefill value of the 3-4
@@ -697,6 +860,7 @@ func (s *Server) operationReviewPage(w http.ResponseWriter, r *http.Request) {
 		Confirmations:   []confirmationCardRowView{},
 		Operations:      []operationCardRowView{},
 		ConfirmLifetime: "3600",
+		HasDrain:        s.dispatch != nil,
 	}
 	if raw := r.URL.Query().Get("confirm"); raw != "" {
 		page.ConfirmPreview, page.ConfirmVersion = splitPreviewConfirmPin(raw)
@@ -893,4 +1057,107 @@ func (s *Server) BindAuthorization(service actionAPI.AuthorizationService) {
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/operations/confirmations", s.confirmPreviewVersionForm)
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/confirmations/{confirmation_id}/versions/{version_no}/revocations", s.revokeConfirmationForm)
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/confirmations/{confirmation_id}/versions/{version_no}/authorizations", s.authorizeOperationForm)
+}
+
+// ---------------------------------------------------------------------------
+// Story 3.6 (step-03): the drain command of the execution contour
+// ---------------------------------------------------------------------------
+
+// drainOperationsInput is the strict machine shape of the drain request:
+// the body carries NOTHING (the drain is the bounded operator command —
+// NO parameters exist; a free field is the honest 400, the strict decode
+// refuses it BEFORE the service is ever called).
+type drainOperationsInput struct{}
+
+// drainOperationsAPI answers the machine drain of the queued operations:
+// the strict decode of the EMPTY body, the operator manage gate and the
+// bounded honest report (201 — the report of the run exists now; every
+// considered job leaves its spoken line, FR-28). The nil mutation
+// adapter of the production root refuses honestly FIRST (AG-4 — the 403
+// words, the queue stays pending, zero sends; the
+// DrainExternalCommitments precedent of 3-3).
+func (s *Server) drainOperationsAPI(w http.ResponseWriter, r *http.Request) {
+	actor, tenant, ok := s.casesActor(w, r)
+	if !ok {
+		return
+	}
+	if s.dispatch == nil {
+		s.notFound(w, r, actor)
+		return
+	}
+	var input drainOperationsInput
+	if err := decodeActionPreviewsJSON(w, r, &input); err != nil {
+		s.operationsProblem(w, r, err)
+		return
+	}
+	result, err := s.dispatch.DrainDispatchQueue(r.Context(), actionAPI.DrainDispatchCommand{
+		Actor: actor, TenantID: tenant, Now: s.clock.Now().UTC(),
+	})
+	if err != nil {
+		s.operationsProblem(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{"drain": result})
+}
+
+// drainOperationsForm answers the page drain form of the Operation
+// Review surface (the external-commitments precedent of 3-3): the
+// explicit confirmation checkbox (the deliberate operator act), the
+// hidden case pin of the PRG return, the honest report landing PRG with
+// the considered counter (the notice speaks the words, the focus moves
+// onto it); the AG-4 refusal words land as the flash (the production
+// root wires no adapter — the queue stays pending, the state stays
+// honest).
+func (s *Server) drainOperationsForm(w http.ResponseWriter, r *http.Request) {
+	actor, tenant, ok := s.casesActor(w, r)
+	if !ok {
+		return
+	}
+	if s.dispatch == nil {
+		s.notFound(w, r, actor)
+		return
+	}
+	if !validFormOrigin(r) {
+		s.operationsProblem(w, r, fmt.Errorf("%w: %s", domain.ErrForbidden, "форма диспетчеризации доступна только из браузера приложения (origin)."))
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 16<<10)
+	if err := r.ParseForm(); err != nil {
+		setFlashError(w, tenant, "Проверьте данные формы.")
+		http.Redirect(w, r, "/app/tenants/"+tenant.String()+"/cases", http.StatusSeeOther)
+		return
+	}
+	caseID, err := id.Parse(r.FormValue("case_id"))
+	if err != nil {
+		setFlashError(w, tenant, "Не удалось вернуться на страницу операций: страница кейса не найдена.")
+		http.Redirect(w, r, "/app/tenants/"+tenant.String()+"/cases", http.StatusSeeOther)
+		return
+	}
+	if r.FormValue("confirm_drain") != "yes" {
+		setFlashError(w, tenant, "Диспетчеризация требует явного подтверждения: отметьте чекбокс согласия.")
+		http.Redirect(w, r, operationsReviewTarget(tenant, caseID, "x", "1"), http.StatusSeeOther)
+		return
+	}
+	result, err := s.dispatch.DrainDispatchQueue(r.Context(), actionAPI.DrainDispatchCommand{
+		Actor: actor, TenantID: tenant, Now: s.clock.Now().UTC(),
+	})
+	if err != nil {
+		setFlashError(w, tenant, operationsFormMessage(err))
+		http.Redirect(w, r, operationsReviewTarget(tenant, caseID, "x", "1"), http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, operationsReviewTarget(tenant, caseID, "drained", strconv.Itoa(result.Considered)), http.StatusSeeOther)
+}
+
+// BindDispatch registers the execution-contour surface of story 3.6: the
+// machine drain path of the tenant queue and the page drain form (the
+// hidden case pin carries the PRG return). The service is the narrow
+// api.DispatchService (the BindAuthorization type-assert precedent — the
+// app Service carries the compile-time proof); the production root binds
+// the REAL service with the nil mutation adapter (AG-4 — the drain
+// refuses honestly in words, the queue stays pending).
+func (s *Server) BindDispatch(service actionAPI.DispatchService) {
+	s.dispatch = service
+	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/operations/drain", s.drainOperationsAPI)
+	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/operations/drain", s.drainOperationsForm)
 }

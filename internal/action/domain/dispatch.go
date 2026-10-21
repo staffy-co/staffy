@@ -1,14 +1,14 @@
 package domain
 
 import (
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
-	"fmt"
-	"strings"
-	"time"
+        "crypto/hmac"
+        "crypto/sha256"
+        "encoding/hex"
+        "fmt"
+        "strings"
+        "time"
 
-	"github.com/artemiosu/staffy/internal/platform/id"
+        "github.com/artemiosu/staffy/internal/platform/id"
 )
 
 // Module action — story 3.6 slice 1 (step-01): the dispatch/receipt domain
@@ -47,16 +47,16 @@ import (
 // below fail it closed on anything else (a foreign word reads as unknown
 // without a guarantee — never a masked success).
 const (
-	MutationOutcomeAccepted  = "accepted"
-	MutationOutcomeCommitted = "committed"
-	MutationOutcomeFailed    = "failed"
-	MutationOutcomeTimeout   = "timeout"
+        MutationOutcomeAccepted  = "accepted"
+        MutationOutcomeCommitted = "committed"
+        MutationOutcomeFailed    = "failed"
+        MutationOutcomeTimeout   = "timeout"
 )
 
 // MutationOutcomeWords is the full dictionary (4 words).
 var MutationOutcomeWords = []string{
-	MutationOutcomeAccepted, MutationOutcomeCommitted,
-	MutationOutcomeFailed, MutationOutcomeTimeout,
+        MutationOutcomeAccepted, MutationOutcomeCommitted,
+        MutationOutcomeFailed, MutationOutcomeTimeout,
 }
 
 // Action Receipt outcome words — the receipt speaks the DECIDING outcomes
@@ -64,9 +64,9 @@ var MutationOutcomeWords = []string{
 // unknown (AC-9); accepted carries no receipt at all — the business
 // result is not confirmed yet.
 const (
-	ReceiptOutcomeCommitted = "committed"
-	ReceiptOutcomeFailed    = "failed"
-	ReceiptOutcomeUnknown   = "unknown"
+        ReceiptOutcomeCommitted = "committed"
+        ReceiptOutcomeFailed    = "failed"
+        ReceiptOutcomeUnknown   = "unknown"
 )
 
 // ReceiptOutcomeWords is the full dictionary (3 words).
@@ -80,9 +80,9 @@ var ReceiptOutcomeWords = []string{ReceiptOutcomeCommitted, ReceiptOutcomeFailed
 // the 3-5 ladder governs NEW authorizations, not the dispatch of the
 // already-created Operation (the unit probe pins the absence).
 const (
-	DispatchFenceSuperseded = "superseded"
-	DispatchFenceRevoked    = "revoked"
-	DispatchFenceExpired    = "expired"
+        DispatchFenceSuperseded = "superseded"
+        DispatchFenceRevoked    = "revoked"
+        DispatchFenceExpired    = "expired"
 )
 
 // DispatchFenceWords is the full dictionary (3 words — no exhausted).
@@ -93,15 +93,15 @@ var DispatchFenceWords = []string{DispatchFenceSuperseded, DispatchFenceRevoked,
 // park_bound (the bounded limit), decided (the operation is already
 // decided — a repeat is not a policy question at all).
 const (
-	DispatchRetryRetry       = "retry"
-	DispatchRetryParkUnknown = "park_unknown"
-	DispatchRetryParkBound   = "park_bound"
-	DispatchRetryDecided     = "decided"
+        DispatchRetryRetry       = "retry"
+        DispatchRetryParkUnknown = "park_unknown"
+        DispatchRetryParkBound   = "park_bound"
+        DispatchRetryDecided     = "decided"
 )
 
 // DispatchRetryWords is the full dictionary (4 words).
 var DispatchRetryWords = []string{
-	DispatchRetryRetry, DispatchRetryParkUnknown, DispatchRetryParkBound, DispatchRetryDecided,
+        DispatchRetryRetry, DispatchRetryParkUnknown, DispatchRetryParkBound, DispatchRetryDecided,
 }
 
 // Outbox event type words of the action module's own outbox (two): the
@@ -110,8 +110,8 @@ var DispatchRetryWords = []string{
 // — a direct write into a foreign module's tables never happens; the
 // future consumer reads the pending records, the 3-5 mirror precedent).
 const (
-	OutboxEventOperationQueued = "operation.queued"
-	OutboxEventReceiptCreated  = "receipt.created"
+        OutboxEventOperationQueued = "operation.queued"
+        OutboxEventReceiptCreated  = "receipt.created"
 )
 
 // OutboxEventWords is the full dictionary (2 words).
@@ -124,20 +124,20 @@ var OutboxEventWords = []string{OutboxEventOperationQueued, OutboxEventReceiptCr
 // The material bounds of the dispatch contour (the 3-3 precedents: the
 // bounded retry and the bounded drain batch — no blind loops anywhere).
 const (
-	// MaxDispatchAttempts is the bounded retry limit — one operation never
-	// takes more than three dispatch attempts; the exhaustion parks with
-	// the honest bound word instead of a blind loop (AC-5/AC-8).
-	MaxDispatchAttempts = 3
-	// DispatchLeaseGraceMS is the lease grace: the lease window is the
-	// definition timeout PLUS the grace — the lease outlives the possible
-	// in-flight adapter call (an expiry under a live call would be false);
-	// an expired lease means the worker died, and the crash-recovery
-	// policy governs the repeat.
-	DispatchLeaseGraceMS = 30000
-	// DispatchDrainLimit is the bounded drain batch: one drain command
-	// considers at most this many pending jobs — the rest stay queued for
-	// the next run, honestly (the cases drain-limiter precedent).
-	DispatchDrainLimit = 100
+        // MaxDispatchAttempts is the bounded retry limit — one operation never
+        // takes more than three dispatch attempts; the exhaustion parks with
+        // the honest bound word instead of a blind loop (AC-5/AC-8).
+        MaxDispatchAttempts = 3
+        // DispatchLeaseGraceMS is the lease grace: the lease window is the
+        // definition timeout PLUS the grace — the lease outlives the possible
+        // in-flight adapter call (an expiry under a live call would be false);
+        // an expired lease means the worker died, and the crash-recovery
+        // policy governs the repeat.
+        DispatchLeaseGraceMS = 30000
+        // DispatchDrainLimit is the bounded drain batch: one drain command
+        // considers at most this many pending jobs — the rest stay queued for
+        // the next run, honestly (the cases drain-limiter precedent).
+        DispatchDrainLimit = 100
 )
 
 // DeriveDispatchLeaseExpiresAt derives the lease expiry moment: now + the
@@ -145,13 +145,13 @@ const (
 // re-checked against the definition bounds — the derivation never trusts
 // the caller (fail-closed).
 func DeriveDispatchLeaseExpiresAt(now time.Time, definitionTimeoutMS int) (time.Time, error) {
-	if definitionTimeoutMS < TimeoutMSMin || definitionTimeoutMS > TimeoutMSMax {
-		return time.Time{}, RuleError{Rule: "DeriveDispatchLeaseExpiresAt", Reason: fmt.Sprintf(
-			"Таймаут определения %d мс вне границ [%d..%d] — окно lease не выводится (fail-closed).",
-			definitionTimeoutMS, TimeoutMSMin, TimeoutMSMax)}
-	}
-	return now.Add(time.Duration(definitionTimeoutMS)*time.Millisecond +
-		time.Duration(DispatchLeaseGraceMS)*time.Millisecond), nil
+        if definitionTimeoutMS < TimeoutMSMin || definitionTimeoutMS > TimeoutMSMax {
+                return time.Time{}, RuleError{Rule: "DeriveDispatchLeaseExpiresAt", Reason: fmt.Sprintf(
+                        "Таймаут определения %d мс вне границ [%d..%d] — окно lease не выводится (fail-closed).",
+                        definitionTimeoutMS, TimeoutMSMin, TimeoutMSMax)}
+        }
+        return now.Add(time.Duration(definitionTimeoutMS)*time.Millisecond +
+                time.Duration(DispatchLeaseGraceMS)*time.Millisecond), nil
 }
 
 // ---------------------------------------------------------------------------
@@ -173,10 +173,10 @@ func DeriveDispatchLeaseExpiresAt(now time.Time, definitionTimeoutMS int) (time.
 // per-tenant commitment key v1 (commitments_hmac_keys — the 2-9/3-3/3-4
 // reuse, the INSERT-only ensure pattern).
 func DeriveExternalIdempotencyKey(key []byte, tenant id.UUID, operationID id.UUID) string {
-	mac := hmac.New(sha256.New, key)
-	mac.Write([]byte("dispatch_key:v1:"))
-	mac.Write([]byte(strings.Join([]string{tenant.String(), operationID.String()}, canonicalFieldSep)))
-	return hex.EncodeToString(mac.Sum(nil))
+        mac := hmac.New(sha256.New, key)
+        mac.Write([]byte("dispatch_key:v1:"))
+        mac.Write([]byte(strings.Join([]string{tenant.String(), operationID.String()}, canonicalFieldSep)))
+        return hex.EncodeToString(mac.Sum(nil))
 }
 
 // ---------------------------------------------------------------------------
@@ -195,14 +195,14 @@ func DeriveExternalIdempotencyKey(key []byte, tenant id.UUID, operationID id.UUI
 // raw payload travels ONLY here: it is never stored — the lease, the
 // outcome and the receipt carry the keyed digest alone (AD-10/AC-5).
 type AuthorizedActionPayload struct {
-	TenantID          id.UUID               `json:"tenant_id"`
-	OperationID       id.UUID               `json:"operation_id"`
-	DefinitionID      string                `json:"definition_id"`
-	DefinitionVersion string                `json:"definition_version"`
-	Target            ProposalTarget        `json:"target"`
-	TypedInput        map[string]string     `json:"typed_input"`
-	Snapshot          []MaterialSnapshotRow `json:"snapshot"`
-	Effects           []PreviewEffect       `json:"effects"`
+        TenantID          id.UUID               `json:"tenant_id"`
+        OperationID       id.UUID               `json:"operation_id"`
+        DefinitionID      string                `json:"definition_id"`
+        DefinitionVersion string                `json:"definition_version"`
+        Target            ProposalTarget        `json:"target"`
+        TypedInput        map[string]string     `json:"typed_input"`
+        Snapshot          []MaterialSnapshotRow `json:"snapshot"`
+        Effects           []PreviewEffect       `json:"effects"`
 }
 
 // BuildAuthorizedActionPayload rebuilds the material payload from the
@@ -214,42 +214,42 @@ type AuthorizedActionPayload struct {
 // refusal, never a silent rebuild. A pure function otherwise: the same
 // rows always yield the same payload byte-to-byte (the digest below).
 func BuildAuthorizedActionPayload(op Operation, preview ActionPreview, def ActionDefinition) (AuthorizedActionPayload, error) {
-	if op.TenantID != preview.TenantID {
-		return AuthorizedActionPayload{}, RuleError{Rule: "BuildAuthorizedActionPayload",
-			Reason: "Тенант Operation и пиннутой версии preview не совпадают — смешанные строки не пересобираются (integrity)."}
-	}
-	if op.PreviewID != preview.PreviewID || op.PreviewVersionNo != preview.VersionNo {
-		return AuthorizedActionPayload{}, RuleError{Rule: "BuildAuthorizedActionPayload",
-			Reason: "Operation пинит другую версию preview — смешанные строки не пересобираются (integrity)."}
-	}
-	if op.DefinitionID != preview.DefinitionID || op.DefinitionID != def.ID ||
-		op.DefinitionVersion != preview.DefinitionVersion || op.DefinitionVersion != def.Version {
-		return AuthorizedActionPayload{}, RuleError{Rule: "BuildAuthorizedActionPayload",
-			Reason: "Пин определения расходится между Operation, preview и определением — смешанные строки не пересобираются (integrity)."}
-	}
-	derived := DerivePreviewEffects(def)
-	if len(derived) != len(preview.Effects) {
-		return AuthorizedActionPayload{}, RuleError{Rule: "BuildAuthorizedActionPayload",
-			Reason: "Effects preview не воспроизводятся определением — целостность пересборки не подтверждена (integrity)."}
-	}
-	for i := range derived {
-		if derived[i].Order != preview.Effects[i].Order ||
-			derived[i].ActionRef != preview.Effects[i].ActionRef ||
-			derived[i].FailureSemantics != preview.Effects[i].FailureSemantics {
-			return AuthorizedActionPayload{}, RuleError{Rule: "BuildAuthorizedActionPayload",
-				Reason: "Effects preview не воспроизводятся определением — целостность пересборки не подтверждена (integrity)."}
-		}
-	}
-	return AuthorizedActionPayload{
-		TenantID:          op.TenantID,
-		OperationID:       op.OperationID,
-		DefinitionID:      op.DefinitionID,
-		DefinitionVersion: op.DefinitionVersion,
-		Target:            op.Target,
-		TypedInput:        preview.TypedInput,
-		Snapshot:          preview.Snapshot,
-		Effects:           preview.Effects,
-	}, nil
+        if op.TenantID != preview.TenantID {
+                return AuthorizedActionPayload{}, RuleError{Rule: "BuildAuthorizedActionPayload",
+                        Reason: "Тенант Operation и пиннутой версии preview не совпадают — смешанные строки не пересобираются (integrity)."}
+        }
+        if op.PreviewID != preview.PreviewID || op.PreviewVersionNo != preview.VersionNo {
+                return AuthorizedActionPayload{}, RuleError{Rule: "BuildAuthorizedActionPayload",
+                        Reason: "Operation пинит другую версию preview — смешанные строки не пересобираются (integrity)."}
+        }
+        if op.DefinitionID != preview.DefinitionID || op.DefinitionID != def.ID ||
+                op.DefinitionVersion != preview.DefinitionVersion || op.DefinitionVersion != def.Version {
+                return AuthorizedActionPayload{}, RuleError{Rule: "BuildAuthorizedActionPayload",
+                        Reason: "Пин определения расходится между Operation, preview и определением — смешанные строки не пересобираются (integrity)."}
+        }
+        derived := DerivePreviewEffects(def)
+        if len(derived) != len(preview.Effects) {
+                return AuthorizedActionPayload{}, RuleError{Rule: "BuildAuthorizedActionPayload",
+                        Reason: "Effects preview не воспроизводятся определением — целостность пересборки не подтверждена (integrity)."}
+        }
+        for i := range derived {
+                if derived[i].Order != preview.Effects[i].Order ||
+                        derived[i].ActionRef != preview.Effects[i].ActionRef ||
+                        derived[i].FailureSemantics != preview.Effects[i].FailureSemantics {
+                        return AuthorizedActionPayload{}, RuleError{Rule: "BuildAuthorizedActionPayload",
+                                Reason: "Effects preview не воспроизводятся определением — целостность пересборки не подтверждена (integrity)."}
+                }
+        }
+        return AuthorizedActionPayload{
+                TenantID:          op.TenantID,
+                OperationID:       op.OperationID,
+                DefinitionID:      op.DefinitionID,
+                DefinitionVersion: op.DefinitionVersion,
+                Target:            op.Target,
+                TypedInput:        preview.TypedInput,
+                Snapshot:          preview.Snapshot,
+                Effects:           preview.Effects,
+        }, nil
 }
 
 // dispatchRequestCanonicalBytes renders the canonical bytes of the rebuilt
@@ -258,18 +258,18 @@ func BuildAuthorizedActionPayload(op Operation, preview ActionPreview, def Actio
 // helpers — the map iteration and the slice order never enter; the digest
 // is deterministic under any input shuffling).
 func dispatchRequestCanonicalBytes(p AuthorizedActionPayload) []byte {
-	fields := []string{
-		p.TenantID.String(),
-		p.OperationID.String(),
-		p.DefinitionID,
-		p.DefinitionVersion,
-		p.Target.Kind,
-		p.Target.Ref.String(),
-		sortedTypedInput(p.TypedInput),
-		sortedSnapshot(p.Snapshot),
-		sortedEffects(p.Effects),
-	}
-	return []byte(strings.Join(fields, canonicalFieldSep))
+        fields := []string{
+                p.TenantID.String(),
+                p.OperationID.String(),
+                p.DefinitionID,
+                p.DefinitionVersion,
+                p.Target.Kind,
+                p.Target.Ref.String(),
+                sortedTypedInput(p.TypedInput),
+                sortedSnapshot(p.Snapshot),
+                sortedEffects(p.Effects),
+        }
+        return []byte(strings.Join(fields, canonicalFieldSep))
 }
 
 // DeriveDispatchRequestDigest derives the redacted trace of the rebuilt
@@ -283,10 +283,10 @@ func dispatchRequestCanonicalBytes(p AuthorizedActionPayload) []byte {
 // 3-4/3-5/2-9/3-3 families. The key is the per-tenant commitment key v1
 // (commitments_hmac_keys — the reused ensure pattern).
 func DeriveDispatchRequestDigest(key []byte, payload AuthorizedActionPayload) string {
-	mac := hmac.New(sha256.New, key)
-	mac.Write([]byte("dispatch_request:v1:"))
-	mac.Write(dispatchRequestCanonicalBytes(payload))
-	return hex.EncodeToString(mac.Sum(nil))
+        mac := hmac.New(sha256.New, key)
+        mac.Write([]byte("dispatch_request:v1:"))
+        mac.Write(dispatchRequestCanonicalBytes(payload))
+        return hex.EncodeToString(mac.Sum(nil))
 }
 
 // ---------------------------------------------------------------------------
@@ -300,12 +300,12 @@ func DeriveDispatchRequestDigest(key []byte, payload AuthorizedActionPayload) st
 // unknown WITHOUT a guarantee (a foreign word never dresses up as a
 // success, AC-9), never a masked silence.
 func GuardMutationOutcome(outcome string) error {
-	if !WordIn(MutationOutcomeWords, outcome) {
-		return RuleError{Rule: "GuardMutationOutcome", Reason: fmt.Sprintf(
-			"Исход мутационного адаптера «%s» не входит в словарь (%s) — чужое слово читается как unknown без гарантии.",
-			outcome, strings.Join(MutationOutcomeWords, ", "))}
-	}
-	return nil
+        if !WordIn(MutationOutcomeWords, outcome) {
+                return RuleError{Rule: "GuardMutationOutcome", Reason: fmt.Sprintf(
+                        "Исход мутационного адаптера «%s» не входит в словарь (%s) — чужое слово читается как unknown без гарантии.",
+                        outcome, strings.Join(MutationOutcomeWords, ", "))}
+        }
+        return nil
 }
 
 // MutationEvidence is the STRUCTURAL evidence of a terminal success: the
@@ -315,9 +315,9 @@ func GuardMutationOutcome(outcome string) error {
 // never parses the free words; the structural gate is the identifiers).
 // The declared word is the definition's promise; the triple is the proof.
 type MutationEvidence struct {
-	ExternalObjectID      string
-	ExternalObjectVersion string
-	ExternalObjectTime    time.Time
+        ExternalObjectID      string
+        ExternalObjectVersion string
+        ExternalObjectTime    time.Time
 }
 
 // GuardCommittedEvidence validates the terminal-success claim against the
@@ -330,20 +330,20 @@ type MutationEvidence struct {
 // «unknown» of the refused claim; every other word passes unchanged (the
 // evidence is irrelevant for the non-committed claims).
 func GuardCommittedEvidence(outcome string, evidence MutationEvidence) (string, error) {
-	if !WordIn(MutationOutcomeWords, outcome) {
-		return "", RuleError{Rule: "GuardCommittedEvidence", Reason: fmt.Sprintf(
-			"Исход мутационного адаптера «%s» не входит в словарь (%s).",
-			outcome, strings.Join(MutationOutcomeWords, ", "))}
-	}
-	if outcome != MutationOutcomeCommitted {
-		return outcome, nil
-	}
-	if strings.TrimSpace(evidence.ExternalObjectID) == "" ||
-		strings.TrimSpace(evidence.ExternalObjectVersion) == "" ||
-		evidence.ExternalObjectTime.IsZero() {
-		return OperationUnknown, nil
-	}
-	return outcome, nil
+        if !WordIn(MutationOutcomeWords, outcome) {
+                return "", RuleError{Rule: "GuardCommittedEvidence", Reason: fmt.Sprintf(
+                        "Исход мутационного адаптера «%s» не входит в словарь (%s).",
+                        outcome, strings.Join(MutationOutcomeWords, ", "))}
+        }
+        if outcome != MutationOutcomeCommitted {
+                return outcome, nil
+        }
+        if strings.TrimSpace(evidence.ExternalObjectID) == "" ||
+                strings.TrimSpace(evidence.ExternalObjectVersion) == "" ||
+                evidence.ExternalObjectTime.IsZero() {
+                return OperationUnknown, nil
+        }
+        return outcome, nil
 }
 
 // DeriveMutationStateWord maps the honest outcome word onto the Operation
@@ -353,19 +353,19 @@ func GuardCommittedEvidence(outcome string, evidence MutationEvidence) (string, 
 // ambiguity), unknown (the refused claims of the guards above) → unknown.
 // Fail-closed on a foreign word.
 func DeriveMutationStateWord(outcome string) (string, error) {
-	switch outcome {
-	case MutationOutcomeAccepted:
-		return OperationAccepted, nil
-	case MutationOutcomeCommitted:
-		return OperationCommitted, nil
-	case MutationOutcomeFailed:
-		return OperationFailed, nil
-	case MutationOutcomeTimeout, OperationUnknown:
-		return OperationUnknown, nil
-	}
-	return "", RuleError{Rule: "DeriveMutationStateWord", Reason: fmt.Sprintf(
-		"Исход «%s» не входит в пространство исходов ({%s, unknown}).",
-		outcome, strings.Join(MutationOutcomeWords, ", "))}
+        switch outcome {
+        case MutationOutcomeAccepted:
+                return OperationAccepted, nil
+        case MutationOutcomeCommitted:
+                return OperationCommitted, nil
+        case MutationOutcomeFailed:
+                return OperationFailed, nil
+        case MutationOutcomeTimeout, OperationUnknown:
+                return OperationUnknown, nil
+        }
+        return "", RuleError{Rule: "DeriveMutationStateWord", Reason: fmt.Sprintf(
+                "Исход «%s» не входит в пространство исходов ({%s, unknown}).",
+                outcome, strings.Join(MutationOutcomeWords, ", "))}
 }
 
 // DeriveReceiptOutcomeWord maps the honest outcome word onto the Action
@@ -375,19 +375,19 @@ func DeriveMutationStateWord(outcome string) (string, error) {
 // (AC-9: the receipt reflects the uncertainty, never a success at
 // unknown). Fail-closed on a foreign word.
 func DeriveReceiptOutcomeWord(outcome string) (string, error) {
-	switch outcome {
-	case MutationOutcomeAccepted:
-		return "", nil
-	case MutationOutcomeCommitted:
-		return ReceiptOutcomeCommitted, nil
-	case MutationOutcomeFailed:
-		return ReceiptOutcomeFailed, nil
-	case MutationOutcomeTimeout, OperationUnknown:
-		return ReceiptOutcomeUnknown, nil
-	}
-	return "", RuleError{Rule: "DeriveReceiptOutcomeWord", Reason: fmt.Sprintf(
-		"Исход «%s» не входит в пространство исходов ({%s, unknown}).",
-		outcome, strings.Join(MutationOutcomeWords, ", "))}
+        switch outcome {
+        case MutationOutcomeAccepted:
+                return "", nil
+        case MutationOutcomeCommitted:
+                return ReceiptOutcomeCommitted, nil
+        case MutationOutcomeFailed:
+                return ReceiptOutcomeFailed, nil
+        case MutationOutcomeTimeout, OperationUnknown:
+                return ReceiptOutcomeUnknown, nil
+        }
+        return "", RuleError{Rule: "DeriveReceiptOutcomeWord", Reason: fmt.Sprintf(
+                "Исход «%s» не входит в пространство исходов ({%s, unknown}).",
+                outcome, strings.Join(MutationOutcomeWords, ", "))}
 }
 
 // ---------------------------------------------------------------------------
@@ -408,15 +408,15 @@ func DeriveReceiptOutcomeWord(outcome string) (string, error) {
 // consumed=1 dispatches freely when the other fences are green). Fail
 // closed on a foreign state word.
 func DeriveConfirmationDispatchFence(confirmationState string) (string, error) {
-	switch confirmationState {
-	case ConfirmationSuperseded, ConfirmationRevoked, ConfirmationExpired:
-		return confirmationState, nil
-	case ConfirmationValid, ConfirmationExhausted:
-		return "", nil
-	}
-	return "", RuleError{Rule: "DeriveConfirmationDispatchFence", Reason: fmt.Sprintf(
-		"Состояние Confirmation «%s» не входит в словарь (%s).",
-		confirmationState, strings.Join(ConfirmationStateWords, ", "))}
+        switch confirmationState {
+        case ConfirmationSuperseded, ConfirmationRevoked, ConfirmationExpired:
+                return confirmationState, nil
+        case ConfirmationValid, ConfirmationExhausted:
+                return "", nil
+        }
+        return "", RuleError{Rule: "DeriveConfirmationDispatchFence", Reason: fmt.Sprintf(
+                "Состояние Confirmation «%s» не входит в словарь (%s).",
+                confirmationState, strings.Join(ConfirmationStateWords, ", "))}
 }
 
 // ---------------------------------------------------------------------------
@@ -441,30 +441,30 @@ func DeriveConfirmationDispatchFence(confirmationState string) (string, error) {
 // — the first attempt is not a policy question (the ordered fences govern
 // it), and an attempt above the bound is structurally impossible.
 func DeriveDispatchRetryPolicy(operationState string, capabilityClass string, guarantee bool, attemptNo int) (string, error) {
-	if !WordIn(OperationStateWords, operationState) {
-		return "", RuleError{Rule: "DeriveDispatchRetryPolicy", Reason: fmt.Sprintf(
-			"Состояние Operation «%s» вне словаря (%s).", operationState, strings.Join(OperationStateWords, ", "))}
-	}
-	if !WordIn(CapabilityClasses, capabilityClass) {
-		return "", RuleError{Rule: "DeriveDispatchRetryPolicy", Reason: fmt.Sprintf(
-			"Класс capability «%s» вне словаря (%s).", capabilityClass, strings.Join(CapabilityClasses, ", "))}
-	}
-	if attemptNo < 1 || attemptNo > MaxDispatchAttempts {
-		return "", RuleError{Rule: "DeriveDispatchRetryPolicy", Reason: fmt.Sprintf(
-			"Номер попытки %d вне окна повтора [1..%d]: первая попытка — не вопрос политики повтора, попытка выше предела структурно невозможна.",
-			attemptNo, MaxDispatchAttempts)}
-	}
-	switch operationState {
-	case OperationAccepted, OperationCommitted, OperationFailed:
-		return DispatchRetryDecided, nil
-	}
-	if attemptNo >= MaxDispatchAttempts {
-		return DispatchRetryParkBound, nil
-	}
-	if capabilityClass != CapabilityProviderIdempotent || !guarantee {
-		return DispatchRetryParkUnknown, nil
-	}
-	return DispatchRetryRetry, nil
+        if !WordIn(OperationStateWords, operationState) {
+                return "", RuleError{Rule: "DeriveDispatchRetryPolicy", Reason: fmt.Sprintf(
+                        "Состояние Operation «%s» вне словаря (%s).", operationState, strings.Join(OperationStateWords, ", "))}
+        }
+        if !WordIn(CapabilityClasses, capabilityClass) {
+                return "", RuleError{Rule: "DeriveDispatchRetryPolicy", Reason: fmt.Sprintf(
+                        "Класс capability «%s» вне словаря (%s).", capabilityClass, strings.Join(CapabilityClasses, ", "))}
+        }
+        if attemptNo < 1 || attemptNo > MaxDispatchAttempts {
+                return "", RuleError{Rule: "DeriveDispatchRetryPolicy", Reason: fmt.Sprintf(
+                        "Номер попытки %d вне окна повтора [1..%d]: первая попытка — не вопрос политики повтора, попытка выше предела структурно невозможна.",
+                        attemptNo, MaxDispatchAttempts)}
+        }
+        switch operationState {
+        case OperationAccepted, OperationCommitted, OperationFailed:
+                return DispatchRetryDecided, nil
+        }
+        if attemptNo >= MaxDispatchAttempts {
+                return DispatchRetryParkBound, nil
+        }
+        if capabilityClass != CapabilityProviderIdempotent || !guarantee {
+                return DispatchRetryParkUnknown, nil
+        }
+        return DispatchRetryRetry, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -477,41 +477,41 @@ func DeriveDispatchRetryPolicy(operationState string, capabilityClass string, gu
 // the card's truth). The authorized/queued texts live in operation.go
 // (the inherited 3-5 semantics — the queue is a FACT of the outbox).
 const (
-	// OperationSubmittedText speaks the write-ahead state: the request
-	// left, the answer is not recorded yet (the resting state of a crash
-	// between the send and the outcome — the expired lease shows the
-	// recovery).
-	OperationSubmittedText = "Запрос отправлен — ответ не записан (submitted): попытка отправки идёт либо оборвалась до записи исхода; истёкшая lease покажет восстановление."
-	// OperationAcceptedText speaks the non-terminal provider reception —
-	// the business result is NOT confirmed (the UI never announces
-	// completeness).
-	OperationAcceptedText = "Принято провайдером, бизнес-результат не подтверждён (accepted) — итога ещё нет; ожидание подтверждения контуром 3-7."
-	// OperationCommittedText speaks the terminal success with the
-	// structural evidence.
-	OperationCommittedText = "Завершено: внешний объект создан (committed) — терминальный успех подтверждён структурным evidence (идентификаторы внешнего объекта)."
-	// OperationFailedText speaks the terminal refusal without an effect —
-	// the auto-repeat of the same intention is forbidden.
-	OperationFailedText = "Не выполнено без эффекта (failed) — терминальный отказ; новый запуск требует новой Confirmation, авто-повтора нет."
-	// OperationUnknownText speaks the honest uncertainty — never a
-	// success and never a no-effect.
-	OperationUnknownText = "Исход неизвестен (unknown) — неопределённость: повтор запрещён, сверка контуром 3-7."
+        // OperationSubmittedText speaks the write-ahead state: the request
+        // left, the answer is not recorded yet (the resting state of a crash
+        // between the send and the outcome — the expired lease shows the
+        // recovery).
+        OperationSubmittedText = "Запрос отправлен — ответ не записан (submitted): попытка отправки идёт либо оборвалась до записи исхода; истёкшая lease покажет восстановление."
+        // OperationAcceptedText speaks the non-terminal provider reception —
+        // the business result is NOT confirmed (the UI never announces
+        // completeness).
+        OperationAcceptedText = "Принято провайдером, бизнес-результат не подтверждён (accepted) — итога ещё нет; ожидание подтверждения контуром 3-7."
+        // OperationCommittedText speaks the terminal success with the
+        // structural evidence.
+        OperationCommittedText = "Завершено: внешний объект создан (committed) — терминальный успех подтверждён структурным evidence (идентификаторы внешнего объекта)."
+        // OperationFailedText speaks the terminal refusal without an effect —
+        // the auto-repeat of the same intention is forbidden.
+        OperationFailedText = "Не выполнено без эффекта (failed) — терминальный отказ; новый запуск требует новой Confirmation, авто-повтора нет."
+        // OperationUnknownText speaks the honest uncertainty — never a
+        // success and never a no-effect.
+        OperationUnknownText = "Исход неизвестен (unknown) — неопределённость: повтор запрещён, сверка контуром 3-7."
 )
 
 // The fixed honest texts of the dispatch boundaries and the next steps —
 // every boundary word names the exact cause and the allowed next step
 // (FR-28: the operator sees at which stage and why the action stopped).
 const (
-	// DispatchBlindRepeatForbiddenText is the crash/unknown parking word
-	// (AC-9/AC-11): a possible previous call forbids the blind re-dispatch.
-	DispatchBlindRepeatForbiddenText = "Возможен предыдущий вызов — слепой повтор запрещён."
-	// DispatchAttemptsBoundText is the bounded limit word (AC-5).
-	DispatchAttemptsBoundText = "Повтор не предпринимается: предел попыток (3) — bounded, без слепого цикла."
-	// DispatchRedeliveryDecidedText is the at-least-once duplicate skip
-	// word (AC-10): the operation is already decided, no new intent.
-	DispatchRedeliveryDecidedText = "Повтор задания: операция уже решена — новой отправки нет, новый intent не создаётся."
-	// DispatchEvidenceIncompleteText is the State/Authority refusal word
-	// (AC-6/AC-7): the terminal success is not confirmed.
-	DispatchEvidenceIncompleteText = "Evidence неполные — терминальный успех не подтверждён."
+        // DispatchBlindRepeatForbiddenText is the crash/unknown parking word
+        // (AC-9/AC-11): a possible previous call forbids the blind re-dispatch.
+        DispatchBlindRepeatForbiddenText = "Возможен предыдущий вызов — слепой повтор запрещён."
+        // DispatchAttemptsBoundText is the bounded limit word (AC-5).
+        DispatchAttemptsBoundText = "Повтор не предпринимается: предел попыток (3) — bounded, без слепого цикла."
+        // DispatchRedeliveryDecidedText is the at-least-once duplicate skip
+        // word (AC-10): the operation is already decided, no new intent.
+        DispatchRedeliveryDecidedText = "Повтор задания: операция уже решена — новой отправки нет, новый intent не создаётся."
+        // DispatchEvidenceIncompleteText is the State/Authority refusal word
+        // (AC-6/AC-7): the terminal success is not confirmed.
+        DispatchEvidenceIncompleteText = "Evidence неполные — терминальный успех не подтверждён."
 )
 
 // DispatchBlockedText renders the honest parking lead of the
@@ -520,39 +520,73 @@ const (
 // a visible cause; the adapter was never called, the lease was never
 // taken; never a false failed externally, AC-2).
 func DispatchBlockedText(reason string) string {
-	return "Отправка заблокирована: " + reason
+        return "Отправка заблокирована: " + reason
 }
 
 // DispatchFenceTexts is the fixed honest text of every confirmation
 // dispatch fence word (FR-28: the revocation, the replacement and the
 // expiry kill the queued intent BEFORE the send).
 var DispatchFenceTexts = map[string]string{
-	DispatchFenceSuperseded: "Confirmation заменена: существует версия новее пиннутой — старое намерение устарело, требуется новая версия Preview и Confirmation.",
-	DispatchFenceRevoked:    "Confirmation отозвана: queued intent погашен до отправки (FR-28).",
-	DispatchFenceExpired:    "Срок Confirmation истёк: новая отправка требует новой Confirmation.",
+        DispatchFenceSuperseded: "Confirmation заменена: существует версия новее пиннутой — старое намерение устарело, требуется новая версия Preview и Confirmation.",
+        DispatchFenceRevoked:    "Confirmation отозвана: queued intent погашен до отправки (FR-28).",
+        DispatchFenceExpired:    "Срок Confirmation истёк: новая отправка требует новой Confirmation.",
 }
 
 // DispatchFenceText speaks the fence word; a foreign word fails closed.
 func DispatchFenceText(word string) string {
-	if text, ok := DispatchFenceTexts[word]; ok {
-		return text
-	}
-	return fmt.Sprintf("Слово фенции dispatch «%s» не входит в словарь (%s).", word, strings.Join(DispatchFenceWords, ", "))
+        if text, ok := DispatchFenceTexts[word]; ok {
+                return text
+        }
+        return fmt.Sprintf("Слово фенции dispatch «%s» не входит в словарь (%s).", word, strings.Join(DispatchFenceWords, ", "))
 }
 
 // DispatchRetryTexts is the fixed honest text of every retry policy word.
 var DispatchRetryTexts = map[string]string{
-	DispatchRetryRetry:       "Повтор разрешён: класс provider_idempotent, гарантия записана, попытки в пределах 3 — та же Operation несёт тот же внешний idempotency key.",
-	DispatchRetryParkUnknown: "Возможен предыдущий вызов — слепой повтор запрещён: операция припаркована в unknown, сверка контуром 3-7.",
-	DispatchRetryParkBound:   "Повтор не предпринимается: предел попыток (3) — bounded, без слепого цикла.",
-	DispatchRetryDecided:     "Повтор задания: операция уже решена — новой отправки нет, нового intent нет (связь с существующим attempt).",
+        DispatchRetryRetry:       "Повтор разрешён: класс provider_idempotent, гарантия записана, попытки в пределах 3 — та же Operation несёт тот же внешний idempotency key.",
+        DispatchRetryParkUnknown: "Возможен предыдущий вызов — слепой повтор запрещён: операция припаркована в unknown, сверка контуром 3-7.",
+        DispatchRetryParkBound:   "Повтор не предпринимается: предел попыток (3) — bounded, без слепого цикла.",
+        DispatchRetryDecided:     "Повтор задания: операция уже решена — новой отправки нет, нового intent нет (связь с существующим attempt).",
 }
 
 // DispatchRetryText speaks the retry policy word; a foreign word fails
 // closed.
 func DispatchRetryText(word string) string {
-	if text, ok := DispatchRetryTexts[word]; ok {
-		return text
-	}
-	return fmt.Sprintf("Слово политики повтора «%s» не входит в словарь (%s).", word, strings.Join(DispatchRetryWords, ", "))
+        if text, ok := DispatchRetryTexts[word]; ok {
+                return text
+        }
+        return fmt.Sprintf("Слово политики повтора «%s» не входит в словарь (%s).", word, strings.Join(DispatchRetryWords, ", "))
 }
+
+// OperationNextStepTexts is the fixed honest NEXT STEP text of every
+// operation life state (AC-13/FR-28: the card shows WHERE the action
+// stands, WHY it stopped and WHICH step is allowed next — the word of the
+// state alone never carries the step). authorized — the queue is the
+// fact, the drain is the operator command; submitted — the write-ahead
+// resting state heals by the verdict or the expired lease; accepted —
+// the business result is awaited by the future reconciliation contour;
+// committed — terminal, no step; failed — the new run needs a NEW
+// Confirmation of 3-5; unknown — the blind repeat is forbidden, the
+// reconciliation contour speaks next.
+var OperationNextStepTexts = map[string]string{
+        OperationAuthorized: "Следующий шаг: оператор запускает команду drain — очередь честно копится pending до явного запуска (демона нет).",
+        OperationSubmitted:  "Следующий шаг: дождаться записи исхода попытки либо восстановления по истёкшей lease — повтор решает политика по записанной гарантии.",
+        OperationAccepted:   "Следующий шаг: ожидание подтверждения бизнес-результата контуром сверки (3-7) — итога ещё нет.",
+        OperationCommitted:  "Следующего шага нет: терминальный успех подтверждён структурным evidence.",
+        OperationFailed:     "Следующий шаг: новый запуск требует новой Confirmation (контур 3-5) — авто-повтора нет.",
+        OperationUnknown:    "Следующий шаг: сверка исхода контуром сверки (3-7) — слепой повтор запрещён.",
+}
+
+// OperationNextStepText speaks the next-step text of the state word; a
+// foreign word fails closed (the honest refusal names the dictionary).
+func OperationNextStepText(word string) string {
+        if text, ok := OperationNextStepTexts[word]; ok {
+                return text
+        }
+        return fmt.Sprintf("Слово состояния Operation «%s» не входит в словарь (%s).", word, strings.Join(OperationStateWords, ", "))
+}
+
+// DispatchAttemptRestingText speaks the honest word of an attempt WITHOUT
+// a recorded outcome (the write-ahead resting state of a crash between
+// the send and the verdict — the attempt view renders it by name, never a
+// masked silence).
+const DispatchAttemptRestingText = "Исход попытки не записан: write-ahead resting-состояние — ответ не попал в историю; истёкшая lease покажет восстановление."

@@ -184,10 +184,23 @@ func run(logger *slog.Logger) error {
                         controleffectiveresolver.NewRouteAdapter(controlStore.NewPostgres(pool), clock),
                         casesService, identityService, entitlementService, employeeService, connectorService,
                         employeeService, ids).
-                WithAuthorization(actionStore.NewPostgres(pool), actionStore.NewPostgres(pool))
+                WithAuthorization(actionStore.NewPostgres(pool), actionStore.NewPostgres(pool)).
+                // The execution contour (Story 3.6): the dispatch repository
+                // owns the THREE adapter-free transactions (the write-ahead
+                // lease, the fenced verdict, the raced-guarded parking) and
+                // the view reads (the attempts and the Action Receipt
+                // versions of the operation cards). The MUTATION ADAPTER is
+                // deliberately nil — AG-4: no real providers exist, the drain
+                // command honestly refuses in words and the queue honestly
+                // stays pending (the DrainExternalCommitments precedent of
+                // 3-3); the synthetic mutation adapter lives in the
+                // test-contour package this root NEVER imports (the
+                // import-graph probe of step-04 pins it structurally).
+                WithDispatch(actionStore.NewPostgres(pool), nil)
         transport.BindActionCatalog(actionService)
         transport.BindActionPreviews(actionService)
         transport.BindAuthorization(actionService)
+        transport.BindDispatch(actionService)
         // The scoped controls surface (Story 3.2): the operator emergency
         // restriction module over its own PG store, the live identity gates
         // and the connector ref resolution through the consumer-owned port
