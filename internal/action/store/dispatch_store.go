@@ -74,10 +74,13 @@ func mapDispatchInsertError(err error) error {
 // life). racing — an active lease owns the operation; submitted — the
 // write-ahead resting state of a crash (recoverable); unknown — a
 // recorded unknown verdict (retryable, the policy decides over the
-// recorded guarantee); accepted/committed/failed — decided; authorized
+// recorded guarantee); failed — decided with ONE 3-7 exception: a
+// recorded reconciliation verdict no_effect unlocks a retry WITHOUT the
+// guarantee (the proven absence of the external effect replaces the
+// provider-idempotent role); accepted/committed — decided; authorized
 // with a prior dispatch_blocked entry — blocked (the fences re-run, the
 // cause may have healed); authorized with nothing — fresh.
-func classifyPendingJob(state string, attemptCount int, leaseActive bool, hasBlockedEntry bool) string {
+func classifyPendingJob(state string, attemptCount int, leaseActive bool, hasBlockedEntry bool, noEffect bool) string {
 	if leaseActive {
 		return actionPort.PendingClassRacing
 	}
@@ -86,7 +89,16 @@ func classifyPendingJob(state string, attemptCount int, leaseActive bool, hasBlo
 		return actionPort.PendingClassRecoverable
 	case actionDomain.OperationUnknown:
 		return actionPort.PendingClassRetryable
-	case actionDomain.OperationAccepted, actionDomain.OperationCommitted, actionDomain.OperationFailed:
+	case actionDomain.OperationFailed:
+		// 3-7 retry-unlock: retryable без гарантии при записанном вердикте
+		// no_effect — доказательство пустоты внешнего эффекта заменяет
+		// гарантию provider_idempotent (failed без вердикта остаётся
+		// decided — новый запуск = новая Confirmation 3-5).
+		if noEffect {
+			return actionPort.PendingClassRetryable
+		}
+		return actionPort.PendingClassDecided
+	case actionDomain.OperationAccepted, actionDomain.OperationCommitted:
 		return actionPort.PendingClassDecided
 	}
 	if attemptCount > 0 {
@@ -104,9 +116,12 @@ func classifyPendingJob(state string, attemptCount int, leaseActive bool, hasBlo
 // operation.queued outbox record (the at-leat-once delivery unit: the
 // duplicate rows of one operation are LEGAL, the classification governs
 // the repeat) joined with the immutable operation, the append-only
-// ledger (the state derives), the latest lease/outcome facts and the
-// first recorded digest/key pair (the decided-verify inputs). The batch
-// is bounded by the drain limit — the rest stay queued for the next run.
+// ledger (the state derives), the latest lease/outcome facts, the first
+// recorded digest/key pair (the decided-verify inputs) and the LAST
+// reconciliation verdict (the 3-7 retry-unlock: a recorded no_effect
+// makes a failed operation retryable WITHOUT the guarantee — the proven
+// absence replaces the provider-idempotent role). The batch is bounded
+// by the drain limit — the rest stay queued for the next run.
 func (s *Postgres) PendingDispatchJobs(ctx context.Context, scope tenancy.Context, now time.Time, limit int) ([]actionPort.PendingDispatchJob, error) {
 	tx, err := s.begin(ctx, scope, true)
 	if err != nil {
@@ -128,7 +143,8 @@ func (s *Postgres) PendingDispatchJobs(ctx context.Context, scope tenancy.Contex
                        lf.attempt_no, lf.lease_token, lf.lease_expires_at,
                        (select request_digest from action.dispatch_leases ff where ff.tenant_id=e.tenant_id and ff.operation_id=e.operation_id order by ff.attempt_no asc limit 1),
                        (select external_idempotency_key from action.dispatch_leases ff where ff.tenant_id=e.tenant_id and ff.operation_id=e.operation_id order by ff.attempt_no asc limit 1),
-                       uo.outcome, uo.correlation_id, uo.guarantee_recorded
+                       uo.outcome, uo.correlation_id, uo.guarantee_recorded,
+                       rn.no_effect
                 from action.outbox_events e
                 join action.operations o on o.tenant_id=e.tenant_id and o.operation_id=e.operation_id
                 left join lateral (
@@ -148,6 +164,12 @@ func (s *Postgres) PendingDispatchJobs(ctx context.Context, scope tenancy.Contex
                         where u.tenant_id=e.tenant_id and u.operation_id=e.operation_id
                         order by u.attempt_no desc limit 1
                 ) uo on true
+                left join lateral (
+                        select (ro.verdict = 'no_effect') as no_effect
+                        from action.reconciliation_outcomes ro
+                        where ro.tenant_id=e.tenant_id and ro.operation_id=e.operation_id
+                        order by ro.attempt_no desc limit 1
+                ) rn on true
                 where e.tenant_id=$1 and e.event_type='operation.queued'
                 order by e.created_at, e.event_id
                 limit $2`, scope.TenantID(), limit)
@@ -171,6 +193,7 @@ func (s *Postgres) PendingDispatchJobs(ctx context.Context, scope tenancy.Contex
 		var lastOutcome *string
 		var lastCorrelation *string
 		var lastGuarantee *bool
+		var noEffect *bool
 		if err := rows.Scan(&job.EventID, &job.RawPayload,
 			&job.Operation.OperationID, &job.Operation.DefinitionID, &job.Operation.DefinitionVersion,
 			&job.Operation.PreviewID, &job.Operation.PreviewVersionNo, &job.Operation.ConfirmationID, &job.Operation.ConfirmationVersionNo,
@@ -180,7 +203,7 @@ func (s *Postgres) PendingDispatchJobs(ctx context.Context, scope tenancy.Contex
 			&ledger, &attemptCount,
 			&lastAttemptNo, &lastLeaseToken, &lastLeaseExpiresAt,
 			&requestDigest, &externalKey,
-			&lastOutcome, &lastCorrelation, &lastGuarantee); err != nil {
+			&lastOutcome, &lastCorrelation, &lastGuarantee, &noEffect); err != nil {
 			return nil, err
 		}
 		job.Operation.TenantID = scope.TenantID()
@@ -221,6 +244,9 @@ func (s *Postgres) PendingDispatchJobs(ctx context.Context, scope tenancy.Contex
 		if lastGuarantee != nil {
 			job.LastOutcomeGuarantee = *lastGuarantee
 		}
+		if noEffect != nil {
+			job.ReconciliationNoEffect = *noEffect
+		}
 		state, err := actionDomain.DeriveOperationState(job.Ledger)
 		if err != nil {
 			return nil, err
@@ -232,7 +258,7 @@ func (s *Postgres) PendingDispatchJobs(ctx context.Context, scope tenancy.Contex
 				hasBlocked = true
 			}
 		}
-		job.Classification = classifyPendingJob(state, attemptCount, job.LastLeaseActive, hasBlocked)
+		job.Classification = classifyPendingJob(state, attemptCount, job.LastLeaseActive, hasBlocked, job.ReconciliationNoEffect)
 		jobs = append(jobs, job)
 	}
 	if err := rows.Err(); err != nil {
@@ -324,8 +350,10 @@ func (s *Postgres) AcquireDispatchLease(ctx context.Context, p actionPort.Acquir
 // stale holder NEVER writes history, AC-1). Inside ONE commit: the
 // outcome row (ONLY when the claim word is honest — the refused or
 // absent claims record no row, the lease/ledger/receipt speak the
-// guarded truth), the ledger kind entry, the receipt v1 (ONLY on the
-// first deciding verdict — accepted carries no receipt) and the outbox
+// guarded truth), the ledger kind entry, the receipt version of the
+// deciding verdict (the monotonic append derived under the lock: v1 on
+// the first deciding verdict, the next version on a 3-7 retry-unlock
+// verdict — accepted carries no receipt) and the outbox
 // receipt.created record. ANY failure rolls back the whole verdict. The
 // signature carries ZERO adapters.
 func (s *Postgres) RecordDispatchOutcome(ctx context.Context, p actionPort.RecordDispatchOutcomeParams) error {
@@ -397,10 +425,22 @@ func (s *Postgres) RecordDispatchOutcome(ctx context.Context, p actionPort.Recor
 		p.LedgerEntry.Details, p.Now.UTC().Truncate(time.Microsecond)); err != nil {
 		return mapDispatchInsertError(err)
 	}
-	// INSERT 3/4 — the receipt v1 (the FIRST deciding verdict only: the
-	// unique (tenant, operation, version) backstop; accepted carries no
-	// receipt — the business result is not confirmed yet).
+	// INSERT 3/4 — the receipt version of the deciding verdict: the
+	// version derives UNDER THE LOCK as the monotonic continuation of
+	// the append-only chain (max+1 — the first deciding verdict lands
+	// v1; a retry verdict of the 3-7 retry-unlock appends the NEXT
+	// version of its NEW policy decision over the recorded history;
+	// the unique (tenant, operation, version) backstop stays the
+	// loyal guard). accepted carries no receipt — the business result
+	// is not confirmed yet.
 	if p.ReceiptWord != "" {
+		var lastVersion int64
+		if err := tx.QueryRow(ctx, `
+                        select coalesce(max(receipt_version_no), 0) from action.action_receipts
+                        where tenant_id=$1 and operation_id=$2`,
+			tenantID, operationID).Scan(&lastVersion); err != nil {
+			return err
+		}
 		references, err := marshalJSON(p.ReceiptReferences)
 		if err != nil {
 			return err
@@ -408,17 +448,22 @@ func (s *Postgres) RecordDispatchOutcome(ctx context.Context, p actionPort.Recor
 		if _, err := tx.Exec(ctx, `
                         insert into action.action_receipts (tenant_id, operation_id, receipt_version_no, outcome, receipt_references, details, created_at)
                         values ($1,$2,$3,$4,$5,$6,$7)`,
-			tenantID, operationID, p.ReceiptVersionNo, p.ReceiptWord, references,
+			tenantID, operationID, lastVersion+1, p.ReceiptWord, references,
 			p.ReceiptDetails, p.Now.UTC().Truncate(time.Microsecond)); err != nil {
 			return mapDispatchInsertError(err)
 		}
-	}
-	// INSERT 4/4 — the outbox receipt.created record (AD-2: the Work
-	// Item/Conversation link rides THIS module's own outbox — the future
-	// consumer reads the pending records). ONLY when the verdict is
-	// deciding: accepted carries no receipt, no receipt event either.
-	if p.ReceiptWord != "" {
-		if err := insertOutboxReceiptRow(ctx, tx, tenantID, p.OutboxEventID, p.OutboxPayload,
+		// INSERT 4/4 — the outbox receipt.created record (AD-2: the Work
+		// Item/Conversation link rides THIS module's own outbox — the
+		// future consumer reads the pending records). ONLY when the
+		// verdict is deciding: accepted carries no receipt, no receipt
+		// event either. The payload's version and outcome ride the
+		// STORE-DERIVED truth of the monotonic append (the caller's pin
+		// is the expectation, the lock is the truth — the
+		// RecordReconciliationVerdict precedent of 3-7).
+		payload := p.OutboxPayload
+		payload.ReceiptVersionNo = lastVersion + 1
+		payload.Outcome = p.ReceiptWord
+		if err := insertOutboxReceiptRow(ctx, tx, tenantID, p.OutboxEventID, payload,
 			p.Now.UTC().Truncate(time.Microsecond)); err != nil {
 			return err
 		}

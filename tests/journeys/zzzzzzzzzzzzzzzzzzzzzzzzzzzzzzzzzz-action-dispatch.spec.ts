@@ -377,7 +377,7 @@ test('action-dispatch: the execution contour of the authorized intent at 320px',
     await page.goto(reviewPath);
     const unknownCard = page.locator('.action-card').filter({ hasText: 'Состояние жизни: unknown' }).first();
     await expect(unknownCard).toContainText('Исход неизвестен (unknown)');
-    await expect(unknownCard).toContainText('Следующий шаг: сверка исхода контуром сверки (3-7)');
+    await expect(unknownCard).toContainText('Следующий шаг: сверка исхода командой reconcile');
     await expect(unknownCard).toContainText('№3 unknown');
     const unknownAttempts = unknownCard.locator('details', { hasText: 'Попытки отправки' });
     await unknownAttempts.locator('summary').click();

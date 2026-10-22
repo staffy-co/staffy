@@ -989,13 +989,24 @@ func main() {
 	// the fixture path (the /fixture/action-dispatch* toggles script
 	// the outcome/correlation/evidence/failure/guarantee words below).
 	dispatchRepo, dispatchAdapter := wireActionDispatchWorld(authorizationRepo)
+	// The Story 3.7 wiring (the fixture world IS the test contour —
+	// production wires no read-only adapter, AG-4): the in-memory
+	// reconciliation repository over the SAME authorization rows and the
+	// SAME dispatch receipts (the append-only ledger, the receipt version
+	// chain) and the synthetic READ-ONLY adapter over the fixture channel
+	// word — the light read-only fence ladder of the REAL app service runs
+	// on the fixture path (the /fixture/reconcile* toggles script the
+	// verdict / correlation / evidence / failure words below).
+	reconcileRepo, reconcileAdapter := wireActionReconcileWorld(authorizationRepo, dispatchRepo)
 	actions.setPreviewWorld(
 		newPreviewWorld(cases, controls, entitlement, readiness, connectors, previewRepo).
 			WithAuthorization(authorizationRepo, authorizationRepo).
-			WithDispatch(dispatchRepo, dispatchAdapter))
+			WithDispatch(dispatchRepo, dispatchAdapter).
+			WithReconcile(reconcileRepo, reconcileAdapter))
 	server.BindActionPreviews(actions)
 	server.BindAuthorization(actions)
 	server.BindDispatch(actions)
+	server.BindReconcile(actions)
 	// The fixture-only step-up toggle wraps the transport: production never
 	// exposes it; the journey uses it to walk both step-up outcomes.
 	root := http.NewServeMux()
@@ -1180,6 +1191,32 @@ func main() {
 	root.HandleFunc("POST /fixture/action-dispatch-evidence", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
 		dispatchAdapter.ScriptEvidence(strings.TrimSpace(r.FormValue("object_id")), strings.TrimSpace(r.FormValue("object_version")))
+		w.WriteHeader(http.StatusNoContent)
+	})
+	// The fixture-only ACTION reconcile switches (Story 3.7 — the 3-6
+	// precedent 1:1): the scriptable verdict / correlation / failure words
+	// of the synthetic READ-ONLY adapter and the structural evidence
+	// triple of the committed rows (an empty object id removes the
+	// evidence — the claimed committed fails the evidence guard into the
+	// honest no_answer). Production never exposes them; the z35 journey
+	// (step-04) walks every word of the dictionaries through these doors.
+	root.HandleFunc("POST /fixture/reconcile-verdict", func(w http.ResponseWriter, r *http.Request) {
+		r.ParseForm()
+		verdict := strings.TrimSpace(r.FormValue("verdict"))
+		if verdict == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		var failure error
+		if r.FormValue("failure") == "1" {
+			failure = errors.New("синтетический сбой вызова сверки: ответ не получен — вердикт no_answer")
+		}
+		reconcileAdapter.Script(verdict, strings.TrimSpace(r.FormValue("correlation")), failure)
+		w.WriteHeader(http.StatusNoContent)
+	})
+	root.HandleFunc("POST /fixture/reconcile-evidence", func(w http.ResponseWriter, r *http.Request) {
+		r.ParseForm()
+		reconcileAdapter.ScriptEvidence(strings.TrimSpace(r.FormValue("object_id")), strings.TrimSpace(r.FormValue("object_version")))
 		w.WriteHeader(http.StatusNoContent)
 	})
 	root.Handle("/", server.Handler())

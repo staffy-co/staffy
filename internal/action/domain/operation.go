@@ -19,10 +19,11 @@ import (
 // keyed material digest), the business-intent key (the keyed HMAC space
 // business_intent:v1: — the identity of ONE MUTATION), the idempotency
 // fingerprint (the space operation_material:v1: — the material identity
-// of ONE REQUEST), the six-word state dictionary and the seven-word
+// of ONE REQUEST), the six-word state dictionary and the eight-word
 // ledger dictionary with the read-time state derivation (the last
 // state-bearing word of the append-only ledger — dispatch.go owns the
-// dispatch-side derivations of the 3-6 execution contour), with the
+// dispatch-side derivations of the 3-6 execution contour, reconcile.go
+// owns the reconciliation verdict derivations of the 3-7 contour), with the
 // honest texts of the view. The words are frozen in code.
 //
 // ONLY the action module builds the Authorized Action (AD-6/AC-10): the
@@ -62,11 +63,17 @@ var OperationStateWords = []string{
 	OperationCommitted, OperationFailed, OperationUnknown,
 }
 
-// Ledger entry kind words: the seven append-only kinds of the Operation
-// Ledger (AD-13). The six state-bearing kinds mirror the state dictionary
-// one-to-one; dispatch_blocked is NOT state-bearing — it is the visible
-// parking cause of a blocked send (the operation stays authorized, the
-// adapter was never called — never a false failed externally, AC-2).
+// Ledger entry kind words: the eight append-only kinds of the Operation
+// Ledger (AD-13, extended by 3.7). The six state-bearing kinds mirror
+// the state dictionary one-to-one; dispatch_blocked is NOT state-bearing
+// — it is the visible parking cause of a blocked send (the operation
+// stays authorized, the adapter was never called — never a false failed
+// externally, AC-2); reconciling (3.7) is NOT state-bearing either — it
+// is the activity word of a running reconciliation: the operation STAYS
+// unknown while the reconciliation lease holds (the mirror of the
+// dispatch_blocked discipline — the «unknown/reconciling» slash of the
+// epic rides the pair {the state unknown, the activity reconciling in
+// the history}, never a new state word).
 const (
 	LedgerEntryAuthorized      = "authorized"
 	LedgerEntrySubmitted       = "submitted"
@@ -75,13 +82,14 @@ const (
 	LedgerEntryFailed          = "failed"
 	LedgerEntryUnknown         = "unknown"
 	LedgerEntryDispatchBlocked = "dispatch_blocked"
+	LedgerEntryReconciling     = "reconciling"
 )
 
-// LedgerEntryKindWords is the full dictionary (7 words).
+// LedgerEntryKindWords is the full dictionary (8 words).
 var LedgerEntryKindWords = []string{
 	LedgerEntryAuthorized, LedgerEntrySubmitted, LedgerEntryAccepted,
 	LedgerEntryCommitted, LedgerEntryFailed, LedgerEntryUnknown,
-	LedgerEntryDispatchBlocked,
+	LedgerEntryDispatchBlocked, LedgerEntryReconciling,
 }
 
 // ---------------------------------------------------------------------------
@@ -272,11 +280,13 @@ func DeriveIdempotencyFingerprint(key []byte, tenant id.UUID, pins OperationRequ
 // masked silence), an empty ledger refuses (the authorization is
 // evidenced by the authorized entry — its absence is a data corruption,
 // not an honest state), a ledger WITHOUT a state-bearing word refuses the
-// same way (only dispatch_blocked rows = the authorized evidence is
-// missing — corruption, never an honest word), and the LAST STATE-BEARING
-// word wins (the entries arrive in the append order — the store reads
-// them by entry_no): dispatch_blocked is skipped (a visible parking
-// cause, never a state — the operation stays what it was), every other
+// same way (only dispatch_blocked/reconciling rows = the authorized
+// evidence is missing — corruption, never an honest word), and the LAST
+// STATE-BEARING word wins (the entries arrive in the append order — the
+// store reads them by entry_no): dispatch_blocked is skipped (a visible
+// parking cause, never a state — the operation stays what it was),
+// reconciling is skipped the same way (the 3.7 activity word — the
+// operation STAYS unknown while the reconciliation runs), every other
 // kind carries the state forward. The queue is a FACT (the outbox record
 // presence) — never a stored state; the dispatch words of the execution
 // contour (3-6) derive from the same ledger.
@@ -291,7 +301,7 @@ func DeriveOperationState(ledger []OperationLedgerEntry) (string, error) {
 			return "", RuleError{Rule: "DeriveOperationState", Reason: fmt.Sprintf(
 				"Запись Operation Ledger «%s» вне словаря (%s).", e.Kind, strings.Join(LedgerEntryKindWords, ", "))}
 		}
-		if e.Kind != LedgerEntryDispatchBlocked {
+		if e.Kind != LedgerEntryDispatchBlocked && e.Kind != LedgerEntryReconciling {
 			state = e.Kind
 		}
 	}
@@ -319,6 +329,11 @@ const (
 	// 3-6: the send is an EXPLICIT drain command — no background daemon
 	// (the scheduler is a future infrastructure, the honest boundary).
 	OperationDispatchAbsentText = "Dispatch — явная команда drain: отправку запускает оператор, фонового демона нет (планировщик — будущая инфраструктура); очередь до запуска честно копится pending."
+	// OperationReconcileAbsentText speaks the living reconciliation
+	// contour of 3-7: the reconcile is an EXPLICIT operator command — no
+	// background daemon (the OperationDispatchAbsentText precedent 1:1);
+	// the pending unknown targets honestly stay until the command.
+	OperationReconcileAbsentText = "Reconcile — явная команда сверки: сверку unknown-операций запускает оператор, фонового демона нет (планировщик — будущая инфраструктура); до запуска операция честно остаётся unknown при своей квитанции."
 	// OperationExternalIDAbsentText speaks the honest absence of the
 	// external outcome BEFORE the dispatch: the identifiers appear by the
 	// recorded attempt outcome — no word is invented here.

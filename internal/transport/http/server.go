@@ -40,6 +40,7 @@ type Server struct {
 	actionPreviews      actionAPI.PreviewService
 	authorization       actionAPI.AuthorizationService
 	dispatch            actionAPI.DispatchService
+	reconcile           actionAPI.ReconcileService
 	controls            controlAPI.ControlService
 	employee            employeeAPI.Service
 	knowledge           employeeAPI.KnowledgeService

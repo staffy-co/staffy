@@ -169,6 +169,12 @@ type PendingDispatchJob struct {
 	LastLeaseActive        bool
 	RequestDigest          string // the FIRST lease digest ("" when no lease ever)
 	ExternalIDempotencyKey string // the recorded external key ("" when no lease ever)
+	// ReconciliationNoEffect is the 3-7 retry-unlock fact of the pending
+	// classification: the LAST reconciliation outcome verdict of the
+	// operation reads no_effect (the PROVEN absence of the external effect —
+	// a failed operation unlocks a retry WITHOUT the provider-idempotent
+	// guarantee; the store lateral join of 3-7 step-02 reads the verdict).
+	ReconciliationNoEffect bool
 }
 
 // AcquireDispatchLeaseParams is the write-ahead transaction of the send
@@ -236,9 +242,11 @@ type ReceiptCreatedPayload struct {
 // lease, the ledger kind and the receipt speak the guarded truth), the
 // guarded ledger kind, the receipt outcome word ("" — accepted carries
 // no receipt), the structural evidence, the recorded guarantee flag, the
-// correlation, the receipt v1 row with the SAFE references and the outbox
-// receipt.created record. The signature carries ZERO adapters; ANY
-// failure rolls back the whole verdict atomically.
+// correlation, the receipt row of the deciding verdict with the SAFE
+// references (the version derives under the store lock — the monotonic
+// append of the chain) and the outbox receipt.created record. The
+// signature carries ZERO adapters; ANY failure rolls back the whole
+// verdict atomically.
 type RecordDispatchOutcomeParams struct {
 	Scope             tenancy.Context
 	Operation         domain.Operation
@@ -341,8 +349,10 @@ type DispatchRepository interface {
 	// RecordDispatchOutcome is the fenced verdict transaction: the
 	// (attempt_no, lease_token) pair must own the current attempt — a
 	// stale pair NEVER writes history (ErrLeaseStale, AC-1); the outcome
-	// row (when the claim word is honest), the ledger kind, the receipt v1
-	// (when the verdict is deciding) and the outbox receipt.created record
+	// row (when the claim word is honest), the ledger kind, the receipt
+	// version of the deciding verdict (the monotonic append under the
+	// store lock — v1 first, the next version on a 3-7 retry) and the
+	// outbox receipt.created record
 	// land in ONE commit — ANY failure rolls back the whole verdict.
 	RecordDispatchOutcome(ctx context.Context, p RecordDispatchOutcomeParams) error
 	// AppendDispatchBlocked parks the operation with the EXACT fence

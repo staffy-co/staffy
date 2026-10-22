@@ -73,6 +73,17 @@ type Service struct {
 	// store transaction (persist-before-emit, AD-6).
 	dispatches      port.DispatchRepository
 	dispatchAdapter port.MutationAdapter
+
+	// Story 3.7 (step-02): the reconciliation contour — the reconcile worker.
+	// The reconciliation repository owns the TWO adapter-free transactions
+	// (the write-ahead query lease, the fenced verdict with the terminal
+	// lock); the READ-ONLY query adapter is the consumer-owned door to the
+	// answer world — nil is the HONEST production state (AG-4: no real
+	// owning systems exist, the reconcile command refuses in words, the
+	// pending targets honestly stay). The adapter is called ONLY outside
+	// every store transaction (persist-before-emit, AD-6).
+	reconciliations  port.ReconciliationRepository
+	reconcileAdapter port.ReconciliationAdapter
 }
 
 // New wires the service. The resolvers are the composition-root adapters
@@ -148,6 +159,20 @@ func (s *Service) WithAuthorization(consents port.ConfirmationRepository, ops po
 func (s *Service) WithDispatch(dispatches port.DispatchRepository, adapter port.MutationAdapter) *Service {
 	s.dispatches = dispatches
 	s.dispatchAdapter = adapter
+	return s
+}
+
+// WithReconcile wires the reconciliation contour of story 3.7 (the fixture
+// and the transport composition roots): the reconciliation repository and
+// the READ-ONLY query adapter. The adapter may stay nil — the HONEST
+// production state (AG-4: no real owning systems exist; the reconcile
+// command refuses in words, the pending targets honestly stay; the
+// synthetic adapter of the test contour is importable ONLY by the
+// composition roots, never by the product binary — the import-graph probe
+// of step-04).
+func (s *Service) WithReconcile(repository port.ReconciliationRepository, adapter port.ReconciliationAdapter) *Service {
+	s.reconciliations = repository
+	s.reconcileAdapter = adapter
 	return s
 }
 

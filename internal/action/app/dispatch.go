@@ -288,7 +288,11 @@ func (s *Service) dispatchOneJob(ctx context.Context, scope tenancy.Context, com
 		// RECORDED guarantee word of the attempt (the audit fact, never a
 		// re-read of the live declaration — the 3-3 «belt over braces»).
 		policy, err := domain.DeriveDispatchRetryPolicy(job.StateWord,
-			def.DeliveryContract.CapabilityClass, job.LastOutcomeGuarantee, job.LastAttemptNo)
+			def.DeliveryContract.CapabilityClass, job.LastOutcomeGuarantee, job.LastAttemptNo,
+			// noEffectProven (3-7 retry-unlock): pending-классификация хранилища
+			// прочитала последний вердикт сверки — доказанное no_effect
+			// заменяет гарантию provider_idempotent (unlock без гарантии).
+			job.ReconciliationNoEffect)
 		if err != nil {
 			return err
 		}
@@ -312,7 +316,11 @@ func (s *Service) dispatchOneJob(ctx context.Context, scope tenancy.Context, com
 			}
 		}
 		policy, err := domain.DeriveDispatchRetryPolicy(job.StateWord,
-			def.DeliveryContract.CapabilityClass, guarantee, job.LastAttemptNo)
+			def.DeliveryContract.CapabilityClass, guarantee, job.LastAttemptNo,
+			// noEffectProven: crash-resting попытка (submitted без outcome)
+			// не имеет вердикта сверки по определению — unlock сверки 3-7
+			// сюда не приходит, честное false.
+			false)
 		if err != nil {
 			return err
 		}
@@ -450,6 +458,18 @@ func (s *Service) dispatchOneJob(ctx context.Context, scope tenancy.Context, com
 	}
 	externalKey := domain.DeriveExternalIdempotencyKey(hmacKey, scope.TenantID(), op.OperationID)
 	requestDigest := domain.DeriveDispatchRequestDigest(hmacKey, payloadRebuilt)
+	// The digest comparator of the RETRY (AC-6 — the mechanics of the
+	// decided-verify reused at the send point): a job with a RECORDED
+	// trace (any prior lease — the provider_idempotent retry of 3-6, the
+	// no_effect retry-unlock of 3-7) must rebuild the SAME digest — a
+	// diverged payload with the same external key is the integrity
+	// alarm (never a send, never a lease; the fresh job with no lease
+	// ever carries no recorded digest and never compares — the first
+	// send is not a replay question).
+	if job.RequestDigest != "" && requestDigest != job.RequestDigest {
+		d.skip(op.OperationID, job.LastAttemptNo, dispatchReplayAlarmText)
+		return nil
+	}
 	// The destination allowlist BEFORE the lease and the call: the adapter
 	// must serve the definition's required capability (AC-4).
 	if s.dispatchAdapter.ServesCapability() != def.RequiredCapability.CapabilityID {
@@ -596,7 +616,9 @@ func (s *Service) dispatchOneJob(ctx context.Context, scope tenancy.Context, com
 	}
 	// The fenced verdict transaction (the signature carries ZERO
 	// adapters): the outcome row of the honest claim, the guarded ledger
-	// kind, the receipt v1 on the first deciding verdict and the outbox
+	// kind, the receipt version of the deciding verdict (the monotonic
+	// append derives under the store lock — v1 on the first verdict, the
+	// next version on a 3-7 retry-unlock verdict) and the outbox
 	// receipt.created record — ONE commit; a stale lease NEVER writes
 	// history.
 	err = s.dispatches.RecordDispatchOutcome(ctx, port.RecordDispatchOutcomeParams{

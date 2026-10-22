@@ -1522,3 +1522,324 @@ func TestOperationReviewPageShowsTheDrainFormOnlyWhenBound(t *testing.T) {
 		t.Fatalf("неподключённый контур НЕ показывает форму дренажа: %s", page[:400])
 	}
 }
+
+// ---------------------------------------------------------------------------
+// The Story 3.7 (step-03) reconcile surface: the command gates and the page
+// ---------------------------------------------------------------------------
+
+// fakeReconcile serves the reconciliation-contour surface with the
+// scripted answers and the captured commands (the fakeDispatch precedent
+// — the counters pin the transport's own gate order: the strict decode
+// refuses BEFORE the service).
+type fakeReconcile struct {
+	result  actionAPI.ReconcileResultView
+	err     error
+	calls   int
+	lastCmd *actionAPI.ReconcileOperationsCommand
+}
+
+// The compile-time proof the fake satisfies the narrow transport contract.
+var _ actionAPI.ReconcileService = (*fakeReconcile)(nil)
+
+func (f *fakeReconcile) ReconcileOperations(_ context.Context, c actionAPI.ReconcileOperationsCommand) (actionAPI.ReconcileResultView, error) {
+	f.calls++
+	commandCopy := c
+	f.lastCmd = &commandCopy
+	if f.err != nil {
+		return actionAPI.ReconcileResultView{}, f.err
+	}
+	return f.result, nil
+}
+
+// newReconcileTestServer binds the fake through the production
+// BindReconcile — the narrow interface is type-asserted exactly the way
+// the real wiring does it (the authorization fake rides along for the
+// page reads).
+func newReconcileTestServer(t *testing.T, reconcile *fakeReconcile) *Server {
+	t.Helper()
+	server := newOperationTestServer(t, &fakeAuthorization{view: actionAPI.AuthorizationView{
+		TenantID: testTenantID, CaseID: testPreviewCaseID,
+		Confirmations: []actionAPI.ConfirmationCardView{},
+		Operations:    []actionAPI.OperationCardView{},
+	}})
+	server.BindReconcile(reconcile)
+	return server
+}
+
+// reconcileAPIPath builds the machine reconcile path of the fixture tenant.
+func reconcileAPIPath() string {
+	return "/v1/tenants/" + testTenantID.String() + "/operations/reconcile"
+}
+
+// TestReconcileRefusesTheFreeFieldBeforeTheService — the strict decode of
+// the EMPTY body: a free «limit»/«force» field is the honest 400 BEFORE
+// the service is ever called (the reconcile carries NO parameters — the
+// bounded operator command of the domain); the wrong content type answers
+// the media rule words.
+func TestReconcileRefusesTheFreeFieldBeforeTheService(t *testing.T) {
+	fake := &fakeReconcile{}
+	server := newReconcileTestServer(t, fake)
+	request := httptest.NewRequest(http.MethodPost, reconcileAPIPath(), strings.NewReader(`{"limit":50}`))
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("свободное поле обязано отвечать 400, пришло %d: %s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"code":"body"`) {
+		t.Fatalf("отказ обязан нести правило body: %s", recorder.Body.String())
+	}
+	request = httptest.NewRequest(http.MethodPost, reconcileAPIPath(), strings.NewReader(`{}`))
+	request.Header.Set("Content-Type", "text/plain")
+	recorder = httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusBadRequest || !strings.Contains(recorder.Body.String(), `"code":"content_type"`) {
+		t.Fatalf("неверный content-type обязан отвечать 400 правилом content_type: %d %s", recorder.Code, recorder.Body.String())
+	}
+	if fake.calls != 0 {
+		t.Fatalf("strict decode отказывает ДО сервиса, сервис видел %d", fake.calls)
+	}
+}
+
+// TestReconcileAnswers201WithTheHonestReport — the empty strict body
+// passes, the command carries the actor, the tenant and the server clock
+// verbatim, and the 201 answer speaks the honest report: the counters and
+// the per-line words (every considered target leaves its line — FR-30).
+func TestReconcileAnswers201WithTheHonestReport(t *testing.T) {
+	lineText := actionDomain.ReconciliationExhaustedText
+	fake := &fakeReconcile{result: actionAPI.ReconcileResultView{
+		Command: "reconcile_unknown_operations", Considered: 2, Queried: 1, Decided: 1, Skipped: 1,
+		Reports: []actionAPI.ReconcileReportLineView{
+			{OperationID: testOperationID, AttemptNo: 1, Text: actionDomain.ReconciliationCommittedText},
+			{OperationID: testOperationID, AttemptNo: 0, Text: lineText},
+		},
+	}}
+	server := newReconcileTestServer(t, fake)
+	request := httptest.NewRequest(http.MethodPost, reconcileAPIPath(), strings.NewReader(`{}`))
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("reconcile обязан отвечать 201 с отчётом, пришло %d: %s", recorder.Code, recorder.Body.String())
+	}
+	body := recorder.Body.String()
+	for _, pin := range []string{
+		`"reconcile":{`,
+		`"considered":2`,
+		`"queried":1`,
+		`"decided":1`,
+		`"skipped":1`,
+		actionDomain.ReconciliationCommittedText,
+		lineText,
+	} {
+		if !strings.Contains(body, pin) {
+			t.Fatalf("отчёт обязан нести счётчики и построчные слова (%s): %s", pin, body)
+		}
+	}
+	if fake.lastCmd == nil || fake.lastCmd.Actor.ID != testPrincipalID ||
+		fake.lastCmd.TenantID != testTenantID || !fake.lastCmd.Now.Equal(time.Unix(1, 0).UTC()) {
+		t.Fatalf("команда обязана нести актёра, тенент и серверное время дословно: %+v", fake.lastCmd)
+	}
+}
+
+// TestReconcileSpeaksTheAG4RefusalWords — the honest production refusal
+// of the nil read-only adapter answers 403 with the EXACT words the app
+// attached at the wrap point (AG-4: the pending targets stay, zero
+// queries — never a masked success); the reconcile never touched the
+// queue.
+func TestReconcileSpeaksTheAG4RefusalWords(t *testing.T) {
+	fake := &fakeReconcile{err: fmt.Errorf("%w: %s",
+		actionAPI.ErrReconcileRefusedAG4, actionDomain.ReconciliationNotWiredText)}
+	server := newReconcileTestServer(t, fake)
+	request := httptest.NewRequest(http.MethodPost, reconcileAPIPath(), strings.NewReader(`{}`))
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("AG-4 отказ обязан отвечать 403, пришло %d: %s", recorder.Code, recorder.Body.String())
+	}
+	body := recorder.Body.String()
+	if !strings.Contains(body, `"code":"reconciliation_not_wired"`) {
+		t.Fatalf("AG-4 отказ обязан нести код reconciliation_not_wired: %s", body)
+	}
+	if !strings.Contains(body, "очередь сверки не тронута, запросов ноль") {
+		t.Fatalf("AG-4 отказ обязан нести честные слова приложения дословно: %s", body)
+	}
+}
+
+// TestReconcileSpeaksTheScopeAndMissingWords — the rights gate of the app
+// answers 403 with the scope words the app attached (the operations scope
+// of the operator), the identity NotFound keeps the plain 404 (no
+// disclosure that the tenant reconciles actions at all).
+func TestReconcileSpeaksTheScopeAndMissingWords(t *testing.T) {
+	fake := &fakeReconcile{err: fmt.Errorf("%w: %s", actionDomain.ErrForbidden,
+		"Команда reconcile требует полномочия operations: сверка unknown-операций — операторная команда, участники без операторного полномочия очередь сверки не трогают.")}
+	server := newReconcileTestServer(t, fake)
+	request := httptest.NewRequest(http.MethodPost, reconcileAPIPath(), strings.NewReader(`{}`))
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("отказ полномочия обязан отвечать 403, пришло %d: %s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), "полномочия operations") {
+		t.Fatalf("отказ полномочия обязан нести слова скоупа дословно: %s", recorder.Body.String())
+	}
+	fake = &fakeReconcile{err: actionDomain.ErrNotFound}
+	server = newReconcileTestServer(t, fake)
+	request = httptest.NewRequest(http.MethodPost, reconcileAPIPath(), strings.NewReader(`{}`))
+	request.Header.Set("Content-Type", "application/json")
+	recorder = httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("не-участник обязан отвечать 404, пришло %d", recorder.Code)
+	}
+}
+
+// TestReconcileFormRequiresTheCheckboxAndLandsPRG — the page reconcile
+// form is the PRG family (the drain form precedent): the explicit
+// checkbox is the UI discipline of the operator act, the missing
+// checkbox refuses BEFORE the service, the AG-4 refusal words ride the
+// flash, the success lands PRG with the considered counter; the foreign
+// origin never reaches the service.
+func TestReconcileFormRequiresTheCheckboxAndLandsPRG(t *testing.T) {
+	formPath := "/app/tenants/" + testTenantID.String() + "/operations/reconcile"
+	fake := &fakeReconcile{}
+	server := newReconcileTestServer(t, fake)
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, operationsFormOf(http.MethodPost, formPath,
+		url.Values{"case_id": {testPreviewCaseID.String()}}))
+	if recorder.Code != http.StatusSeeOther {
+		t.Fatalf("сверка без чекбокса обязана ответить PRG 303, пришло %d", recorder.Code)
+	}
+	if flash := operationsFlashOf(recorder); !strings.Contains(flash, "чекбокс согласия") {
+		t.Fatalf("сверка без чекбокса обязана нести честные слова: %q", flash)
+	}
+	if fake.calls != 0 {
+		t.Fatalf("сверка без чекбокса не доходит до сервиса, сервис видел %d", fake.calls)
+	}
+	fake = &fakeReconcile{err: fmt.Errorf("%w: %s",
+		actionAPI.ErrReconcileRefusedAG4, actionDomain.ReconciliationNotWiredText)}
+	server = newReconcileTestServer(t, fake)
+	recorder = httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, operationsFormOf(http.MethodPost, formPath,
+		url.Values{"case_id": {testPreviewCaseID.String()}, "confirm_reconcile": {"yes"}}))
+	if recorder.Code != http.StatusSeeOther {
+		t.Fatalf("AG-4 отказ формы обязан ответить PRG, пришло %d", recorder.Code)
+	}
+	if flash := operationsFlashOf(recorder); !strings.Contains(flash, "очередь сверки не тронута, запросов ноль") {
+		t.Fatalf("AG-4 отказ обязан нести слова во flash: %q", flash)
+	}
+	fake = &fakeReconcile{result: actionAPI.ReconcileResultView{
+		Command: "reconcile_unknown_operations", Considered: 3, Queried: 2, Decided: 2, Skipped: 1,
+		Reports: []actionAPI.ReconcileReportLineView{},
+	}}
+	server = newReconcileTestServer(t, fake)
+	recorder = httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, operationsFormOf(http.MethodPost, formPath,
+		url.Values{"case_id": {testPreviewCaseID.String()}, "confirm_reconcile": {"yes"}}))
+	if recorder.Code != http.StatusSeeOther {
+		t.Fatalf("успешная сверка обязана ответить PRG 303, пришло %d", recorder.Code)
+	}
+	if location := recorder.Header().Get("Location"); !strings.Contains(location, "reconciled=3") {
+		t.Fatalf("PRG обязан нести флаг reconciled со счётчиком: %s", location)
+	}
+	if location := recorder.Header().Get("Location"); !strings.Contains(location, "/cases/"+testPreviewCaseID.String()+"/operations") {
+		t.Fatalf("PRG обязан возвращать на страницу операций кейса: %s", location)
+	}
+	if fake.lastCmd == nil || fake.lastCmd.TenantID != testTenantID {
+		t.Fatalf("команда сверки обязана нести тенент дословно: %+v", fake.lastCmd)
+	}
+	fake = &fakeReconcile{}
+	server = newReconcileTestServer(t, fake)
+	request := httptest.NewRequest(http.MethodPost, formPath, strings.NewReader(url.Values{
+		"case_id": {testPreviewCaseID.String()}, "confirm_reconcile": {"yes"},
+	}.Encode()))
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	request.Header.Set("Origin", "https://evil.example")
+	recorder = httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("чужой origin обязан отказать 403, пришло %d", recorder.Code)
+	}
+	if fake.calls != 0 {
+		t.Fatalf("origin-отказ происходит ДО сервиса, сервис видел %d", fake.calls)
+	}
+}
+
+// TestOperationReviewPageShowsTheReconcileFormAndTheAttempts — the page
+// speaks the reconcile form exactly when the reconcile surface is bound
+// (the honest absence: an unbound contour never pretends the command
+// exists); the reconciled notice flag carries the focus discipline and
+// the counter readback; the operation card renders the reconciliation
+// attempts in the CLOSED details with the verdict words, the resting
+// word of the un-recorded attempt and the absent-contour word of the
+// living boundary (AC-13).
+func TestOperationReviewPageShowsTheReconcileFormAndTheAttempts(t *testing.T) {
+	card := fixtureOperationCard()
+	card.State = actionDomain.OperationUnknown
+	card.NextStepText = actionDomain.OperationNextStepText(actionDomain.OperationUnknown)
+	card.ReconcileAbsentText = actionDomain.OperationReconcileAbsentText
+	card.ReconciliationAttempts = []actionAPI.ReconciliationAttemptView{{
+		AttemptNo:        1,
+		LeaseCreatedAt:   time.Unix(9, 0).UTC(),
+		LeaseExpiresAt:   time.Unix(39, 0).UTC(),
+		NextEligibleAt:   time.Unix(69, 0).UTC(),
+		Verdict:          actionDomain.ReconciliationVerdictCommitted,
+		VerdictRecorded:  true,
+		VerdictText:      actionDomain.ReconciliationVerdictText(actionDomain.ReconciliationVerdictCommitted),
+		CorrelationID:    "syn-0123456789abcdef",
+		ExternalObjectID: "msg-42",
+		VerdictCreatedAt: time.Unix(10, 0).UTC(),
+	}, {
+		AttemptNo:       2,
+		LeaseCreatedAt:  time.Unix(79, 0).UTC(),
+		LeaseExpiresAt:  time.Unix(109, 0).UTC(),
+		NextEligibleAt:  time.Unix(139, 0).UTC(),
+		VerdictRecorded: false,
+		VerdictText:     actionDomain.ReconciliationAttemptRestingText,
+	}}
+	server := newOperationTestServer(t, &fakeAuthorization{view: actionAPI.AuthorizationView{
+		TenantID: testTenantID, CaseID: testPreviewCaseID,
+		Confirmations: []actionAPI.ConfirmationCardView{},
+		Operations:    []actionAPI.OperationCardView{card},
+	}})
+	server.BindReconcile(&fakeReconcile{})
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet,
+		operationsPageRoot()+"/operations?reconciled=3", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("страница обязана отвечать 200, пришло %d", recorder.Code)
+	}
+	page := recorder.Body.String()
+	for _, pin := range []string{
+		"Запустить сверку unknown-операций (операторная команда тенента)",
+		`action="/app/tenants/` + testTenantID.String() + `/operations/reconcile"`,
+		`name="confirm_reconcile" value="yes" required`,
+		"Запустить сверку",
+		"Сверка unknown-операций выполнена: рассмотрено целей — 3",
+		`id="page-notice"`,
+		`tabindex="-1"`,
+		"getElementById('page-notice').focus()",
+		"Попытки сверки (прогрессивный аудит, закрыто по умолчанию)",
+		"вердикт committed: Сверка подтвердила терминальный успех (committed): внешний объект существует, структурные evidence (идентификатор, версия, время) записаны в квитанции v2&#43;.",
+		"вердикт не записан: " + actionDomain.ReconciliationAttemptRestingText,
+		actionDomain.OperationReconcileAbsentText,
+		"Корреляция провайдера: syn-0123456789abcdef",
+		"Внешний объект сверки: msg-42",
+	} {
+		if !strings.Contains(page, pin) {
+			t.Fatalf("страница с контуром обязана нести форму сверки, попытки и уведомление (%s): %s", pin, page[:400])
+		}
+	}
+	server = newOperationTestServer(t, &fakeAuthorization{})
+	recorder = httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet,
+		operationsPageRoot()+"/operations", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("страница обязана отвечать 200, пришло %d", recorder.Code)
+	}
+	if page := recorder.Body.String(); strings.Contains(page, "Запустить сверку") {
+		t.Fatalf("неподключённый контур НЕ показывает форму сверки: %s", page[:400])
+	}
+}

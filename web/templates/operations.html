@@ -15,6 +15,16 @@
 </form>
 </details>
 {{end}}
+{{if .HasReconcile}}
+<details><summary>Запустить сверку unknown-операций (операторная команда тенента)</summary>
+<form method="post" action="/app/tenants/{{.TenantID}}/operations/reconcile">
+<input type="hidden" name="case_id" value="{{.CaseID}}">
+<label><input type="checkbox" name="confirm_reconcile" value="yes" required> Подтверждаю запуск: сверка обрабатывает pending-цели ОДНОГО ТЕНАНТА (все кейсы) до доменного предела батча, каждая цель проходит лёгкую read-only лестницу фенций по порядку</label>
+<p class="next-note">Reconcile — явная команда (демона нет): фонового планировщика не существует, unknown-операции честно остаются при своих квитанциях до этого запуска. Сверка читает — она не отправляет и не потребляет согласие: запрос несёт только производные ключи (внешний idempotency key, correlation, keyed digest), сырой материал никогда. Границы говорят точными словами причин: фенции без права, гонки, тревоги терминального замка. В продакшене без подключённой системы-владельца команда честно отказывает (AG-4).</p>
+<button class="primary" type="submit">Запустить сверку</button>
+</form>
+</details>
+{{end}}
 <h2 id="confirm-heading">Подтвердить точную версию preview (согласие человека)</h2>
 <form method="post" action="/app/tenants/{{.TenantID}}/cases/{{.CaseID}}/operations/confirmations">
 <label for="confirm_preview_id">Preview (UUID)</label>
@@ -102,6 +112,13 @@
 </ul>
 </details>
 {{end}}
+{{if .HasReconcileAttempts}}
+<details><summary>Попытки сверки (прогрессивный аудит, закрыто по умолчанию)</summary>
+<ul>
+{{range .ReconciliationAttempts}}<li>Попытка {{.No}}: право и момент запроса закреплены {{.LeaseAt}} (окно lease до {{.LeaseExpires}}, следующая доступность {{.NextEligible}}) — вердикт{{if .Verdict}} {{.Verdict}}{{else}} не записан{{end}}: {{.VerdictText}}{{if .VerdictAt}} — записан {{.VerdictAt}}{{end}} — {{.CorrelationText}} — {{.ExternalText}}</li>{{end}}
+</ul>
+</details>
+{{end}}
 {{if .HasReceipts}}
 <details open><summary>Карточка Action Receipt (квитанция — readback идентификаторов)</summary>
 <ul>
@@ -111,6 +128,7 @@
 {{end}}
 <p class="next-note">{{.ExternalIDText}}</p>
 <p class="next-note">{{.DispatchText}}</p>
+<p class="next-note">{{.ReconcileText}}</p>
 </li>
 {{end}}
 </ul>

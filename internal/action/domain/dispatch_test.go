@@ -140,9 +140,10 @@ func TestDispatchDictionariesByName(t *testing.T) {
 		t.Fatalf("словарь состояний: %v, ожидалось 6 слов %v", OperationStateWords, wantStates)
 	}
 	wantLedger := []string{LedgerEntryAuthorized, LedgerEntrySubmitted, LedgerEntryAccepted,
-		LedgerEntryCommitted, LedgerEntryFailed, LedgerEntryUnknown, LedgerEntryDispatchBlocked}
+		LedgerEntryCommitted, LedgerEntryFailed, LedgerEntryUnknown, LedgerEntryDispatchBlocked,
+		LedgerEntryReconciling}
 	if !reflect.DeepEqual(LedgerEntryKindWords, wantLedger) {
-		t.Fatalf("словарь ledger: %v, ожидалось 7 слов %v", LedgerEntryKindWords, wantLedger)
+		t.Fatalf("словарь ledger: %v, ожидалось 8 слов %v", LedgerEntryKindWords, wantLedger)
 	}
 }
 
@@ -189,6 +190,15 @@ func TestDeriveOperationStateLastStateBearingWord(t *testing.T) {
 	// Повторная припарковка и возврат authorized тем же механизмом.
 	if got, _ := DeriveOperationState(ledgerHistory(LedgerEntryAuthorized, LedgerEntryDispatchBlocked, LedgerEntryAuthorized)); got != OperationAuthorized {
 		t.Fatalf("история с возвратом: %q, ожидалось authorized", got)
+	}
+	// reconciling (3.7) НЕ state-bearing: активность сверки не меняет
+	// состояние — операция ОСТАЁТСЯ unknown (слэш unknown/reconciling
+	// эпика: пара {состояние unknown, активность reconciling}).
+	if got, _ := DeriveOperationState(ledgerHistory(LedgerEntryAuthorized, LedgerEntrySubmitted, LedgerEntryUnknown, LedgerEntryReconciling)); got != OperationUnknown {
+		t.Fatalf("сверка поверх unknown: %q, ожидалось unknown (reconciling — активность, не состояние)", got)
+	}
+	if got, _ := DeriveOperationState(ledgerHistory(LedgerEntryAuthorized, LedgerEntryReconciling)); got != OperationAuthorized {
+		t.Fatalf("сверка поверх authorized: %q, ожидалось authorized", got)
 	}
 	// Пустой ledger отказывает.
 	if _, err := DeriveOperationState(nil); err == nil {
@@ -375,14 +385,18 @@ func TestDeriveConfirmationDispatchFenceWithoutExhausted(t *testing.T) {
 // provider_idempotent AND the recorded guarantee AND the attempts within
 // the bound; the bound is checked FIRST (the normative order); the
 // decided operations never repeat; the first attempt and the
-// above-the-bound attempt refuse fail-closed.
+// above-the-bound attempt refuse fail-closed. The 3-7 reconciliation
+// unlock: failed + the PROVEN no_effect retries WITHOUT the guarantee
+// (inside the bound — never above it); a no_effect claim on a
+// non-failed state refuses fail-closed (the verdict writes the failed
+// state — a mismatch is data corruption).
 func TestDeriveDispatchRetryPolicyMatrix(t *testing.T) {
 	// Живые вопросы повтора: submitted (крах-восстановление) и unknown.
 	live := []string{OperationSubmitted, OperationUnknown}
 	// retry: provider_idempotent + гарантия + попытки в пределах.
 	for _, state := range live {
 		for attempt := 1; attempt < MaxDispatchAttempts; attempt++ {
-			got, err := DeriveDispatchRetryPolicy(state, CapabilityProviderIdempotent, true, attempt)
+			got, err := DeriveDispatchRetryPolicy(state, CapabilityProviderIdempotent, true, attempt, false)
 			if err != nil || got != DispatchRetryRetry {
 				t.Fatalf("%s попытка %d: %q, %v — ожидался retry", state, attempt, got, err)
 			}
@@ -390,7 +404,7 @@ func TestDeriveDispatchRetryPolicyMatrix(t *testing.T) {
 	}
 	// park_bound: предел проверяется ПЕРВЫМ — даже с гарантией.
 	for _, state := range live {
-		got, err := DeriveDispatchRetryPolicy(state, CapabilityProviderIdempotent, true, MaxDispatchAttempts)
+		got, err := DeriveDispatchRetryPolicy(state, CapabilityProviderIdempotent, true, MaxDispatchAttempts, false)
 		if err != nil || got != DispatchRetryParkBound {
 			t.Fatalf("%s на пределе: %q, %v — ожидался park_bound (предел первый)", state, got, err)
 		}
@@ -399,12 +413,12 @@ func TestDeriveDispatchRetryPolicyMatrix(t *testing.T) {
 	// повтор запрещён (AC-9).
 	for _, state := range live {
 		for _, class := range []string{CapabilityQueryReconcilable, CapabilityCompensatable, CapabilityUnsafe} {
-			got, err := DeriveDispatchRetryPolicy(state, class, true, 1)
+			got, err := DeriveDispatchRetryPolicy(state, class, true, 1, false)
 			if err != nil || got != DispatchRetryParkUnknown {
 				t.Fatalf("%s класс %s: %q, %v — ожидался park_unknown (класс не идемпотентен)", state, class, got, err)
 			}
 		}
-		got, err := DeriveDispatchRetryPolicy(state, CapabilityProviderIdempotent, false, 1)
+		got, err := DeriveDispatchRetryPolicy(state, CapabilityProviderIdempotent, false, 1, false)
 		if err != nil || got != DispatchRetryParkUnknown {
 			t.Fatalf("%s без гарантии: %q, %v — ожидался park_unknown (слепой повтор запрещён)", state, got, err)
 		}
@@ -413,23 +427,44 @@ func TestDeriveDispatchRetryPolicyMatrix(t *testing.T) {
 	// не-терминальное ожидание без повторной отправки; failed терминален —
 	// новый запуск = новая Confirmation 3-5; committed терминален).
 	for _, state := range []string{OperationAccepted, OperationCommitted, OperationFailed} {
-		got, err := DeriveDispatchRetryPolicy(state, CapabilityProviderIdempotent, true, 1)
+		got, err := DeriveDispatchRetryPolicy(state, CapabilityProviderIdempotent, true, 1, false)
 		if err != nil || got != DispatchRetryDecided {
 			t.Fatalf("%s: %q, %v — ожидался decided (повтор — не вопрос политики)", state, got, err)
 		}
 	}
+	// Retry-unlock сверки 3-7 (AC-3/AC-6): failed + доказанное no_effect
+	// => retry БЕЗ гарантии и БЕЗ класса provider_idempotent — доказательство
+	// пустоты эффекта заменяет гарантию; НОВОГО intent/резервации нет.
+	for _, class := range []string{CapabilityProviderIdempotent, CapabilityQueryReconcilable, CapabilityCompensatable, CapabilityUnsafe} {
+		got, err := DeriveDispatchRetryPolicy(OperationFailed, class, false, 1, true)
+		if err != nil || got != DispatchRetryRetry {
+			t.Fatalf("unlock failed класс %s: %q, %v — ожидался retry без гарантии", class, got, err)
+		}
+	}
+	// Unlock работает ВНУТРИ бюджета: на пределе — park_bound, не retry.
+	if got, err := DeriveDispatchRetryPolicy(OperationFailed, CapabilityUnsafe, false, MaxDispatchAttempts, true); err != nil || got != DispatchRetryParkBound {
+		t.Fatalf("unlock на пределе: %q, %v — ожидался park_bound (предел первый)", got, err)
+	}
 	// fail-closed: первая попытка — не вопрос политики повтора; попытка
 	// выше предела структурно невозможна; чужие слова отказывают.
 	for _, attempt := range []int{0, MaxDispatchAttempts + 1} {
-		if _, err := DeriveDispatchRetryPolicy(OperationUnknown, CapabilityProviderIdempotent, true, attempt); err == nil {
+		if _, err := DeriveDispatchRetryPolicy(OperationUnknown, CapabilityProviderIdempotent, true, attempt, false); err == nil {
 			t.Fatalf("попытка %d обязана отказывать — вне окна повтора", attempt)
 		}
 	}
-	if _, err := DeriveDispatchRetryPolicy("executed", CapabilityProviderIdempotent, true, 1); err == nil {
+	if _, err := DeriveDispatchRetryPolicy("executed", CapabilityProviderIdempotent, true, 1, false); err == nil {
 		t.Fatal("чужое состояние обязано отказывать")
 	}
-	if _, err := DeriveDispatchRetryPolicy(OperationUnknown, "retryable", true, 1); err == nil {
+	if _, err := DeriveDispatchRetryPolicy(OperationUnknown, "retryable", true, 1, false); err == nil {
 		t.Fatal("чужой класс capability обязан отказывать")
+	}
+	// no_effect вердикт несовместим с любым состоянием кроме failed
+	// (вердикт пишет пару {ledger failed, receipt failed}): порча данных,
+	// отказ fail-closed, молчаливое игнорирование запрещено.
+	for _, state := range []string{OperationAuthorized, OperationSubmitted, OperationAccepted, OperationCommitted, OperationUnknown} {
+		if _, err := DeriveDispatchRetryPolicy(state, CapabilityProviderIdempotent, true, 1, true); err == nil {
+			t.Fatalf("доказанное no_effect на состоянии %s обязано отказывать — несовместимо", state)
+		}
 	}
 }
 
