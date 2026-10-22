@@ -3751,3 +3751,21 @@ decisions:
 
 next: CHECKPOINT 1 story 3-8 — явное одобрение владельца «одобряю» (спека на GitHub для ревью; замечания — правки до флипа, замороженные секции renegotiate-only) → флип backlog → ready-for-dev + запись CHECKPOINT 1 в Spec Change Log + чекпоинт-коммит → Dev шаги 01-05 по Tasks & Acceptance (домен recovery → миграция 00005/store/port/app → транспорт/панель/OpenAPI/wiring → матрица ~25 строк + journeys z36 → QA-саморевью и closure) → CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge). Владельцу: отозвать PAT подтверждённо после публикации (retro-2-6, передачи открытым текстом).
 commit: b24469c
+
+---
+
+date: 2026-10-22
+task: 165-checkpoint-1
+role: main (Super Z)
+story: 3-8
+summary: CHECKPOINT 1 story 3-8 закрыт — спека первого среза recovery-case-creation одобрена владельцем явным «одобряю», флип в ready-for-dev, Dev шаги 01-05 открыты
+
+done:
+- Вход сессии: рестарт после компакции; зонд §4.1 (echo alive + git status -sb — ветка codex/story-3-8-recovery-case-creation, дерево чистое). Сводка-предшественница уточнена по источникам истины (git > DEVLOG): ветки 3-6/3-7 уже удалены DEVLOG-ом 164-sm, CI-фикс 874fa23 уже в main (раны #137–#140 зелёные, раннер ubuntu-26.04 + checkout@v7/setup-go@v7/setup-node@v7) — обе задачи поручения владельца исполнены до рестарта; фактическая позиция = next DEVLOG 164-sm: CHECKPOINT 1, ждать явное «одобряю».
+- «Одобряю» владельца получено в чате — чекпоинт закрыт по дисциплине 52-sm (самопродолжение чекпоинт не закрывает; прецеденты 3-7 156/3-6 146/3-5 137/3-4 2facf4e).
+- Позиция верифицирована живьём ДО правок: PAT из чата жив (API /repos 200, env-only, на диск/remote-URL не попал — пуш по токенизированному URL инлайн); ls-remote RPO=0: ветка 24eca86 = локальный HEAD, main b24469c без движения.
+- Флип исполнен синхронно: спека status backlog → ready-for-dev + запись CHECKPOINT 1 головой Spec Change Log; sprint-status ключ 3-8-создание-связанного-recovery-case → ready-for-dev. Дифф 2 файла +3/−2, замороженные секции не тронуты. check-continuity: статусы спек == sprint-status OK (грязное дерево на момент проверки = сам флип до коммита — ожидаемо). Скан-гигиена: CJK 0 / секреты 0 / mixed 0.
+- Коммит чекпоинта 501e7f8 (docs(story-3-8): CHECKPOINT 1) [skip ci] + эта запись головой [skip ci]; пуш сразу за коммитами (уроки 148/152 «незапушенное не существует»).
+
+next: Dev шаги 01-05 story 3-8 по Tasks & Acceptance: step-01 домен recovery (словари триггеры 3/kind 2/состояние 1, DeriveRecoveryEligibility лестница с honest-словами, DeriveRecoveryKey/ DeriveBundleDigest keyed-HMAC, DeriveRecoveryAssignment + fail-closed, operation.go recovery-слово следующего шага, unit-матрица поимённо) → step-02 миграция 00005/store/port/app → step-03 транспорт/панель/OpenAPI/wiring → step-04 матрица ~25 строк + journeys z36 → step-05 QA-саморевью и closure → CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge). Владельцу: отозвать PAT подтверждённо после сессии (retro-2-6, передачи открытым текстом).
+commit: 501e7f8
