@@ -1861,7 +1861,7 @@ paths:
               additionalProperties: false
               required: [definition_id, state]
               properties:
-                definition_id: { type: string, enum: [OQ-7B, OQ-11, OQ-12, OQ-13B, OQ-14, AG-1, AG-2, AG-4] }
+                definition_id: { type: string, enum: [OQ-1, OQ-2, OQ-3, OQ-4, OQ-5, OQ-7B, OQ-11, OQ-12, OQ-13B, OQ-14, OQ-19, AG-1, AG-2, AG-4] }
                 route:
                   type: object
                   additionalProperties: false
@@ -1882,7 +1882,7 @@ paths:
                     required: [participant_id, role]
                     properties:
                       participant_id: { type: string, format: uuid }
-                      role: { type: string, description: 'Метка реестра (SecurityPrivacy, TechnicalLead, VoiceTechnicalLead, Operations, ProductOwner, MontagioOperations, OperationsQA, UXQA, Security)' }
+                      role: { type: string, description: 'Метка реестра (SecurityPrivacy, TechnicalLead, VoiceTechnicalLead, Operations, ProductOwner, MontagioOperations, OperationsQA, UXQA, Security; пилотные спеки 4-1: Oleg, IntegrationLead, ABCPIntegrator, 1CIntegrator, FitmentExpert, Architecture, OwningSystemOwners)' }
                 evidence_refs:
                   type: array
                   description: 'Только с PASS: непустые ссылки 1–300'
@@ -1933,6 +1933,23 @@ paths:
         '404': { $ref: '#/components/responses/Problem' }
         '409': { $ref: '#/components/responses/Problem' }
         '415': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/pilot/admission:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+    get:
+      operationId: readPilotAdmission
+      summary: 'Пилот автозапчастей — read-time реестр допуска (спека 4-1: маршруты 6 слов, стадии candidate/verified/admitted, пин Domain Pack, DERIVED capabilities, гейты; записи НЕТ — повторное чтение того же мира даёт тот же ответ)'
+      x-staffy-principal-required: true
+      description: 'Права test & release поверхности reused: configuration — управление, review/audit — просмотр; участник без скоупа — честный 403, не-участник — 404 membership-до-материала. Пустое чтение без 400; свободные query-поля игнорируются. Секреты и значения config-полей подключений не читаются и не возвращаются.'
+      responses:
+        '200':
+          description: 'Деривация на чтении: пин пака, маршрутная матрица с блокировками (точные слова, safe state, следующий владелец), матрица ABCP→1С (unknown остаётся unknown)'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PilotAdmissionView' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
   /v1/ingress/channel-events:
     post:
       operationId: ingestChannelEvent
@@ -5189,9 +5206,9 @@ components:
     GateDefinition:
       type: object
       required: [definition_id, criticality, required_approver_roles, evidence_requirement, safe_state, allow_role_coincidence, route_scoped]
-      description: 'Фиксированный словарь восьми платформенных определений принятого GATE-REGISTRY; расширение — новая версия спеки, не настройка Tenant'
+      description: 'Фиксированный словарь реестра: 8 платформенных определений + 6 пилотных спеки 4-1 (OQ-1..OQ-5, OQ-19; AG-4 пилотного набора — то же платформенное определение); расширение — новая версия спеки, не настройка Tenant'
       properties:
-        definition_id: { type: string, enum: [OQ-7B, OQ-11, OQ-12, OQ-13B, OQ-14, AG-1, AG-2, AG-4] }
+        definition_id: { type: string, enum: [OQ-1, OQ-2, OQ-3, OQ-4, OQ-5, OQ-7B, OQ-11, OQ-12, OQ-13B, OQ-14, OQ-19, AG-1, AG-2, AG-4] }
         criticality: { type: string, enum: [critical, high] }
         required_approver_roles: { type: array, items: { type: string } }
         evidence_requirement: { type: string }
@@ -5225,6 +5242,82 @@ components:
       properties:
         participant_id: { type: string, format: uuid }
         role: { type: string }
+    PilotAdmissionView:
+      type: object
+      required: [tenant_id, pilot_admission, can_manage, view_scope]
+      description: 'Реестр допуска пилота (спека 4-1): read-time вывод над живыми фактами — НИ ОДНОЙ записи, идемпотентность выводом; повторное чтение неизменного мира байт-стабильно'
+      properties:
+        tenant_id: { type: string, format: uuid }
+        pilot_admission: { $ref: '#/components/schemas/PilotAdmissionReport' }
+        can_manage: { type: boolean, description: 'configuration — true; review/audit — false (просмотр)' }
+        view_scope: { type: string, enum: [configuration, review-or-audit] }
+    PilotAdmissionReport:
+      type: object
+      required: [pack_pinned, pack_word, routes, matrix]
+      description: 'Пин Domain Pack «Автозапчасти» (fail-closed до auto-parts@>=2.0.0), маршрутная матрица 6 слов и матрица ABCP→1С 8 материальных полей (live-состояние полей unknown — источника терминальных доказательств в срезе нет)'
+      properties:
+        pack_pinned: { type: boolean }
+        pack_word: { type: string }
+        routes: { type: array, items: { $ref: '#/components/schemas/PilotRouteView' } }
+        matrix: { type: array, items: { $ref: '#/components/schemas/PilotMatrixFieldView' } }
+    PilotRouteView:
+      type: object
+      required: [route_id, title, stage, stage_word]
+      description: 'Один маршрут фиксированного словаря 6 слов: стадия min по вкладам (pack/capabilities/матрица/гейты), honest-слово стадии, требуемые capabilities и гейты с их состояниями, blockers с точными словами, fence-слова заказа (AC-9)'
+      properties:
+        route_id: { type: string, enum: [text_jivo, voice_sip, parts_catalog_abcp, parts_order_abcp, abcp_1c_sync, human_fallback] }
+        title: { type: string }
+        stage: { type: string, enum: [candidate, verified, admitted], description: 'candidate — заявлен, capabilities не доказаны; verified — capabilities доказаны, гейты не закрыты; admitted — конъюнкция всего' }
+        stage_word: { type: string }
+        capabilities: { type: array, items: { $ref: '#/components/schemas/PilotCapabilityView' } }
+        gates: { type: array, items: { $ref: '#/components/schemas/GateRequirementView' } }
+        blockers: { type: array, items: { $ref: '#/components/schemas/PilotBlockerView' } }
+        fence_words: { type: array, items: { type: string }, description: 'Только parts_order_abcp: автоматическая отправка поставщику не выполняется; pending_manager_verification и явное одобрение менеджера' }
+        fallback_words: { type: array, items: { type: string }, description: 'Только human_fallback: слова FR-83/OQ-17-связки минимальной операторской поверхности' }
+    PilotCapabilityView:
+      type: object
+      required: [id, connector_id, state]
+      description: 'Одна требуемая capability маршрута с производным состоянием DERIVED-словаря 1-9 (verified/unverified/…/stale); слово — точное honest-слово непроверенного состояния'
+      properties:
+        id: { type: string, description: 'Словарный ID каталога connector (зеркалится каталогом — drift = красный)' }
+        connector_id: { type: string }
+        state: { type: string, enum: [verified, unproven] }
+        word: { type: string }
+    PilotBlockerView:
+      type: object
+      required: [source, id, word, next_owner]
+      description: 'Одна честная блокировка маршрута: источник (pack/capability/matrix/gate), точное слово, safe state и следующий владелец проверки; блокировка не расширяется на другие маршруты (AC-12)'
+      properties:
+        source: { type: string, enum: [pack, capability, matrix, gate] }
+        id: { type: string }
+        word: { type: string }
+        safe_state: { type: string }
+        next_owner: { type: string }
+    GateRequirementView:
+      type: object
+      required: [id, state]
+      description: 'Один требуемый гейт маршрута: производное состояние инстанса (pass/open/in_test/fail/expired/missing), точное слово закрытия, русское safe state и следующий владелец проверки словами владельцев канона'
+      properties:
+        id: { type: string, enum: [OQ-1, OQ-2, OQ-3, OQ-4, OQ-5, OQ-11, OQ-12, OQ-13B, OQ-19, AG-1, AG-2, AG-4], description: 'Гейты пилотного набора 7 (AG-4 — платформенное определение)' }
+        state: { type: string }
+        word: { type: string }
+        safe_state: { type: string }
+        next_owner: { type: string }
+    PilotMatrixFieldView:
+      type: object
+      required: [field, title, owning_system, external_id_text, version_time_text, allowed_projection_text, conflict_rule_text, reconcile_query_text, terminal_evidence_text, state_word]
+      description: 'Одно материальное поле обмена ABCP→кастомная 1С (OQ-19, AC-10): владелец системы и дисциплины; live-состояние unknown — терминального доказательства в срезе нет, успех не заявляется'
+      properties:
+        field: { type: string, enum: [client_order_state, client_order_id, external_1c_id, state_version_time, staffy_projection, conflict_rule, reconcile_query, terminal_evidence] }
+        title: { type: string }
+        owning_system: { type: string, enum: [ABCP, 1C, Staffy-Case] }
+        external_id_text: { type: string }
+        version_time_text: { type: string }
+        allowed_projection_text: { type: string }
+        conflict_rule_text: { type: string }
+        reconcile_query_text: { type: string }
+        terminal_evidence_text: { type: string }
+        state_word: { type: string }
     ReleaseAdmission:
       type: object
       required: [tenant_id, employee_id, decision_no, stage, manifest, profile_version, profile_digest, routes, actor_id, approver_roles, step_up_verified, decided_at, digest]

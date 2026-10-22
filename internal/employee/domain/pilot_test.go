@@ -514,7 +514,7 @@ func TestPackVersionAtLeast(t *testing.T) {
                 {"x.y.z", "2.0.0", false},
         }
         for _, testCase := range cases {
-                if got := packVersionAtLeast(testCase.version, testCase.minimum); got != testCase.want {
+                if got := PackVersionAtLeast(testCase.version, testCase.minimum); got != testCase.want {
                         t.Fatalf("packVersionAtLeast(%q, %q) = %v, want %v", testCase.version, testCase.minimum, got, testCase.want)
                 }
         }

@@ -497,8 +497,10 @@ type PilotAdmissionReport struct {
         Matrix     []PilotMatrixFieldView `json:"matrix"`
 }
 
-// packVersionAtLeast compares dotted numeric versions (major.minor.patch).
-func packVersionAtLeast(version, minimum string) bool {
+// PackVersionAtLeast compares dotted numeric versions (major.minor.patch)
+// — the exported form consumed by the app composition (the highest pinned
+// pack version of the tenant's sealed manifests).
+func PackVersionAtLeast(version, minimum string) bool {
         parse := func(value string) [3]int {
                 var out [3]int
                 part := 0
@@ -528,7 +530,6 @@ func packVersionAtLeast(version, minimum string) bool {
         }
         return true
 }
-
 // validPassForTenant resolves the acting PASS of a tenant-level definition:
 // an unsuperseded record in the exact pass state carrying no route and no
 // modality scope. Missing, open, in_test, fail, expired, superseded and
@@ -584,7 +585,7 @@ func instanceStateForTenant(definitionID string, instances []GateInstance) (stri
 func DerivePilotAdmission(facts PilotFacts) PilotAdmissionReport {
         report := PilotAdmissionReport{Routes: []PilotRouteAdmission{}, Matrix: []PilotMatrixFieldView{}}
         // (1) The pack pin: the fail-closed prerequisite of every route.
-        packOK := facts.PackID == PilotRequiredPackID && packVersionAtLeast(facts.PackVersion, PilotRequiredPackMinVersion)
+        packOK := facts.PackID == PilotRequiredPackID && PackVersionAtLeast(facts.PackVersion, PilotRequiredPackMinVersion)
         report.PackPinned = packOK
         if packOK {
                 report.PackWord = fmt.Sprintf("Domain Pack «Автозапчасти» прикреплён к запечатанному контуру: %s@%s", facts.PackID, facts.PackVersion)

@@ -26,6 +26,9 @@ type fakeReadiness struct {
         view         employeeAPI.ReadinessView
         gates        employeeAPI.GateInstancesView
         history      employeeAPI.AdmissionHistoryView
+        pilot        employeeAPI.PilotAdmissionView
+        pilotSet     bool
+        pilotErr     error
         viewErr      error
         gateErr      error
         publishErr   error
@@ -96,6 +99,24 @@ func (f *fakeReadiness) AdmissionHistoryView(context.Context, domain.Principal, 
                 f.history = employeeAPI.AdmissionHistoryView{EmployeeID: testPrincipalID, Admissions: []employeeDomain.ReleaseAdmission{}}
         }
         return f.history, nil
+}
+
+// PilotAdmission serves the spec 4-1 machine/page view for the wire tests:
+// the honest minimal derivation of an empty world (the pilot fail-closed
+// start — the pack missing, the adapters not implemented, the gates open).
+func (f *fakeReadiness) PilotAdmission(_ context.Context, _ domain.Principal, tenant id.UUID) (employeeAPI.PilotAdmissionView, error) {
+        if f.pilotErr != nil {
+                return employeeAPI.PilotAdmissionView{}, f.pilotErr
+        }
+        if !f.pilotSet {
+                f.pilot = employeeAPI.PilotAdmissionView{
+                        TenantID: tenant, CanManage: true, ViewScope: employeeAPI.ReadinessScopeManage,
+                        Report: employeeDomain.DerivePilotAdmission(employeeDomain.PilotFacts{
+                                PackID: "", PackVersion: "", Capabilities: map[string]employeeDomain.CapabilityFact{}, Instances: []employeeDomain.GateInstance{},
+                        }),
+                }
+        }
+        return f.pilot, nil
 }
 
 func newReadinessTestServer(t *testing.T, fake *fakeReadiness) *Server {
