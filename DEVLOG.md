@@ -3875,3 +3875,20 @@ done:
 
 next: батч-пуш (a4724a5 + эта запись головой БЕЗ маркера — CI-запуск на голове обязателен, урок 2-14/ретро-2-1) по живому PAT → RPO=0 живым ls-remote → наблюдение CI-прогона ветки (ubuntu-26.04 + node24-пины) → CHECKPOINT 2: PR из ветки в main через GitHub API → CI ×3 зелёный (push-ран + PR-ран + main-ран после merge) → sha-pinned merge → DEVLOG 171-checkpoint-2 → worklog сессии. Владельцу: отозвать PAT подтверждённо после сессии (retro-2-6, передача открытым текстом в чатах).
 commit: a4724a5
+
+---
+
+date: 2026-10-22
+task: 171-checkpoint-2
+role: main (Super Z)
+story: 3-8
+summary: CHECKPOINT 2 story 3-8 закрыт — ветка слита в main (PR #40, sha-pinned merge, CI ×3 зелёный), Epic 3: 8/9
+
+done:
+- Публикация батчем по живому PAT: push a4724a5 + 49a1347 (голова DEVLOG-170 БЕЗ маркера — CI-запуск на голове, урок 2-14/ретро-2-1); RPO=0 живым ls-remote (ветка = 49a1347 = локальный HEAD).
+- CI ×3 зелёный поимённо: #39769537416 push 49a1347 (раннер ubuntu-26.04 + node24-пины v7, node 24.21.0, ~11м) / #39770735483 pull_request 49a1347 / #39771743260 push e4f4947 (merge-ран main).
+- PR #40 создан GitHub API (титул спеки + пин слияния в теле), sha-pinned merge исполнен ДО merge-рана: 49a1347421702808cae07c31bf4177a55d3fc1f3 → merge-commit e4f4947 в main; локальный main синхронен ff-only.
+- Story 3-8 полностью закрыта: спека done (Change Log 01-05 полный), sprint-status done, Epic 3: 8/9; ветка codex/story-3-8-recovery-case-creation остаётся на GitHub (удаление — по поручению владельца, прецедент 164-sm: MERGED-зонд merge-base перед удалением).
+
+next: по сигналу владельца — SM 3-9 (ограниченные действия Staffy во время recovery, последний срез эпика: FR-39; входы epics.md §3.9 + спеки 2-13/3-8) либо эпик-3-retrospective (optional). Владельцу: ОТЗВАТЬ PAT (retro-2-6 — передавался открытым текстом); слитая ветка 3-8 на GitHub — удаление по поручению.
+commit: e4f4947
