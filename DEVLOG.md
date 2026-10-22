@@ -4003,3 +4003,19 @@ done:
 
 next: Dev step-05 story 3-9 — QA-саморевью свежим контекстом (Major НЕТ: лестница не пишет на газах, локальность import-graph прод 0, идемпотентность структурно, замороженные секции 3-1..3-8 не тронуты — git diff поимённо, словари-зеркала закрыты контракт-тестом) + closure (Spec Change Log step-04/step-05, спека ready-for-dev → done, sprint-status 3-9 → done — Epic 3: 9/9) + батч-пуш ветки (заголовок step-05 БЕЗ [skip ci]) → CI ветки зелёный → CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge) по сигналу владельца; владельцу: отозвать PAT после сессии.
 commit: 868d9a0
+
+---
+
+date: 2026-10-22
+task: 178-dev-step-05
+role: main (Super Z)
+story: 3-9
+summary: Dev step-05 story 3-9 — QA-саморевью свежим контекстом и closure: Major НЕТ, спека done, sprint-status done — Epic 3: 9/9
+
+done:
+- QA-саморевью свежим контекстом по диффу ветки origin/main...HEAD (18 файлов +3247/−8): main.go НЕ тронут (wiring без изменений — контур локален, роут в BindRecovery reused); миграции 0 строк — первый срез Epic 3 без SQL подтверждён диффом; удалённые строки −8 разобраны поимённо (флип спеки backlog→ready-for-dev→done, расширение списка read-путей транспортного теста +policy, расширение fake-структуры +policyCalls/policyErr) — замороженные секции спек 3-1..3-8 не тронуты; зонд секретов по всему диффу — три совпадения паттерна = regex-паттерны самого qa_step_scan_3_9.py (детектор, не секреты), реальных 0; локальность пиннута row-9 import-graph (прод-корень cmd/staffy-core исключает синтетические адаптеры) + reflect-зонд NumMethod=5 (порт стора не расширен); идемпотентность структурно выводом (row-2 живой PG ×3 DeepEqual, z37 JSON-равенство повторного чтения); нулевые записи пиннуты счётчиками fake-repo (unit) + живым PG-зондом счётчиков строк/событий (row-2); словари-зеркала закрыты контракт-тестом (5+2+3, drift = красный); journeys 42/42 включая 41 замороженный — регресса поверхностей НЕТ.
+- Closure: Spec Change Log спеки 3-9 — запись step-04-завершение + step-05 QA/closure; спека ready-for-dev → done; sprint-status ключ 3-9-ограниченные-действия-staffy-во-время-recovery → done — Epic 3: 9/9 (все истории эпика закрыты: 3-1 каталог, 3-2 scoped controls, 3-3 идемпотентность, 3-4 preview, 3-5 авторизация, 3-6 dispatch, 3-7 reconcile, 3-8 recovery case, 3-9 recovery action policy).
+- Батч-пуш ветки заголовком step-05 БЕЗ [skip ci] — CI ветки должен пройти зелёным (Go checks + PostgreSQL integration + Browser journeys на ubuntu-26.04 / node24 / go1.27.1 — та же связка, что локально).
+
+next: CHECKPOINT 2 story 3-9 — по сигналу владельца: PR из ветки codex/story-3-9-recovery-action-policy → CI ×3 зелёный поимённо (push/PR/merge) → sha-pinned merge в main → DEVLOG 179-checkpoint-2 → слитая ветка удалить по поручению; далее эпик-ретро Epic 3 либо следующий эпик по сигналу SM; владельцу: отозвать PAT подтверждённо после сессии (retro-2-6, ≥10 передач открытым текстом за эпик).
+commit: TBD

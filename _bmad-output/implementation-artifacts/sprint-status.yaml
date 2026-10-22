@@ -80,7 +80,7 @@ development_status:
   3-6-execute-time-revalidation-dispatch-и-action-receipt: done
   3-7-reconciliation-неопределённых-и-частичных-результатов: done
   3-8-создание-связанного-recovery-case: done
-  3-9-ограниченные-действия-staffy-во-время-recovery: ready-for-dev
+  3-9-ограниченные-действия-staffy-во-время-recovery: done
   epic-3-retrospective: optional
 
   epic-4: backlog
