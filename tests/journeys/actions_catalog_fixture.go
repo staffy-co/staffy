@@ -185,6 +185,15 @@ type actionsFixture struct {
 	live    *actionApp.Service
 	empty   *actionApp.Service
 	preview *actionApp.Service
+	// The Story 3.8 AG-4 world: the SECOND composition over the SAME
+	// repositories and fact sources with the reconciliation adapter
+	// deliberately NIL (the honest production boundary — the integration
+	// matrix row-3 structure ported to the journeys world: the recovery
+	// eligibility answers reconciliation_unavailable there, the reconcile
+	// command refuses in words; the world switch rides the fixture-only
+	// /fixture/recovery-ag4 toggle, production never exposes it).
+	ag4        *actionApp.Service
+	ag4Enabled bool
 }
 
 // newActionsFixture constructs the contours and proves every fixture
@@ -217,6 +226,24 @@ func (f *actionsFixture) setPreviewWorld(service *actionApp.Service) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.preview = service
+}
+
+// setAG4World wires the Story 3.8 AG-4 composition (the main assembly
+// hands over the SAME world with the nil reconciliation adapter).
+func (f *actionsFixture) setAG4World(service *actionApp.Service) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.ag4 = service
+}
+
+// setAG4 switches the served composition of the preview mode (the
+// /fixture/recovery-ag4 toggle): the AG-4 world serves EVERY action
+// surface of the fixture while the flag is on — the composition root IS
+// the world (the honest production story: one binary, no adapter).
+func (f *actionsFixture) setAG4(enabled bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.ag4Enabled = enabled
 }
 
 // setLive switches the served contour (the /fixture/actions toggle): the
@@ -260,12 +287,18 @@ func (f *actionsFixture) service() actionAPI.ActionCatalogService {
 }
 
 // previewService picks the preparation contour: the Story 3-4 world when
-// the toggle chose it; every other contour answers the honest
-// not-configured refusal (the 3-1 pair carries no preparation ports — the
-// vertical never fakes them).
+// the toggle chose it (the AG-4 composition while its flag is on — the
+// SAME repositories, the honest composition switch); every other contour
+// answers the honest not-configured refusal (the 3-1 pair carries no
+// preparation ports — the vertical never fakes them).
 func (f *actionsFixture) previewService() actionAPI.PreviewService {
-	if f.mode == "preview" && f.preview != nil {
-		return f.preview
+	if f.mode == "preview" {
+		if f.ag4Enabled && f.ag4 != nil {
+			return f.ag4
+		}
+		if f.preview != nil {
+			return f.preview
+		}
 	}
 	return nil
 }

@@ -480,10 +480,18 @@ var _ actionAPI.AuthorizationService = (*actionsFixture)(nil)
 const authorizationNotConfiguredText = "Контур авторизации (подтверждение и Operation) не сконфигурирован: репозитории согласия и операции не подключены, команда честно отклоняется."
 
 // authorizationService picks the confirmation→authorization contour
-// under the lock: the Story 3-4/3-5 world when the toggle chose it.
+// under the lock: the Story 3-4/3-5 world when the toggle chose it (the
+// Story 3.8 AG-4 composition while its flag is on — the SAME
+// repositories, the nil reconciliation adapter; the composition root IS
+// the world).
 func (f *actionsFixture) authorizationService() actionAPI.AuthorizationService {
-	if f.mode == "preview" && f.preview != nil {
-		return f.preview
+	if f.mode == "preview" {
+		if f.ag4Enabled && f.ag4 != nil {
+			return f.ag4
+		}
+		if f.preview != nil {
+			return f.preview
+		}
 	}
 	return nil
 }

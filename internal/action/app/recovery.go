@@ -618,23 +618,33 @@ type RecoveryOperationCardExtension struct {
 }
 
 // recoveryOperationCardExtension derives the recovery fields of the
-// operation card: the eligibility over the RECORDED facts + the
-// declaredness halves + the wired fact (the SAME derivation the creation
-// command runs — the single source of the trigger truth), the existing
-// case pin by the operation (the idempotent surface link). The
-// unwired contour renders the honest empty extension (the card keeps
-// the inherited next-step word).
+// operation card: the existing case pin by the operation (the
+// context-preserving link FIRST — the case is FOREVER by UNIQUE, the
+// card keeps the transition to it through every later state of the
+// operation: a committed operation with a case still links its recovery
+// case — the journeys z36 catch, the AC-12 context preservation), then
+// the eligibility over the RECORDED facts + the declaredness halves +
+// the wired fact (the SAME derivation the creation command runs — the
+// single source of the trigger truth; the trigger word governs the
+// trigger span and the creation form only). The unwired contour renders
+// the honest empty extension (the card keeps the inherited next-step
+// word).
 func (s *Service) recoveryOperationCardExtension(ctx context.Context, scope tenancy.Context, op domain.Operation) RecoveryOperationCardExtension {
 	if s.recoveries == nil {
 		return RecoveryOperationCardExtension{}
 	}
+	extension := RecoveryOperationCardExtension{}
+	if existing, err := s.recoveries.ReadRecoveryCaseByOperation(ctx, scope, op.OperationID); err == nil {
+		extension.RecoveryCaseID = existing.RecoveryCaseID
+		extension.RecoveryCaseNo = existing.RecoveryCaseNo
+	}
 	facts, err := s.recoveries.ReadRecoveryOperationFacts(ctx, scope, op.OperationID)
 	if err != nil {
-		return RecoveryOperationCardExtension{}
+		return extension
 	}
 	def, ok := catalogDefinition(s, op.DefinitionID, op.DefinitionVersion)
 	if !ok {
-		return RecoveryOperationCardExtension{}
+		return extension
 	}
 	liveWord := ""
 	if s.caps != nil {
@@ -655,12 +665,8 @@ func (s *Service) recoveryOperationCardExtension(ctx context.Context, scope tena
 		NoEffectProven:          facts.NoEffectProven,
 	})
 	if err != nil || !eligibility.Eligible() {
-		return RecoveryOperationCardExtension{}
+		return extension
 	}
-	extension := RecoveryOperationCardExtension{Trigger: eligibility.Trigger}
-	if existing, err := s.recoveries.ReadRecoveryCaseByOperation(ctx, scope, op.OperationID); err == nil {
-		extension.RecoveryCaseID = existing.RecoveryCaseID
-		extension.RecoveryCaseNo = existing.RecoveryCaseNo
-	}
+	extension.Trigger = eligibility.Trigger
 	return extension
 }

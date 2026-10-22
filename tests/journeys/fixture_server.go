@@ -998,15 +998,44 @@ func main() {
 	// on the fixture path (the /fixture/reconcile* toggles script the
 	// verdict / correlation / evidence / failure words below).
 	reconcileRepo, reconcileAdapter := wireActionReconcileWorld(authorizationRepo, dispatchRepo)
+	// The Story 3.8 wiring (the fixture world IS the test contour —
+	// the recovery contour carries NO adapter of its own, the locality
+	// of the slice): the in-memory recovery repository over the SAME
+	// authorization rows, the SAME dispatch receipts and the SAME
+	// reconciliation verdicts (the frozen SAFE bundle, the keyed digest
+	// comparator, the append-only event history) — the read-time
+	// eligibility ladder and the LIVE-reading assignment of the REAL
+	// app service run on the fixture path (the wiring hands the
+	// repository ONLY to WithRecovery — AG-4 does not refuse this
+	// one: the recovery cases get created honestly).
+	recoveryRepo := newRecoveryMemoryRepository(authorizationRepo, dispatchRepo, reconcileRepo, previewRepo)
 	actions.setPreviewWorld(
 		newPreviewWorld(cases, controls, entitlement, readiness, connectors, previewRepo).
 			WithAuthorization(authorizationRepo, authorizationRepo).
 			WithDispatch(dispatchRepo, dispatchAdapter).
-			WithReconcile(reconcileRepo, reconcileAdapter))
+			WithReconcile(reconcileRepo, reconcileAdapter).
+			WithRecovery(recoveryRepo))
+	// The Story 3.8 AG-4 composition (the integration matrix row-3
+	// structure over the journeys world): the SAME fact sources and
+	// repositories with the reconciliation adapter deliberately NIL —
+	// the honest production boundary (no real owning systems exist;
+	// the recovery eligibility answers reconciliation_unavailable,
+	// the human is mandatory, the cases still get created honestly).
+	// The fixture-only /fixture/recovery-ag4 switch below serves this
+	// composition while the flag is on; production composes exactly
+	// this way (the adapter absence is a composition fact, not an
+	// error).
+	actions.setAG4World(
+		newPreviewWorld(cases, controls, entitlement, readiness, connectors, previewRepo).
+			WithAuthorization(authorizationRepo, authorizationRepo).
+			WithDispatch(dispatchRepo, dispatchAdapter).
+			WithReconcile(reconcileRepo, nil).
+			WithRecovery(recoveryRepo))
 	server.BindActionPreviews(actions)
 	server.BindAuthorization(actions)
 	server.BindDispatch(actions)
 	server.BindReconcile(actions)
+	server.BindRecovery(actions)
 	// The fixture-only step-up toggle wraps the transport: production never
 	// exposes it; the journey uses it to walk both step-up outcomes.
 	root := http.NewServeMux()
@@ -1217,6 +1246,20 @@ func main() {
 	root.HandleFunc("POST /fixture/reconcile-evidence", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
 		reconcileAdapter.ScriptEvidence(strings.TrimSpace(r.FormValue("object_id")), strings.TrimSpace(r.FormValue("object_version")))
+		w.WriteHeader(http.StatusNoContent)
+	})
+	// The fixture-only recovery-world switch (Story 3.8): the z36
+	// journey walks BOTH honest compositions of the vertical — the
+	// wired world (the synthetic read-only adapter serves the
+	// reconcile command) and the AG-4 production world (the nil
+	// adapter: the recovery eligibility answers
+	// reconciliation_unavailable, the reconcile command refuses in
+	// words — "сверка подключается" later through this door). The
+	// repositories are SHARED — the worlds differ by the composition
+	// fact only; production never exposes the toggle.
+	root.HandleFunc("POST /fixture/recovery-ag4", func(w http.ResponseWriter, r *http.Request) {
+		r.ParseForm()
+		actions.setAG4(r.FormValue("enabled") == "1")
 		w.WriteHeader(http.StatusNoContent)
 	})
 	root.Handle("/", server.Handler())
