@@ -3693,6 +3693,18 @@ paths:
         '401': { $ref: '#/components/responses/Problem' }
         '403': { description: 'Скоуп operations словами ДО чтения', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
         '404': { description: 'Не-участник либо неизвестный кейс — поверхность не раскрывается', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/recovery-cases/{recovery_case_id}/policy:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+    get:
+      operationId: readRecoveryCasePolicy
+      summary: 'READ-TIME recovery action policy ОДНОГО кейса (3-9, FR-39): вывод разрешённого набора видов 5 с DECLARED атрибутами AC-2 + состояния {allowed/blocked/human_only} honest-словами + human-only класс 2 ОТДЕЛЬНО (AC-1); НИ ОДНОЙ записи (идемпотентность выводом — повторный запрос = тот же вывод), НИ одного сетевого вызова (AG-4, reflect-зонд); пустое GET без тела — 400 НЕ возвращается'
+      x-staffy-principal-required: true
+      responses:
+        '200': { description: 'Политика разрешённых действий кейса (5 видов + human-only класс 2)', content: { application/json: { schema: { type: object, required: [recovery_policy], properties: { recovery_policy: { $ref: '#/components/schemas/RecoveryPolicyView' } } } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Скоуп operations словами ДО чтения (права поверхности карточки reused)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { description: 'Не-участник либо неизвестный кейс — membership-404 ДО материала (прецедент 3-8)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
 components:
   parameters:
     EmployeeID:
@@ -7654,6 +7666,18 @@ components:
       type: string
       enum: [created, idempotent, evidence]
       description: 'Словарь решений команды создания (3 слова): created — новый кейс (строка + событие + outbox); idempotent — повтор с неизменённым bundle digest (существующий кейс, второй строки и события НЕТ); evidence — повтор с дельтой (ОДНА append-only строка evidence_appended)'
+    RecoveryActionKindWord:
+      type: string
+      enum: [request_evidence, show_recorded_conditions, truthful_status_update, offer_approved_options, prepare_pause_cancel]
+      description: 'Словарь видов recovery action policy (5 слов, compile-time — 3-9): стандартная recovery policy эпика FR-39; вне-словарное действие НЕВОЗМОЖНО (словарь заморожен в коде, расширение = словарный ревью, никогда рантайм); зеркала OpenAPI/домена пинятся контракт-тестом (drift = красный)'
+    RecoveryHumanOnlyWord:
+      type: string
+      enum: [liability_or_fault, nonstandard_outcome]
+      description: 'Словарь human-only решений (2 слова — класс перечислен ОТДЕЛЬНО от набора видов, AC-1): liability_or_fault — признание вины/юридический вывод; nonstandard_outcome — нестандартная компенсация/возврат/исключение; только человек (PRD FR-39 дословно)'
+    RecoveryActionStateWord:
+      type: string
+      enum: [allowed, blocked, human_only]
+      description: 'Словарь состояний вида политики (3 слова, read-time): allowed — вид в праве системы (материальный несёт Confirmation-требование, AC-13); blocked — граница блокирует (paused scoped control блокирует материальные виды ТОЧНЫМ словом, чтение остаётся — AC-10 эпика 3.7 наследуется); human_only — правило отсутствует/неоднозначно, решение за человеком (fail-closed AC-1 хвост)'
     RecoveryObservationPinView:
       type: object
       additionalProperties: false
@@ -7743,6 +7767,44 @@ components:
         decision: { $ref: '#/components/schemas/RecoveryDecisionWord' }
         text: { type: string, description: 'Фиксированный honest-текст исхода (тексты домена)' }
         recovery_case: { $ref: '#/components/schemas/RecoveryCaseView' }
+    RecoveryActionView:
+      type: object
+      additionalProperties: false
+      required: [kind, state, state_text, scope_text, eligibility_rule_text, required_facts_text, authority_text, confirmation_required]
+      description: 'ОДИН вид recovery action policy (3-9, AC-2 дословно): DECLARED compile-time атрибуты вида (scope/eligibility/требуемые факты/authority/Confirmation) + read-time состояние {allowed/blocked/human_only} с honest-словом причины; состояние НИКОГДА не обещает успех действия (политика — граница права, не план исполнения); состояние не хранится — каждый запрос выводит заново (идемпотентность выводом)'
+      properties:
+        kind: { $ref: '#/components/schemas/RecoveryActionKindWord' }
+        state: { $ref: '#/components/schemas/RecoveryActionStateWord' }
+        state_text: { type: string, description: 'Honest-слово причины состояния (paused — ТОЧНОЕ слово scoped control режима+причины; fail-closed — нечитаемое определение/контроль, семантика не объявлена, вариантов нет; AG-4 — сверка не подключена в статусном слове)' }
+        scope_text: { type: string, description: 'Область действия слова (compile-time константа вида)' }
+        eligibility_rule_text: { type: string, description: 'Read-time правило вывода (compile-time константа вида)' }
+        required_facts_text: { type: string, description: 'Требуемые записанные факты вида (compile-time константа)' }
+        authority_text: { type: string, description: 'Чьё право: operator manage / человек' }
+        confirmation_required: { type: boolean, description: 'Материальные виды true («требует отдельного явного подтверждения» — AC-13 минимум); read-only false' }
+    RecoveryHumanOnlyDecisionView:
+      type: object
+      additionalProperties: false
+      required: [kind, boundary_text]
+      description: 'ОДНО human-only решение (3-9, AC-1 — класс перечислен ОТДЕЛЬНО от разрешённого набора): слова границы PRD FR-39 дословно; решения только человек — система не исполняет, не готовит и не подтверждает их'
+      properties:
+        kind: { $ref: '#/components/schemas/RecoveryHumanOnlyWord' }
+        boundary_text: { type: string, description: 'Текст границы: «Только человек — …» (PRD FR-39 последствия)' }
+    RecoveryPolicyView:
+      type: object
+      additionalProperties: false
+      required: [recovery_case_id, actions, human_only_decisions, human_only_class_text]
+      description: 'READ-TIME recovery action policy ОДНОГО кейса (3-9, FR-39): чистый вывод над живыми чтениями (кейс/факты/каталог/controls/AG-4) — НИ ОДНОЙ записи, НИ одного сетевого вызова, повторный запрос = тот же вывод байт-стабильно; «текст модели не добавляет новый вариант» СТРУКТУРНО (генеративного пути нет — AI Runtime отсутствует AG-4, набор = вывод детерминированного кода); машинный вид для будущего planner (AD-7)'
+      properties:
+        recovery_case_id: { type: string, format: uuid }
+        actions:
+          type: array
+          description: 'Пять видов в порядке словаря (фиксированный порядок машинного вида и секции страницы)'
+          items: { $ref: '#/components/schemas/RecoveryActionView' }
+        human_only_decisions:
+          type: array
+          description: 'Human-only класс отдельно от набора (AC-1): 2 слова с текстами границ'
+          items: { $ref: '#/components/schemas/RecoveryHumanOnlyDecisionView' }
+        human_only_class_text: { type: string, description: 'Класс-текст границы PRD FR-39 дословно: признание вины, юридический вывод и нестандартный возврат/компенсация требуют человека' }
     ReconciliationAttemptView:
       type: object
       additionalProperties: false

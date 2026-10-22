@@ -428,3 +428,23 @@ func (f *actionsFixture) ReadRecoveryCases(ctx context.Context, actor domain.Pri
 	}
 	return recovery.ReadRecoveryCases(ctx, actor, tenantID)
 }
+
+// RecoveryCasePolicy delegates to the active authorization contour (the
+// READ-TIME policy derivation of story 3-9: the allowed set of the FIVE
+// kinds with the DECLARED attributes + the per-kind state words + the
+// SEPARATE human-only class — the REAL app derivation answers through
+// the fixture path; the paused controls and the catalog semantics read
+// the SAME live world of the fixture).
+func (f *actionsFixture) RecoveryCasePolicy(ctx context.Context, actor domain.Principal, tenantID, recoveryCaseID id.UUID) (actionAPI.RecoveryPolicyView, error) {
+	f.mu.Lock()
+	service := f.authorizationService()
+	f.mu.Unlock()
+	if service == nil {
+		return actionAPI.RecoveryPolicyView{}, actionDomain.RuleError{Rule: "recovery_case_policy", Reason: authorizationNotConfiguredText}
+	}
+	recovery, ok := service.(actionAPI.RecoveryService)
+	if !ok {
+		return actionAPI.RecoveryPolicyView{}, actionDomain.RuleError{Rule: "recovery_case_policy", Reason: authorizationNotConfiguredText}
+	}
+	return recovery.RecoveryCasePolicy(ctx, actor, tenantID, recoveryCaseID)
+}

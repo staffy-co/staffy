@@ -222,6 +222,15 @@ func TestOperationContractIsHonest(t *testing.T) {
 	assertEnumMirrors(t, mapping(t, schemas, "RecoveryEventKindWord")["enum"], actionDomain.RecoveryEventKindWords, "recovery_event_kind")
 	assertEnumMirrors(t, mapping(t, schemas, "RecoveryCaseStateWord")["enum"], actionDomain.RecoveryCaseStateWords, "recovery_case_state")
 	assertEnumMirrors(t, mapping(t, schemas, "RecoveryDecisionWord")["enum"], []string{"created", "idempotent", "evidence"}, "recovery_decision")
+	// The recovery action policy dictionaries (3-9 step-03): the kind
+	// words (5 — the standard recovery policy of the epic), the
+	// human-only words (2 — the class listed SEPARATELY from the set,
+	// AC-1) and the state words (3 — the per-kind read-time answer) —
+	// every wire word a compile-time dictionary word (the drift turns
+	// the mirror red).
+	assertEnumMirrors(t, mapping(t, schemas, "RecoveryActionKindWord")["enum"], actionDomain.RecoveryActionKindWords, "recovery_action_kind")
+	assertEnumMirrors(t, mapping(t, schemas, "RecoveryHumanOnlyWord")["enum"], actionDomain.RecoveryHumanOnlyWords, "recovery_human_only")
+	assertEnumMirrors(t, mapping(t, schemas, "RecoveryActionStateWord")["enum"], actionDomain.RecoveryActionStateWords, "recovery_action_state")
 
 	// The drain path (3-6 step-03): the explicit operator command — the
 	// honest ladder 201/400/401/403/404, the EMPTY strict body, the
@@ -357,7 +366,7 @@ func TestOperationContractIsHonest(t *testing.T) {
 	if required, _ := recoveryCardGet["x-staffy-principal-required"].(bool); !required {
 		t.Errorf("the recovery card does not document the principal boundary")
 	}
-	for _, readPath := range []string{"/v1/tenants/{tenant_id}/recovery-cases", "/v1/tenants/{tenant_id}/recovery-cases/{recovery_case_id}"} {
+	for _, readPath := range []string{"/v1/tenants/{tenant_id}/recovery-cases", "/v1/tenants/{tenant_id}/recovery-cases/{recovery_case_id}", "/v1/tenants/{tenant_id}/recovery-cases/{recovery_case_id}/policy"} {
 		readResponses := mapping(t, mapping(t, mapping(t, paths, readPath), "get"), "responses")
 		for _, code := range []string{"200", "401", "403", "404"} {
 			if _, documented := readResponses[code]; !documented {
@@ -366,6 +375,31 @@ func TestOperationContractIsHonest(t *testing.T) {
 		}
 		if _, documented := readResponses["400"]; documented {
 			t.Errorf("the recovery read %s must not document a 400: the view carries no material to refuse", readPath)
+		}
+	}
+
+	// The recovery policy path (3-9 step-03): the READ-TIME derivation of
+	// the allowed set — the principal boundary, the honest ladder
+	// 200/401/403/404 with NO 400 (the empty GET never refuses), the
+	// policy wrapper reference and the honest words of the summary
+	// (записей нет, идемпотентность выводом, AG-4).
+	policyGet := mapping(t, mapping(t, paths, "/v1/tenants/{tenant_id}/recovery-cases/{recovery_case_id}/policy"), "get")
+	if policyGet["operationId"] != "readRecoveryCasePolicy" {
+		t.Errorf("the recovery policy operation id is wrong: %v", policyGet["operationId"])
+	}
+	if required, _ := policyGet["x-staffy-principal-required"].(bool); !required {
+		t.Errorf("the recovery policy does not document the principal boundary")
+	}
+	policyResponses := mapping(t, policyGet, "responses")
+	policySchema := mapping(t, mapping(t, mapping(t, mapping(t, policyResponses, "200"), "content"), "application/json"), "schema")
+	policyProps := mapping(t, policySchema, "properties")
+	if ref, _ := policyProps["recovery_policy"].(map[string]any)["$ref"].(string); ref != "#/components/schemas/RecoveryPolicyView" {
+		t.Errorf("the policy 200 answer must reference RecoveryPolicyView, got %v", policySchema)
+	}
+	policySummary, _ := policyGet["summary"].(string)
+	for _, word := range []string{"FR-39", "AC-2", "AC-1", "идемпотентность"} {
+		if !contains(policySummary, word) {
+			t.Errorf("the policy summary must document the honest words (%q missing): %q", word, policySummary)
 		}
 	}
 
@@ -402,6 +436,9 @@ func TestOperationContractIsHonest(t *testing.T) {
 		{"RecoveryLinksView", 13},
 		{"RecoveryCaseView", 18},
 		{"RecoveryCreateResultView", 3},
+		{"RecoveryActionView", 8},
+		{"RecoveryHumanOnlyDecisionView", 2},
+		{"RecoveryPolicyView", 4},
 	} {
 		schema := mapping(t, schemas, spec.name)
 		if additional, ok := schema["additionalProperties"].(bool); !ok || additional {

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/artemiosu/staffy/internal/action/api"
 	"github.com/artemiosu/staffy/internal/action/domain"
 	"github.com/artemiosu/staffy/internal/action/port"
 	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
@@ -67,7 +68,7 @@ var policyAccept = port.ControlEffective{Mode: domain.ScopedControlAccept, Gener
 var policyPaused = port.ControlEffective{Mode: domain.ScopedControlPaused, Generation: 4, Reason: "connector paused оператором"}
 
 // policyState resolves ONE kind answer of the policy view.
-func policyState(t *testing.T, policy domain.RecoveryPolicy, kind string) domain.RecoveryPolicyAction {
+func policyState(t *testing.T, policy api.RecoveryPolicyView, kind string) api.RecoveryActionView {
 	t.Helper()
 	for _, action := range policy.Actions {
 		if action.Kind == kind {
@@ -75,7 +76,7 @@ func policyState(t *testing.T, policy domain.RecoveryPolicy, kind string) domain
 		}
 	}
 	t.Fatalf("вид «%s» отсутствует в выводе политики", kind)
-	return domain.RecoveryPolicyAction{}
+	return api.RecoveryActionView{}
 }
 
 // TestRecoveryPolicyZeroWritesOnEveryPath pins the ZERO-WRITE property
@@ -164,8 +165,8 @@ func TestRecoveryPolicyFullAllowedSet(t *testing.T) {
 	if err != nil {
 		t.Fatalf("вывод политики отказал: %v", err)
 	}
-	if len(policy.Actions) != 5 || len(policy.HumanOnly) != 2 {
-		t.Fatalf("вывод: виды=%d human-only=%d, ожидалось 5/2", len(policy.Actions), len(policy.HumanOnly))
+	if len(policy.Actions) != 5 || len(policy.HumanOnlyDecisions) != 2 {
+		t.Fatalf("вывод: виды=%d human-only=%d, ожидалось 5/2", len(policy.Actions), len(policy.HumanOnlyDecisions))
 	}
 	if state := policyState(t, policy, domain.RecoveryActionShowRecordedConditions).State; state != domain.RecoveryActionStateAllowed {
 		t.Fatalf("show_recorded_conditions state=%s, ожидался allowed", state)

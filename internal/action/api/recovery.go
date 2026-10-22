@@ -155,6 +155,60 @@ type RecoveryService interface {
 	// (bounded by the panel limit), ordered by the creation moment
 	// descending.
 	ReadRecoveryCases(ctx context.Context, actor identityDomain.Principal, tenantID id.UUID) ([]RecoveryCaseView, error)
+	// RecoveryCasePolicy derives the READ-TIME recovery action policy of
+	// ONE case (story 3-9): the allowed set of the FIVE kinds with the
+	// DECLARED compile-time attributes (AC-2) and the per-kind state
+	// words {allowed/blocked/human_only} with the honest reason texts +
+	// the SEPARATE human-only class (AC-1) — a pure derivation over the
+	// LIVE readings, NOT ONE row lands anywhere, the repeated request
+	// answers the SAME view. Unknown answers the honest 404 (the
+	// membership blindness BEFORE any material).
+	RecoveryCasePolicy(ctx context.Context, actor identityDomain.Principal, tenantID, recoveryCaseID id.UUID) (RecoveryPolicyView, error)
+}
+
+// ---------------------------------------------------------------------------
+// Story 3.9 (step-03): the recovery action policy surface (the DTO
+// layer — the transport renders THESE shapes only; the machine view the
+// future planner validates its proposals against, AD-7)
+// ---------------------------------------------------------------------------
+
+// RecoveryActionView is ONE kind's policy answer of the machine view:
+// the kind word, the read-time state word {allowed/blocked/human_only}
+// with the honest reason text, and the DECLARED compile-time attributes
+// of the kind — AC-2 дословно: «каждый вариант имеет scope,
+// eligibility, требуемые факты, authority и Confirmation». The state
+// NEVER promises the success of the action (the policy is the boundary
+// of the RIGHT, not an execution plan).
+type RecoveryActionView struct {
+	Kind                 string `json:"kind"`
+	State                string `json:"state"`
+	StateText            string `json:"state_text"`
+	ScopeText            string `json:"scope_text"`
+	EligibilityRuleText  string `json:"eligibility_rule_text"`
+	RequiredFactsText    string `json:"required_facts_text"`
+	AuthorityText        string `json:"authority_text"`
+	ConfirmationRequired bool   `json:"confirmation_required"`
+}
+
+// RecoveryHumanOnlyDecisionView is ONE human-only decision word of the
+// SEPARATE class with its boundary text (AC-1: the class is listed
+// apart from the allowed set — the words never mix; the boundary words
+// are the PRD FR-39 consequences verbatim).
+type RecoveryHumanOnlyDecisionView struct {
+	Kind         string `json:"kind"`
+	BoundaryText string `json:"boundary_text"`
+}
+
+// RecoveryPolicyView is the machine policy view of ONE case: the case
+// pin, the FIVE kind answers in the dictionary order (the fixed order
+// of the machine view and the page section) and the human-only class
+// with the class-level boundary word. The material NEVER enters (words
+// and attributes only — the SAFE discipline of the module, AD-10).
+type RecoveryPolicyView struct {
+	RecoveryCaseID     id.UUID                         `json:"recovery_case_id"`
+	Actions            []RecoveryActionView            `json:"actions"`
+	HumanOnlyDecisions []RecoveryHumanOnlyDecisionView `json:"human_only_decisions"`
+	HumanOnlyClassText string                          `json:"human_only_class_text"`
 }
 
 // The store-contract errors of the recovery contour the transport maps
@@ -188,3 +242,15 @@ var RecoveryEventKindWordsView = domain.RecoveryEventKindWords
 
 // RecoveryCaseStateWordsView re-exports the case state dictionary.
 var RecoveryCaseStateWordsView = domain.RecoveryCaseStateWords
+
+// RecoveryActionKindWordsView re-exports the policy kind dictionary
+// (the enum mirror of the contract test — the drift turns it red).
+var RecoveryActionKindWordsView = domain.RecoveryActionKindWords
+
+// RecoveryHumanOnlyWordsView re-exports the human-only dictionary (the
+// enum mirror of the contract test — the class is listed SEPARATELY).
+var RecoveryHumanOnlyWordsView = domain.RecoveryHumanOnlyWords
+
+// RecoveryActionStateWordsView re-exports the policy state dictionary
+// (the enum mirror of the contract test).
+var RecoveryActionStateWordsView = domain.RecoveryActionStateWords
