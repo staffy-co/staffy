@@ -120,10 +120,11 @@ test('capability state shows declared vs proven, verifies a read-only probe, blo
   await connection.getByRole('button', { name: 'Проверить и подключить' }).click();
 
   // The capability panel appears with declared vs proven semantics.
+  // Spec 4-1 raised the synthetic telephony contract to 1.2.0 (SIP probe set).
   const connected = page.locator('.connection-list .employee-card', { hasText: 'Возможности Олега' });
   const panel = connected.locator('.capability-state');
   await expect(panel.getByRole('heading', { name: 'Возможности (Capability State)' })).toBeVisible();
-  await expect(panel).toContainText('Заявленные контрактом 1.1.0');
+  await expect(panel).toContainText('Заявленные контрактом 1.2.0');
   const trunk = panel.locator('.capability', { hasText: 'Статус транка' });
   await expect(trunk.locator('.cap-state')).toHaveText('не проверено');
   await expect(trunk).toContainText('исходящая · query');

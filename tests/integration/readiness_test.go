@@ -145,7 +145,7 @@ func (w *readinessWorld) connectSyntheticTelephony(t *testing.T) id.UUID {
         created, err := w.connector.Create(ctx, connectorAPI.CreateCommand{
                 Actor: w.owner, TenantID: w.tenant, IdempotencyKey: fmt.Sprintf("readiness-connection-%d", time.Now().UnixNano()),
                 CorrelationID: id.MustParse("01994f64-6c00-7000-8000-000000000705"),
-                ConnectorID:   "staffy-synthetic-telephony", ConnectorVer: "1.1.0",
+                ConnectorID:   "staffy-synthetic-telephony", ConnectorVer: "1.2.0",
                 Label: "Телефония кандидата", Environment: connectorDomain.EnvSandbox,
                 Config: map[string]string{"endpoint": "https://readiness.sandbox.example/api"},
         })

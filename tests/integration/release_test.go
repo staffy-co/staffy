@@ -559,7 +559,7 @@ func TestConfiguratorSealsManifestThroughFactsPort(t *testing.T) {
         created, err := w.connector.Create(ctx, connectorAPI.CreateCommand{
                 Actor: w.owner, TenantID: w.tenant, IdempotencyKey: "release-connection-101",
                 CorrelationID: id.MustParse("01994f64-6c00-7000-8000-000000000911"),
-                ConnectorID: "staffy-synthetic-telephony", ConnectorVer: "1.1.0",
+                ConnectorID: "staffy-synthetic-telephony", ConnectorVer: "1.2.0",
                 Label: "Телефония Олега", Environment: connectorDomain.EnvSandbox,
                 Config: map[string]string{"endpoint": "https://synthetic.example.test"},
         })

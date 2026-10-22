@@ -315,7 +315,9 @@ func (stubVerifier) Build() string { return "stub/1.0" }
 func createCommand() api.CreateCommand {
         return api.CreateCommand{
                 Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, IdempotencyKey: "create-key-123", CorrelationID: connCorrelation,
-                ConnectorID: "staffy-synthetic-telephony", ConnectorVer: "1.1.0", Label: "Тестовая телефония", Environment: connectorDomain.EnvSandbox,
+                // Spec 4-1 raised the synthetic telephony contract to 1.2.0
+                // (the SIP probe set of AC-6) — new connections pin the latest.
+                ConnectorID: "staffy-synthetic-telephony", ConnectorVer: "1.2.0", Label: "Тестовая телефония", Environment: connectorDomain.EnvSandbox,
                 Config: map[string]string{"endpoint": "https://demo.sandbox.example"},
         }
 }
@@ -673,8 +675,8 @@ func TestVerifyCapabilityLifecycleGuardsAndIdempotency(t *testing.T) {
         if err != nil {
                 t.Fatalf("capability state: %v", err)
         }
-        if len(state.Capabilities) != 3 {
-                t.Fatalf("contract 1.1.0 declares 3 capabilities, got %d", len(state.Capabilities))
+        if len(state.Capabilities) != 8 {
+                t.Fatalf("contract 1.2.0 declares 8 capabilities (3 prior + 5 SIP queries of spec 4-1), got %d", len(state.Capabilities))
         }
         byID := map[string]connectorDomain.CapabilityReport{}
         for _, report := range state.Capabilities {
