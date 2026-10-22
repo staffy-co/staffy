@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-16-2026 16:47
-last_updated: 10-21-2026
+last_updated: 10-23-2026
 project: staffy
 project_key: NOKEY
 tracking_system: file-system
@@ -71,7 +71,7 @@ development_status:
   2-16-правдивые-обновления-и-явный-возврат-из-handoff: done
   epic-2-retrospective: done
 
-  epic-3: in-progress
+  epic-3: done
   3-1-каталог-разрешённых-business-actions: done
   3-2-scoped-controls-и-аварийное-ограничение-работы: done
   3-3-надёжное-сохранение-внешнего-commitment-до-отправки: done
@@ -81,7 +81,7 @@ development_status:
   3-7-reconciliation-неопределённых-и-частичных-результатов: done
   3-8-создание-связанного-recovery-case: done
   3-9-ограниченные-действия-staffy-во-время-recovery: done
-  epic-3-retrospective: optional
+  epic-3-retrospective: done
 
   epic-4: backlog
   4-1-допуск-каналов-и-систем-пилота-магазина-олега: backlog
@@ -183,5 +183,32 @@ action_items:
     status: open
   - id: retro-2-6
     action: Ревокация всех выданных PAT владельцем после закрытия чата (≥10 передач открытым текстом за эпик)
+    owner: owner
+    status: open
+
+# Action items из epic-3-retrospective (2026-10-23, коммит см. DEVLOG 180-retro):
+  - id: retro-3-1
+    action: Перенос honest-границ спек 3-1..3-9 в регистр deferred-work (9 новых записей с source_spec/evidence — исполнен ретро-коммитом; annotation, не удаление — прецедент retro-1-2)
+    owner: epic-3-retrospective
+    status: done
+    resolution: 9 записей добавлены в deferred-work.md этим же коммитом (планировщик drain/reconcile, webhook-приёмник, многошаговые частичные эффекты, cancel/compensation исполнение, claim-режим recovery_case.created, recovery-обновления клиенту, eval-инфраструктура, tenant-конфигурация действий, recovery-scope сверки при paused)
+  - id: retro-3-2
+    action: Актуализация порога retro-2-5 под факт (journeys 37 spec-файлов / 42 теста, планировалось ≥ 28 — устарело до реализации); реализация обоих пунктов retro-2-5 — epic-валидация в check-continuity.sh (FAIL при заявке закрытого эпика с не-done stories, WARN на противоречия next:) и CI-шаг git ls-files tests/journeys ≥ 37
+    owner: next-dev-cycle
+    status: open
+  - id: retro-3-3
+    action: Регистр слотов миров/ID-диапазонов интеграционных тестов (retro-2-3 актуализирован: a2xx занят матрицами 3-1, b2xx — матрицами 3-2; новые миры Epic 4 — c2xx+; таблица мир → seed → диапазон в AGENTS.md либо scripts/)
+    owner: dev
+    status: open
+  - id: retro-3-4
+    action: Отчётная метрика тестового покрытия = строки живых матриц + зонды, НЕ число функций (+10 интеграционных функций при +519 unit и матрицах 21/21/28/9 строк вводит в заблуждение); DEVLOG-заявки сопровождать счётчиком строк матриц
+    owner: dev
+    status: open
+  - id: retro-3-5
+    action: Clock-шаги в journeys для backoff/lease-окон сверки (прецеденты: z37 clock-шаги 1/2/3 exhaustion-цепочки, z35 /fixture/clock lease-истечение); динамические номера объектов из API вместо жёстких пинов (z36 создаёт №1/№2 в общем fixture-сервере)
+    owner: dev
+    status: open
+  - id: retro-3-6
+    action: Ревокация всех выданных PAT владельцем после закрытия чата (retro-2-6 повторён: ≥15 передач открытым текстом за эпик, одна верифицированная смерть токена, env-only per-invocation выдержан)
     owner: owner
     status: open

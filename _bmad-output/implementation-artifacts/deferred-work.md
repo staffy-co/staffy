@@ -198,3 +198,39 @@
 - source_spec: `spec-2-12-degraded-mode-channel-failure-callback.md`
   summary: PascalCase-сериализация доменного PolicyOutcome на машинном JSON-пути: readCaseAPI (GET-ответ кейса) маршалит cases.Domain.PolicyOutcome напрямую — поля структуры без json-тегов (OutcomeClass/Reason/RuleVersion/ActiveAlternatives/DegradedPermittedPaths/InputSnapshot…), тогда как contracts/openapi PolicyOutcomeView документирует snake_case (outcome_class, reason, rule_version, active_alternatives, degraded_permitted_paths, input_snapshot…). Долг существует с 2-6 (поля 2-11 ActiveAlternatives и 2-12 DegradedPermittedPaths следуют конвенции структуры); СЛОВА словарей путешествуют проводом одинаково — расходится только регистр ключей. Собственные DTO 2-12 (RouteDegradationView/ReplyDeliveryView/WorkOutcome/PolicyView/PolicyInputSnapshot) несут настоящие snake_case-теги. Полное закрытие = json-теги доменной структуры PolicyOutcome + wire round-trip контракт-тест (httptest против readCaseAPI, ключи ответа) — правка машинной поверхности 2-6, вне замороженного скоупа 2-12 («не трогать материал 2-6»); цель — отдельный срез выравнивания контракта (одна структура, один тест, ноль семантических изменений значений).
   evidence: QA-саморевью step-05 (2026-10-15): живая проба json.Marshal(PolicyOutcome) — ключи PascalCase; internal/cases/api/policy.go PolicyWorkItemView.Outcomes []casesDomain.PolicyOutcome json:"outcomes" (прямая сериализация домена); OpenAPI PolicyOutcomeView — snake_case required/properties; интеграционная матрица 2-12 ассертит поля структур (не проводной JSON), journeys ходят живым HTML-транспортом — потому расхождение не ловилось контракт-тестами YAML.
+
+- source_spec: `spec-3-6-dispatch-and-action-receipt.md`
+  summary: Планировщик/демон для drain (3-3/3-6) и reconcile (3-7): обе команды — явные операторские (POST …/operations/drain, POST …/operations/reconcile), запуск по требованию; фоновое исполнение (ticker/воркер) — будущая инфраструктура, честно задокументированная границей «планировщик — будущая инфраструктура».
+  evidence: спека 3-6 «НИКАКОГО фонового демона/ticker (честная граница: планировщик — будущая инфраструктура)»; спека 3-7 «явная команда reconcile (drain-прецедент, БЕЗ демона)»; записи копятся pending до команды оператора; перенесено в регистр epic-3-retrospective (2026-10-23, retro-3-1).
+
+- source_spec: `spec-3-7-reconciliation-of-uncertain-results.md`
+  summary: Webhook/приёмник поздних квитанций провайдера: повтор webhook моделируется повтором команды сверки (наследие 3-5/3-6 replay-моделирования); собственный ингресс-контур поздних доказательств не построен.
+  evidence: спека 3-7 honest-границы «webhook/приёмник поздних квитанций (повтор webhook моделируется повтором команды сверки — наследие 3-5/3-6)»; перенесено epic-3-retrospective (2026-10-23, retro-3-1).
+
+- source_spec: `spec-3-7-reconciliation-of-uncertain-results.md`
+  summary: Многошаговые частичные эффекты сверки (AC-4 эпика отложен): продюсера частичных результатов нет — вердикт-словарь сверки {committed, no_effect, in_progress} + no_answer покрывает одношаговую семантику; многошаговый разбор появится с реальными провайдерами, дающими промежуточные состояния.
+  evidence: спека 3-7 honest-границы «многошаговые частичные эффекты (нет продюсера — будущая поверхность, AC-4 эпика отложен)»; перенесено epic-3-retrospective (2026-10-23, retro-3-1).
+
+- source_spec: `spec-3-7-reconciliation-of-uncertain-results.md`
+  summary: Cancel/compensation ИСПОЛНЕНИЕ операций (AC-7/AC-8 эпика): семантики CancelCompensationSemantics декларированы каталогом 3-1 (проверяются guard'ом), политика 3-9 разрешает prepare_pause_cancel только при объявленной семантике — но исполнителей отмены/компенсации нет; справедливые будущие срезы объявят контур исполнения.
+  evidence: спека 3-7 honest-границы «cancel/compensation операции (AC-7/AC-8 — будущие срезы 3-7)»; спека 3-9 AC-4 «pause/cancel исполнение (декларировано, Action Preview будущий срез)»; перенесено epic-3-retrospective (2026-10-23, retro-3-1).
+
+- source_spec: `spec-3-8-recovery-case-creation.md`
+  summary: Claim-режим события recovery_case.created (AC-3 эпика): потребитель события будущий — записи честно копятся pending (прецедент receipt.created 3-6); ингресс внешних претензий по recovery-кейсам отсутствует.
+  evidence: спека 3-8 «потребитель будущий — claim-режим и контур 3-9 читают событие, записи честно копятся pending»; спека 3-9 honest-границы «claim-ингресс AC-3 (потребителя нет — событие recovery_case.created копится pending)»; перенесено epic-3-retrospective (2026-10-23, retro-3-1).
+
+- source_spec: `spec-3-9-recovery-action-policy.md`
+  summary: Recovery-обновления КЛИЕНТУ (AC-9): правдивые status-слова и дедлайн словами существуют на операторской карточке, обещания обновления не создаётся; отправка обновлений клиенту во время recovery — будущий срез (клиентская поверхность).
+  evidence: спека 3-9 honest-границы «отправка обновлений AC-9 (слова 3-8 + дедлайн словами, обещания нет)»; перенесено epic-3-retrospective (2026-10-23, retro-3-1).
+
+- source_spec: `spec-3-9-recovery-action-policy.md`
+  summary: Eval-инфраструктура recovery-ответов (AC-12): оценка качества recovery-действий не построена — инфраструктура будущая, за пределами read-time политики.
+  evidence: спека 3-9 honest-границы «eval AC-12 (инфраструктура будущая)»; перенесено epic-3-retrospective (2026-10-23, retro-3-1).
+
+- source_spec: `spec-3-1-business-action-catalog.md`
+  summary: Tenant-конфигурация разрешённых действий с release-манифестом (AC-4 каталога — второй срез): сегодня каталог compile-time определений fixture-контура (AG-4: провайдеров нет); конфигурирование допустимых действий на тенанта с релизной дисциплиной 1-12 — будущая поверхность.
+  evidence: спека 3-1 Never-границы «tenant-конфигурация разрешённых действий (AC-4 — второй срез: employee-конфигурация с release-манифестом 1-12)»; перенесено epic-3-retrospective (2026-10-23, retro-3-1).
+
+- source_spec: `spec-3-7-reconciliation-of-uncertain-results.md`
+  summary: Recovery-scope-разрешения сверки при приостановленном коннекторе (долг 3-7): срез 3-9 консервативен — scoped control paused = блок сверки (запроса нет, honest-строка отчёта); разрешение ограниченной сверки в recovery-режиме не построено.
+  evidence: спека 3-7 honest-границы «recovery-scope-разрешения сверки при приостановленном коннекторе (3-9 — срез консервативен: paused = блок)»; перенесено epic-3-retrospective (2026-10-23, retro-3-1).
