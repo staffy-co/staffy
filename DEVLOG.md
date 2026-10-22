@@ -3892,3 +3892,23 @@ done:
 
 next: по сигналу владельца — SM 3-9 (ограниченные действия Staffy во время recovery, последний срез эпика: FR-39; входы epics.md §3.9 + спеки 2-13/3-8) либо эпик-3-retrospective (optional). Владельцу: ОТЗВАТЬ PAT (retro-2-6 — передавался открытым текстом); слитая ветка 3-8 на GitHub — удаление по поручению.
 commit: e4f4947
+
+---
+
+date: 2026-10-22
+task: 172-sm
+role: main (Super Z)
+story: 3-9
+summary: SM story 3-9 — спека первого среза recovery-action-policy написана и опубликована; инфра-очистка: слитая ветка 3-8 удалена с GitHub по прецеденту владельца
+
+done:
+- Позиция восстановлена по порядку доверия git > DEVLOG > worklog: зонд §4.1 жив; сводка-предшественница отставала на ЦЕЛУЮ СТАДИЮ (заявляла step-04 3-8 открытым) — git-факты: story 3-8 ПОЛНОСТЬЮ слита (PR #40, sha-pinned merge 49a1347 → e4f4947, CI ×3 зелёный #39769537416/#39770735483/#39771743260, DEVLOG 170-171, Epic 3: 8/9), локальная ветка отстала (b53b52a), main на GitHub ушёл (e4df617).
+- Свежий PAT владельца верифицирован ДО операций (API 200 env-only, хелпер git-credential-staffy.sh, на диск не попал); main синхронизирован ff-only (e4df617), локальная ветка 3-8 удалена, fetch выполнен.
+- Инфра-очистка по прецеденту владельца (слитые ветки подлежат уборке): MERGED-зонд merge-base --is-ancestor (49a1347 — предок main) → push --delete codex/story-3-8-recovery-case-creation → ls-remote верификация: ТОЛЬКО main e4df617 (RPO=0).
+- SM-фаза 3-9: входы прочитаны до письма (epics §3.9 FR-39 AC 1-13 дословно, PRD FR-39 + проверяемые последствия, ARCH-SPINE AD-2/AD-6/AD-7/AD-8/AD-12 + AG-4, спеки 2-5/2-13/3-1/3-2/3-4/3-6/3-7/3-8, deferred-work — долгов Epic 3 ноль), живой код сверен (domain/recovery.go словари+лестница eligibility, port/recovery.go Read*-методы, app/recovery.go catalogDefinition/LIVE-слова/AG-4-факт, app/reconcile.go EffectiveFor+paused-слово, transport/recovery_cases.go + server.go маршруты, шаблон recovery_cases.html секции, journeys z36 прецедент репина).
+- Спека spec-3-9-recovery-action-policy.md (90 строк, формат 3-6/3-7/3-8): политика ограниченных действий как READ-TIME вывод модуля action — compile-time словарь видов 5 + human-only класс 2, атрибуты вида scope/eligibility/required_facts/authority/confirmation, лестница живых чтений reused (controls/LIVE/AG-4), «текст модели не добавляет вариант» структурно (AG-4), offer_approved_options human_only fail-closed (AC-1 хвост), таблиц/миграций НЕТ (первый срез Epic 3 без SQL — задокументировано), поверхности машинная+панельная surgical, journeys z37 (правило 161).
+- Скан-гигиена scripts/qa_step_scan_3_8.py (sm_spec_scan.py не пережил рецикл песочницы — использован тот же класс проверок): CLEAN (secrets 0 / CJK 0 / ctrl 0 / hex 1 = baseline_commit SHA — прецедент).
+- Ветка codex/story-3-9-recovery-action-policy от main e4df617; коммит спеки [skip ci]; push живым PAT.
+
+next: CHECKPOINT 1 — ожидание явного «одобряю» владельца (дисциплина 52-sm, самопродолжение запрещено — прецеденты 137/2facf4e/146/155/164); после одобрения: флип ready-for-dev → Dev шаги 01-05 (домен policy → порт/апп read-only → транспорт/панель/OpenAPI → матрица+journeys z37 → QA/closure) → CHECKPOINT 2. Владельцу: отозвать PAT после сессии (retro-2-6, передан открытым текстом ≥18 раз за сессии).
+commit: e61e5cd
