@@ -3712,3 +3712,15 @@ commit: 57eaeca
 
 next: батч-пуш ветки 3-7 по свежему PAT (5 коммитов: 57eaeca / 904ce65 / 8d431b9 / 4e164ba / эта запись) → CI наблюдение (ожидание зелёного ×3) → CHECKPOINT 2 (PR + CI + sha-pinned merge в main + DEVLOG-merge запись + сверка RPO=0) → владельцу: отозвать PAT подтверждённо (retro-2-6, ≥17 передач открытым текстом), удаление слитых веток 3-6/3-7 на GitHub — по поручению; следующая история Epic 3 — 3-8 создание связанного recovery case (2 истории до 9/9).
 commit: 4e164ba
+
+## DEVLOG 163 — CHECKPOINT 2 story 3-7: merge в main (закрыт)
+
+- Story 3-7 (Reconciliation неопределённых и частичных результатов, первый срез) слита в main: PR #39, sha-pinned merge (пин 5cd9a2a549d713df410e1ead5b74c6fb106babb7), merge-commit 1af69fc.
+- CI-цепочка зелёная ×4: #137 success (push cf34f0f — батч шага-05, старый воркфлоу) → #138 success (push 5cd9a2a — sync-merge main в ветку, НОВЫЙ воркфлоу: метка раннера ubuntu-26.04 подтверждена API, шаги checkout@v7/setup-go@v7/setup-node@v7, 14/14) → #139 success (pull_request 5cd9a2a, 00:33) → #140 success (merge push main 1af69fc, 00:40). Предупреждения рана #133 (Node 20, ubuntu-latest) устранены на всех последующих ранах — источники структурно отсутствуют.
+- Инфра-разрыв закрыт в этой сессии: фикс 874fa23 (PR #38) жил в main, но ветка 3-7 (создана от f3a4cfc) его не содержала — push-раны ветки шли по старому воркфлою; sync-merge origin/main в ветку (5cd9a2a, чистый ort-merge, изменил ТОЛЬКО ci.yml) закрыл разрыв до открытия PR; DEVLOG 160-infra запись (fd4c6b7) доехала в main этим мержем, как планировалось («запись едет в main веткой 3-7»).
+- DEVLOG-нумерация main непрерывна: хвост main был 154-checkpoint-2 → merge принёс 155-162 → 163 эта запись. Спека 3-7 done (Spec Change Log 01-05 полный); sprint-status 3-7 done; Epic 3: 7/9.
+- RPO=0: ls-remote main = 1af69fc = локальный HEAD; дерево чистое.
+- Владельцу: (1) ОТЗВАТЬ PAT подтверждённо (retro-2-6, ≥17 передач открытым текстом за сессии — токен работал с 00:00 до этого пуша); (2) удаление слитых веток codex/story-3-6-dispatch-and-action-receipt (f539264) и codex/story-3-7-reconciliation-of-uncertain-results (5cd9a2a) на GitHub — по поручению; (3) техдолг-кандидат в ретро Epic 3: entry_no app-пиннинг lease-транзакций обоих контуров (dispatch/reconcile) — гейт «монотонные номера выводятся ТОЛЬКО сторой под замком» (receipt_version_no исполнен, entry_no остался).
+
+next: по сигналу владельца — SM 3-8 (создание связанного recovery case; Epic 3: 7/9, осталось 3-8/3-9/ретро) либо инфра-очистка веток; вход всегда: зонд §4.1 → ls-remote → DEVLOG-хвост.
+commit: 1af69fc
