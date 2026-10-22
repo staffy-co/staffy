@@ -53,9 +53,15 @@ func (f *profileFixture) packJourneys(content employeeDomain.ManifestContent) []
         return nil
 }
 
-// memberIDs mirrors the fixture identity: the owner is the sole member.
+// backupMemberID is the second active member of the fixture tenant (the
+// production-world precedent: the readiness backup). The two-role PASS
+// gates of the registry (AG-2, AG-4 — distinct principals, no role
+// coincidence) need a second member to walk the full approver discipline.
+var backupMemberID = id.MustParse("01994f64-6c00-7000-8000-00000000000c")
+
+// memberIDs mirrors the fixture identity: the owner and the backup member.
 func profileMemberIDs() map[id.UUID]bool {
-        return map[id.UUID]bool{principalID: true}
+        return map[id.UUID]bool{principalID: true, backupMemberID: true}
 }
 
 // ProfileView composes the page projection with the same derivations.
@@ -145,10 +151,10 @@ func (f *profileFixture) UpdateDraft(_ context.Context, c employeeAPI.ProfileDra
 // linkPackReferenced reports whether the manifest of the link carries a
 // pack reference (the vacuous-completeness guard needs the exact fact).
 func (f *profileFixture) linkPackReferenced(link employeeDomain.ManifestLink) bool {
-	if _, content, ok := f.manifestLink(link); ok {
-		return content.Config.Refs.Pack.Status == employeeDomain.RefPresent
-	}
-	return false
+        if _, content, ok := f.manifestLink(link); ok {
+                return content.Config.Refs.Pack.Status == employeeDomain.RefPresent
+        }
+        return false
 }
 
 // packJourneysOfLink resolves the journeys for one manifest link.
