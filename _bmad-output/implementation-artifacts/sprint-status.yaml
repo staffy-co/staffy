@@ -79,7 +79,7 @@ development_status:
   3-5-авторизация-и-идемпотентное-резервирование-operation: done
   3-6-execute-time-revalidation-dispatch-и-action-receipt: done
   3-7-reconciliation-неопределённых-и-частичных-результатов: done
-  3-8-создание-связанного-recovery-case: backlog
+  3-8-создание-связанного-recovery-case: ready-for-dev
   3-9-ограниченные-действия-staffy-во-время-recovery: backlog
   epic-3-retrospective: optional
 
