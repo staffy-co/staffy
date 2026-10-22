@@ -3813,3 +3813,25 @@ done:
 
 next: Dev step-03 story 3-8 по Tasks & Acceptance — транспорт: +POST /v1/tenants/{t}/operations/{operation_id}/recovery-case (strict decode пустого тела, operator manage словами ДО материала, 201/200{идемпотентно,evidence}/403-словами лестницы/404) + GET /v1/tenants/{t}/recovery-cases (список) + GET /v1/tenants/{t}/recovery-cases/{id} (карточка) + страницы /app/tenants/{t}/recovery-cases[/{id}] (Recovery Panel: PRG+focus, переходы с параметрами возврата, a11y 320px skip-link ≥44×44 details-попытки) + расширение видов операции (recovery-поля: номер кейса, триггер-слово, следующий шаг eligible через DeriveOperationNextStepText, форма создания на карточке — чекбокс осознанности + скрытый operation-пин, reconcile-прецедент) + web/templates/recovery_cases.html (новый) + operations.html surgical + OpenAPI (+3 пути, enum outbox 3, +схемы RecoveryCaseView/RecoveryCaseCreateResult/RecoveryEventView/RecoveryAssignmentView, additionalProperties false, required полные, RFC3339) + контракт-тест расширением зеркал + composition cmd/staffy-core (WithRecovery(store) — новых адаптеров НЕТ). Владельцу: отозвать PAT после сессии (retro-2-6).
 commit: c58b15e
+
+---
+
+date: 2026-10-22
+task: 168-dev-step-03
+role: main (Super Z)
+story: 3-8
+summary: Dev step-03 story 3-8 закрыт — транспорт/панель/OpenAPI/wiring + 6 транспортных unit; полный регресс зелёный
+
+done:
+- api/recovery.go (DTO + RecoveryService + реэкспорт словарей/ошибок); app: воркер → unexported createRecoveryCase, api-типизированная поверхность с живой перечиткой фактов (карточка всегда свежая AC-10), recoveryOperationCardExtension.
+- Карточка операции: +4 recovery-поля (omitempty), NextStepText = DeriveOperationNextStepText(state, trigger) — eligible говорит recovery-слово (z36 регистрация), наследие 3-6/3-7 байт-стабильно.
+- Транспорт recovery_cases.go: 5 машинных/страничных поверхностей + BindRecovery; operationsProblem +4 ветки (403 слова лестницы/fail-closed, 404); карточка операции + recovery-поля и форма создания (reconcile-прецедент).
+- Шаблоны: recovery_cases.html (панель+карточка, skip-link, honest-пустое, details, 320px) + operations.html surgical (триггер-слово/ссылка/форма).
+- OpenAPI: +3 пути (честная лестница create 201/200/400/401/403/404, чтения без 400), +10 схем (OutboxEventWord 3 — рост 2→3 задокументирован; словари 3/2/1/3; additionalProperties false, required полные, RFC3339), OperationCardView +4 свойства; контракт-тест: зеркала 5 словарей + пути-ассерты + closed-shapes 6 схем.
+- Wiring main.go: WithRecovery(store) + BindRecovery — контур локален, production-AG-4 НЕ отказывает (nil reconcileAdapter = факт композиции eligibility unavailable).
+- Транспортные unit 6 (strict decode 400 до сервиса; 201/200 идемпотентный повтор; лестница 403/404 поимённо — ТЕСТЫ изначально строили ошибки БЕЗ обёртки сентинела (500 вместо 403) — исправлены на fmt.Errorf %w; форма чекбокс+PRG+origin (Origin обязан матчить Host — прецедент http://+request.Host); панель honest-пустое+skip-link; карточка пины+живые слова).
+- Регресс: build ok; unit FAIL 0; интеграция 36.4с зелёная; gofmt touched чист; скан 14 файлов 1641 строк 0/0/0/0 CLEAN.
+- Коммит feat 0022c0a (15 файлов, +1642/−26) [skip ci] + Spec Change Log step-03; push сразу за DEVLOG-коммитом.
+
+next: Dev step-04 story 3-8 — интеграционная матрица ~25 строк над живой PG/RLS через РЕАЛЬНЫЙ app-сервис (полный путь unknown-исчерпана→created с owner/backup/deadline из живой coverage и bundle-пинами; unavailable двух причин; failed-без-повтора; отказы лестницы 403-словами; идемпотентный повтор; дельта-evidence с квитанцией v3; параллельность — одна строка, проигравший идемпотентен; монотонность номера; coverage-недоступна fail-closed; владелец-неизвестен fail-closed; SAFE-зонды; append-только зонды UPDATE/DELETE; RLS 0 строк; CHECK-бэкстопы; outbox слово 3; import-graph) + journeys z36 (полный контур 320px по Code Map, таймаут 240с, eligibility живьём — /fixture/reconcile* + /fixture/clock reused, НОВЫХ фикстурных тумблеров нет). Владельцу: отозвать PAT после сессии (retro-2-6).
+commit: 0022c0a
