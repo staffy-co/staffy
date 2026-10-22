@@ -3912,3 +3912,21 @@ done:
 
 next: CHECKPOINT 1 — ожидание явного «одобряю» владельца (дисциплина 52-sm, самопродолжение запрещено — прецеденты 137/2facf4e/146/155/164); после одобрения: флип ready-for-dev → Dev шаги 01-05 (домен policy → порт/апп read-only → транспорт/панель/OpenAPI → матрица+journeys z37 → QA/closure) → CHECKPOINT 2. Владельцу: отозвать PAT после сессии (retro-2-6, передан открытым текстом ≥18 раз за сессии).
 commit: e61e5cd
+
+---
+
+date: 2026-10-22
+task: 173-checkpoint-1
+role: main (Super Z)
+story: 3-9
+summary: CHECKPOINT 1 story 3-9 закрыт — спека первого среза recovery-action-policy одобрена владельцем явным «одобряю», флип в ready-for-dev, Dev шаги 01-05 открыты
+
+done:
+- Вход сессии: продолжение после компакции; зонд §4.1 (echo alive + git status -sb — ветка codex/story-3-9-recovery-action-policy, дерево чистое, RPO=0). Сводка-предшественница уточнена по источникам истины (git > DEVLOG): ветки 3-6/3-7/3-8 уже удалены с GitHub (ls-remote живым PAT: только main e4df617 и ветка 3-9 7712e0f), CI-воркфлоу уже модернизирован (ubuntu-26.04 + checkout@v7/setup-go@v7/setup-node@v7, DEVLOG 160-infra) — обе инфра-задачи поручения исполнены до этой сессии; фактическая позиция = next DEVLOG 172-sm: CHECKPOINT 1, ждать явное «одобряю».
+- «Одобряю» владельца получено в чате (с повторной передачей PAT) — чекпоинт закрыт по дисциплине 52-sm (самопродолжение чекпоинт не закрывает; прецеденты 3-8 165/3-7 156/3-6 146/3-5 137/3-4 2facf4e).
+- Позиция верифицирована живьём ДО правок: PAT из чата жив (API /repos 200, env-only STAFFY_GH_TOKEN через scripts/git-credential-staffy.sh — на диск/remote-URL не попал, credential-store инцидент диагностирован и откачен не был — токен живёт только в env сессии); ls-remote RPO=0: ветка 7712e0f = локальный HEAD, main e4df617 без движения.
+- Флип исполнен синхронно: спека 3-9 status backlog → ready-for-dev + запись CHECKPOINT 1 головой Spec Change Log; sprint-status ключ 3-9-ограниченные-действия-staffy-во-время-recovery → ready-for-dev. Дифф 2 файла (+2 строки лога), замороженные секции не тронуты.
+- Коммит чекпоинта (docs(story-3-9): CHECKPOINT 1) [skip ci] + эта запись головой [skip ci]; пуш сразу за коммитами (уроки 148/152 «незапушенное не существует»).
+
+next: Dev шаги 01-05 story 3-9 по Tasks & Acceptance: step-01 домен policy (recoverypolicy.go: словари 5+2 compile-time, атрибуты вида scope/eligibility/required_facts/authority/confirmation_required, DeriveRecoveryActionPolicy лестница per-вид {allowed/blocked/human_only + honest-слово}, bounded, unit-матрица поимённо) → step-02 app read-only (RecoveryCasePolicy живыми чтениями reused — кейс/факты/def/controls/AG-4, НИ ОДНОЙ записи счётчиками, reflect-зонд, НОВЫХ методов стора НЕТ) → step-03 транспорт/страница/OpenAPI (+GET policy 200/401/403/404 membership-до-материала + секция «Разрешённые действия» карточки + OpenAPI +1 путь/+3 схемы/зеркала 5+2 + контракт-тест + server.go роут + api DTO) → step-04 интеграционная матрица живой PG поверх мира 3-8 + journeys z37 → step-05 QA-саморевью и closure → CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge). Владельцу: отозвать PAT подтверждённо после сессии (retro-2-6, передачи открытым текстом).
+commit: TBD
