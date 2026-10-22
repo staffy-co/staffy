@@ -4019,3 +4019,21 @@ done:
 
 next: CHECKPOINT 2 story 3-9 — по сигналу владельца: PR из ветки codex/story-3-9-recovery-action-policy → CI ×3 зелёный поимённо (push/PR/merge) → sha-pinned merge в main → DEVLOG 179-checkpoint-2 → слитая ветка удалить по поручению; далее эпик-ретро Epic 3 либо следующий эпик по сигналу SM; владельцу: отозвать PAT подтверждённо после сессии (retro-2-6, ≥10 передач открытым текстом за эпик).
 commit: TBD
+
+---
+
+date: 2026-10-22
+task: 179-checkpoint-2
+role: main (Super Z)
+story: 3-9
+summary: CHECKPOINT 2 story 3-9 закрыт — ветка слита в main (PR #41, sha-pinned merge, CI ×3 зелёный), Epic 3: 9/9 — эпик завершён
+
+done:
+- Батч-пуш ветки codex/story-3-9-recovery-action-policy по живому PAT: 868d9a0 (step-04: матрица + z37) + 4ef4cc7 (DEVLOG 177) + 943cbf2 головой step-05 closure БЕЗ маркера — CI-запуск на голове (урок 2-14/ретро-2-1); RPO=0 живым push-подтверждением.
+- CI ×3 зелёный поимённо: #39795984274 push 943cbf2 (раннер ubuntu-26.04 + node24-пины v7, node 24.21.0, go 1.27.1, ~11м) / #39799428918 pull_request 943cbf2 / #39801108199 push 422170d (merge-ран main).
+- PR #41 создан GitHub API (титул «Story 3-9 Recovery action policy — Epic 3: 9/9», пин слияния в теле), mergeable True/clean ДО merge; sha-pinned merge исполнен: 943cbf28681142656728bfec220a1c61910f997c → merge-commit 422170d в main; локальный main синхронен ff-only.
+- Story 3-9 полностью закрыта: спека done (Spec Change Log 172-sm/173-checkpoint-1/177-dev-step-04+05 полный), sprint-status done; Epic 3: 9/9 — ВСЕ истории эпика закрыты (3-1 каталог, 3-2 scoped controls, 3-3 идемпотентность, 3-4 preview, 3-5 авторизация, 3-6 dispatch, 3-7 reconcile, 3-8 recovery case, 3-9 recovery action policy); ветка codex/story-3-9-recovery-action-policy остаётся на GitHub (удаление — по поручению владельца, прецедент 164-sm: MERGED-зонд merge-base перед удалением).
+- Сессия исполнена по утверждённому владельцем плану (сводка-предшественница отставала на стадию — позиция восстановлена git > DEVLOG по playbook §4.1): ветки 3-6/3-7 подтверждены удалёнными живым ls-remote (на origin только main + ветка 3-9 — пункт плана уже был исполнен ранее); CI-предупреждения подтверждены закрытыми ранее (PR #38: ubuntu-26.04, checkout@v7, setup-go@v7, setup-node@v7, node 24.21.0); инструментальная среда нового контейнера восстановлена с нуля (Go 1.27.1 портативно, PostgreSQL 18.6 zonky embedded, chromium_headless_shell-1243).
+
+next: по сигналу владельца — эпик-ретро Epic 3 (9/9 историй, кандидаты: ретро-2-5 git ls-files ≥ 28 → актуализация порога под 42; retro-2-3 регистр слотов миров; урок lease-последовательности clock/reconcile z37) либо следующий эпик по сигналу SM (SM-фаза: входы epics.md следующего эпика + sprint-status). Владельцу: ОТЗВАТЬ PAT подтверждённо после сессии (retro-2-6 — передавался открытым текстом ≥3 раза в этих сессиях); слитая ветка 3-9 на GitHub — удаление по поручению.
+commit: TBD
