@@ -255,9 +255,14 @@ func buildRecoveryBundle(facts port.RecoveryOperationFacts, owningSystem string)
 }
 
 // createRecoveryCase is the EXPLICIT creation worker of the recovery
-// contour (NO daemon — the drain precedent): the eligibility ladder
-// answers FIRST (the recorded facts — every gas is the honest refusal
-// word, NOTHING is written), the idempotent pre-check follows (the
+// contour (NO daemon — the drain precedent): the RECORDED facts read
+// comes first, then the EXISTING CASE branch takes priority over the
+// eligibility gate (the repeat of an existing case is a COMPARATOR
+// question, never a new eligibility question — the later terminal
+// evidence of 3-7 may turn the operation committed and the repeat still
+// answers the evidence append, AC-5); the eligibility ladder answers
+// the creation path only (every gas is the honest refusal word, NOTHING
+// is written), the idempotent pre-check precedes it (the
 // existing case with the UNCHANGED digest returns — NO second row, NO
 // event), the assignment of the LIVE readings gates the creation path
 // (both fail-closed refusals write NOTHING), and the ONE creation
@@ -317,12 +322,6 @@ func (s *Service) createRecoveryCase(ctx context.Context, command RecoveryCreate
 	if err != nil {
 		return RecoveryCreateResult{}, err
 	}
-	if !eligibility.Eligible() {
-		// The honest refusal word of the gas — NOTHING is written (the
-		// fake-repo counters of the unit matrix pin the zero-write
-		// property on EVERY gas).
-		return RecoveryCreateResult{}, fmt.Errorf("%w: %s", port.ErrRecoveryIneligible, eligibility.RefusalText)
-	}
 	// The HMAC key of the tenant (the per-tenant commitment key — the
 	// recovery key and the bundle digest ride it, the ensure pattern).
 	hmacKey, err := s.previews.ReadPreviewKey(ctx, scope, command.Now)
@@ -332,9 +331,12 @@ func (s *Service) createRecoveryCase(ctx context.Context, command RecoveryCreate
 	recoveryKey := domain.DeriveRecoveryKey(hmacKey, scope.TenantID(), facts.Operation.OperationID)
 	bundle := buildRecoveryBundle(facts, def.OwningSystem)
 	bundleDigest := domain.DeriveBundleDigest(hmacKey, bundle)
-	// The idempotent pre-check (the existing case read): the digest
-	// comparator answers the repeat decision — the store re-runs it UNDER
-	// the lock (the belt over braces; a raced twin resolves there).
+	// The EXISTING CASE branch — BEFORE the eligibility gate: the repeat
+	// of an existing case is a COMPARATOR question (the later terminal
+	// evidence of the 3-7 contour may have turned the operation
+	// committed — the repeat still answers the evidence append, AC-5);
+	// the store re-runs the comparator UNDER the lock (the belt over
+	// braces; a raced twin resolves there).
 	existing, err := s.recoveries.ReadRecoveryCaseByOperation(ctx, scope, command.OperationID)
 	if err == nil {
 		decision, cmpErr := domain.DeriveRecoveryRepeatDecision(existing.BundleDigest, bundleDigest)
@@ -365,6 +367,12 @@ func (s *Service) createRecoveryCase(ctx context.Context, command RecoveryCreate
 	}
 	if !errors.Is(err, port.ErrRecoveryNotFound) {
 		return RecoveryCreateResult{}, err
+	}
+	if !eligibility.Eligible() {
+		// The honest refusal word of the gas — NOTHING is written (the
+		// fake-repo counters of the unit matrix pin the zero-write
+		// property on EVERY gas).
+		return RecoveryCreateResult{}, fmt.Errorf("%w: %s", port.ErrRecoveryIneligible, eligibility.RefusalText)
 	}
 	// The creation path: the assignment of the LIVE readings ONLY (both
 	// fail-closed refusals write NOTHING — the owner-unknown and the

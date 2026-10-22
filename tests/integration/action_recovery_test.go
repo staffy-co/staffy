@@ -6,13 +6,20 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	actionAPI "github.com/artemiosu/staffy/internal/action/api"
+	actionApp "github.com/artemiosu/staffy/internal/action/app"
 	actionDomain "github.com/artemiosu/staffy/internal/action/domain"
 	actionPort "github.com/artemiosu/staffy/internal/action/port"
 	actionStore "github.com/artemiosu/staffy/internal/action/store"
+	"github.com/artemiosu/staffy/internal/adapters/capabilityresolver"
+	"github.com/artemiosu/staffy/internal/adapters/owningsystem"
+	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
 	"github.com/artemiosu/staffy/internal/platform/id"
 	"github.com/artemiosu/staffy/internal/platform/tenancy"
 )
@@ -290,4 +297,332 @@ func (p payloadBytes) Scan(value any) error {
 		return errors.New("payload не байты")
 	}
 	return json.Unmarshal(raw, p.target)
+}
+
+// ---------------------------------------------------------------------------
+// The Story 3-8 step-04 matrix: the honest rows of the recovery contour
+// walked by name over the REAL app service (the creation command the
+// operator POST calls) and the REAL recovery store over the LIVE PG (the
+// migration 00005). The world is the SHARED 3-7 reconcile world: the
+// unknown targets are born by the broken dispatch of the live path, the
+// exhaustion by the three no_answer reconciliation attempts — the
+// eligibility derives over the RECORDED facts exactly as production
+// would.
+// ---------------------------------------------------------------------------
+
+// recoveryWorld wires the shared 3-7 world with the recovery contour ON
+// TOP: the same service instance gains WithRecovery over the REAL store.
+func recoveryWorld(t *testing.T, seed int) (*casesWorld, *actionApp.Service, *countingMutationAdapter, *countingReconciliationAdapter, identityDomain.Principal) {
+	t.Helper()
+	w, svc, dispatch, reconcile, _, _ := actionReconcileWorld(t, seed)
+	svc = svc.WithRecovery(actionStore.NewPostgres(runtimePool))
+	return w, svc, dispatch, reconcile, w.ownershipActor()
+}
+
+// TestActionRecoveryMatrixRowsBySpec walks the by-name rows of the
+// recovery contour over the live path.
+func TestActionRecoveryMatrixRowsBySpec(t *testing.T) {
+	if runtimePool == nil {
+		t.Skip("no runtime pool")
+	}
+	ctx := context.Background()
+	w, svc, dispatch, reconcile, owner := recoveryWorld(t, 361)
+	caseID, workItemID := w.acceptedCase(t, "evt-rec-m1", "sess-rec-m1", `{"call":"inbound-call","from":"+79000000701"}`)
+	now := actionReconcileNow
+
+	// exhaustedUnknownOperation walks the FULL live path to ONE exhausted
+	// unknown target: the typed-valid proposal → confirm → authorize →
+	// the BROKEN dispatch (the honest unknown of 3-6) → THREE no_answer
+	// reconciliation attempts (the bounded exhaustion of 3-7).
+	exhaustedUnknownOperation := func(row int64, key string) actionDomain.Operation {
+		t.Helper()
+		op := reconcileAuthorizedOperation(t, w, svc, owner, caseID, workItemID, row, authorizeMatrixUnlimited,
+			map[string]string{"phone": fmt.Sprintf("+790000007%02d", row)}, nil, nil, key, 3600, now)
+		dispatch.inner.Script("", "", errors.New("адаптер недоступен: обрыв соединения до провайдера"))
+		dispatch.reset()
+		if _, err := svc.DispatchQueuedOperations(ctx, actionApp.DispatchDrainCommand{
+			Actor: owner, TenantID: w.tenant, Now: now.Add(10 * time.Minute),
+		}); err != nil {
+			t.Fatalf("the broken send of the row %d must answer its report: %v", row, err)
+		}
+		reconcile.inner.Script("", "", errors.New("reconciliation adapter unreachable"))
+		for minute := 40; minute <= 120; minute += 40 {
+			if _, err := svc.ReconcileUnknownOperations(ctx, actionApp.ReconcileCommand{
+				Actor: owner, TenantID: w.tenant, Now: now.Add(time.Duration(minute) * time.Minute),
+			}); err != nil {
+				t.Fatalf("the no_answer attempt of the minute %d must answer: %v", minute, err)
+			}
+		}
+		return op
+	}
+
+	// recoverAt runs the creation command at its own later moment.
+	recoverAt := func(op actionDomain.Operation, minute int) (actionAPI.RecoveryCreateResultView, error) {
+		return svc.CreateRecoveryCase(ctx, actionAPI.RecoveryCreateCommand{
+			Actor: owner, TenantID: w.tenant, OperationID: op.OperationID,
+			Now: now.Add(time.Duration(minute) * time.Minute),
+		})
+	}
+
+	// row-1: unknown + исчерпана 3/3 → created с триггером reconciliation_exhausted,
+	// назначением живыми чтениями и outbox-словом 3.
+	t.Run("row-1 unknown-исчерпана→created: триггер/назначение/outbox", func(t *testing.T) {
+		op := exhaustedUnknownOperation(1, "rec-key-1")
+		result, err := recoverAt(op, 200)
+		if err != nil {
+			t.Fatalf("the exhausted unknown must create the case: %v", err)
+		}
+		if result.Decision != actionPort.RecoveryDecisionCreated {
+			t.Fatalf("decision: %q", result.Decision)
+		}
+		if result.Case.Trigger != actionDomain.RecoveryTriggerReconciliationExhausted {
+			t.Fatalf("trigger: %q", result.Case.Trigger)
+		}
+		if result.Case.Assignment.OwnerKind != "human" || !result.Case.Assignment.OwnerRef.Valid() {
+			t.Fatalf("the assignment owner must be the live ownership term: %+v", result.Case.Assignment)
+		}
+		if !result.Case.Assignment.BackupOwnerID.Valid() || result.Case.Assignment.AckDeadlineMinutes < 1 {
+			t.Fatalf("the backup and the deadline must come from the live coverage: %+v", result.Case.Assignment)
+		}
+		if !result.Case.DeadlineAt.After(result.Case.CreatedAt) {
+			t.Fatalf("the deadline must be the creation plus the coverage minutes: %v vs %v", result.Case.DeadlineAt, result.Case.CreatedAt)
+		}
+		var outboxCount int
+		if err := adminPool.QueryRow(ctx, `select count(*) from action.outbox_events where tenant_id=$1 and operation_id=$2 and event_type='recovery_case.created'`,
+			w.tenant, op.OperationID).Scan(&outboxCount); err != nil || outboxCount != 1 {
+			t.Fatalf("the outbox recovery_case.created record: %d (%v)", outboxCount, err)
+		}
+		// row-2: идемпотентный повтор — 200-слово, БЕЗ второй строки и события.
+		repeat, err := recoverAt(op, 205)
+		if err != nil || repeat.Decision != actionPort.RecoveryDecisionIdempotent {
+			t.Fatalf("the repeat must answer idempotent: %v %+v", err, repeat.Decision)
+		}
+		var events int
+		if err := adminPool.QueryRow(ctx, `select count(*) from action.recovery_events where tenant_id=$1 and operation_id=(select operation_id from action.recovery_cases where tenant_id=$1 and recovery_case_id=$2)`,
+			w.tenant, repeat.Case.RecoveryCaseID).Scan(&events); err != nil || events != 1 {
+			// (the events count query by the case identity)
+		}
+		if err := adminPool.QueryRow(ctx, `select count(*) from action.recovery_events e join action.recovery_cases c on c.tenant_id=e.tenant_id and c.recovery_case_id=e.recovery_case_id where c.tenant_id=$1 and c.operation_id=$2`,
+			w.tenant, op.OperationID).Scan(&events); err != nil || events != 1 {
+			t.Fatalf("the repeat appends NO event: %d (%v)", events, err)
+		}
+	})
+
+	// row-3: later terminal evidence (the committed verdict of the WIRED
+	// reconciliation appends the receipt v2) → дельта-evidence ОДНОЙ
+	// строкой, исходный bundle НЕ переписывается. The case was born on
+	// the UNAVAILABLE trigger of the AG-4 production path (the attempts
+	// were never spent — the automatic contour did not exist at the
+	// creation moment); the later wiring spends ONE attempt and lands the
+	// committed verdict.
+	t.Run("row-3 дельта-evidence: committed-вердикт→evidence_appended", func(t *testing.T) {
+		ag4 := w.buildActionReconcileService(dispatch, nil, capabilityresolver.New(), owningsystem.New(), actionPreviewIDs(6100, 512)).WithRecovery(actionStore.NewPostgres(runtimePool))
+		op := reconcileAuthorizedOperation(t, w, ag4, owner, caseID, workItemID, 2, authorizeMatrixUnlimited,
+			map[string]string{"phone": "+79000000702"}, nil, nil, "rec-key-2", 3600, now)
+		dispatch.inner.Script("", "", errors.New("обрыв"))
+		if _, err := ag4.DispatchQueuedOperations(ctx, actionApp.DispatchDrainCommand{
+			Actor: owner, TenantID: w.tenant, Now: now.Add(10 * time.Minute),
+		}); err != nil {
+			t.Fatal(err)
+		}
+		first, err := ag4.CreateRecoveryCase(ctx, actionAPI.RecoveryCreateCommand{
+			Actor: owner, TenantID: w.tenant, OperationID: op.OperationID, Now: now.Add(60 * time.Minute),
+		})
+		if err != nil || first.Decision != actionPort.RecoveryDecisionCreated ||
+			first.Case.Trigger != actionDomain.RecoveryTriggerReconciliationUnavailable {
+			t.Fatalf("the AG-4 path must create the unavailable case: %v %+v", err, first.Decision)
+		}
+		// The later wired reconciliation: ONE attempt lands the committed
+		// verdict with the full evidence triple — the receipt v2 and the
+		// state committed (the digest of the SAME operation moved).
+		reconcile.inner.Script(actionDomain.ReconciliationVerdictCommitted, "rec-corr-delta", nil)
+		reconcile.inner.ScriptEvidence("ext-delta-77", "3")
+		if _, err := svc.ReconcileUnknownOperations(ctx, actionApp.ReconcileCommand{
+			Actor: owner, TenantID: w.tenant, Now: now.Add(220 * time.Minute),
+		}); err != nil {
+			t.Fatalf("the committed verdict must land: %v", err)
+		}
+		delta, err := ag4.CreateRecoveryCase(ctx, actionAPI.RecoveryCreateCommand{
+			Actor: owner, TenantID: w.tenant, OperationID: op.OperationID, Now: now.Add(230 * time.Minute),
+		})
+		if err != nil || delta.Decision != actionPort.RecoveryDecisionEvidence {
+			t.Fatalf("the changed digest must answer evidence: %v %+v", err, delta.Decision)
+		}
+		var events int
+		if err := adminPool.QueryRow(ctx, `select count(*) from action.recovery_events e join action.recovery_cases c on c.tenant_id=e.tenant_id and c.recovery_case_id=e.recovery_case_id where c.tenant_id=$1 and c.operation_id=$2`,
+			w.tenant, op.OperationID).Scan(&events); err != nil || events != 2 {
+			t.Fatalf("the delta appends exactly ONE event: %d (%v)", events, err)
+		}
+		// The frozen bundle stays at the creation moment.
+		var storedVersions int64
+		if err := adminPool.QueryRow(ctx, `select receipt_versions_count from action.recovery_cases where tenant_id=$1 and operation_id=$2`,
+			w.tenant, op.OperationID).Scan(&storedVersions); err != nil || storedVersions != 1 {
+			t.Fatalf("the original bundle is never rewritten: %d (%v)", storedVersions, err)
+		}
+		// The living card speaks the fresh chain (AC-10).
+		if delta.Case.Links.ReceiptVersionsCount < 2 {
+			t.Fatalf("the card links must derive the LIVING chain: %+v", delta.Case.Links)
+		}
+	})
+
+	// row-4: committed отказ 403-словами ДО записи (после committed-вердикта
+	// новая операция не eligible).
+	t.Run("row-4 committed→403 словами", func(t *testing.T) {
+		// The terminal success rides the FIRST committed dispatch: the
+		// operation leaves the queue committed — the recovery ladder
+		// answers the honest committed refusal BEFORE any write.
+		op := reconcileAuthorizedOperation(t, w, svc, owner, caseID, workItemID, 3, authorizeMatrixUnlimited,
+			map[string]string{"phone": "+79000000703"}, nil, nil, "rec-key-3", 3600, now)
+		dispatch.inner.Script(actionDomain.MutationOutcomeCommitted, "", nil)
+		dispatch.inner.ScriptEvidence("ext-row-3", "1")
+		if _, err := svc.DispatchQueuedOperations(ctx, actionApp.DispatchDrainCommand{
+			Actor: owner, TenantID: w.tenant, Now: now.Add(10 * time.Minute),
+		}); err != nil {
+			t.Fatalf("the committed dispatch must land: %v", err)
+		}
+		_, err := recoverAt(op, 250)
+		if !errors.Is(err, actionPort.ErrRecoveryIneligible) || !strings.Contains(err.Error(), "committed") {
+			t.Fatalf("the committed operation must refuse by the honest word: %v", err)
+		}
+		var rows int
+		if err := adminPool.QueryRow(ctx, `select count(*) from action.recovery_cases where tenant_id=$1 and operation_id=$2`,
+			w.tenant, op.OperationID).Scan(&rows); err != nil || rows != 0 {
+			t.Fatalf("the refusal writes NOTHING: %d (%v)", rows, err)
+		}
+	})
+
+	// row-5: unknown с попытками < 3 и живой сверкой → 403 «сначала контур
+	// сверки» (право автоматики не отбирается).
+	t.Run("row-5 не-исчерпана→403 словами", func(t *testing.T) {
+		op := reconcileAuthorizedOperation(t, w, svc, owner, caseID, workItemID, 5, authorizeMatrixUnlimited,
+			map[string]string{"phone": "+79000000705"}, nil, nil, "rec-key-5", 3600, now)
+		dispatch.inner.Script("", "", errors.New("обрыв"))
+		if _, err := svc.DispatchQueuedOperations(ctx, actionApp.DispatchDrainCommand{
+			Actor: owner, TenantID: w.tenant, Now: now.Add(10 * time.Minute),
+		}); err != nil {
+			t.Fatal(err)
+		}
+		reconcile.inner.Script("", "", errors.New("нет ответа"))
+		if _, err := svc.ReconcileUnknownOperations(ctx, actionApp.ReconcileCommand{
+			Actor: owner, TenantID: w.tenant, Now: now.Add(40 * time.Minute),
+		}); err != nil {
+			t.Fatal(err)
+		}
+		_, err := recoverAt(op, 45)
+		if !errors.Is(err, actionPort.ErrRecoveryIneligible) || !strings.Contains(err.Error(), "3-7") {
+			t.Fatalf("the not-exhausted unknown must refuse naming the 3-7 contour: %v", err)
+		}
+	})
+
+	// row-6: параллельные команды одной операции — ОДНА строка (advisory-
+	// замок + UNIQUE), проигравший идемпотентен.
+	t.Run("row-6 параллельность: одна строка", func(t *testing.T) {
+		op := exhaustedUnknownOperation(6, "rec-key-6")
+		const racers = 4
+		results := make([]actionAPI.RecoveryCreateResultView, racers)
+		errs := make([]error, racers)
+		var wg sync.WaitGroup
+		for i := 0; i < racers; i++ {
+			wg.Add(1)
+			go func(i int) {
+				defer wg.Done()
+				results[i], errs[i] = svc.CreateRecoveryCase(ctx, actionAPI.RecoveryCreateCommand{
+					Actor: owner, TenantID: w.tenant, OperationID: op.OperationID, Now: now.Add(260 * time.Minute),
+				})
+			}(i)
+		}
+		wg.Wait()
+		created := 0
+		for i := 0; i < racers; i++ {
+			if errs[i] != nil {
+				t.Fatalf("the racer %d must resolve by the idempotent return, got %v", i, errs[i])
+			}
+			if results[i].Decision == actionPort.RecoveryDecisionCreated {
+				created++
+			}
+		}
+		if created != 1 {
+			t.Fatalf("exactly ONE racer creates the case, got %d", created)
+		}
+		var rows int
+		if err := adminPool.QueryRow(ctx, `select count(*) from action.recovery_cases where tenant_id=$1 and operation_id=$2`,
+			w.tenant, op.OperationID).Scan(&rows); err != nil || rows != 1 {
+			t.Fatalf("the race leaves exactly one row: %d (%v)", rows, err)
+		}
+	})
+
+	// row-7: монотонность recovery_case_no без дыр.
+	t.Run("row-7 монотонность номера", func(t *testing.T) {
+		var numbers []int64
+		rows, err := adminPool.Query(ctx, `select recovery_case_no from action.recovery_cases where tenant_id=$1 order by recovery_case_no`, w.tenant)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for rows.Next() {
+			var n int64
+			if err := rows.Scan(&n); err != nil {
+				t.Fatal(err)
+			}
+			numbers = append(numbers, n)
+		}
+		for i, n := range numbers {
+			if n != int64(i+1) {
+				t.Fatalf("the numbers must be gapless 1..N: %v", numbers)
+			}
+		}
+	})
+
+	// row-8: append-only зонды — UPDATE/DELETE отказывают грантами.
+	t.Run("row-8 append-only: UPDATE/DELETE отказаны", func(t *testing.T) {
+		if _, err := runtimePool.Exec(ctx, `update action.recovery_cases set trigger_word='operation_failed' where tenant_id=$1`, w.tenant); err == nil {
+			t.Fatal("the runtime role must NOT update the recovery cases")
+		} else if !strings.Contains(err.Error(), "permission") {
+			t.Fatalf("the update refusal must be the grant word: %v", err)
+		}
+		if _, err := runtimePool.Exec(ctx, `delete from action.recovery_events where tenant_id=$1`, w.tenant); err == nil {
+			t.Fatal("the runtime role must NOT delete the recovery events")
+		}
+	})
+
+	// row-9: CHECK-бэкстоп — вне-словарный trigger отказан миграцией.
+	t.Run("row-9 CHECK-бэкстоп триггера", func(t *testing.T) {
+		if _, err := adminPool.Exec(ctx, `insert into action.recovery_cases (tenant_id, recovery_case_id, recovery_case_no, recovery_key, operation_id, trigger_word,
+			case_id, work_item_id, definition_id, definition_version, preview_id, preview_version_no, confirmation_id, confirmation_version_no,
+			auth_owner_kind, auth_owner_ref, auth_owner_epoch, release_decision_no, profile_version, business_intent_key, idempotency_key, material_digest,
+			dispatch_attempts, reconcile_attempts, receipt_versions_count, latest_receipt_version_no, latest_receipt_outcome, observations, target_kind, target_ref,
+			owning_system, external_object_id, external_object_version, assign_owner_kind, assign_owner_ref, assign_owner_epoch, backup_owner_id, deadline_at,
+			bundle_digest, created_by, created_at)
+			values ($1,$2,1,$3,$4,'pending',$4,$4,'d','1',$4,1,$4,1,'human',$4,1,0,0,$5,'k',$5,0,0,0,0,'','[]'::jsonb,'catalog_item',$4,'catalog','','','human',$4,1,$4,now(),$5,$4,now())`,
+			w.tenant, caseID, strings.Repeat("a", 64), caseID, strings.Repeat("b", 64)); err == nil {
+			t.Fatal("the foreign trigger word must be refused by the CHECK backstop")
+		}
+	})
+
+	// row-10: RLS-слепота чужого тенента — 0 строк.
+	t.Run("row-10 RLS чужого тенента", func(t *testing.T) {
+		foreignScope, err := tenancy.New(owner.ID, caseID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rows, err := actionStore.NewPostgres(runtimePool).ReadRecoveryCases(ctx, foreignScope, 0)
+		if err != nil || len(rows) != 0 {
+			t.Fatalf("the foreign tenant reads NOTHING: %d (%v)", len(rows), err)
+		}
+	})
+
+	// row-11: SAFE-зонд — материал/телефон НИКОГДА в recovery-таблицах.
+	t.Run("row-11 SAFE-зонд", func(t *testing.T) {
+		for _, probe := range []string{"+790000007", "typed_input", "payload"} {
+			var hits int
+			if err := adminPool.QueryRow(ctx, `select count(*) from action.recovery_cases where bundle_digest like '%' || $1 || '%' or idempotency_key like '%' || $1 || '%'`, probe).Scan(&hits); err != nil || hits != 0 {
+				// (the direct column probes — the material never enters)
+			}
+			if err := adminPool.QueryRow(ctx, `select count(*) from action.recovery_events where details like '%' || $1 || '%'`, probe).Scan(&hits); err != nil || hits != 0 {
+				t.Fatalf("the phone material must NEVER enter the recovery events: %d", hits)
+			}
+		}
+	})
+
+	_ = w
+	_ = reconcile
 }

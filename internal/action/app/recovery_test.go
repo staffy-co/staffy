@@ -498,8 +498,12 @@ func TestRecoveryCreateIneligibleGasesWriteNothing(t *testing.T) {
 		if f.repo.createCalls != 0 {
 			t.Fatalf("%s: газ НИЧЕГО не пишет — create=%d", tc.name, f.repo.createCalls)
 		}
-		if f.repo.byOperationCalls != 0 {
-			t.Fatalf("%s: газ не читает существующий кейс — byOperation=%d", tc.name, f.repo.byOperationCalls)
+		// The existing-case read PRECEDES the gate by design (the repeat of
+		// an existing case is a comparator question, never a new
+		// eligibility question) — a gas WITHOUT a case reads it once and
+		// finds nothing.
+		if f.repo.byOperationCalls != 1 {
+			t.Fatalf("%s: существующий кейс читается один раз до гейта — byOperation=%d", tc.name, f.repo.byOperationCalls)
 		}
 		if len(f.repo.rows) != 0 {
 			t.Fatalf("%s: газ не оставляет строк — rows=%d", tc.name, len(f.repo.rows))
