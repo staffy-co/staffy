@@ -31,12 +31,15 @@ import (
 
 // fakeRecovery is the scriptable recovery service of the unit contour.
 type fakeRecovery struct {
-	result  actionAPI.RecoveryCreateResultView
-	cases   []actionAPI.RecoveryCaseView
-	card    actionAPI.RecoveryCaseView
-	err     error
-	calls   int
-	lastCmd *actionAPI.RecoveryCreateCommand
+	result      actionAPI.RecoveryCreateResultView
+	cases       []actionAPI.RecoveryCaseView
+	card        actionAPI.RecoveryCaseView
+	policy      actionAPI.RecoveryPolicyView
+	err         error
+	policyErr   error
+	calls       int
+	lastCmd     *actionAPI.RecoveryCreateCommand
+	policyCalls int
 }
 
 // The compile-time proof the fake satisfies the narrow transport contract.
@@ -64,6 +67,17 @@ func (f *fakeRecovery) ReadRecoveryCases(context.Context, identityDomain.Princip
 		return nil, f.err
 	}
 	return f.cases, nil
+}
+
+func (f *fakeRecovery) RecoveryCasePolicy(context.Context, identityDomain.Principal, id.UUID, id.UUID) (actionAPI.RecoveryPolicyView, error) {
+	f.policyCalls++
+	if f.policyErr != nil {
+		return actionAPI.RecoveryPolicyView{}, f.policyErr
+	}
+	if f.err != nil {
+		return actionAPI.RecoveryPolicyView{}, f.err
+	}
+	return f.policy, nil
 }
 
 // newRecoveryTestServer binds the recovery surface over the operation
@@ -310,5 +324,184 @@ func TestRecoveryCardPageRendersThePinsAndHonestWords(t *testing.T) {
 		if !strings.Contains(body, pin) {
 			t.Fatalf("карточка обязана нести пин %q: %s", pin, body)
 		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Story 3.9 step-03: the transport unit matrix of the policy surface
+// ---------------------------------------------------------------------------
+
+// recoveryPolicyView builds the passing policy view of the probes: the
+// full allowed set of the exhausted case (the AG-4 world of the fixture
+// adapter — the status word carries the honest sentence) + the
+// human-only class with the boundary words.
+func recoveryPolicyView() actionAPI.RecoveryPolicyView {
+	view := actionAPI.RecoveryPolicyView{
+		RecoveryCaseID:     testOperationID,
+		HumanOnlyClassText: actionDomain.RecoveryHumanOnlyClassText,
+	}
+	for _, kind := range actionDomain.RecoveryActionKinds {
+		answer := actionDomain.RecoveryPolicyAction{
+			Kind: kind.Word, State: actionDomain.RecoveryActionStateAllowed,
+			ScopeText: kind.ScopeText, EligibilityRuleText: kind.EligibilityRuleText,
+			RequiredFactsText: kind.RequiredFactsText, AuthorityText: kind.AuthorityText,
+			ConfirmationRequired: kind.ConfirmationRequired,
+		}
+		switch kind.Word {
+		case actionDomain.RecoveryActionShowRecordedConditions:
+			answer.StateText = actionDomain.RecoveryActionShowConditionsAllowedText
+		case actionDomain.RecoveryActionTruthfulStatusUpdate:
+			answer.StateText = actionDomain.RecoveryActionStatusUpdateAllowedText + " " + actionDomain.RecoveryActionAG4NotWiredText
+		case actionDomain.RecoveryActionRequestEvidence:
+			answer.StateText = actionDomain.RecoveryActionRequestEvidenceAllowedText
+		case actionDomain.RecoveryActionOfferApprovedOptions:
+			answer.State = actionDomain.RecoveryActionStateHumanOnly
+			answer.StateText = actionDomain.RecoveryActionNoApprovedOptionsText
+		case actionDomain.RecoveryActionPreparePauseCancel:
+			answer.StateText = actionDomain.RecoveryActionPauseCancelAllowedText
+		}
+		view.Actions = append(view.Actions, actionAPI.RecoveryActionView{
+			Kind: answer.Kind, State: answer.State, StateText: answer.StateText,
+			ScopeText: answer.ScopeText, EligibilityRuleText: answer.EligibilityRuleText,
+			RequiredFactsText: answer.RequiredFactsText, AuthorityText: answer.AuthorityText,
+			ConfirmationRequired: answer.ConfirmationRequired,
+		})
+	}
+	for _, decision := range actionDomain.RecoveryHumanOnlyDecisions {
+		view.HumanOnlyDecisions = append(view.HumanOnlyDecisions, actionAPI.RecoveryHumanOnlyDecisionView{
+			Kind: decision.Word, BoundaryText: decision.BoundaryText,
+		})
+	}
+	return view
+}
+
+// recoveryPolicyAPIPath builds the machine policy path of the fixture
+// tenant and case.
+func recoveryPolicyAPIPath() string {
+	return "/v1/tenants/" + testTenantID.String() + "/recovery-cases/" + testOperationID.String() + "/policy"
+}
+
+// TestRecoveryPolicyMachineReadAnswersTheView — the machine policy read:
+// 200 with the wrapper + the FIVE kinds in the dictionary order + the
+// human-only class + the honest words (the AG-4 sentence of the status
+// kind, the confirmation words of the material kinds); the empty GET
+// NEVER answers 400 (a free query field is ignored by the router).
+func TestRecoveryPolicyMachineReadAnswersTheView(t *testing.T) {
+	fake := &fakeRecovery{policy: recoveryPolicyView()}
+	server := newRecoveryTestServer(t, fake)
+	request := httptest.NewRequest(http.MethodGet, recoveryPolicyAPIPath()+"?free=field", nil)
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("политика обязана отвечать 200, пришло %d", recorder.Code)
+	}
+	body := recorder.Body.String()
+	for _, word := range []string{
+		"\"recovery_policy\"",
+		"request_evidence", "show_recorded_conditions", "truthful_status_update",
+		"offer_approved_options", "prepare_pause_cancel",
+		"\"allowed\"", "\"human_only\"",
+		actionDomain.RecoveryActionNoApprovedOptionsText,
+		actionDomain.RecoveryActionAG4NotWiredText,
+		actionDomain.RecoveryHumanOnlyClassText,
+		"liability_or_fault", "nonstandard_outcome",
+		"\"confirmation_required\":true",
+	} {
+		if !strings.Contains(body, word) {
+			t.Fatalf("машинный вид политики обязан нести слово %q: %s", word, body)
+		}
+	}
+	// The kinds ride the dictionary order (the fixed order of the view).
+	requestEvidence := strings.Index(body, "request_evidence")
+	preparePause := strings.Index(body, "prepare_pause_cancel")
+	if requestEvidence < 0 || preparePause < 0 || requestEvidence > preparePause {
+		t.Fatalf("виды обязаны ехать в порядке словаря: request_evidence=%d prepare_pause_cancel=%d", requestEvidence, preparePause)
+	}
+	if fake.policyCalls != 1 {
+		t.Fatalf("вывод политики обязан читаться ОДИН раз, прочитан %d", fake.policyCalls)
+	}
+}
+
+// TestRecoveryPolicySpeaksThe404And403Words — the honest refusal ladder
+// of the policy read: the unknown case answers 404 (the membership
+// blindness BEFORE any material), the scope refusal answers 403 with the
+// card rights words (the card precedent — the surface rights are
+// reused).
+func TestRecoveryPolicySpeaksThe404And403Words(t *testing.T) {
+	fake := &fakeRecovery{err: fmt.Errorf("%w: %s", actionAPI.ErrRecoveryNotFound, "recovery case not found")}
+	server := newRecoveryTestServer(t, fake)
+	request := httptest.NewRequest(http.MethodGet, recoveryPolicyAPIPath(), nil)
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("неизвестный кейс обязан отвечать 404, пришло %d", recorder.Code)
+	}
+	if !strings.Contains(recorder.Body.String(), "не найдены") {
+		t.Fatalf("404-слово политики обязано говорить честное слово стора: %s", recorder.Body.String())
+	}
+}
+
+// TestRecoveryCardPageRendersThePolicySection — the «Разрешённые
+// действия» section of the case card page: the kind rows with the state
+// words, the DECLARED attributes in the CLOSED details, the
+// confirmation word of the material kinds (the AC-13 minimum), the
+// human-only class as the SEPARATE block with the boundary words and
+// the honest derivation note; the frozen 3-8 words stay byte-stable.
+func TestRecoveryCardPageRendersThePolicySection(t *testing.T) {
+	view := recoveryTestCaseView()
+	fake := &fakeRecovery{card: view, policy: recoveryPolicyView()}
+	server := newRecoveryTestServer(t, fake)
+	request := httptest.NewRequest(http.MethodGet, "/app/tenants/"+testTenantID.String()+"/recovery-cases/"+testOperationID.String(), nil)
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("карточка обязана отвечать 200, пришло %d", recorder.Code)
+	}
+	body := recorder.Body.String()
+	for _, word := range []string{
+		"Разрешённые действия",
+		"request_evidence</strong> — allowed",
+		"offer_approved_options</strong> — human_only",
+		actionDomain.RecoveryActionNoApprovedOptionsText,
+		"Требует отдельного явного подтверждения оператора.",
+		"Атрибуты вида (scope / eligibility / факты / authority / Confirmation)",
+		"Только человек — решения вне набора системы",
+		actionDomain.RecoveryHumanOnlyClassText,
+		actionDomain.RecoveryHumanOnlyDecisions[0].BoundaryText,
+		actionDomain.RecoveryHumanOnlyDecisions[1].BoundaryText,
+		// The frozen 3-8 words stay byte-stable (rule 161/162).
+		actionDomain.RecoveryCaseOpenText,
+		actionDomain.RecoveryPaymentsUnknownText,
+	} {
+		if !strings.Contains(body, word) {
+			t.Fatalf("секция политики карточки обязана нести слово %q: %s", word, body)
+		}
+	}
+	if fake.policyCalls != 1 {
+		t.Fatalf("секция политики читает вывод ОДИН раз, прочитано %d", fake.policyCalls)
+	}
+}
+
+// TestRecoveryCardPageSurvivesThePolicyMiss — the card page NEVER
+// refuses on a transient policy derivation miss: the frozen card words
+// render, the section renders honestly empty (the derivation is the
+// ADDITIVE surface — the card itself answers 200).
+func TestRecoveryCardPageSurvivesThePolicyMiss(t *testing.T) {
+	view := recoveryTestCaseView()
+	policyErr := fmt.Errorf("%w: %s", actionAPI.ErrRecoveryNotFound, "recovery case not found")
+	fake := &fakeRecovery{card: view, policyErr: policyErr}
+	server := newRecoveryTestServer(t, fake)
+	request := httptest.NewRequest(http.MethodGet, "/app/tenants/"+testTenantID.String()+"/recovery-cases/"+testOperationID.String(), nil)
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("карточка обязана отвечать 200 и при промахе политики, пришло %d", recorder.Code)
+	}
+	body := recorder.Body.String()
+	if !strings.Contains(body, actionDomain.RecoveryCaseOpenText) {
+		t.Fatalf("замороженные слова карточки обязаны рендериться: %s", body)
+	}
+	if strings.Contains(body, "Разрешённые действия") {
+		t.Fatalf("секция политики обязана отсутствовать при промахе вывода (честная пустая секция)")
 	}
 }

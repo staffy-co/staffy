@@ -107,8 +107,49 @@ type recoveryCasesPageView struct {
 type recoveryCasePageView struct {
 	TenantID string
 	Card     recoveryCaseCardView
+	Policy   recoveryPolicySectionView
 	Flash    string
 	Notice   string
+}
+
+// recoveryPolicyActionRowView is ONE kind row of the «Разрешённые
+// действия» section of the case card page: the kind word with the state
+// word and the honest reason text visible, the DECLARED attributes in
+// the CLOSED details (урок 3-4 — the page speaks the boundary words,
+// the detail material rides the disclosure), the confirmation word of
+// the material kinds (the AC-13 minimum — «материальный
+// recovery-вариант требует отдельного явного подтверждения»
+// декларативно).
+type recoveryPolicyActionRowView struct {
+	Kind        string
+	State       string
+	StateText   string
+	ScopeText   string
+	Eligibility string
+	Facts       string
+	Authority   string
+	ConfirmText string
+	HasConfirm  bool
+}
+
+// recoveryPolicyHumanRowView is ONE human-only decision row of the
+// SEPARATE block of the section (AC-1: the class is listed apart from
+// the allowed set).
+type recoveryPolicyHumanRowView struct {
+	Kind         string
+	BoundaryText string
+}
+
+// recoveryPolicySectionView carries the «Разрешённые действия» section
+// of the case card page: the kind rows in the dictionary order, the
+// human-only class with the class-level boundary word and the honest
+// note of the derivation (read-time вывод — повторный запрос отвечает
+// тот же набор, записей нет).
+type recoveryPolicySectionView struct {
+	Actions     []recoveryPolicyActionRowView
+	HumanOnly   []recoveryPolicyHumanRowView
+	ClassText   string
+	DerivedText string
 }
 
 // recoveryCreateStatus answers the honest status of the decision word:
@@ -160,6 +201,70 @@ func (s *Server) recoveryCasesAPI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, recoveryCreateStatus(result.Decision), map[string]any{"recovery_case": result})
+}
+
+// recoveryMachinePolicyAPI answers the machine policy read of one case
+// (story 3-9): the READ-TIME derivation of the allowed recovery-action
+// set — 200 the view / 401 / 403 the card rights words / 404 the
+// membership blindness BEFORE any material (the card precedent). The
+// empty GET carries NO body — a free query field is ignored by the
+// router, a 400 is NEVER the answer of the empty read.
+func (s *Server) recoveryMachinePolicyAPI(w http.ResponseWriter, r *http.Request) {
+	actor, tenant, ok := s.casesActor(w, r)
+	if !ok {
+		return
+	}
+	if s.recovery == nil {
+		s.notFound(w, r, actor)
+		return
+	}
+	recoveryCaseID, err := id.Parse(r.PathValue("recovery_case_id"))
+	if err != nil {
+		s.problem(w, r, http.StatusBadRequest, "recovery_case_id_invalid", "Идентификатор Recovery Case не читается.", false, nil)
+		return
+	}
+	policy, err := s.recovery.RecoveryCasePolicy(r.Context(), actor, tenant, recoveryCaseID)
+	if err != nil {
+		s.operationsProblem(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"recovery_policy": policy})
+}
+
+// newRecoveryPolicySectionView maps the machine policy view onto the
+// page section of the case card: the kind rows in the dictionary order
+// with the DECLARED attributes in the closed details, the confirmation
+// word of the material kinds (the AC-13 minimum), the human-only class
+// as the SEPARATE block and the honest derivation note (the words the
+// machine view speaks — the page never invents its own copy).
+func newRecoveryPolicySectionView(policy actionAPI.RecoveryPolicyView) recoveryPolicySectionView {
+	section := recoveryPolicySectionView{
+		ClassText:   policy.HumanOnlyClassText,
+		DerivedText: "Политика — read-time вывод над записанным: набор выводится заново каждым запросом, записей нет; исполнение видов — будущие срезы через Action Gateway (каждое слово границы права, не обещание результата).",
+	}
+	for _, action := range policy.Actions {
+		row := recoveryPolicyActionRowView{
+			Kind:        action.Kind,
+			State:       action.State,
+			StateText:   action.StateText,
+			ScopeText:   action.ScopeText,
+			Eligibility: action.EligibilityRuleText,
+			Facts:       action.RequiredFactsText,
+			Authority:   action.AuthorityText,
+			HasConfirm:  action.ConfirmationRequired,
+		}
+		if action.ConfirmationRequired {
+			row.ConfirmText = "Требует отдельного явного подтверждения оператора."
+		}
+		section.Actions = append(section.Actions, row)
+	}
+	for _, decision := range policy.HumanOnlyDecisions {
+		section.HumanOnly = append(section.HumanOnly, recoveryPolicyHumanRowView{
+			Kind:         decision.Kind,
+			BoundaryText: decision.BoundaryText,
+		})
+	}
+	return section
 }
 
 // recoveryCasesForm answers the page creation form of the eligible
@@ -441,9 +546,19 @@ func (s *Server) recoveryCasePage(w http.ResponseWriter, r *http.Request) {
 		s.operationsProblem(w, r, err)
 		return
 	}
+	// The «Разрешённые действия» section of the card (story 3-9): the
+	// READ-TIME policy derivation rides the SAME card rights (the
+	// 403/404 words of the card surface; the section renders honestly
+	// empty on a transient derivation miss — the card itself never
+	// refuses).
+	section := recoveryPolicySectionView{}
+	if policy, policyErr := s.recovery.RecoveryCasePolicy(r.Context(), actor, tenant, recoveryCaseID); policyErr == nil {
+		section = newRecoveryPolicySectionView(policy)
+	}
 	page := recoveryCasePageView{
 		TenantID: tenant.String(),
 		Card:     newRecoveryCaseCardView(card),
+		Policy:   section,
 		Flash:    flashError(r, tenant),
 		Notice:   recoveryNotice(r),
 	}
@@ -462,6 +577,7 @@ func (s *Server) BindRecovery(service actionAPI.RecoveryService) {
 	s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/operations/{operation_id}/recovery-case", s.recoveryCasesAPI)
 	s.mux.HandleFunc("GET /v1/tenants/{tenant_id}/recovery-cases", s.recoveryMachineListAPI)
 	s.mux.HandleFunc("GET /v1/tenants/{tenant_id}/recovery-cases/{recovery_case_id}", s.recoveryMachineCardAPI)
+	s.mux.HandleFunc("GET /v1/tenants/{tenant_id}/recovery-cases/{recovery_case_id}/policy", s.recoveryMachinePolicyAPI)
 	s.mux.HandleFunc("POST /app/tenants/{tenant_id}/operations/{operation_id}/recovery-case", s.recoveryCasesForm)
 	s.mux.HandleFunc("GET /app/tenants/{tenant_id}/recovery-cases", s.recoveryCasesPage)
 	s.mux.HandleFunc("GET /app/tenants/{tenant_id}/recovery-cases/{recovery_case_id}", s.recoveryCasePage)

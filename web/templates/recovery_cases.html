@@ -71,6 +71,32 @@
 {{end}}
 <p class="next-note">История никогда не переписывается: поздние доказательства добавляются ОДНОЙ append-only строкой evidence_appended с SAFE-дельтой; исходный bundle и исходные квитанции остаются как записаны.</p>
 </li>
+{{if .Policy.Actions}}
+<li class="action-card">
+<h3>Разрешённые действия</h3>
+<ul>
+{{range .Policy.Actions}}
+<li><strong>{{.Kind}}</strong> — {{.State}}: {{.StateText}}{{if .HasConfirm}} <strong>{{.ConfirmText}}</strong>{{end}}
+<details><summary>Атрибуты вида (scope / eligibility / факты / authority / Confirmation)</summary>
+<ul>
+<li><strong>Scope:</strong> {{.ScopeText}}</li>
+<li><strong>Eligibility:</strong> {{.Eligibility}}</li>
+<li><strong>Требуемые факты:</strong> {{.Facts}}</li>
+<li><strong>Authority:</strong> {{.Authority}}</li>
+<li><strong>Confirmation:</strong> {{if .HasConfirm}}требуется (материальный вид){{else}}не требуется (read-only){{end}}</li>
+</ul>
+</details>
+</li>
+{{end}}
+</ul>
+<p class="next-note">{{.Policy.DerivedText}}</p>
+<h4>Только человек — решения вне набора системы</h4>
+<p class="status" role="note">{{.Policy.ClassText}}</p>
+<ul>
+{{range .Policy.HumanOnly}}<li><strong>{{.Kind}}</strong> — {{.BoundaryText}}</li>{{end}}
+</ul>
+</li>
+{{end}}
 </ul>
 </section></main></div></body></html>
 {{end}}

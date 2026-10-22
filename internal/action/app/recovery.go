@@ -670,3 +670,132 @@ func (s *Service) recoveryOperationCardExtension(ctx context.Context, scope tena
 	extension.Trigger = eligibility.Trigger
 	return extension
 }
+
+// ---------------------------------------------------------------------------
+// Story 3.9 (step-02): the recovery action policy — the READ-TIME
+// derivation of the allowed recovery-action set of ONE case
+// ---------------------------------------------------------------------------
+
+// RecoveryCasePolicy is the api-typed read-time policy read of ONE
+// Recovery Case (the machine view of the transport and the page section
+// of step-03): the LIVING reads ONLY, reused as they stand — the case
+// row with its append-only event history (the card precedent; the
+// read-time state word derives over the events — «open» is the ONE word
+// of the slice), the operation facts of the case pin (the fresh-read
+// discipline of the card; the definition pins of the LIVE facts read,
+// with the FROZEN bundle pins as the honest fallback — the operation
+// row is immutable, the pins are the same either way, the right limits
+// itself and never refuses on a transient facts miss), the catalog
+// definition resolve of the pins (the declared CancelCompensationSem
+// semantics word), the scoped control of the definition's route (the
+// EffectiveFor LIVE reading — a paused mode blocks the material kinds
+// with the EXACT control word; an unreadable control fails closed by
+// the honest word) and the AG-4 composition fact (the nil
+// reconciliation adapter is the honest production boundary — the
+// policy is never blocked by it, the honest word rides the status
+// kind). The derivation is a PURE function over the facts — NOT ONE
+// row lands in any table on ANY path (the fake-repo counters pin the
+// zero-write property; the idempotence is the derivation itself: the
+// repeated request over the unchanged world answers the SAME view
+// byte-stably). The gate ladder is the card discipline: the membership
+// FIRST (a non-member gets the honest 404, never a disclosure), then
+// the operations scope word of the acting member, then the case read
+// (an unknown case answers the honest 404 BEFORE any material — the
+// membership blindness, AD-11).
+func (s *Service) RecoveryCasePolicy(ctx context.Context, actor identityDomain.Principal, tenantID, recoveryCaseID id.UUID) (api.RecoveryPolicyView, error) {
+	if s.recoveries == nil {
+		return api.RecoveryPolicyView{}, fmt.Errorf("%s", recoveryPortsMissingText)
+	}
+	scope, err := s.recoveryScope(ctx, actor, tenantID)
+	if err != nil {
+		return api.RecoveryPolicyView{}, err
+	}
+	// (1) The case row with its append-only event history (the
+	// LIVING read of the card precedent): an unknown case (or the
+	// RLS blindness of a foreign tenant) answers the honest 404
+	// BEFORE any material.
+	row, err := s.recoveries.ReadRecoveryCase(ctx, scope, recoveryCaseID)
+	if err != nil {
+		return api.RecoveryPolicyView{}, err
+	}
+	// The read-time case state over the events (fail-closed on a
+	// foreign event word — the DeriveRecoveryCaseState reuse).
+	caseState, err := domain.DeriveRecoveryCaseState(row.Events)
+	if err != nil {
+		return api.RecoveryPolicyView{}, err
+	}
+	// (2) The operation facts of the case pin (the LIVING re-read —
+	// the fresh-read discipline of the card): the definition pins
+	// of the LIVE facts read; a transient miss falls back onto the
+	// FROZEN bundle pins of the case row (the SAME immutable pins —
+	// the operation row never rewrites, the right limits itself,
+	// the view never refuses).
+	definitionID, definitionVer := row.Bundle.DefinitionID, row.Bundle.DefinitionVer
+	if facts, factsErr := s.recoveries.ReadRecoveryOperationFacts(ctx, scope, row.OperationID); factsErr == nil {
+		definitionID, definitionVer = facts.Operation.DefinitionID, facts.Operation.DefinitionVersion
+	}
+	// (4) The catalog definition resolve of the pins: the honest
+	// fail-closed human path of the dependent kinds when the pins
+	// do not resolve (the route cannot be named — the missing rule
+	// means human_only, never a refusal of the whole view).
+	definitionReadable, cancelSemantics := false, ""
+	controlMode, controlReason := "", ""
+	if def, ok := catalogDefinition(s, definitionID, definitionVer); ok {
+		definitionReadable = true
+		cancelSemantics = def.DeliveryContract.CancelCompensationSem
+		// (3) The scoped control of the definition's route (the
+		// LIVE EffectiveFor reading — the reconcile fence
+		// precedent): the paused mode blocks the material kinds
+		// with the EXACT control word; an unreadable control
+		// (the nil port or the resolution error) fails closed
+		// by the honest unreadable word — the material kinds
+		// never open on an unreadable control, the reading
+		// stays.
+		if s.previewControl != nil {
+			if control, controlErr := s.previewControl.EffectiveFor(ctx, scope.TenantID(), port.ControlRoute{
+				ConnectorID:   def.RequiredCapability.ConnectorID,
+				AutonomyClass: def.Conditions.AutonomyClass,
+			}); controlErr == nil {
+				controlMode, controlReason = control.Mode, control.Reason
+			}
+		}
+	}
+	policy, err := domain.DeriveRecoveryActionPolicy(domain.RecoveryPolicyFacts{
+		CaseStateWord:         caseState,
+		ScopedControlMode:     controlMode,
+		ScopedControlReason:   controlReason,
+		DefinitionReadable:    definitionReadable,
+		CancelCompensationSem: cancelSemantics,
+		ReconciliationWired:   s.reconcileAdapter != nil,
+	})
+	if err != nil {
+		return api.RecoveryPolicyView{}, err
+	}
+	// The api-typed machine view: the case pin, the kind answers in the
+	// dictionary order and the human-only class with the class word.
+	view := api.RecoveryPolicyView{
+		RecoveryCaseID:     row.RecoveryCaseID,
+		HumanOnlyClassText: policy.HumanOnlyClassText,
+		Actions:            make([]api.RecoveryActionView, 0, len(policy.Actions)),
+		HumanOnlyDecisions: make([]api.RecoveryHumanOnlyDecisionView, 0, len(policy.HumanOnly)),
+	}
+	for _, action := range policy.Actions {
+		view.Actions = append(view.Actions, api.RecoveryActionView{
+			Kind:                 action.Kind,
+			State:                action.State,
+			StateText:            action.StateText,
+			ScopeText:            action.ScopeText,
+			EligibilityRuleText:  action.EligibilityRuleText,
+			RequiredFactsText:    action.RequiredFactsText,
+			AuthorityText:        action.AuthorityText,
+			ConfirmationRequired: action.ConfirmationRequired,
+		})
+	}
+	for _, decision := range policy.HumanOnly {
+		view.HumanOnlyDecisions = append(view.HumanOnlyDecisions, api.RecoveryHumanOnlyDecisionView{
+			Kind:         decision.Kind,
+			BoundaryText: decision.BoundaryText,
+		})
+	}
+	return view, nil
+}
