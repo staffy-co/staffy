@@ -104,18 +104,22 @@ var DispatchRetryWords = []string{
 	DispatchRetryRetry, DispatchRetryParkUnknown, DispatchRetryParkBound, DispatchRetryDecided,
 }
 
-// Outbox event type words of the action module's own outbox (two): the
-// queued job of 3-5 and the receipt link of 3-6 (AD-2: the Work
-// Item/Conversation reference travels as an event of THIS module's outbox
-// — a direct write into a foreign module's tables never happens; the
-// future consumer reads the pending records, the 3-5 mirror precedent).
+// Outbox event type words of the action module's own outbox (three): the
+// queued job of 3-5, the receipt link of 3-6 and the recovery-case link
+// of 3-8 (AD-2: the Work Item/Conversation reference travels as an event
+// of THIS module's outbox — a direct write into a foreign module's tables
+// never happens; the future consumer reads the pending records, the 3-5
+// mirror precedent; the recovery_case.created records of 3-8 honestly
+// accumulate pending — the claim-mode consumer of a future slice reads
+// them, the receipt.created precedent).
 const (
-	OutboxEventOperationQueued = "operation.queued"
-	OutboxEventReceiptCreated  = "receipt.created"
+	OutboxEventOperationQueued     = "operation.queued"
+	OutboxEventReceiptCreated      = "receipt.created"
+	OutboxEventRecoveryCaseCreated = "recovery_case.created"
 )
 
-// OutboxEventWords is the full dictionary (2 words).
-var OutboxEventWords = []string{OutboxEventOperationQueued, OutboxEventReceiptCreated}
+// OutboxEventWords is the full dictionary (3 words).
+var OutboxEventWords = []string{OutboxEventOperationQueued, OutboxEventReceiptCreated, OutboxEventRecoveryCaseCreated}
 
 // ---------------------------------------------------------------------------
 // The lease constants and the lease window
