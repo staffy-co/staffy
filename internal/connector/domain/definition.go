@@ -93,6 +93,11 @@ type ConnectorDefinition struct {
         PriorityNote        string                   `json:"priority_note,omitempty"`
         Fields              []FieldSchema            `json:"fields"`
         Capabilities        []CapabilityDeclaration  `json:"capabilities,omitempty"`
+        // ManagerOnlyActions lists the interface actions a human performs in the
+        // provider's own UI — deliberately NOT API capabilities (spec 4-1, AC-7
+        // tail: the manager-only surface is enumerated separately, never mixed
+        // into the capability dictionary).
+        ManagerOnlyActions []string `json:"manager_only_actions,omitempty"`
 }
 
 // Connectable reports whether this definition may start a new Connection.

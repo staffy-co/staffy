@@ -1,0 +1,54 @@
+{{define "pilot"}}
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Пилот автозапчастей · Staffy</title><link rel="stylesheet" href="/assets/app.css"></head>
+<body><a class="skip-link" href="#main">К основному содержанию</a><header class="topbar"><a class="brand" href="/app/tenants/{{.TenantID}}">Staffy</a><strong>Пилот автозапчастей магазина Олега</strong></header>
+<div class="shell"><nav aria-label="Основная навигация"><a href="/app/tenants/{{.TenantID}}">Сегодня</a><a href="/app/tenants/{{.TenantID}}/employees">Сотрудники</a><a href="/app/tenants/{{.TenantID}}/integrations">Интеграции</a></nav><main id="main"><section class="panel">
+<h1>Пилот автозапчастей: реестр допуска</h1>
+<p>Read-time вывод допуска каналов и систем пилота над живыми фактами: запечатанный пин Domain Pack «Автозапчасти», производные состояния capabilities подключений (никогда секреты) и история gate-инстансов. Страница ничего не записывает: повторное чтение неизменного мира даёт тот же ответ. Реальные адаптеры Jivo/ABCP не реализованы (AG-4) — дозакрытие гейтов подтверждает их будущие срезы.</p>
+<p class="next-note">Ваши полномочия на этой странице: {{.View.ScopeText}}.</p>
+<p role="status" aria-live="polite">Domain Pack: <strong>{{.View.PackText}}</strong>{{if not .View.PackOK}} — все маршруты честно заблокированы до прикрепления пина к запечатанному контуру{{end}}.</p>
+
+<h2>Маршрутная матрица пилота (стадии словами)</h2>
+<p class="next-note">Стадии различимы текстом и семантически: «кандидат» — заявлен, capabilities живыми доказательствами не подтверждены; «проверен» — capabilities подтверждены, гейты не закрыты; «допущен» — подтверждено и закрыто всё. Разрешение одного маршрута не расширяет остальные; блокировка затрагивает только свой маршрут.</p>
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Маршрутная матрица пилота">
+<table class="datamap-table">
+<caption>Маршруты пилота: стадия текстом, blockers с точными словами, следующим владельцем проверки и safe state</caption>
+<thead><tr><th scope="col">Маршрут</th><th scope="col">Стадия</th><th scope="col">Блокировки</th></tr></thead>
+<tbody>
+{{range .View.Routes}}<tr><th scope="row">{{.Title}}</th><td><strong>{{.StageText}}</strong> ({{.Stage}})<br><span class="next-note">{{.StageWord}}</span>{{if .FenceWords}}<p class="alert" role="note">{{range .FenceWords}}{{.}}{{end}}</p>{{end}}{{if .FallbackWords}}{{range .FallbackWords}}<p class="next-note">{{.}}</p>{{end}}{{end}}</td><td>{{if .Blockers}}<ul class="form-error">{{range .Blockers}}<li><span class="digest-block">{{.Source}}: {{.ID}}</span>: {{.Word}}{{if .SafeState}}<br>Safe state: {{.SafeState}}{{end}}<br>Следующий владелец проверки: {{.NextOwner}}.</li>{{end}}</ul>{{else}}—{{end}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+
+<h3>Требуемые гейты и capabilities по маршрутам</h3>
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Требования маршрутов">
+<table class="datamap-table">
+<caption>Каждый требуемый гейт со состоянием, точным словом, safe state и следующим владельцем; каждая требуемая capability с производным состоянием</caption>
+<thead><tr><th scope="col">Маршрут</th><th scope="col">Гейты (состояние · слово · следующий владелец)</th><th scope="col">Capabilities (состояние · слово)</th></tr></thead>
+<tbody>
+{{range .View.Routes}}<tr><th scope="row">{{.ID}}</th><td>{{if .Gates}}<ul class="form-error">{{range .Gates}}<li><span class="digest-block">{{.ID}}</span> — {{.StateText}}{{if .Word}}: {{.Word}}{{end}}{{if .SafeState}}<br>Safe state: {{.SafeState}}. Следующий владелец: {{.NextOwner}}.{{end}}</li>{{end}}</ul>{{else}}матрица ABCP→1С (терминальные доказательства){{end}}</td><td>{{if .Capabilities}}<ul class="form-error">{{range .Capabilities}}<li><span class="digest-block">{{.ID}}</span> ({{.ConnectorID}}) — {{if .Word}}{{.Word}}{{else}}verified{{end}}</li>{{end}}</ul>{{else}}внешних требований нет (операторская поверхность Staffy){{end}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+
+<h2>Матрица состояний и полномочий ABCP→кастомная 1С (OQ-19)</h2>
+<p class="next-note">Материальные поля обмена с владельцем системы и дисциплинами: внешний ID, версия/время, разрешённая проекция, конфликт-правило, reconcile-запрос, терминальное доказательство. Неизвестное состояние остаётся unknown — успех не заявляется, пока терминального доказательства нет.</p>
+{{range .View.Matrix}}
+<details class="knowledge-details">
+<summary>{{.Title}} — {{.StateWord}}</summary>
+<dl>
+<dt>Поле</dt><dd class="digest-block">{{.Field}}</dd>
+<dt>Владеющая система</dt><dd>{{.OwningSystem}}</dd>
+<dt>Внешний идентификатор</dt><dd>{{.ExternalID}}</dd>
+<dt>Версия и время</dt><dd>{{.VersionTime}}</dd>
+<dt>Разрешённая проекция Staffy</dt><dd>{{.Projection}}</dd>
+<dt>Правило конфликта</dt><dd>{{.ConflictRule}}</dd>
+<dt>Reconcile-запрос</dt><dd>{{.Reconcile}}</dd>
+<dt>Терминальное доказательство</dt><dd>{{.Terminal}}</dd>
+</dl>
+</details>
+{{end}}
+
+<h2>Что страница никогда не показывает</h2>
+<p class="next-note">Секреты и значения config-полей подключений не читаются и не отображаются (производные состояния capabilities — никогда секреты). Автоматическая отправка поставщику не выполняется; заказ требует подтверждения менеджера. Предположения о непроверенном провайдере (Mango Office остаётся кандидатом до OQ-1) на допуск не переносятся.</p>
+</section></main></div></body></html>
+{{end}}
