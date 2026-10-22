@@ -380,6 +380,18 @@ func TestMain(m *testing.M) {
 	if _, err = adminPool.Exec(ctx, strings.Split(string(actionReconciliationMigration), "-- +goose Down")[0]); err != nil {
 		panic(err)
 	}
+	// Story 3.8: the FIFTH migration of the action module — the
+	// recovery-case contour (the linked Recovery Case aggregate, its
+	// append-only event history and the widened outbox dictionary
+	// 2→3: recovery_case.created). The registration stays in this
+	// hard list (the 3.3 lesson).
+	actionRecoveryMigration, err := os.ReadFile("../../migrations/action/00005_recovery_case.sql")
+	if err != nil {
+		panic(err)
+	}
+	if _, err = adminPool.Exec(ctx, strings.Split(string(actionRecoveryMigration), "-- +goose Down")[0]); err != nil {
+		panic(err)
+	}
 	if _, err = adminPool.Exec(ctx, "alter role staffy_app login password 'staffy-runtime-test'"); err != nil {
 		panic(err)
 	}

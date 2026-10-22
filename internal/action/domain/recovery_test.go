@@ -639,3 +639,37 @@ func TestDeriveOperationNextStepText(t *testing.T) {
 		t.Fatalf("чужой триггер обязан отказывать словарём: %q", foreign)
 	}
 }
+
+// TestDeriveRecoveryEvidenceDelta pins SAFE-дельту evidence-строки
+// поимённо: изменившиеся пины называют старое→новое (версии квитанций,
+// счётчики попыток, внешний объект), неизменившиеся НЕ называются,
+// пустая дельта говорит честное слово, буйнд 500 рун держится.
+func TestDeriveRecoveryEvidenceDelta(t *testing.T) {
+	stored := testBundle()
+	// Ничего не двигалось — честное слово пустой дельты.
+	if delta := DeriveRecoveryEvidenceDelta(stored, stored); !strings.Contains(delta, "ни один SAFE-пин") {
+		t.Fatalf("пустая дельта обязана говорить честное слово: %q", delta)
+	}
+	// Позднее terminal evidence: квитанция v3 committed с внешним
+	// объектом и ещё одна попытка сверки.
+	fresh := testBundle()
+	fresh.ReceiptVersionsCount = 3
+	fresh.LatestReceiptVersion = 3
+	fresh.LatestReceiptOutcome = "committed"
+	fresh.ReconcileAttempts = 4
+	fresh.ExternalObjectID = "order-77"
+	fresh.ExternalObjectVersion = "2"
+	delta := DeriveRecoveryEvidenceDelta(stored, fresh)
+	for _, pin := range []string{"квант-квитанций 2→3", "последняя-квитанция 2→3", "исход-квитанции unknown→committed", "reconcile-попытки 3→4", "внешний-id →order-77"} {
+		if !strings.Contains(delta, pin) {
+			t.Fatalf("дельта обязана называть пин %q: %q", pin, delta)
+		}
+	}
+	if strings.Contains(delta, "dispatch-попытки") {
+		t.Fatalf("неизменившийся пин НЕ называется: %q", delta)
+	}
+	// Буйнд: длинная дельта обрезается до 500 рун.
+	if got := len([]rune(DeriveRecoveryEvidenceDelta(stored, fresh))); got > RecoverySafeDetailsRunes {
+		t.Fatalf("дельта обязана держать буйнд 500: %d", got)
+	}
+}

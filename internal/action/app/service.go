@@ -84,6 +84,17 @@ type Service struct {
 	// every store transaction (persist-before-emit, AD-6).
 	reconciliations  port.ReconciliationRepository
 	reconcileAdapter port.ReconciliationAdapter
+
+	// Story 3.8 (step-02): the recovery-case contour — the creation
+	// worker. The recovery repository owns the ONE creation transaction
+	// (the advisory lock resolves the creation race by the idempotent
+	// return) and the read-time fact reads; there is NO adapter at all —
+	// the contour is LOCAL (the assignment reads the LIVE ownership and
+	// coverage words through the caseMaterial/routeFacts ports wired since
+	// 3-4 — in-process module reads, never the provider world; the
+	// network stays in the dispatch/reconciliation contours of 3-6/3-7,
+	// AG-4).
+	recoveries port.RecoveryRepository
 }
 
 // New wires the service. The resolvers are the composition-root adapters
@@ -173,6 +184,21 @@ func (s *Service) WithDispatch(dispatches port.DispatchRepository, adapter port.
 func (s *Service) WithReconcile(repository port.ReconciliationRepository, adapter port.ReconciliationAdapter) *Service {
 	s.reconciliations = repository
 	s.reconcileAdapter = adapter
+	return s
+}
+
+// WithRecovery wires the recovery-case contour of story 3.8 (the fixture
+// and the transport composition roots): the recovery repository ONLY —
+// the contour carries NO adapter of its own (the locality of the slice:
+// the creation command makes not ONE provider call; the assignment
+// reads the LIVE ownership/coverage words through the ports wired since
+// 3-4 — the WithPreviews wiring; the eligibility reads the declaredness
+// through the caps resolver of the catalog). The reconciliation adapter
+// nil IS the honest production fact the eligibility ladder reads
+// (AG-4: the unwired contour answers reconciliation_unavailable — the
+// human is mandatory — and the recovery cases still get created).
+func (s *Service) WithRecovery(repository port.RecoveryRepository) *Service {
+	s.recoveries = repository
 	return s
 }
 

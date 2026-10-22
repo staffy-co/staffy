@@ -495,6 +495,50 @@ func isHex64(s string) bool {
 	return true
 }
 
+// DeriveRecoveryEvidenceDelta renders the SAFE delta word of the
+// evidence append: the names of the CHANGED pins with their old→new
+// values — identifiers, versions, counters, words and the external
+// identity ONLY (NEVER a material value, AD-10) — joined into ONE
+// bounded line (RecoverySafeDetailsRunes, the store CHECK backstop).
+// The delta speaks what moved between the frozen creation bundle and
+// the fresh derivation of the SAME operation facts: the later terminal
+// evidence of the 3-7 contour (a receipt v3+, new attempts, a fresh
+// external object). The LONG key words (business_intent_key,
+// idempotency_key, material_digest) speak by NAME only — their values
+// are identities, not delta material; an unchanged set answers the
+// honest «no pin moved» word (the comparator discipline: the delta row
+// lands ONLY on a digest change, the equal case answered idempotent
+// BEFORE this derivation).
+func DeriveRecoveryEvidenceDelta(stored, fresh RecoveryBundle) string {
+	segments := []string{}
+	word := func(name, oldV, newV string) {
+		if oldV != newV {
+			segments = append(segments, fmt.Sprintf("%s %s→%s", name, oldV, newV))
+		}
+	}
+	word("preview-версия", fmt.Sprintf("%d", stored.PreviewVersionNo), fmt.Sprintf("%d", fresh.PreviewVersionNo))
+	word("confirmation-версия", fmt.Sprintf("%d", stored.ConfirmationVersionNo), fmt.Sprintf("%d", fresh.ConfirmationVersionNo))
+	word("owner-эпоха", fmt.Sprintf("%d", stored.OwnerEpoch), fmt.Sprintf("%d", fresh.OwnerEpoch))
+	word("dispatch-попытки", fmt.Sprintf("%d", stored.DispatchAttempts), fmt.Sprintf("%d", fresh.DispatchAttempts))
+	word("reconcile-попытки", fmt.Sprintf("%d", stored.ReconcileAttempts), fmt.Sprintf("%d", fresh.ReconcileAttempts))
+	word("квант-квитанций", fmt.Sprintf("%d", stored.ReceiptVersionsCount), fmt.Sprintf("%d", fresh.ReceiptVersionsCount))
+	word("последняя-квитанция", fmt.Sprintf("%d", stored.LatestReceiptVersion), fmt.Sprintf("%d", fresh.LatestReceiptVersion))
+	word("исход-квитанции", stored.LatestReceiptOutcome, fresh.LatestReceiptOutcome)
+	word("внешний-id", stored.ExternalObjectID, fresh.ExternalObjectID)
+	word("внешняя-версия", stored.ExternalObjectVersion, fresh.ExternalObjectVersion)
+	word("внешнее-время", stored.ExternalObjectTime, fresh.ExternalObjectTime)
+	word("наблюдения", fmt.Sprintf("%d", len(stored.Observations)), fmt.Sprintf("%d", len(fresh.Observations)))
+	if len(segments) == 0 {
+		return "Дельта доказательств: ни один SAFE-пин не двигался (дайджест разошёлся вне пинов среза)."
+	}
+	delta := "Дельта доказательств: " + strings.Join(segments, "; ")
+	runes := []rune(delta)
+	if len(runes) > RecoverySafeDetailsRunes {
+		return string(runes[:RecoverySafeDetailsRunes])
+	}
+	return delta
+}
+
 // ---------------------------------------------------------------------------
 // The assignment: the LIVE readings ONLY (the coverageWord canon)
 // ---------------------------------------------------------------------------
