@@ -144,6 +144,34 @@ func (s *Server) operationsProblem(w http.ResponseWriter, r *http.Request, err e
 	case errors.Is(err, actionPort.ErrOperationIntegrity):
 		s.logger.ErrorContext(r.Context(), "operation integrity alarm", "code", "operation_integrity_alarm", "error", err.Error())
 		s.problem(w, r, http.StatusInternalServerError, "operation_integrity_alarm", "Структурная целостность операции нарушена — передайте в проверку целостности.", false, nil)
+	case errors.Is(err, actionAPI.ErrRecoveryIneligible):
+		// The honest refusal word of the eligibility ladder (3-8): the
+		// exact gas speaks — committed, in flight, the reconciliation not
+		// exhausted, the repeat available; NOTHING was written.
+		reason := operationsWrappedReason(err, actionAPI.ErrRecoveryIneligible)
+		if reason == "" {
+			reason = "Операция не подходит для восстановления: автоматика не исчерпана."
+		}
+		s.problem(w, r, http.StatusForbidden, "recovery_ineligible", reason, false, nil)
+	case errors.Is(err, actionAPI.ErrRecoveryCoverageUnavailable):
+		// The fail-closed assignment word (3-8): the human coverage of the
+		// original conversation route is unreadable — the deadline and the
+		// backup are never invented, the case is NOT created.
+		reason := operationsWrappedReason(err, actionAPI.ErrRecoveryCoverageUnavailable)
+		if reason == "" {
+			reason = actionDomain.RecoveryCoverageUnavailableText
+		}
+		s.problem(w, r, http.StatusForbidden, "recovery_coverage_unavailable", reason, false, nil)
+	case errors.Is(err, actionAPI.ErrRecoveryOwnerUnknown):
+		// The fail-closed assignment word (3-8): the original Case carries
+		// no current ownership term — the owner is never invented.
+		reason := operationsWrappedReason(err, actionAPI.ErrRecoveryOwnerUnknown)
+		if reason == "" {
+			reason = actionDomain.RecoveryOwnerUnknownText
+		}
+		s.problem(w, r, http.StatusForbidden, "recovery_owner_unknown", reason, false, nil)
+	case errors.Is(err, actionAPI.ErrRecoveryNotFound):
+		s.problem(w, r, http.StatusNotFound, "not_found", "Recovery Case или операция не найдены.", false, nil)
 	case errors.Is(err, actionDomain.ErrNotFound), errors.Is(err, domain.ErrNotFound):
 		s.problem(w, r, http.StatusNotFound, "not_found", "Обращение, версия preview, Confirmation или Operation не найдены.", false, nil)
 	case errors.Is(err, actionDomain.ErrForbidden), errors.Is(err, domain.ErrForbidden):
@@ -652,7 +680,17 @@ type operationCardRowView struct {
 	ReconciliationAttempts []reconcileAttemptRowView
 	HasReconcileAttempts   bool
 	ReconcileText          string
-	CreatedAt              string
+	// The Story 3.8 recovery extension: the eligible trigger word with
+	// its fixed text, the existing case pin and the recovery-creation
+	// form visibility (the eligible card shows the deliberate operator
+	// act — the reconcile-form precedent).
+	RecoveryTrigger     string
+	RecoveryTriggerText string
+	RecoveryCaseID      string
+	RecoveryCaseNo      string
+	HasRecoveryCase     bool
+	IsRecoveryEligible  bool
+	CreatedAt           string
 }
 
 // operationsPageView carries the page material: the tenant and the case,
@@ -676,6 +714,7 @@ type operationsPageView struct {
 	ConfirmLifetime  string
 	HasDrain         bool
 	HasReconcile     bool
+	HasRecovery      bool
 }
 
 // operationNotice speaks the PRG status of a successful form mutation:
@@ -766,6 +805,7 @@ func newOperationCardRowView(card actionAPI.OperationCardView) operationCardRowV
 		QueuedText:             operationQueuedWords(card.Queued),
 		OwningSystemText:       operationOwningSystemWords(card.OwningSystem),
 		NextStepText:           card.NextStepText,
+		RecoveryTrigger:        card.RecoveryTrigger,
 		BlockReasonText:        card.BlockReasonText,
 		ExternalIDText:         card.ExternalIDAbsentText,
 		DispatchText:           card.DispatchAbsentText,
@@ -779,6 +819,16 @@ func newOperationCardRowView(card actionAPI.OperationCardView) operationCardRowV
 	}
 	if !card.CreatedAt.IsZero() {
 		row.CreatedAt = card.CreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00")
+	}
+	// The Story 3.8 recovery extension of the row: the trigger word
+	// with its fixed text, the existing case pin and the eligible
+	// marker of the creation form (the deliberate operator act).
+	row.RecoveryTriggerText = card.RecoveryTriggerText
+	row.IsRecoveryEligible = card.RecoveryTrigger != ""
+	if card.RecoveryCaseID.Valid() {
+		row.HasRecoveryCase = true
+		row.RecoveryCaseID = card.RecoveryCaseID.String()
+		row.RecoveryCaseNo = strconv.FormatInt(card.RecoveryCaseNo, 10)
 	}
 	row.HasLedger = len(card.Ledger) > 0
 	for _, entry := range card.Ledger {
@@ -930,6 +980,7 @@ func (s *Server) operationReviewPage(w http.ResponseWriter, r *http.Request) {
 		ConfirmLifetime: "3600",
 		HasDrain:        s.dispatch != nil,
 		HasReconcile:    s.reconcile != nil,
+		HasRecovery:     s.recovery != nil,
 	}
 	if raw := r.URL.Query().Get("confirm"); raw != "" {
 		page.ConfirmPreview, page.ConfirmVersion = splitPreviewConfirmPin(raw)

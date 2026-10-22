@@ -3650,6 +3650,49 @@ paths:
         '401': { $ref: '#/components/responses/Problem' }
         '403': { description: 'AG-4 честный отказ nil-адаптера словами («сверка не подключена — реальных систем-владельцев нет: очередь сверки не тронута, запросов ноль»); скоуп operations словами ДО чтения целей', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
         '404': { description: 'Не-участник тенента — поверхность не раскрывается', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/operations/{operation_id}/recovery-case:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+    post:
+      operationId: createRecoveryCase
+      summary: 'Создать связанный Recovery Case (3-8, операторная команда manage — прецедент drain/reconcile, демона НЕТ): read-time eligibility-лестница по ЗАПИСАННОМУ {unknown + сверка исчерпана 3/3 | unknown + сверка недоступна (не объявлена ИЛИ AG-4 nil — production-путь: человек обязателен) | failed + повтора нет (попытки 3/3 либо политика без retry-права)}; ЛЮБОЙ газ = честный отказ 403 словом ДО записи (committed «восстановление не требуется» / в-исполнении «операция ещё в исполнении» / не-исчерпана «сначала контур сверки 3-7» / повтор-доступен «восстановление преждевременно»); назначение ТОЛЬКО живыми чтениями (владелец = текущий терм Ownership исходного кейса, backup/дедлайн = human coverage маршрута исходной conversation — слова НИКОГДА из параметров команды; непрочитанное покрытие или владелец-без-термов = честный fail-closed 403, кейс НЕ создаётся); назначение живыми чтениями — AC-1; кейс НАВСЕГДА один на операцию (keyed-HMAC recovery_key:v1: + UNIQUE (tenant, operation) — ацикличность без parent-колонки, AC-6); повтор команды = идемпотентный возврат существующего кейса (200, слово, второй строки НЕТ — AC-5), digest-дельта (позднее terminal evidence контуром 3-7) = ОДНА append-only строка evidence_appended с SAFE-дельтой (исходный bundle и квитанции НЕ переписываются — AC-10-минимум); создание ОДНОЙ транзакцией (номер coalesce(max)+1 под advisory-замком + событие created + outbox recovery_case.created); НИ ОДНОГО сетевого вызова в команде (контур локален — сеть остаётся в 3-6/3-7); SAFE link-bundle пинов точных версий — материал НИКОГДА (AD-10/AC-9)'
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecoveryCreateRequest' }
+      responses:
+        '201': { description: 'Recovery Case создан: назначение живыми чтениями, SAFE-пины точных версий, событие created + outbox recovery_case.created — исходные записи не переписаны', content: { application/json: { schema: { type: object, required: [recovery_case], properties: { recovery_case: { $ref: '#/components/schemas/RecoveryCreateResultView' } } } } } }
+        '200': { description: 'Повтор команды: идемпотентный возврат существующего кейса (второй строки и события НЕТ) ИЛИ дельта-доказательств (ОДНА append-only строка evidence_appended с SAFE-дельтой)', content: { application/json: { schema: { type: object, required: [recovery_case], properties: { recovery_case: { $ref: '#/components/schemas/RecoveryCreateResultView' } } } } } }
+        '400': { description: 'Строгий decode пустого тела: свободное поле = 400 — параметров команды не существует (слова назначения никогда из параметров)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Честные отказы СЛОВАМИ: скоуп operations ДО материала; газы лестницы eligibility {committed / в-исполнении / сверка-не-исчерпана / повтор-доступен}; fail-closed назначения {покрытие недоступно / владелец исходного кейса неизвестен} — кейс НЕ создан, ничего не записано', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { description: 'Не-участник тенента либо неизвестная операция — поверхность не раскрывается (membership-404 ДО материала)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/recovery-cases:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+    get:
+      operationId: listRecoveryCases
+      summary: 'Список Recovery Case тенента (3-8, Recovery Panel): bounded-чтение доменного предела 200, порядок по моменту создания (свежие первыми); SAFE-пины и слова — материал НИКОГДА'
+      x-staffy-principal-required: true
+      responses:
+        '200': { description: 'Список кейсов восстановления (номер/триггер словом/владелец/backup/дедлайн/момент)', content: { application/json: { schema: { type: object, required: [recovery_cases], properties: { recovery_cases: { type: array, items: { $ref: '#/components/schemas/RecoveryCaseView' } } } } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Скоуп operations словами ДО чтения', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { description: 'Не-участник тенента — поверхность не раскрывается', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/recovery-cases/{recovery_case_id}:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+    get:
+      operationId: readRecoveryCase
+      summary: 'Карточка Recovery Case (3-8): SAFE link-bundle пинов точных версий + ЖИВАЯ деривация цепочки квитанций/попыток/внешнего состояния (карточка всегда свежая — исходный bundle не переписывается, AC-10); честные unknown-слова платежей (AG-4) и локальной проекции; append-only история {created, evidence_appended}; назначение живыми чтениями момента создания'
+      x-staffy-principal-required: true
+      responses:
+        '200': { description: 'Карточка кейса восстановления', content: { application/json: { schema: { type: object, required: [recovery_case], properties: { recovery_case: { $ref: '#/components/schemas/RecoveryCaseView' } } } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Скоуп operations словами ДО чтения', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { description: 'Не-участник либо неизвестный кейс — поверхность не раскрывается', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
 components:
   parameters:
     EmployeeID:
@@ -7458,6 +7501,13 @@ components:
           type: array
           description: 'Попытки сверки (≤3, закрытые details на странице — 320px без скролла аудита; вердикт словами словаря 4)'
           items: { $ref: '#/components/schemas/ReconciliationAttemptView' }
+        recovery_trigger:
+          description: 'Триггер восстановления read-time (3-8): отсутствует = операция НЕ eligible — наследное слово следующего шага продолжает говорить (смена доменного слова пинится journeys z36, правило 161)'
+          oneOf:
+            - $ref: '#/components/schemas/RecoveryTriggerWord'
+        recovery_trigger_text: { type: string, description: 'Фиксированный текст триггера (тексты домена; отсутствует = не eligible)' }
+        recovery_case_id: { type: string, format: uuid, description: 'Пин существующего Recovery Case (нулевая ссылка = кейса ещё нет — максимум один навсегда)' }
+        recovery_case_no: { type: integer, minimum: 1, description: 'Номер существующего кейса (отсутствует = кейса нет)' }
         created_at: { type: string, format: date-time }
     AuthorizationOutcome:
       type: object
@@ -7580,6 +7630,119 @@ components:
           type: array
           description: 'Построчный отчёт каждой рассмотренной цели — слова, не молчание'
           items: { $ref: '#/components/schemas/ReconcileReportLineView' }
+    RecoveryCreateRequest:
+      type: object
+      additionalProperties: false
+      description: 'Тело команды создания Recovery Case — ровно один ПУСТОЙ объект: параметров не существует (слова назначения живыми чтениями — НИКОГДА из параметров команды); свободное поле = 400 строгим decode'
+    OutboxEventWord:
+      type: string
+      enum: [operation.queued, receipt.created, recovery_case.created]
+      description: 'Словарь событий outbox модуля action (3 слова, срез 3-8: 2→3): operation.queued — задание отправки 3-5; receipt.created — ссылка квитанции 3-6; recovery_case.created — ссылка кейса восстановления 3-8 (записи честно копятся pending — потребитель будущий: claim-режим и контур 3-9 читают событие, прецедент receipt.created)'
+    RecoveryTriggerWord:
+      type: string
+      enum: [reconciliation_exhausted, reconciliation_unavailable, operation_failed]
+      description: 'Словарь триггеров восстановления (3 слова): reconciliation_exhausted — unknown и попытки сверки исчерпаны 3/3 (записанный факт побеждает объявленность); reconciliation_unavailable — unknown и автоматического контура нет (не объявлена ИЛИ не подключена AG-4 — production-путь: человек обязателен); operation_failed — терминальный отказ без права повтора (попытки 3/3 либо политика без retry-права: «требующая человека» = автоматика исчерпана); терминальный конфликт 3-7 НЕ отдельный триггер (полный откат не оставляет записи — слово без материального события не бывает)'
+    RecoveryEventKindWord:
+      type: string
+      enum: [created, evidence_appended]
+      description: 'Словарь kind событий Recovery Case (2 слова): created — рождение кейса (ОДНО на операцию навсегда); evidence_appended — позднее terminal evidence 3-7 ОДНОЙ append-only строкой SAFE-дельты (исходный bundle и квитанции НЕ переписываются); закрывающих слов в срезе НЕТ (AC-11 будущий срез — словарь не растёт рантаймом)'
+    RecoveryCaseStateWord:
+      type: string
+      enum: [open]
+      description: 'Словарь состояний Recovery Case (1 слово, read-time): open — BY CONSTRUCTION (закрывающих событий в словаре среза нет; закрытие = осознанный рост словаря будущего среза, никогда рантайм)'
+    RecoveryDecisionWord:
+      type: string
+      enum: [created, idempotent, evidence]
+      description: 'Словарь решений команды создания (3 слова): created — новый кейс (строка + событие + outbox); idempotent — повтор с неизменённым bundle digest (существующий кейс, второй строки и события НЕТ); evidence — повтор с дельтой (ОДНА append-only строка evidence_appended)'
+    RecoveryObservationPinView:
+      type: object
+      additionalProperties: false
+      required: [ref, version]
+      description: 'ОДИН пин supporting-observation (2-7): ссылка-версия — материал НИКОГДА (immutable-строка наблюдения остаётся у себя)'
+      properties:
+        ref: { type: string, format: uuid }
+        version: { type: integer, minimum: 1, description: 'Пиннутая версия наблюдения превью' }
+    RecoveryAssignmentView:
+      type: object
+      additionalProperties: false
+      required: [owner_kind, owner_ref, owner_epoch, backup_owner_id, ack_deadline_minutes]
+      description: 'Назначение Recovery Case — ТОЛЬКО живые чтения момента создания (AC-1): владелец = текущий терм Ownership исходного кейса (максимальная эпоха); backup и дедлайн = human coverage маршрута исходной conversation (coverageWord-канон: слова НИКОГДА из параметров команды; непрочитанное покрытие = fail-closed, кейс НЕ создаётся)'
+      properties:
+        owner_kind: { type: string, description: 'Вид владельца исходного кейса (human/staffy)' }
+        owner_ref: { type: string, format: uuid }
+        owner_epoch: { type: integer, minimum: 1, description: 'Эпоха терма владельца' }
+        backup_owner_id: { type: string, format: uuid, description: 'Backup из human coverage маршрута' }
+        ack_deadline_minutes: { type: integer, minimum: 1, description: 'Слово дедлайна покрытия (минуты); deadline_at карточки = момент создания + минуты' }
+    RecoveryEventView:
+      type: object
+      additionalProperties: false
+      required: [event_no, kind, details, actor_id, created_at]
+      description: 'ОДНА append-only строка истории Recovery Case: монотонный номер под замком кейса, kind словаря 2, SAFE details ≤500 (слова дельты — идентификаторы/версии/счётчики, материал НИКОГДА)'
+      properties:
+        event_no: { type: integer, minimum: 1, description: 'Монотонный номер события кейса' }
+        kind: { $ref: '#/components/schemas/RecoveryEventKindWord' }
+        details: { type: string, description: 'SAFE-слова события: триггер создания / дельта изменившихся пинов (old→new)' }
+        actor_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+    RecoveryLinksView:
+      type: object
+      additionalProperties: false
+      required: [preview_id, preview_version_no, confirmation_id, confirmation_version_no, receipt_versions_count, latest_receipt_version_no, latest_receipt_outcome, dispatch_attempts, reconcile_attempts, external_object_id, external_object_version, owning_system, observations]
+      description: 'SAFE link-bundle карточки (AD-10/AC-9 — минимальные ссылки вместо копий: чувствительный payload остаётся в immutable-строках превью): пины манифеста исполнения ТОЧНЫХ версий, ЖИВАЯ цепочка квитанций (деривация чтения — карточка всегда свежая, AC-10), счётчики попыток обоих контуров, внешняя идентичность последней квитанции (пусто = честное unknown), пины наблюдений'
+      properties:
+        preview_id: { type: string, format: uuid }
+        preview_version_no: { type: integer, minimum: 1 }
+        confirmation_id: { type: string, format: uuid }
+        confirmation_version_no: { type: integer, minimum: 1 }
+        receipt_versions_count: { type: integer, minimum: 0, description: 'ЖИВАЯ цепочка квитанций на момент чтения' }
+        latest_receipt_version_no: { type: integer, minimum: 0, description: '0 = квитанций нет' }
+        latest_receipt_outcome: { type: string, enum: ['', committed, failed, unknown], description: 'Исход последней квитанции (пусто = квитанций нет — честное слово)' }
+        dispatch_attempts: { type: integer, minimum: 0, maximum: 3, description: 'Счётчик dispatch-попыток (живая деривация)' }
+        reconcile_attempts: { type: integer, minimum: 0, maximum: 3, description: 'Счётчик попыток сверки (живая деривация)' }
+        external_object_id: { type: string, description: 'Внешний объект последней квитанции; пусто = неизвестно — слово не выдумывается' }
+        external_object_version: { type: string }
+        external_object_time: { type: string, description: 'RFC3339 момента внешнего объекта; отсутствует = unknown' }
+        owning_system: { type: string, description: 'Слово системы-владельца (словарь 2-7)' }
+        observations:
+          type: array
+          description: 'Пины supporting-observations превью (bounded 8)'
+          items: { $ref: '#/components/schemas/RecoveryObservationPinView' }
+    RecoveryCaseView:
+      type: object
+      additionalProperties: false
+      required: [recovery_case_id, recovery_case_no, operation_id, case_id, work_item_id, definition_id, definition_version, trigger, trigger_text, state, state_text, assignment, deadline_at, links, events, payments_unknown_text, local_projection_text, created_at]
+      description: 'Карточка Recovery Case (FR-38): SAFE-пины + ЖИВАЯ деривация цепочки квитанций/попыток/внешнего состояния (карточка всегда свежая — замороженный bundle не переписывается, AC-10); назначение живыми чтениями момента создания; honest-границы словами (платежи unknown AG-4; локальная проекция — не актуальное внешнее состояние: актуальность подтверждается сверкой 3-7); материал НИКОГДА (AC-9)'
+      properties:
+        recovery_case_id: { type: string, format: uuid }
+        recovery_case_no: { type: integer, minimum: 1, description: 'Монотонный номер кейса тенента (coalesce(max)+1 под advisory-замком)' }
+        operation_id: { type: string, format: uuid }
+        case_id: { type: string, format: uuid, description: 'Пин исходного кейса (без FK — транспортная политика AD-2)' }
+        work_item_id: { type: string, format: uuid }
+        definition_id: { type: string }
+        definition_version: { type: string }
+        trigger: { $ref: '#/components/schemas/RecoveryTriggerWord' }
+        trigger_text: { type: string, description: 'Фиксированный текст триггера (тексты домена)' }
+        state: { $ref: '#/components/schemas/RecoveryCaseStateWord' }
+        state_text: { type: string, description: 'Честный текст состояния (open — закрытие будущим срезом)' }
+        assignment: { $ref: '#/components/schemas/RecoveryAssignmentView' }
+        deadline_at: { type: string, format: date-time, description: 'Материализованный дедлайн: момент создания + ack-минуты покрытия' }
+        links: { $ref: '#/components/schemas/RecoveryLinksView' }
+        events:
+          type: array
+          description: 'Append-only история кейса {created, evidence_appended}'
+          items: { $ref: '#/components/schemas/RecoveryEventView' }
+        payments_unknown_text: { type: string, description: 'Честное слово: платёжные системы не подключены (AG-4) — ни успех, ни отказ не выдумываются' }
+        local_projection_text: { type: string, description: 'Честное слово: локальная проекция — не актуальное внешнее состояние (актуальность подтверждается сверкой 3-7)' }
+        created_at: { type: string, format: date-time }
+    RecoveryCreateResultView:
+      type: object
+      additionalProperties: false
+      required: [decision, text, recovery_case]
+      description: 'Честный ответ команды создания: слово решения (created/idempotent/evidence) с фиксированным текстом + карточка кейса (существующий на повторах)'
+      properties:
+        decision: { $ref: '#/components/schemas/RecoveryDecisionWord' }
+        text: { type: string, description: 'Фиксированный honest-текст исхода (тексты домена)' }
+        recovery_case: { $ref: '#/components/schemas/RecoveryCaseView' }
     ReconciliationAttemptView:
       type: object
       additionalProperties: false

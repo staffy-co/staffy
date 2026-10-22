@@ -93,6 +93,21 @@
 {{if .OwningSystemText}}<span><strong>Owning System:</strong> {{.OwningSystemText}}</span>{{end}}
 {{if .StateAtText}}<span><strong>Момент состояния:</strong> {{.StateAtText}}</span>{{end}}
 <span><strong>Следующий шаг:</strong> {{.NextStepText}}</span>
+{{if .RecoveryTrigger}}<span><strong>Триггер восстановления:</strong> {{.RecoveryTrigger}} — {{.RecoveryTriggerText}}</span>{{end}}
+{{if .HasRecoveryCase}}<span><strong>Recovery Case:</strong> №{{.RecoveryCaseNo}} (<a href="/app/tenants/{{$.TenantID}}/recovery-cases/{{.RecoveryCaseID}}">карточка кейса восстановления</a>) — максимум один кейс на операцию навсегда (UNIQUE).</span>{{end}}
+{{if and .IsRecoveryEligible $.HasRecovery}}
+{{if not .HasRecoveryCase}}
+<details><summary>Создать Recovery Case (осознанная команда оператора — человек обязателен)</summary>
+<form method="post" action="/app/tenants/{{$.TenantID}}/operations/{{.OperationID}}/recovery-case">
+<input type="hidden" name="case_id" value="{{$.CaseID}}">
+<input type="hidden" name="operation_id" value="{{.OperationID}}">
+<label><input type="checkbox" name="confirm_recovery" value="yes" required> Подтверждаю создание: Recovery Case назначит владельца/backup/дедлайн живыми чтениями и запинит SAFE-доказательства точных версий; исходные записи не переписываются</label>
+<p class="next-note">Создание — явная команда (демона нет): назначение читает живого владельца исходного кейса и human coverage маршрута (слова никогда из параметров); кейс навсегда один на операцию (UNIQUE); повтор команды идемпотентен. Запуск read-only сверки — командой reconcile выше (нового пути запроса нет).</p>
+<button class="primary" type="submit">Создать Recovery Case</button>
+</form>
+</details>
+{{end}}
+{{end}}
 {{if .BlockReasonText}}<span class="alert" role="alert"><strong>Причина остановки отправки:</strong> {{.BlockReasonText}}</span>{{end}}
 <span><strong>Idempotency key (клиентское слово):</strong> {{.IdempotencyKey}}</span>
 <span><strong>Business intent key (серверная идентичность мутации):</strong> {{.BusinessIntentKey}}</span>

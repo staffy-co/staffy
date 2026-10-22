@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/artemiosu/staffy/internal/action/api"
 	"github.com/artemiosu/staffy/internal/action/domain"
 	"github.com/artemiosu/staffy/internal/action/port"
 	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
@@ -384,7 +385,7 @@ func bundleOf(facts port.RecoveryOperationFacts) domain.RecoveryBundle {
 func TestRecoveryCreateExhaustedUnknownCreatesCase(t *testing.T) {
 	f := newRecoveryFixture(t)
 	service := f.recoveryService(true, nil)
-	result, err := service.CreateRecoveryCase(context.Background(), f.command())
+	result, err := service.createRecoveryCase(context.Background(), f.command())
 	if err != nil {
 		t.Fatalf("создание обязано проходить: %v", err)
 	}
@@ -424,7 +425,7 @@ func TestRecoveryCreateAG4Unavailable(t *testing.T) {
 	f := newRecoveryFixture(t)
 	f.repo.facts = recoveryFacts(domain.OperationUnknown, 0, 1)
 	service := f.recoveryService(true, nil)
-	result, err := service.CreateRecoveryCase(context.Background(), f.command())
+	result, err := service.createRecoveryCase(context.Background(), f.command())
 	if err != nil {
 		t.Fatalf("AG-4 путь обязан создавать кейс: %v", err)
 	}
@@ -444,7 +445,7 @@ func TestRecoveryCreateFailedNoRepeat(t *testing.T) {
 	f := newRecoveryFixture(t)
 	f.repo.facts = recoveryFacts(domain.OperationFailed, 0, 1)
 	service := f.recoveryService(true, nil)
-	result, err := service.CreateRecoveryCase(context.Background(), f.command())
+	result, err := service.createRecoveryCase(context.Background(), f.command())
 	if err != nil {
 		t.Fatalf("failed-без-повтора обязан создавать кейс: %v", err)
 	}
@@ -487,7 +488,7 @@ func TestRecoveryCreateIneligibleGasesWriteNothing(t *testing.T) {
 			// automation is not taken away).
 			service = service.WithReconcile(newFakeReconciliationRepo(), &fakeReconciliationAdapter{capability: "command.send-sms"})
 		}
-		_, err := service.CreateRecoveryCase(context.Background(), f.command())
+		_, err := service.createRecoveryCase(context.Background(), f.command())
 		if !errors.Is(err, port.ErrRecoveryIneligible) {
 			t.Fatalf("%s: ожидался ErrRecoveryIneligible, получено %v", tc.name, err)
 		}
@@ -531,14 +532,14 @@ func indexOf(haystack, needle string) int {
 func TestRecoveryCreateScopeGateBeforeFacts(t *testing.T) {
 	f := newRecoveryFixture(t)
 	nonMember := f.recoveryService(false, nil)
-	if _, err := nonMember.CreateRecoveryCase(context.Background(), f.command()); !errors.Is(err, domain.ErrNotFound) {
+	if _, err := nonMember.createRecoveryCase(context.Background(), f.command()); !errors.Is(err, domain.ErrNotFound) {
 		t.Fatalf("не-участник обязан получать 404: %v", err)
 	}
 	if f.repo.factsCalls != 0 {
 		t.Fatalf("гейт Membership стоит ДО чтения фактов: facts=%d", f.repo.factsCalls)
 	}
 	scopeless := f.recoveryService(true, map[identityDomain.Scope]bool{})
-	_, err := scopeless.CreateRecoveryCase(context.Background(), f.command())
+	_, err := scopeless.createRecoveryCase(context.Background(), f.command())
 	if !errors.Is(err, domain.ErrForbidden) {
 		t.Fatalf("участник без полномочия обязан получать отказ: %v", err)
 	}
@@ -557,7 +558,7 @@ func TestRecoveryCreateUnknownOperation404(t *testing.T) {
 	f := newRecoveryFixture(t)
 	f.repo.factsErr = port.ErrRecoveryNotFound
 	service := f.recoveryService(true, nil)
-	_, err := service.CreateRecoveryCase(context.Background(), f.command())
+	_, err := service.createRecoveryCase(context.Background(), f.command())
 	if !errors.Is(err, port.ErrRecoveryNotFound) {
 		t.Fatalf("неизвестная операция обязана отвечать 404: %v", err)
 	}
@@ -573,11 +574,11 @@ func TestRecoveryCreateUnknownOperation404(t *testing.T) {
 func TestRecoveryCreateIdempotentRepeat(t *testing.T) {
 	f := newRecoveryFixture(t)
 	service := f.recoveryService(true, nil)
-	first, err := service.CreateRecoveryCase(context.Background(), f.command())
+	first, err := service.createRecoveryCase(context.Background(), f.command())
 	if err != nil {
 		t.Fatalf("первое создание обязано проходить: %v", err)
 	}
-	repeat, err := service.CreateRecoveryCase(context.Background(), f.command())
+	repeat, err := service.createRecoveryCase(context.Background(), f.command())
 	if err != nil {
 		t.Fatalf("повтор обязан проходить идемпотентно: %v", err)
 	}
@@ -613,7 +614,7 @@ func TestRecoveryCreateIdempotentRepeat(t *testing.T) {
 func TestRecoveryCreateEvidenceAppend(t *testing.T) {
 	f := newRecoveryFixture(t)
 	service := f.recoveryService(true, nil)
-	if _, err := service.CreateRecoveryCase(context.Background(), f.command()); err != nil {
+	if _, err := service.createRecoveryCase(context.Background(), f.command()); err != nil {
 		t.Fatalf("первое создание обязано проходить: %v", err)
 	}
 	// The later terminal evidence: the receipt v2 committed with the
@@ -626,7 +627,7 @@ func TestRecoveryCreateEvidenceAppend(t *testing.T) {
 	later.LatestExternalObjectVersion = "3"
 	later.LatestExternalObjectTime = recoveryNow.Add(-10 * time.Minute)
 	f.repo.facts = later
-	repeat, err := service.CreateRecoveryCase(context.Background(), f.command())
+	repeat, err := service.createRecoveryCase(context.Background(), f.command())
 	if err != nil {
 		t.Fatalf("дельта-повтор обязан проходить: %v", err)
 	}
@@ -672,7 +673,7 @@ func TestRecoveryCreateCoverageFailClosed(t *testing.T) {
 	f := newRecoveryFixture(t)
 	f.routes.routesErr = errors.New("route read failure")
 	service := f.recoveryService(true, nil)
-	_, err := service.CreateRecoveryCase(context.Background(), f.command())
+	_, err := service.createRecoveryCase(context.Background(), f.command())
 	if !errors.Is(err, port.ErrRecoveryCoverageUnavailable) {
 		t.Fatalf("нечитаемое покрытие обязано отказывать fail-closed: %v", err)
 	}
@@ -683,7 +684,7 @@ func TestRecoveryCreateCoverageFailClosed(t *testing.T) {
 	// request-transfer precedent).
 	noDeadline := newRecoveryFixture(t)
 	noDeadline.routes.routes.Candidates[0].Coverage[0].AckDeadlineMinutes = 0
-	_, err = noDeadline.recoveryService(true, nil).CreateRecoveryCase(context.Background(), noDeadline.command())
+	_, err = noDeadline.recoveryService(true, nil).createRecoveryCase(context.Background(), noDeadline.command())
 	if !errors.Is(err, port.ErrRecoveryCoverageUnavailable) {
 		t.Fatalf("покрытие без слова дедлайна обязано отказывать: %v", err)
 	}
@@ -699,7 +700,7 @@ func TestRecoveryCreateOwnerUnknownFailClosed(t *testing.T) {
 	f := newRecoveryFixture(t)
 	f.material.view.Ownership.State.Current = nil
 	service := f.recoveryService(true, nil)
-	_, err := service.CreateRecoveryCase(context.Background(), f.command())
+	_, err := service.createRecoveryCase(context.Background(), f.command())
 	if !errors.Is(err, port.ErrRecoveryOwnerUnknown) {
 		t.Fatalf("владелец-без-термов обязан отказывать fail-closed: %v", err)
 	}
@@ -714,7 +715,7 @@ func TestRecoveryCreatePortsMissing(t *testing.T) {
 	f := newRecoveryFixture(t)
 	service := New(scopeIdentity{member: true, scopes: map[identityDomain.Scope]bool{identityDomain.Operations: true}},
 		acceptAllPacks{}, acceptAllCaps{}, f.defs)
-	_, err := service.CreateRecoveryCase(context.Background(), f.command())
+	_, err := service.createRecoveryCase(context.Background(), f.command())
 	if err == nil || !containsWord(err.Error(), recoveryPortsMissingText) {
 		t.Fatalf("несконфигурированный контур обязан отказывать словом: %v", err)
 	}
@@ -725,7 +726,7 @@ func TestRecoveryCreatePortsMissing(t *testing.T) {
 func TestRecoveryReadSurfaces(t *testing.T) {
 	f := newRecoveryFixture(t)
 	service := f.recoveryService(true, nil)
-	created, err := service.CreateRecoveryCase(context.Background(), f.command())
+	created, err := service.createRecoveryCase(context.Background(), f.command())
 	if err != nil {
 		t.Fatalf("создание обязано проходить: %v", err)
 	}
@@ -801,7 +802,11 @@ func TestRecoveryPathCarriesNoProviderAdapters(t *testing.T) {
 	if !ok {
 		t.Fatal("метод CreateRecoveryCase обязан существовать")
 	}
-	if method.Type.NumIn() != 3 || method.Type.In(2) != reflect.TypeOf(RecoveryCreateCommand{}) {
+	if method.Type.NumIn() != 3 || method.Type.In(2) != reflect.TypeOf(api.RecoveryCreateCommand{}) {
 		t.Fatalf("сигнатура команды: %s — только команда, никаких адаптеров", method.Type.String())
 	}
+	// The api-typed command shape carries no provider adapter either (the
+	// transport DTO is SAFE by type).
+	check("api.RecoveryCreateCommand", reflect.TypeOf(api.RecoveryCreateCommand{}))
+	check("api.RecoveryCaseView", reflect.TypeOf(api.RecoveryCaseView{}))
 }

@@ -1,0 +1,76 @@
+{{define "recovery_cases"}}
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Recovery Panel · Staffy</title><link rel="stylesheet" href="/assets/app.css"></head>
+<body><a class="skip-link" href="#main">К основному содержанию</a><header class="topbar"><a class="brand" href="/app/tenants/{{.TenantID}}">Staffy</a><strong>Recovery Panel — кейсы восстановления</strong></header>
+<div class="shell"><nav aria-label="Основная навигация"><a href="/app/tenants/{{.TenantID}}">Сегодня</a><a href="/app/tenants/{{$.TenantID}}/cases">Обращения</a></nav><main id="main"><section class="panel">
+<h1>Recovery Panel — кейсы восстановления</h1>
+{{if .Notice}}<p class="status" role="status" tabindex="-1" id="page-notice">{{.Notice}}</p><script>addEventListener('DOMContentLoaded', () => document.getElementById('page-notice').focus());</script>{{end}}
+{{if .Flash}}<p class="alert" role="alert">{{.Flash}}</p>{{end}}
+<p class="next-note">Каждый Recovery Case создаётся явной командой оператора из карточки eligible-операции (автоматика исчерпана либо недоступна — требуется человек). Кейс навсегда один на операцию (UNIQUE); исходные записи не переписываются; доказательства — SAFE-пины точных версий (материал никогда не копируется).</p>
+{{if .HasCases}}
+<ul class="action-catalog">
+{{range .Cases}}
+<li class="action-card">
+<h3><a href="/app/tenants/{{$.TenantID}}/recovery-cases/{{.RecoveryCaseID}}">Recovery Case №{{.No}}</a></h3>
+<span><strong>Операция:</strong> {{.OperationText}}</span>
+<span><strong>Триггер:</strong> {{.Trigger}} — {{.TriggerText}}</span>
+<span><strong>Владелец:</strong> {{.OwnerText}}</span>
+<span><strong>Backup:</strong> {{.BackupText}}</span>
+{{if .DeadlineText}}<span><strong>Дедлайн подтверждения:</strong> {{.DeadlineText}}</span>{{end}}
+{{if .CreatedAt}}<span><strong>Создано:</strong> {{.CreatedAt}}</span>{{end}}
+</li>
+{{end}}
+</ul>
+{{else}}
+<p class="status" role="status">{{.EmptyText}}</p>
+{{end}}
+</section></main></div></body></html>
+{{end}}
+
+{{define "recovery_case"}}
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Recovery Case · Staffy</title><link rel="stylesheet" href="/assets/app.css"></head>
+<body><a class="skip-link" href="#main">К основному содержанию</a><header class="topbar"><a class="brand" href="/app/tenants/{{.TenantID}}">Staffy</a><strong>Recovery Case — карточка кейса восстановления</strong></header>
+<div class="shell"><nav aria-label="Основная навигация"><a href="/app/tenants/{{.TenantID}}">Сегодня</a><a href="/app/tenants/{{$.TenantID}}/cases">Обращения</a><a href="/app/tenants/{{$.TenantID}}/recovery-cases">Recovery Panel</a><a href="/app/tenants/{{$.TenantID}}/cases/{{.Card.CaseID}}">Карточка кейса</a><a href="/app/tenants/{{$.TenantID}}/cases/{{.Card.CaseID}}/operations">Operation Review</a></nav><main id="main"><section class="panel">
+<h1>Recovery Case №{{.Card.No}}</h1>
+{{if .Notice}}<p class="status" role="status" tabindex="-1" id="page-notice">{{.Notice}}</p><script>addEventListener('DOMContentLoaded', () => document.getElementById('page-notice').focus());</script>{{end}}
+{{if .Flash}}<p class="alert" role="alert">{{.Flash}}</p>{{end}}
+<ul class="action-catalog">
+<li class="action-card">
+<h3>Recovery Case №{{.Card.No}} — {{.Card.State}}</h3>
+<span><strong>Состояние:</strong> {{.Card.State}} — {{.Card.StateText}}</span>
+<span><strong>Триггер:</strong> {{.Card.Trigger}} — {{.Card.TriggerText}}</span>
+<span><strong>Операция:</strong> {{.Card.OperationID}} (карточка операции — Operation Review; запуск read-only сверки командой reconcile оттуда)</span>
+<span><strong>Определение:</strong> {{.Card.DefinitionText}}</span>
+<span><strong>Исходный кейс:</strong> {{.Card.CaseID}} · <strong>рабочий элемент:</strong> {{.Card.WorkItemID}}</span>
+<span><strong>Владелец (текущий терм исходного кейса):</strong> {{.Card.OwnerText}}</span>
+<span><strong>Backup (human coverage маршрута):</strong> {{.Card.BackupText}}</span>
+{{if .Card.DeadlineText}}<span><strong>Дедлайн подтверждения:</strong> {{.Card.DeadlineText}}</span>{{end}}
+<span><strong>Назначение словами живых чтений:</strong> владелец, backup и дедлайн назначены живыми чтениями Ownership и human coverage исходной conversation — слова никогда не приходят из параметров команды (fail-closed обе причины).</span>
+{{if .Card.CreatedAt}}<span><strong>Создано:</strong> {{.Card.CreatedAt}}</span>{{end}}
+</li>
+<li class="action-card">
+<h3>Доказательства — SAFE-пины точных версий</h3>
+<span><strong>Пин preview:</strong> {{.Card.PreviewPinText}}</span>
+<span><strong>Пин Confirmation:</strong> {{.Card.ConfirmPinText}}</span>
+<span><strong>{{.Card.ReceiptChainText}}</strong></span>
+<span><strong>{{.Card.AttemptsText}}</strong></span>
+<span><strong>{{.Card.ExternalText}}</strong></span>
+<span><strong>Owning System:</strong> {{.Card.OwningSystemText}}</span>
+<span><strong>{{.Card.ObservationsText}}</strong></span>
+<span class="alert" role="note"><strong>{{.Card.PaymentsText}}</strong></span>
+<span class="alert" role="note"><strong>{{.Card.ProjectionText}}</strong></span>
+<p class="next-note">Материал никогда не копируется: чувствительный payload остаётся в своих immutable-строках превью — ссылки-пины вместо копий (AD-10/AC-9). Переходы к исходным доказательствам сохраняют контекст и фокус.</p>
+</li>
+<li class="action-card">
+<h3>История (append-only)</h3>
+{{if .Card.HasEvents}}
+<ul>
+{{range .Card.Events}}<li>Событие №{{.EventNo}} — {{.Kind}}{{if .Details}}: {{.Details}}{{end}} — {{.At}}</li>{{end}}
+</ul>
+{{else}}
+<p class="status" role="status">История пуста.</p>
+{{end}}
+<p class="next-note">История никогда не переписывается: поздние доказательства добавляются ОДНОЙ append-only строкой evidence_appended с SAFE-дельтой; исходный bundle и исходные квитанции остаются как записаны.</p>
+</li>
+</ul>
+</section></main></div></body></html>
+{{end}}
