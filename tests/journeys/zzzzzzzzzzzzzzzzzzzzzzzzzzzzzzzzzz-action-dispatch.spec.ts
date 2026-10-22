@@ -339,7 +339,13 @@ test('action-dispatch: the execution contour of the authorized intent at 320px',
     await page.goto(reviewPath);
     const failedCard = page.locator('.action-card').filter({ hasText: 'Состояние жизни: failed' }).first();
     await expect(failedCard).toContainText('Не выполнено без эффекта (failed)');
-    await expect(failedCard).toContainText('Следующий шаг: новый запуск требует новой Confirmation');
+    // Rule 161 (the 3-8 word change, the z34:380 precedent of 3-7): the
+    // failed operation without the repeat right is RECOVERY-ELIGIBLE —
+    // the next-step word of the card honestly flipped to the recovery
+    // instruction (the inherited STATE text above keeps the confirmation
+    // discipline; the suite re-pins the NEW word here).
+    await expect(failedCard).toContainText('Следующий шаг: требуется человек — создайте Recovery Case (контур 3-8)');
+    await expect(failedCard).toContainText('Триггер восстановления: operation_failed');
     await expect(failedCard.locator('details', { hasText: 'Карточка Action Receipt' })).toContainText('Внешний объект не выдан');
 
     // 11. The broken adapter call answers the honest unknown: the

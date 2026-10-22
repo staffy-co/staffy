@@ -41,6 +41,7 @@ type Server struct {
 	authorization       actionAPI.AuthorizationService
 	dispatch            actionAPI.DispatchService
 	reconcile           actionAPI.ReconcileService
+	recovery            actionAPI.RecoveryService
 	controls            controlAPI.ControlService
 	employee            employeeAPI.Service
 	knowledge           employeeAPI.KnowledgeService

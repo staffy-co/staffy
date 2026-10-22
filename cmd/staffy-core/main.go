@@ -209,12 +209,24 @@ func run(logger *slog.Logger) error {
 		// read-only adapter lives in the test-contour package this root
 		// NEVER imports (the import-graph probe of step-04 pins it
 		// structurally).
-		WithReconcile(actionStore.NewPostgres(pool), nil)
+		WithReconcile(actionStore.NewPostgres(pool), nil).
+		// The recovery-case contour (Story 3.8): the repository owns the
+		// ONE creation transaction (the advisory lock resolves the creation
+		// race by the idempotent return) and the read-time fact reads. NO
+		// adapter exists at all — the contour is LOCAL: the assignment reads
+		// the LIVE ownership/coverage words through the caseMaterial and
+		// routeFacts ports wired above (in-process module reads), the
+		// eligibility reads the declaredness through the caps resolver; the
+		// nil reconciliation adapter is the honest AG-4 production FACT the
+		// ladder reads (reconciliation_unavailable — the human is
+		// mandatory, the recovery cases still get created).
+		WithRecovery(actionStore.NewPostgres(pool))
 	transport.BindActionCatalog(actionService)
 	transport.BindActionPreviews(actionService)
 	transport.BindAuthorization(actionService)
 	transport.BindDispatch(actionService)
 	transport.BindReconcile(actionService)
+	transport.BindRecovery(actionService)
 	// The scoped controls surface (Story 3.2): the operator emergency
 	// restriction module over its own PG store, the live identity gates
 	// and the connector ref resolution through the consumer-owned port

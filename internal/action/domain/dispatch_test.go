@@ -116,8 +116,8 @@ func TestDispatchDictionariesByName(t *testing.T) {
 			[]string{DispatchFenceSuperseded, DispatchFenceRevoked, DispatchFenceExpired}},
 		{"слова-политики-повтора-4", DispatchRetryWords,
 			[]string{DispatchRetryRetry, DispatchRetryParkUnknown, DispatchRetryParkBound, DispatchRetryDecided}},
-		{"события-outbox-2", OutboxEventWords,
-			[]string{OutboxEventOperationQueued, OutboxEventReceiptCreated}},
+		{"события-outbox-3", OutboxEventWords,
+			[]string{OutboxEventOperationQueued, OutboxEventReceiptCreated, OutboxEventRecoveryCaseCreated}},
 	}
 	for _, tc := range cases {
 		if !reflect.DeepEqual(tc.dictionary, tc.want) {

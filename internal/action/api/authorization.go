@@ -143,7 +143,16 @@ type OperationCardView struct {
 	Receipts               []ActionReceiptView         `json:"receipts"`
 	ReconcileAbsentText    string                      `json:"reconcile_absent_text"`
 	ReconciliationAttempts []ReconciliationAttemptView `json:"reconciliation_attempts"`
-	CreatedAt              time.Time                   `json:"created_at"`
+	// The Story 3.8 recovery extension: the read-time eligibility trigger
+	// word of the operation ("" — not eligible: the inherited next-step
+	// word keeps speaking), the existing Recovery Case pin (the zero uuid
+	// — no case yet) and the recovery-eligible next-step word (the domain
+	// derivation — the journeys z36 word change, rule 161).
+	RecoveryTrigger     string    `json:"recovery_trigger,omitempty"`
+	RecoveryTriggerText string    `json:"recovery_trigger_text,omitempty"`
+	RecoveryCaseID      id.UUID   `json:"recovery_case_id,omitempty"`
+	RecoveryCaseNo      int64     `json:"recovery_case_no,omitempty"`
+	CreatedAt           time.Time `json:"created_at"`
 }
 
 // ConfirmationEventView is one append-only consent history record of the

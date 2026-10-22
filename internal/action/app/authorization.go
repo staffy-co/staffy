@@ -897,6 +897,20 @@ func (s *Service) operationCard(ctx context.Context, scope tenancy.Context, op d
 	case domain.OperationUnknown:
 		card.StateText = domain.OperationUnknownText
 	}
+	// The Story 3.8 recovery extension (the 3-7 card precedent): the
+	// read-time eligibility trigger word over the recorded facts, the
+	// existing case pin and the next-step word override of the ELIGIBLE
+	// card (DeriveOperationNextStepText — the frozen inherited texts
+	// never change; the word change is registered for journeys z36, rule
+	// 161). The unwired contour renders the honest empty extension.
+	recoveryExtension := s.recoveryOperationCardExtension(ctx, scope, op)
+	card.RecoveryTrigger = recoveryExtension.Trigger
+	if recoveryExtension.Trigger != "" {
+		card.RecoveryTriggerText = domain.RecoveryTriggerText(recoveryExtension.Trigger)
+	}
+	card.RecoveryCaseID = recoveryExtension.RecoveryCaseID
+	card.RecoveryCaseNo = recoveryExtension.RecoveryCaseNo
+	card.NextStepText = domain.DeriveOperationNextStepText(state, recoveryExtension.Trigger)
 	for _, entry := range ledger {
 		card.Ledger = append(card.Ledger, api.OperationLedgerEntryView{
 			EntryNo:   entry.EntryNo,

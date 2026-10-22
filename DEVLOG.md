@@ -3724,3 +3724,154 @@ commit: 4e164ba
 
 next: по сигналу владельца — SM 3-8 (создание связанного recovery case; Epic 3: 7/9, осталось 3-8/3-9/ретро) либо инфра-очистка веток; вход всегда: зонд §4.1 → ls-remote → DEVLOG-хвост.
 commit: 1af69fc
+
+---
+
+date: 2026-10-22
+task: 164-sm
+role: main (Super Z)
+story: 3-8
+summary: SM story 3-8 — спека первого среза Recovery Case написана; инфра-очистка веток 3-6/3-7 исполнена по поручению владельца
+
+done:
+- Поручение владельца исполнено в порядке: (1) слитые ветки удалены на GitHub — codex/story-3-6-dispatch-and-action-receipt (f539264) и codex/story-3-7-reconciliation-of-uncertain-results (5cd9a2a) удалены живым PAT после MERGED-зонда merge-base --is-ancestor (оба кончика — предки main, RPO=0, потерять нечего); локальные ветки и tracking-рефы пропрунены; ls-remote: только main b24469c; remote-URL чист (токен env-only, в конфиг не попал — credential-хелпер не тронут, пуш по токенизированному URL инлайн); (2) «потом продолжайте» = next DEVLOG 163-checkpoint-2: SM 3-8 (CI-предупреждения уже устранены фикс 874fa23 — раннеры ubuntu-26.04 + checkout@v7/setup-go@v7/setup-node@v7, раны #137–#140 зелёные, источник рана #133 структурно отсутствует).
+- Позиция верифицирована живьём ДО письма: зонд §4.1 контрмера №5 (echo alive + git status -sb — main синхронен, дерево чистое); sprint-status: 3-7 done, 3-8 backlog, Epic 3: 7/9; DEVLOG-хвост 163-checkpoint-2 на диске.
+- Входы прочитаны до письма: epics.md §3.8 (FR-38, AC-блоки 1-12 дословно), PRD FR-38 (+FR-39 контекст: ограниченные действия — 3-9), ARCHITECTURE-SPINE AD-2 (DAG: action → case/api/employee/api читает; таблица возможностей «Business mutation, receipt and recovery → action + connector»), AD-3 (Owning System/проекции), AD-4 (lifecycle: «…continuation, acknowledged handoff or linked Recovery Case»; максимум один активный recovery parent на failed Operation; ацикличность), AD-10 (SAFE-пины вместо копий материала), AD-11 (RLS), AG-4; спеки 2-4 (ownership-термы/epoch), 2-7 (observations), 2-13 (назначение assigned≠acknowledged, fail-closed coverage, «слова без материального события не бывает»), 3-1..3-7 (фенции/drain-прецедент/preview-пины/UNIQUE-резервация/unknown+receipt-версии/исчерпание сверки).
+- Живой код сверен: cases/domain/ownership.go (OwnershipState: Current-терм max-epoch, BackupOwnerID, AckDeadlineMinutes), cases/app/ownership.go coverageWord (канон: слова назначения ТОЛЬКО живыми чтениями, unreadable = fail-closed), cases/domain/case.go (Case/Conversation/WorkItem), cases/domain/mode.go (лестница режимов — claim существует), action/domain/operation.go (состояния 6/ledger 8/тексты следующих шагов), action/domain/dispatch.go (ReceiptOutcome 3, OutboxEvent 2), action/domain/reconcile.go (honest-тексты «требуется человек» ×3), action/port/preview.go (CaseMaterialSource/RouteFactsSource/MembersSource — порты wired с 3-4), action/port/dispatch.go (ActionReceiptRow, OperationQueuedPayload SAFE-паттерн), migrations/action/00001–00004 (RLS/гранты/CHECK-прецеденты), cases/store/postgres.go (caseNo coalesce(max)+1 под замком).
+- Спека spec-3-8-recovery-case-creation.md написана (114 строк, формат 3-6/3-7): первый срез — контур создания Recovery Case из eligible failed-операций в модуле action: явная команда оператора POST /v1/tenants/{t}/operations/{operation_id}/recovery-case (drain-прецедент, демона нет); eligibility read-time по ЗАПИСАННОМУ {unknown+сверка исчерпана 3/3 | unknown+сверка недоступна (не объявлена ИЛИ AG-4 nil — production-путь среза) | failed+повтора нет (3/3 либо политика без гарантии)}; recovery key keyed-HMAC recovery_key:v1: по пину операции, UNIQUE (tenant_id, operation_id) — максимум один кейс на Operation навсегда (переоткрытие = переход того же кейса, AC-11 будущий); повтор команды = идемпотентный возврат, digest-дельта = ОДНА append-only строка evidence_appended; SAFE link-bundle пинов точных версий (preview/confirmation/owner-тройник/попытки/квитанции/observations 2-7); назначение живыми чтениями (владелец = текущий терм исходного Case; backup/deadline = human coverage маршрута; fail-closed); события {created, evidence_appended} + outbox recovery_case.created (словарь 2→3); Recovery Panel + a11y 320px; следующий шаг eligible-операций — recovery-слово (правило 161 → journeys z36).
+- Ключевые решения среза (Implementation Notes): модуль action — «отдельный Recovery Case» = собственный агрегат action.recovery_cases с пинами UUID на Case/Work Item (AD-2, без FK и записей в cases-таблицы, прецедент operations 3-5); терминальный конфликт НЕ отдельный триггер (полный откат 3-7 не оставляет записи — конфликтующая попытка расходует lease, честное слово reconciliation_exhausted); AC-2 (claim-ингресс/режим claim), AC-7 (tasks), AC-8 (summary), AC-11 (закрытие), Recommended Action (AC-10-хвост), partial-эффекты — честно вне среза с причинами; локальность — ни одного сетевого вызова в команде (адаптеры структурно отсутствуют из пути).
+- Скан-гигиена: scripts/sm_spec_scan.py — CJK 0 / mixed 0 / секреты 0, VERDICT CLEAN (114 строк).
+- Статусы: спека 3-8 backlog (до CHECKPOINT 1 — дисциплина 52-sm: самопродолжение чекпоинт не закрывает; прецеденты 3-5 137/3-4 2facf4e/3-6 146/3-7 155); sprint-status НЕ тронут (ключ 3-8-создание-связанного-recovery-case уже backlog с эпика — диффа нет).
+- Ветка codex/story-3-8-recovery-case-creation открыта от main b24469c; публикация СРАЗУ живым токеном из сессии (RPO=0 — уроки 148/152 «незапушенное не существует»; публикация спеки в backlog НЕ закрывает чекпоинт).
+
+decisions:
+- Recovery Case живёт в модуле action (таблица возможностей архитектуры; cases не может читать action по DAG — транспортная политика запрещена AD-2; связь — пины, событие recovery_case.created для будущих потребителей).
+- «Сверка недоступна» объединяет «не объявлена» и «не подключена AG-4» — в production срез полезен: unknown-операции получают кейсы без адаптеров.
+- UNIQUE (tenant, operation_id) за всю историю, не только active: эпик требует auditable transition для переоткрытия — новый кейс не создаётся никогда.
+
+next: CHECKPOINT 1 story 3-8 — явное одобрение владельца «одобряю» (спека на GitHub для ревью; замечания — правки до флипа, замороженные секции renegotiate-only) → флип backlog → ready-for-dev + запись CHECKPOINT 1 в Spec Change Log + чекпоинт-коммит → Dev шаги 01-05 по Tasks & Acceptance (домен recovery → миграция 00005/store/port/app → транспорт/панель/OpenAPI/wiring → матрица ~25 строк + journeys z36 → QA-саморевью и closure) → CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge). Владельцу: отозвать PAT подтверждённо после публикации (retro-2-6, передачи открытым текстом).
+commit: b24469c
+
+---
+
+date: 2026-10-22
+task: 165-checkpoint-1
+role: main (Super Z)
+story: 3-8
+summary: CHECKPOINT 1 story 3-8 закрыт — спека первого среза recovery-case-creation одобрена владельцем явным «одобряю», флип в ready-for-dev, Dev шаги 01-05 открыты
+
+done:
+- Вход сессии: рестарт после компакции; зонд §4.1 (echo alive + git status -sb — ветка codex/story-3-8-recovery-case-creation, дерево чистое). Сводка-предшественница уточнена по источникам истины (git > DEVLOG): ветки 3-6/3-7 уже удалены DEVLOG-ом 164-sm, CI-фикс 874fa23 уже в main (раны #137–#140 зелёные, раннер ubuntu-26.04 + checkout@v7/setup-go@v7/setup-node@v7) — обе задачи поручения владельца исполнены до рестарта; фактическая позиция = next DEVLOG 164-sm: CHECKPOINT 1, ждать явное «одобряю».
+- «Одобряю» владельца получено в чате — чекпоинт закрыт по дисциплине 52-sm (самопродолжение чекпоинт не закрывает; прецеденты 3-7 156/3-6 146/3-5 137/3-4 2facf4e).
+- Позиция верифицирована живьём ДО правок: PAT из чата жив (API /repos 200, env-only, на диск/remote-URL не попал — пуш по токенизированному URL инлайн); ls-remote RPO=0: ветка 24eca86 = локальный HEAD, main b24469c без движения.
+- Флип исполнен синхронно: спека status backlog → ready-for-dev + запись CHECKPOINT 1 головой Spec Change Log; sprint-status ключ 3-8-создание-связанного-recovery-case → ready-for-dev. Дифф 2 файла +3/−2, замороженные секции не тронуты. check-continuity: статусы спек == sprint-status OK (грязное дерево на момент проверки = сам флип до коммита — ожидаемо). Скан-гигиена: CJK 0 / секреты 0 / mixed 0.
+- Коммит чекпоинта 501e7f8 (docs(story-3-8): CHECKPOINT 1) [skip ci] + эта запись головой [skip ci]; пуш сразу за коммитами (уроки 148/152 «незапушенное не существует»).
+
+next: Dev шаги 01-05 story 3-8 по Tasks & Acceptance: step-01 домен recovery (словари триггеры 3/kind 2/состояние 1, DeriveRecoveryEligibility лестница с honest-словами, DeriveRecoveryKey/ DeriveBundleDigest keyed-HMAC, DeriveRecoveryAssignment + fail-closed, operation.go recovery-слово следующего шага, unit-матрица поимённо) → step-02 миграция 00005/store/port/app → step-03 транспорт/панель/OpenAPI/wiring → step-04 матрица ~25 строк + journeys z36 → step-05 QA-саморевью и closure → CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge). Владельцу: отозвать PAT подтверждённо после сессии (retro-2-6, передачи открытым текстом).
+commit: 501e7f8
+
+---
+
+date: 2026-10-22
+task: 166-dev-step-01
+role: main (Super Z)
+story: 3-8
+summary: Dev step-01 story 3-8 закрыт — домен recovery написан и запинен unit-матрицей (12 тестов, полный сьют зелёный)
+
+done:
+- CHECKPOINT 1 закрыт в начале сессии (см. 165): флип спека+sprint-status → ready-for-dev, Change Log CHECKPOINT 1, коммиты 501e7f8 + c91c2c3, push RPO=0 (ветка c91c2c3 = HEAD).
+- Окружение поднято bootstrap с нуля ПЕРЕД шагом (рецикл песочницы убил Go/PG — прецедент 162): go1.27.1 + PG 16.4 vendored + миграции через интеграцию + npm ci идемпотентно; bootstrap упал на первом прогоне юнитов из-за двух пинов 3-6, которые шаг-01 легитимно расширил (см. ниже) — после правок полный сьют зелёный.
+- internal/action/domain/recovery.go (новый, 586 строк): словари {триггеры 3; kind 2; состояние 1 open read-time; повтор 2}; DeriveRecoveryEligibility лестницей в порядке спеки (state → lease-счётчик → объявленность{query+LIVE+wired AG-4} → DeriveDispatchRetryPolicy) с honest-словами отказа на каждом газу, recorded-исчерпание побеждает объявленность, failed-без-попыток fail-closed; DeriveRecoveryKey keyed-HMAC recovery_key:v1:; RecoveryBundle SAFE-пинов; DeriveBundleDigest keyed-HMAC recovery_bundle:v1:; DeriveRecoveryRepeatDecision компаратор; DeriveRecoveryAssignment живыми чтениями (обе fail-closed: термов нет / покрытие недоступно или минуты < 1) + DeriveRecoveryDeadlineAt; DeriveRecoveryCaseState open; DeriveOperationNextStepText (eligible = recovery-слово, регистрация z36 по правилу 161; наследие 3-6 байт-стабильно); bounded {500, 8}; honest-тексты поимённо.
+- КЛЮЧЕВОЕ РЕШЕНИЕ по живому пину: DeriveBundleDigest сделан keyed-HMAC (прецедент PreviewDigest), а НЕ сырым SHA-256 как DeriveProposalKey — зонд TestNoRawUnsaltedHashOverMaterial (дисциплина AD-10 «единственный сырой SHA — легаси 3-4») остался зелёным БЕЗ правок; спека говорила «прецедент preview.go» — таковым оказался keyed PreviewDigest, не raw DeriveProposalKey. Пин словаря outbox TestDispatchDictionariesByName обновлён 2→3 осознанным зеркальным ревью (санкционированный рост спеки — пин именно для этого и существует).
+- Хирургия dispatch.go: только блок outbox-слов (2→3 + комментарий), остальное не тронуто; DeriveOperationState/словари 6/8 стабильны (пин TestRecoveryDictionariesByName сверяет).
+- recovery_test.go: 12 тестов — словари + замороженная стабильность (states 6/ledger 8/verdикты 4/receipts 3), лестница eligibility 20 строк поимённо (unknown×attempts×wired×declared, failed×retry, отказы committed/в-исполнении/не-исчерпана/повтор-доступен, порча-зонды), ключ (детерминизм/64-hex/пространства/чувствительность), дайджест (детерминизм/keyed/13 мутаций/порядок-наблюдений), компаратор (равно/дельта/битый-hex fail-closed), назначение (правила + обе fail-closed), дедлайн UTC, состояние open (чужой kind словарём), тексты триггеров/honest, next-step (каждый триггер → recovery-слово; unknown без eligibility → «контур 3-7» байт-стабильно — z34-пин жив).
+- Два падения тестов на первом прогоне были ошибками ОЖИДАНИЙ (MSK→UTC арифметика дедлайна; падеж «человека»→«человек») — домен не менялся, тесты поправлены.
+- Регресс: go build/vet ok; ПОЛНЫЙ unit-сьют репо зелёный FAIL 0; gofmt touched чист; скан-гигиена диффа (scripts/qa_step_scan_3_8.py — песочный инструмент, в репо не коммитится по прецеденту 3-6/3-7, скрыт .git/info/exclude): секреты 0 / CJK 0 / ctrl 0 / long-hex 0, CLEAN, 1458 добавленных строк.
+- Коммит feat d808da6 (5 файлов, +1359/−11) [skip ci] + Spec Change Log step-01 головой; push сразу за DEVLOG-коммитом (уроки 148/152).
+
+next: Dev step-02 story 3-8 по Tasks & Acceptance — миграция 00005 (две таблицы action.recovery_cases/action.recovery_events: PK/UNIQUE (tenant_id, operation_id)/RLS+FORCE ×2/append-only гранты INSERT+SELECT/CHECK-словари {триггеры 3, kind 2, 64-hex ×2, SAFE ≤500, bounded observations}/ALTER outbox CHECK 2→3/TestMain-регистрация) + port/recovery.go (RecoveryRepository: ReadRecoveryEligibility живым join, ReadRecoveryCase/Cases, CreateRecoveryCase ОДНОЙ транзакцией под advisory-замком (tenant, operation_id) — существующий кейс? идемпотентный возврат/дельта-evidence/создание с recovery_case_no coalesce(max)+1 + событие created + outbox recovery_case.created SAFE-payload; словарь ошибок ErrRecoveryIneligible/ErrRecoveryCoverageUnavailable/ErrRecoveryOwnerUnknown/ErrRecoveryNotFound) + store/recovery_store.go (SQL) + app/recovery.go (лестница команды: eligibility → компаратор → назначение живыми чтениями CaseMaterialSource/RouteFactsSource → создание; НИ ОДНОГО адаптера в пути — reflect-зонд) + unit фейк-репо (фенции по порядку счётчиками — на любом газе записей НОЛЬ и замок НЕ взят; идемпотентный возврат; дельта-evidence; fail-closed обе причины; reflect-зонд сигнатур). Владельцу: отозвать PAT после сессии (retro-2-6).
+commit: d808da6
+
+---
+
+date: 2026-10-22
+task: 167-dev-step-02
+role: main (Super Z)
+story: 3-8
+summary: Dev step-02 story 3-8 закрыт — миграция 00005 + port/store/app написаны, запинены unit-фейк-репо (13) и store-smoke живой PG
+
+done:
+- Миграция 00005: две таблицы (recovery_cases с UNIQUE (tenant, operation_id) НАВСЕГДА + UNIQUE номера + 64-hex CHECK ×2 + словари CHECK + SAFE-bundle 43 колонки + назначение + FK в модуле; recovery_events kind CHECK 2 ≤500 FK) + ALTER outbox 2→3 + RLS+FORCE ×2 + гранты INSERT/SELECT + TestMain-регистрация.
+- Port: RecoveryRepository (5 методов), словарь решений 3, словарь ошибок 4 (слова едут обёрнутыми в текстах ошибок — транспорт шага-03 мапит), SAFE outbox-payload, PanelLimit 200; события БЕЗ uuid — event_no монотонный = идентичность.
+- Store: «recovery:» advisory-ключ (собственное пространство, lease НЕТ — замок только от гонки дубля); факты одним SELECT с латеральными join; CreateRecoveryCase ОДНОЙ транзакцией — компаратор ПОД замком, идемпотентный возврат БЕЗ записи, дельта = ОДНА строка evidence_appended (DeriveRecoveryEvidenceDelta SAFE-дельта словами old→new), создание с номером coalesce(max)+1 под замком; mapRecoveryInsertError (23505/23514 → честные сигналы).
+- App: лестница CreateRecoveryCase (гейт → факты → def → eligibility {wired = s.reconcileAdapter != nil — AG-4 nil = unavailable production-путь} → газ = слово БЕЗ записей → HMAC-ключ → идемпотентный пре-чек {равно = 200-слово БЕЗ транзакции} → назначение живыми чтениями ТОЛЬКО на пути создания {обе fail-closed — НИЧЕГО не записано} → транзакция с ids.New); wiring recoveries + WithRecovery.
+- ТРИ бага черновика стора пойманы компиляцией/вниманием ДО прогона (placeholder в scan, неверный аргумент INSERT recovery_case_id, отсутствие RecoveryCaseID в параметрах) — исправлены; позднее исправлены: ModalityText (не Chat), pointer-тип в reflect- зонде, газ «не-исчерпана» требует вайренный адаптер сверки (WithReconcile(newFakeReconciliationRepo(), …)).
+- Unit: домен +1 (DeriveRecoveryEvidenceDelta поимённо: пины old→new, неизменившиеся НЕ называются, пустая дельта честным словом, буйнд); app 13 тестов — порядок лестницы счётчиками фейк-репо (гейт ДО фактов; газ не читает кейс/не пишет/не читает назначение; идемпотентный повтор БЕЗ create-call и БЕЗ живых чтений; дельта ОДНА строка, исходный bundle нетронут, назначение не читается), AG-4/failed-создания, обе fail-closed, ports-missing, поверхности чтения, reflect-зонд локальности по типу.
+- Интеграционный store-smoke (action_recovery_test.go): полный круг против живой PG — seed → факты → создание (строка+created+outbox payload) → идемпотентный повтор → дельта квитанцией v2 committed → чтения ×3 → 404 + RLS-слепота. ПРОШЁЛ С ПЕРВОГО ПРОГОНА (SQL 43-колоночных списков корректен — дешёвая страховка перед шагом-04).
+- Регресс: build/vet ok; unit FAIL 0; интеграция полный пакет 37.6с зелёная; gofmt touched чист; скан 2589 строк 0/0/0/0 CLEAN.
+- Коммит feat c58b15e (11 файлов, +2590) [skip ci] + Spec Change Log step-02 головой; push сразу за DEVLOG-коммитом.
+
+next: Dev step-03 story 3-8 по Tasks & Acceptance — транспорт: +POST /v1/tenants/{t}/operations/{operation_id}/recovery-case (strict decode пустого тела, operator manage словами ДО материала, 201/200{идемпотентно,evidence}/403-словами лестницы/404) + GET /v1/tenants/{t}/recovery-cases (список) + GET /v1/tenants/{t}/recovery-cases/{id} (карточка) + страницы /app/tenants/{t}/recovery-cases[/{id}] (Recovery Panel: PRG+focus, переходы с параметрами возврата, a11y 320px skip-link ≥44×44 details-попытки) + расширение видов операции (recovery-поля: номер кейса, триггер-слово, следующий шаг eligible через DeriveOperationNextStepText, форма создания на карточке — чекбокс осознанности + скрытый operation-пин, reconcile-прецедент) + web/templates/recovery_cases.html (новый) + operations.html surgical + OpenAPI (+3 пути, enum outbox 3, +схемы RecoveryCaseView/RecoveryCaseCreateResult/RecoveryEventView/RecoveryAssignmentView, additionalProperties false, required полные, RFC3339) + контракт-тест расширением зеркал + composition cmd/staffy-core (WithRecovery(store) — новых адаптеров НЕТ). Владельцу: отозвать PAT после сессии (retro-2-6).
+commit: c58b15e
+
+---
+
+date: 2026-10-22
+task: 168-dev-step-03
+role: main (Super Z)
+story: 3-8
+summary: Dev step-03 story 3-8 закрыт — транспорт/панель/OpenAPI/wiring + 6 транспортных unit; полный регресс зелёный
+
+done:
+- api/recovery.go (DTO + RecoveryService + реэкспорт словарей/ошибок); app: воркер → unexported createRecoveryCase, api-типизированная поверхность с живой перечиткой фактов (карточка всегда свежая AC-10), recoveryOperationCardExtension.
+- Карточка операции: +4 recovery-поля (omitempty), NextStepText = DeriveOperationNextStepText(state, trigger) — eligible говорит recovery-слово (z36 регистрация), наследие 3-6/3-7 байт-стабильно.
+- Транспорт recovery_cases.go: 5 машинных/страничных поверхностей + BindRecovery; operationsProblem +4 ветки (403 слова лестницы/fail-closed, 404); карточка операции + recovery-поля и форма создания (reconcile-прецедент).
+- Шаблоны: recovery_cases.html (панель+карточка, skip-link, honest-пустое, details, 320px) + operations.html surgical (триггер-слово/ссылка/форма).
+- OpenAPI: +3 пути (честная лестница create 201/200/400/401/403/404, чтения без 400), +10 схем (OutboxEventWord 3 — рост 2→3 задокументирован; словари 3/2/1/3; additionalProperties false, required полные, RFC3339), OperationCardView +4 свойства; контракт-тест: зеркала 5 словарей + пути-ассерты + closed-shapes 6 схем.
+- Wiring main.go: WithRecovery(store) + BindRecovery — контур локален, production-AG-4 НЕ отказывает (nil reconcileAdapter = факт композиции eligibility unavailable).
+- Транспортные unit 6 (strict decode 400 до сервиса; 201/200 идемпотентный повтор; лестница 403/404 поимённо — ТЕСТЫ изначально строили ошибки БЕЗ обёртки сентинела (500 вместо 403) — исправлены на fmt.Errorf %w; форма чекбокс+PRG+origin (Origin обязан матчить Host — прецедент http://+request.Host); панель honest-пустое+skip-link; карточка пины+живые слова).
+- Регресс: build ok; unit FAIL 0; интеграция 36.4с зелёная; gofmt touched чист; скан 14 файлов 1641 строк 0/0/0/0 CLEAN.
+- Коммит feat 0022c0a (15 файлов, +1642/−26) [skip ci] + Spec Change Log step-03; push сразу за DEVLOG-коммитом.
+
+next: Dev step-04 story 3-8 — интеграционная матрица ~25 строк над живой PG/RLS через РЕАЛЬНЫЙ app-сервис (полный путь unknown-исчерпана→created с owner/backup/deadline из живой coverage и bundle-пинами; unavailable двух причин; failed-без-повтора; отказы лестницы 403-словами; идемпотентный повтор; дельта-evidence с квитанцией v3; параллельность — одна строка, проигравший идемпотентен; монотонность номера; coverage-недоступна fail-closed; владелец-неизвестен fail-closed; SAFE-зонды; append-только зонды UPDATE/DELETE; RLS 0 строк; CHECK-бэкстопы; outbox слово 3; import-graph) + journeys z36 (полный контур 320px по Code Map, таймаут 240с, eligibility живьём — /fixture/reconcile* + /fixture/clock reused, НОВЫХ фикстурных тумблеров нет). Владельцу: отозвать PAT после сессии (retro-2-6).
+commit: 0022c0a
+
+---
+[SOS]
+
+date: 2026-10-22
+task: 169-dev-step-04 (частично: матрица закрыта; journeys z35→z36 открыты)
+role: main (Super Z)
+story: 3-8
+summary: Step-04: интеграционная матрица 11 строк зелёная + КЛЮЧЕВОЙ дефект лестницы пойнан и закрыт; journeys z36 остаётся преемнику — контекст сессии исчерпан
+
+done:
+- Интеграционная матрица TestActionRecoveryMatrixRowsBySpec (11 строк, мир 3-7 reused: actionReconcileWorld + WithRecovery поверх того же стора): неизвестность рождается живым сломанным dispatch, исчерпание — тремя no_answer-сверками, committed — живой retry-отправкой с evidence-тройником. Все строки зелёные (детали в Spec Change Log step-04).
+- КЛЮЧЕВОЙ ДЕФЕКТ ЛЕСТНИЦЫ пойнан живой матрицей (row-3 отвечал idempotent вместо evidence, row-4 проходил вместо 403): существующий кейс обязан ОБХОДИТЬ гейт eligibility — повтор существующего кейса есть вопрос КОМПАРАТОРА (digest), а не новый вопрос eligibility; позднее terminal evidence контура 3-7 делает операцию committed, а повтор всё равно обязан ответить evidence-append (AC-5 дословно). Исправление: app createRecoveryCase переставлен — факты → HMAC-ключ/bundle/digest → существующий кейс? {компаратор: идемпотентно/evidence} : eligibility → назначение → создание. Unit-пин порядка обновлён осознанно (газ читает существующий кейс один раз ДО гейта — НИЧЕГО не пишет).
+- Промежуточные правки матрицы: reconcile.Evidence → ScriptEvidence API; админ-пул обходит гранты by design (append-only зонды через RUNTIME-пул — прецедент 3-7); UUID-пул ag4-сервиса расширен до 512 с непересекающимся диапазоном 6100.
+- Регресс: unit ПОЛНЫЙ сьют FAIL 0; интеграция живой PG полный пакет 38.1с зелёный; скан-гигиена диффа CLEAN; gofmt touched чист.
+- Коммит feat 598f039 (4 файла, +362/−14) [skip ci] + Spec Change Log step-04 (частично) [SOS].
+
+next: ЗАВЕРШИТЬ step-04: journeys z36 (zzz…-recovery-case.spec.ts, 36z, конвенция story→z-счётчик, таймаут 240с, 320px): unknown-мир z35 reused → исчерпание сверки живьём (reconcile ×3 no_answer + /fixture/clock — НЕВЫХОДИМЫХ новых фикстурных тумблеров НЕТ: eligibility достигается живьём существующих контуров; фикстура journeys уже умеет reconcileNoEffectLocked/RecordDispatchOutcome max+1 из 3-7) → команда создания через форму карточки операции (чекбокс осознанности) → панель readback (номер/владелец/дедлайн/пины видимы, телефон/материал НЕТ) → повтор идемпотентно → позднее evidence (AG-4-мир: сверка подключается → committed → квитанция v2) → повтор → evidence_appended + свежая цепочка → отказы лестницы (committed 403-словами; unknown-с-попытками 403) → права (не-оператор 403 / чужой тенент 404) → a11y (skip-link/≥44×44/закрытые details/320px без скролла/фокус переходов) → смена доменного слова: следующий шаг eligible-операции = recovery-слово (правило 161 — DeriveOperationNextStepText уже в проде-коде шага-03; journeys обязан пиннить НОВОЕ слово на eligible-карточке и СТАРОЕ «контур 3-7» на не-eligible). После z36: step-05 QA-саморевью свежим контекстом по диффу шагов 01-04 (лестница не пишет на газах; локальность — ни одного сетевого вызова; идемпотентность структурой; назначение только живыми чтениями; материал SAFE — программный скан; словари-зеркала; mixed/CJK; import-graph прод 0 × recovery-адаптеров — их НЕТ; вторые записи терминальных путей) + финальный регресс всех контуров свежими прогонами + коммит feat БЕЗ маркера пропуска (голова триггерит CI — урок 2-14/ретро-2-1) → CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge). Владельцу: отозвать PAT подтверждённо после сессии (retro-2-6, передачи открытым текстом).
+commit: 598f039
+
+---
+
+date: 2026-10-22
+task: 170-dev-step-04-05
+role: main (Super Z)
+story: 3-8
+summary: Step-04 завершён (journeys z36) + step-05 QA/closure закрыты — story 3-8 готова к CHECKPOINT 2
+
+done:
+- Вход сессии: поручение владельца «продолжай» (свежий PAT в чате). Позиция верифицирована живьём ДО работы: §4.1-зонд жив; git > DEVLOG — ветка codex/story-3-8 = b53b52a = origin RPO=0, main b24469c; ls-remote живым токеном (env-only, хелпер scripts/git-credential-staffy.sh, на диск/remote-URL не попал): ветки 3-6/3-7 на GitHub ОТСУТСТВУЮТ (исполнены DEVLOG 164-sm — только main + 3-8), CI-фикс 874fa23 (checkout@v7/setup-go@v7/setup-node@v7 + ubuntu-26.04) уже в ветке, последние раны зелёные — обе задачи поручения исполнены до сессии; фактический next = DEVLOG 169 [SOS]: journeys z36 → step-05 → CHECKPOINT 2.
+- Окружение поднято с нуля (рецикл песочницы: Go/PG отсутствовали, node 24.21.0 жив): go1.27.1 докачан resume-циклом с go.dev (фоновые процессы убиваются песочницей — foreground по §4.1, 70.5МБ), PG 16.4 из third_party, bootstrap идемпотентен (миграции через интеграцию, npm ci, chromium-1243 доустановлен под playwright), потерь кода ноль.
+- Journeys z36 написаны и зелёные: zzz…36z…-recovery-case.spec.ts (519 строк, таймаут 240с, 320px) — полный живой контур: exhausted-рождение (reconcile ×3 no_answer живьём, 4-я команда = слово исчерпания) → форма-рождение (чекбокс+PRG+фокус) → readback SAFE-пинов (назначение живыми чтениями, телефон отсутствует) → панель/список → идемпотентный повтор → АГ-4-evidence (unavailable-рождение во втором мире → «сверка подключается» → committed v2 → evidence ОДНОЙ строкой с SAFE-дельтой, живая цепочка карточки) → отказы лестницы 403-словами → права → a11y. КЛЮЧЕВОЕ архитектурное решение: «позднее evidence» ДЕВЛОГА 169 в wired-мире структурно заморожено (unknown+3 = сверка skip; unknown+unsafe-класс = park_unknown — ручного повтора нет) → фикстура получила ВТОРУЮ композицию над ТЕМИ ЖЕ репозиториями (WithReconcile(repo, nil) — AG-4) + /fixture/recovery-ag4 тумблер: honest-порт row-3 интеграционной матрицы (unavailable-рождение с 0 потраченных попыток → мир назад → committed → дельта-digest → evidence-append).
+- Фикстура: action_recovery_fixture.go (431 строка) — in-memory RecoveryRepository, advisory-замок PG = единый мьютекс-корень auth.mu (вложенный порядок auth.mu→previews.mu без обратного), компаратор ПОД замком дословно (idempotent БЕЗ записей / evidence ОДНОЙ строкой event_no max+1), монотонный recovery_case_no max+1, outbox recovery_case.created; делегирование actionsFixture (прецедент BindReconcile). previewRouteFacts Coverage-апгрейд (назначение живыми чтениями — зеркально канону cases-фикстуры; byte-стабильно для preview/authorize).
+- ДВЕ находки journeys закрыты в этой же сессии: (1) правило 161 — z34 failed-карточка репиннута на recovery-слово (прецедент z34:380 из 3-7: смена доменных СЛОВ обязана репиннать сьют; 41/41 зелёные); (2) AC-12 — recoveryOperationCardExtension переставлен: пин существующего кейса читается ПЕРВЫМ (кейс НАВСЕГДА по UNIQUE — committed-операция сохраняет переход на карточку кейса; триггер-слово управляет только спаном и формой) — journeys-находка закрыта в app-коде.
+- Step-05 QA-саморевью свежим контекстом по живому диффу шагов 01-04: Major-находок НЕТ (лестница не пишет на газах — z36 два честных 403 «не исчерпана»; локальность — import-graph cmd/staffy-core 0 × reconciliationsyn/mutationsyn, адаптеров у контура НЕТ по типу; идемпотентность структурно; назначение только живыми чтениями; материал SAFE — скан 8 файлов +1084 строк 0/0/0/0 CLEAN, z36 пинит отсутствие телефона на обеих страницах; словари-зеркала; вторые записи терминальных путей — evidence = ОДНА строка).
+- Финальный регресс свежими прогонами: unit ПОЛНЫЙ сьют 33 пакета FAIL 0 (-count=1); интеграция живой PG полный пакет ×2 TZ (UTC 32.8с / Europe/Moscow 36.9с); journeys 41/41 за 1.9м; gofmt touched чист (инцидент Edit-табов пойман gofmt-гейтом и закрыт gofmt -w — 4 файла возвращены к tab-стилю HEAD, дифф семантический +108/−9; CI gofmt не гейтит, дисциплина touched-файлов).
+- Closure: Spec Change Log step-04-завершение + step-05; спека ready-for-dev → done; sprint-status 3-8 → done (Epic 3: 8/9). Коммит feat a4724a5 [skip ci].
+
+next: батч-пуш (a4724a5 + эта запись головой БЕЗ маркера — CI-запуск на голове обязателен, урок 2-14/ретро-2-1) по живому PAT → RPO=0 живым ls-remote → наблюдение CI-прогона ветки (ubuntu-26.04 + node24-пины) → CHECKPOINT 2: PR из ветки в main через GitHub API → CI ×3 зелёный (push-ран + PR-ран + main-ран после merge) → sha-pinned merge → DEVLOG 171-checkpoint-2 → worklog сессии. Владельцу: отозвать PAT подтверждённо после сессии (retro-2-6, передача открытым текстом в чатах).
+commit: a4724a5

@@ -17,6 +17,7 @@ import (
 	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
 	controlDomain "github.com/artemiosu/staffy/internal/control/domain"
 	employeeAPI "github.com/artemiosu/staffy/internal/employee/api"
+	employeeDomain "github.com/artemiosu/staffy/internal/employee/domain"
 	"github.com/artemiosu/staffy/internal/identity/domain"
 	"github.com/artemiosu/staffy/internal/platform/id"
 	"github.com/artemiosu/staffy/internal/platform/tenancy"
@@ -280,6 +281,20 @@ func (previewRouteFacts) RouteFacts(_ context.Context, _ tenancy.Context, connec
 		ConnectionID: connectionID,
 		Candidates: []employeeAPI.RouteCandidate{{
 			EmployeeID: fixtureEmployeeID, DecisionNo: 1, Stage: "synthetic", ProfileVersion: 1,
+			// The Story 3.8 LIVE-reading upgrade: the human coverage of the
+			// fixture family rides the SAME candidates now (the coverage canon
+			// of the cases fixture mirrored word-for-word — the response owner,
+			// the backup owner and the ack-deadline minutes of BOTH inbound
+			// channels). The recovery assignment reads this coverage at the
+			// creation moment (the coverageWord canon: the words NEVER come
+			// from a command parameter); the preview freshness and the authorize
+			// lineage keep reading the decision/profile pins — byte-stable.
+			Coverage: []employeeDomain.HumanCoverage{
+				{Route: employeeDomain.Route{Channel: "phone", Direction: "inbound"},
+					ResponseOwnerID: principalID, BackupOwnerID: secondOperatorID, AckDeadlineMinutes: 120},
+				{Route: employeeDomain.Route{Channel: "web_chat", Direction: "inbound"},
+					ResponseOwnerID: principalID, BackupOwnerID: secondOperatorID, AckDeadlineMinutes: 120},
+			},
 		}},
 	}, nil
 }
