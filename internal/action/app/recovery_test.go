@@ -220,6 +220,11 @@ type recoveryFixture struct {
 	previews *fakePreviewRepo
 	defs     []domain.ActionDefinition
 	now      time.Time
+
+	// The policy world of 3-9 (recovery_policy_test.go): the created
+	// case pin and the wired service of the policy reads.
+	policyCaseID  id.UUID
+	policyService *Service
 }
 
 // recoveryFacts builds the RECORDED facts of the unit world: the

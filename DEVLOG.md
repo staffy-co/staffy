@@ -3947,3 +3947,20 @@ done:
 
 next: Dev step-02 story 3-9 — app read-only: internal/action/app/recovery.go surgical +RecoveryCasePolicy(scope, tenant, caseID) живыми чтениями reused (ReadRecoveryCase → ReadRecoveryOperationFacts → catalogDefinition → previewControl.EffectiveFor → AG-4 s.reconcileAdapter != nil), DeriveRecoveryCaseState над событиями кейса, вызов домена, сбор api-вида; НИ ОДНОЙ записи (счётчики фейк-репо на нуле на любом пути), reflect-зонд локальности, НОВЫХ методов стора НЕТ (порт только чтения reused); unit фейк-репо матрица.
 commit: TBD
+
+---
+
+date: 2026-10-22
+task: 175-dev-step-02
+role: main (Super Z)
+story: 3-9
+summary: Dev step-02 story 3-9 — app read-only слой политики написан и запинен unit-матрицей (9 тестов): RecoveryCasePolicy живыми чтениями reused, НИ ОДНОЙ записи
+
+done:
+- internal/action/app/recovery.go (surgical, +~105 строк): RecoveryCasePolicy(scope, tenant, caseID) — read-time вывод живыми чтениями reused в порядке спеки: recoveryScope гейт (membership-404 ДО полномочия-слова ДО материала — прецедент карточки 3-8) → ReadRecoveryCase (неизвестный/чужой = 404 до материала, AD-11) → DeriveRecoveryCaseState над событиями (fail-closed чужого kind-слова — reused 3-8) → ReadRecoveryOperationFacts живой перечиткой (fresh-read дисциплина карточки; промах = честный fallback на ЗАМОРОЖЕННЫЕ пины bundle — операция immutable, пины те же, вывод не отказывает) → catalogDefinition пинов (DefinitionReadable + CancelCompensationSem; чужие пины = fail-closed human-путь зависимых видов) → previewControl.EffectiveFor живым чтением маршрута определения (reconcile-фехта прецедент; ошибка/nil = слово «» — нечитаемо, материальные виды blocked честным словом) → AG-4 s.reconcileAdapter != nil → DeriveRecoveryActionPolicy. ПОРТ НЕ ТРОНУТ: НИ ОДНОГО нового метода стора (зонд NumMethod=5), чтения reused как стоят; НИ ОДНОЙ записи на любом пути (счётчики фейк-репо).
+- internal/action/app/recovery_policy_test.go (новый, 9 тестов + policyFixture над созданным кейсом живой командой создания): нулевые записи на ВСЕХ путях (полный набор/paused/нечитаемый контроль × 3 повторов: create=0, rows стабильны, назначение живыми чтениями НЕ читается — слова политики не выводок назначения); идемпотентность вывода байт-стабильно (DeepEqual двух вызовов, чтения по одному сверх базовой линии); полный allowed-набор мира (AG-4 nil адаптер фикстуры = production-факт: статусное слово несёт «Сверка не подключена», политика не блокируется); paused-контроль (материальные blocked ТОЧНЫМ словом «paused: <причина>», read-only остаются, options human_only); нечитаемый контроль (ошибка EffectiveFor: материальные blocked «нечитаем», read-only allowed, вывод не отказывает); неизвестный кейс 404 (факты не читаются); гейты до чтений (не-участник 404 / без полномочия 403: caseCalls=0); промах фактов → fallback пинов bundle (prepare_pause_cancel allowed теми же словами каталога); reflect-зонд локальности (сигнатура метода + RecoveryPolicyFacts без провайдер-адаптеров {Mutation/Reconciliation/OwningSystem/DryRunner}; контракт RecoveryRepository NumMethod=5 — политика НЕ добавляет методов стора).
+- internal/action/app/recovery_test.go (surgical): recoveryFixture +2 поля (policyCaseID/policyService — мир политики поверх мира создания, остальное не тронуто).
+- Регресс: build/vet ok; unit ПОЛНЫЙ сьют 30 пакетов FAIL 0; gofmt touched чист; скан: 3 файла +466 строк, 0/0/0/0 CLEAN.
+
+next: Dev step-03 story 3-9 — транспорт/страница/OpenAPI: api/recovery.go +RecoveryPolicyView/RecoveryActionView/RecoveryHumanOnlyDecisionView DTO + RecoveryService += RecoveryCasePolicy (read-only); transport recovery_cases.go +recoveryMachinePolicyAPI (GET /v1/tenants/{t}/recovery-cases/{id}/policy 200/401/403/404 membership-до-материала) + расширение карточки секцией «Разрешённые действия» (вид страницы); server.go BindRecovery +1 маршрут; шаблон recovery_cases.html секция (details атрибутов, human-блок отдельно, «требует отдельного явного подтверждения», a11y 320px reused каркас 3-8); OpenAPI +1 путь/+3 схемы/+зеркала 5+2 + контракт-тест (drift = красный); транспортные unit.
+commit: TBD
