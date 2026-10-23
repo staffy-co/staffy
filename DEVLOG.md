@@ -4617,3 +4617,19 @@ done:
 - Коммит feat(story-4-4): step-05 БЕЗ маркера пропуска — голова ветки триггерит CI ×3 на CHECKPOINT 2 (урок 2-14/ретро-2-1, прецеденты 4-1/4-2/4-3); пуш сразу за коммитом
 next: CHECKPOINT 2 story 4-4 — PR из ветки codex/story-4-4-fitment-evidence (sha-пин головы в теле PR) → ожидание CI ×3 зелёного поимённо (push/PR/merge) → sha-pinned merge в main → локальный main ff-only → DEVLOG 214-checkpoint-2 [skip ci] + пуш → RPO=0 живым ls-remote → worklog; владельцу: ОТЗВАТЬ PAT подтверждённо после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — использовался для пушей шагов).
 commit: TBD
+
+---
+date: 2026-10-24
+task: 214-checkpoint-2
+role: main (Super Z)
+story: 4-4
+summary: CHECKPOINT 2 story 4-4 закрыт — Fitment Evidence слита в main: PR #45 (sha-пин головы 9d31c38 в теле), CI ×3 зелёный поимённо (#40023850598 push / #40023904169 pull_request на голове ветки, #40024599298 merge на merge-commit 4205ced), sha-pinned merge 4205ced (TOCTOU: голова сверена с пином живым GET непосредственно перед merge), локальный main ff-only (3db3ac8 → 4205ced); Epic 4: 4/11
+done:
+- Dev шаги 01-05 закрыты и опубликованы инкрементально (0b2a1df step-01 пак 5.0.0+порт+домен+unit 18; f3f35f0 step-02 миграции 00020/00021+словарь+стор+команда; 0358ae9 step-03 поверхности+OpenAPI+wire 6; a14c376 step-04 матрица 14 рядов+journeys z41; 9d31c38 step-05 QA/closure БЕЗ маркера — голова триггерит CI).
+- PR #45 создан с sha-пином головы 9d31c38cd866fcd81080b17126d3e662d5f5d9ce в теле (TOCTOU-дисциплина по прецеденту PR #43/#44; тело пере-установлено с пином после bash-съедения backtick — урок: sha в теле PR через python-сборку JSON, не inline-подстановкой).
+- CI ×3 зелёный поимённо: push #40023850598 и pull_request #40023904169 на голове ветки 9d31c38 (completed/success), merge-run #40024599298 на merge-commit 4205ced (completed/success).
+- Sha-pinned merge: голова PR сверена с пином живым GET непосредственно перед merge (совпадение), merge-commit 4205cedb7705dce9f773c86c8c4006cd73d72b54 в main; локальный main подтянут ff-only.
+- Closure-состояние исполнено в step-05 до merge: спека 4-4 done, sprint-status 4-4 done, Spec Change Log Dev 01-05 головой; честная очистка test-results + .gitignore.
+next: SM-фаза story 4-5 (актуальные предложения и сравнение вариантов) по сигналу владельца «продолжайте»; удаление слитой ветки 4-4 на GitHub — по поручению владельца.
+владельцу: ОТЗВАТЬ PAT подтверждённо после закрытия чата (retro-3-6/retro-2-6 — передавался открытым текстом многократно; токен этой сессии ЖИВ — использовался для пушей шагов, PR #45 и merge).
+commit: TBD
