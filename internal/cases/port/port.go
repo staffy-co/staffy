@@ -1024,8 +1024,17 @@ type WorkCommandParams struct {
 	// envelope carries its own). The request and event numbers are the
 	// server-side truth: the store derives the next monotonic numbers
 	// under the locks (the requests never carry them).
-	HandoffTargetRoles   []string
-	HandoffAckDeadline   string
+	HandoffTargetRoles []string
+	HandoffAckDeadline string
+	// HandoffReason is the OPTIONAL Story 4.3 boundary word of the
+	// request creation: empty = the unconditional client ask of 2.13
+	// (the reason row stays the dictionary constant client_request);
+	// one of the three operator words (diagnostic_uncertainty /
+	// safety_critical / unresolved_contradiction) = the boundary
+	// recommendation of the part request panel (the store re-validates
+	// the dictionary under the locks; the SQL CHECK of 00019 is the
+	// backstop).
+	HandoffReason        string
 	HandoffAssignee      id.UUID
 	HandoffBackup        id.UUID
 	HandoffAssigneeRole  string

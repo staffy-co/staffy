@@ -1,15 +1,15 @@
 package domain
 
 import (
-        "crypto/sha256"
-        "encoding/hex"
-        "encoding/json"
-        "fmt"
-        "sort"
-        "strings"
-        "time"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"sort"
+	"strings"
+	"time"
 
-        "github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/artemiosu/staffy/internal/platform/id"
 )
 
 // ---------------------------------------------------------------------------
@@ -40,31 +40,28 @@ import (
 
 // The request material roles of the pack schema (the ladder steps).
 const (
-        PartRolePartKind   = "part_kind"
-        PartRoleSymptom    = "symptom"
-        PartRoleOemNumber  = "oem_number"
-        PartRolePreference = "preference"
+	PartRolePartKind   = "part_kind"
+	PartRoleSymptom    = "symptom"
+	PartRoleOemNumber  = "oem_number"
+	PartRolePreference = "preference"
 )
 
 // The mode words of the auto-parts@4.0.0 dictionary (the enum mirror of
 // the port answer — the words are pinned by the pack, the domain renders
 // the honest words of the selected one).
 const (
-        PartModeDiagnostic       = "diagnostic"
-        PartModeExactRepeat      = "exact_repeat"
-        PartModeOriginalVsAnalog = "original_vs_analog"
-        PartModeNamedPart        = "named_part"
+	PartModeDiagnostic       = "diagnostic"
+	PartModeExactRepeat      = "exact_repeat"
+	PartModeOriginalVsAnalog = "original_vs_analog"
+	PartModeNamedPart        = "named_part"
 )
 
-// The handoff recommendation words of the boundaries — the words of the
-// 2.13 reason dictionary extension of Story 4.3 (the dictionary home is
-// human_handoff.go: the constants land with the migration 00019 of
-// step-02; the SQL mirror admits them from that step on).
-const (
-        partHandoffWordDiagnosticUncertainty   = "diagnostic_uncertainty"
-        partHandoffWordSafetyCritical          = "safety_critical"
-        partHandoffWordUnresolvedContradiction = "unresolved_contradiction"
-)
+// The handoff recommendation words of the boundaries — the Story 4.3
+// reason dictionary extension of 2.13: the constants live in
+// human_handoff.go (the dictionary home — HandoffReasonDiagnosticUncertainty
+// / HandoffReasonSafetyCritical / HandoffReasonUnresolvedContradiction);
+// the SQL mirror 00019 admits them from this spec on (the write path
+// guard: GuardHandoffRequestReason, fail-closed on the dictionary).
 
 // PartNumberMatchIsNotFitmentText is the constant word of the exact
 // number match (AC-4 / FR-52: the match is not a fitment proof — the
@@ -130,14 +127,14 @@ const PartRequestPreferenceBothValue = "both"
 // letters they are confused with (the VIN discipline of 4.2 — the same
 // boundary, the part numbers carry the same homoglyph ambiguity).
 var partCyrillicLookAlike = map[rune]rune{
-        'А': 'A', 'В': 'B', 'Е': 'E', 'К': 'K', 'М': 'M', 'Н': 'H',
-        'О': 'O', 'Р': 'P', 'С': 'C', 'Т': 'T', 'У': 'Y', 'Х': 'X',
+	'А': 'A', 'В': 'B', 'Е': 'E', 'К': 'K', 'М': 'M', 'Н': 'H',
+	'О': 'O', 'Р': 'P', 'С': 'C', 'Т': 'T', 'У': 'Y', 'Х': 'X',
 }
 
 // isCyrillicPartRune answers whether the rune belongs to the cyrillic
 // unicode block (U+0400..U+04FF) — the homoglyph detection boundary.
 func isCyrillicPartRune(r rune) bool {
-        return r >= 0x0400 && r <= 0x04FF
+	return r >= 0x0400 && r <= 0x04FF
 }
 
 // PartNumberAmbiguity is one cyrillic homoglyph position: the rune, its
@@ -145,9 +142,9 @@ func isCyrillicPartRune(r rune) bool {
 // detection NEVER replaces the symbol — the re-ask is the only honest
 // resolution (the VIN discipline of 4.2).
 type PartNumberAmbiguity struct {
-        Position  int    `json:"position"`
-        Rune      string `json:"rune"`
-        LookAlike string `json:"look_alike"`
+	Position  int    `json:"position"`
+	Rune      string `json:"rune"`
+	LookAlike string `json:"look_alike"`
 }
 
 // PartNumberNormalization is the full flag answer of
@@ -157,12 +154,12 @@ type PartNumberAmbiguity struct {
 // the out-of-alphabet positions and the homoglyph ambiguities with the
 // honest words of every flag. The normalization is idempotent.
 type PartNumberNormalization struct {
-        Raw                 string                `json:"raw"`
-        Normalized          string                `json:"normalized"`
-        AlphabetOK          bool                  `json:"alphabet_ok"`
-        BadChars            []int                 `json:"bad_chars"`
-        CyrillicAmbiguities []PartNumberAmbiguity `json:"cyrillic_ambiguities"`
-        Words               []string              `json:"words"`
+	Raw                 string                `json:"raw"`
+	Normalized          string                `json:"normalized"`
+	AlphabetOK          bool                  `json:"alphabet_ok"`
+	BadChars            []int                 `json:"bad_chars"`
+	CyrillicAmbiguities []PartNumberAmbiguity `json:"cyrillic_ambiguities"`
+	Words               []string              `json:"words"`
 }
 
 // NormalizePartNumber derives the honest flag answer of one raw part
@@ -173,58 +170,58 @@ type PartNumberNormalization struct {
 // ever discarded. The allowed alphabet: the latin letters, the digits,
 // «-», «_», «.» and the spaces (the separators of the raw form).
 func NormalizePartNumber(raw string) PartNumberNormalization {
-        answer := PartNumberNormalization{Raw: raw, BadChars: []int{}, CyrillicAmbiguities: []PartNumberAmbiguity{}, Words: []string{}}
-        trimmed := strings.ToUpper(strings.TrimSpace(raw))
-        var builder strings.Builder
-        for _, r := range trimmed {
-                switch {
-                case r == ' ' || r == '\t':
-                        continue
-                case r == '_' || r == '.':
-                        builder.WriteRune('-')
-                default:
-                        builder.WriteRune(r)
-                }
-        }
-        answer.Normalized = builder.String()
-        answer.AlphabetOK = true
-        for index, r := range answer.Normalized {
-                switch {
-                case (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-':
-                        // the alphabet members carry no flag
-                case isCyrillicPartRune(r):
-                        if lookAlike, ok := partCyrillicLookAlike[r]; ok {
-                                answer.CyrillicAmbiguities = append(answer.CyrillicAmbiguities, PartNumberAmbiguity{
-                                        Position: index, Rune: string(r), LookAlike: string(lookAlike),
-                                })
-                        } else {
-                                answer.AlphabetOK = false
-                                answer.BadChars = append(answer.BadChars, index)
-                        }
-                default:
-                        answer.AlphabetOK = false
-                        answer.BadChars = append(answer.BadChars, index)
-                }
-        }
-        answer.Words = partNumberHonestWords(answer)
-        return answer
+	answer := PartNumberNormalization{Raw: raw, BadChars: []int{}, CyrillicAmbiguities: []PartNumberAmbiguity{}, Words: []string{}}
+	trimmed := strings.ToUpper(strings.TrimSpace(raw))
+	var builder strings.Builder
+	for _, r := range trimmed {
+		switch {
+		case r == ' ' || r == '\t':
+			continue
+		case r == '_' || r == '.':
+			builder.WriteRune('-')
+		default:
+			builder.WriteRune(r)
+		}
+	}
+	answer.Normalized = builder.String()
+	answer.AlphabetOK = true
+	for index, r := range answer.Normalized {
+		switch {
+		case (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-':
+			// the alphabet members carry no flag
+		case isCyrillicPartRune(r):
+			if lookAlike, ok := partCyrillicLookAlike[r]; ok {
+				answer.CyrillicAmbiguities = append(answer.CyrillicAmbiguities, PartNumberAmbiguity{
+					Position: index, Rune: string(r), LookAlike: string(lookAlike),
+				})
+			} else {
+				answer.AlphabetOK = false
+				answer.BadChars = append(answer.BadChars, index)
+			}
+		default:
+			answer.AlphabetOK = false
+			answer.BadChars = append(answer.BadChars, index)
+		}
+	}
+	answer.Words = partNumberHonestWords(answer)
+	return answer
 }
 
 // partNumberHonestWords renders the honest words of every flag (the
 // flags are text, never only color).
 func partNumberHonestWords(normalization PartNumberNormalization) []string {
-        words := []string{}
-        for _, ambiguity := range normalization.CyrillicAmbiguities {
-                words = append(words, fmt.Sprintf("позиция %d: кириллица %s (похожа на латиницу %s) — сверьте номер посимвольно", ambiguity.Position+1, ambiguity.Rune, ambiguity.LookAlike))
-        }
-        if len(normalization.BadChars) > 0 {
-                positions := make([]string, 0, len(normalization.BadChars))
-                for _, position := range normalization.BadChars {
-                        positions = append(positions, fmt.Sprintf("%d", position+1))
-                }
-                words = append(words, fmt.Sprintf("символы вне разрешённого алфавита (буквы, цифры, дефис) — сверьте позиции %s", strings.Join(positions, ", ")))
-        }
-        return words
+	words := []string{}
+	for _, ambiguity := range normalization.CyrillicAmbiguities {
+		words = append(words, fmt.Sprintf("позиция %d: кириллица %s (похожа на латиницу %s) — сверьте номер посимвольно", ambiguity.Position+1, ambiguity.Rune, ambiguity.LookAlike))
+	}
+	if len(normalization.BadChars) > 0 {
+		positions := make([]string, 0, len(normalization.BadChars))
+		for _, position := range normalization.BadChars {
+			positions = append(positions, fmt.Sprintf("%d", position+1))
+		}
+		words = append(words, fmt.Sprintf("символы вне разрешённого алфавита (буквы, цифры, дефис) — сверьте позиции %s", strings.Join(positions, ", ")))
+	}
+	return words
 }
 
 // ---------------------------------------------------------------------------
@@ -236,30 +233,30 @@ func partNumberHonestWords(normalization PartNumberNormalization) []string {
 // of the pack schema (the app maps the narrow port answer onto it — the
 // domain never imports the port).
 type PartMaterialKeyDomain struct {
-        Key      string   `json:"key"`
-        Label    string   `json:"label"`
-        Kind     string   `json:"kind"` // text | integer | enum
-        Values   []string `json:"values,omitempty"`
-        Min      int      `json:"min,omitempty"`
-        Max      int      `json:"max,omitempty"`
-        Optional bool     `json:"optional,omitempty"`
-        Role     string   `json:"role,omitempty"`
+	Key      string   `json:"key"`
+	Label    string   `json:"label"`
+	Kind     string   `json:"kind"` // text | integer | enum
+	Values   []string `json:"values,omitempty"`
+	Min      int      `json:"min,omitempty"`
+	Max      int      `json:"max,omitempty"`
+	Optional bool     `json:"optional,omitempty"`
+	Role     string   `json:"role,omitempty"`
 }
 
 // PartModeSpecDomain is the domain form of one request mode of the pack
 // dictionary.
 type PartModeSpecDomain struct {
-        Mode     string   `json:"mode"`
-        Label    string   `json:"label"`
-        Priority int      `json:"priority"`
-        Requires []string `json:"requires"`
+	Mode     string   `json:"mode"`
+	Label    string   `json:"label"`
+	Priority int      `json:"priority"`
+	Requires []string `json:"requires"`
 }
 
 // PartSchemaDomain is the request schema of the derivation input.
 type PartSchemaDomain struct {
-        MaterialKeys  []PartMaterialKeyDomain `json:"material_keys"`
-        Modes         []PartModeSpecDomain    `json:"modes"`
-        SafetyMarkers []string                `json:"safety_markers"`
+	MaterialKeys  []PartMaterialKeyDomain `json:"material_keys"`
+	Modes         []PartModeSpecDomain    `json:"modes"`
+	SafetyMarkers []string                `json:"safety_markers"`
 }
 
 // PartModeAnswer is the mode derivation answer: the selected mode word
@@ -267,27 +264,27 @@ type PartSchemaDomain struct {
 // «почему этот режим» — the ladder step that selected it), or the honest
 // unstructured word when no material exists.
 type PartModeAnswer struct {
-        Mode             string `json:"mode"`
-        Label            string `json:"label"`
-        BasisWord        string `json:"basis_word"`
-        UnstructuredWord string `json:"unstructured_word,omitempty"`
+	Mode             string `json:"mode"`
+	Label            string `json:"label"`
+	BasisWord        string `json:"basis_word"`
+	UnstructuredWord string `json:"unstructured_word,omitempty"`
 }
 
 // partFactMaterial is the material presence answer of one key: whether
 // the fact exists with at least one version and its latest raw text.
 type partFactMaterial struct {
-        Present bool
-        Text    string
+	Present bool
+	Text    string
 }
 
 // partMaterialOf resolves the material presence of one key over the
 // facts by key (the latest version raw text — the fact material of 2.2).
 func partMaterialOf(facts map[string]VehicleFactInput, key string) partFactMaterial {
-        fact, present := facts[key]
-        if !present || len(fact.Versions) == 0 {
-                return partFactMaterial{}
-        }
-        return partFactMaterial{Present: true, Text: vehicleRawValueText(fact.Versions[len(fact.Versions)-1].Value)}
+	fact, present := facts[key]
+	if !present || len(fact.Versions) == 0 {
+		return partFactMaterial{}
+	}
+	return partFactMaterial{Present: true, Text: vehicleRawValueText(fact.Versions[len(fact.Versions)-1].Value)}
 }
 
 // DerivePartRequestMode derives the request mode over the recorded
@@ -299,15 +296,15 @@ func partMaterialOf(facts map[string]VehicleFactInput, key string) partFactMater
 // dominates always — the lowest priority number). No material — the
 // honest unstructured word, never a guess.
 func DerivePartRequestMode(schema PartSchemaDomain, facts map[string]VehicleFactInput) PartModeAnswer {
-        modes := append([]PartModeSpecDomain(nil), schema.Modes...)
-        sort.SliceStable(modes, func(i, j int) bool { return modes[i].Priority < modes[j].Priority })
-        for _, mode := range modes {
-                applicable, basis := partModeApplicable(mode, schema, facts)
-                if applicable {
-                        return PartModeAnswer{Mode: mode.Mode, Label: mode.Label, BasisWord: basis}
-                }
-        }
-        return PartModeAnswer{UnstructuredWord: PartRequestUnstructuredWord}
+	modes := append([]PartModeSpecDomain(nil), schema.Modes...)
+	sort.SliceStable(modes, func(i, j int) bool { return modes[i].Priority < modes[j].Priority })
+	for _, mode := range modes {
+		applicable, basis := partModeApplicable(mode, schema, facts)
+		if applicable {
+			return PartModeAnswer{Mode: mode.Mode, Label: mode.Label, BasisWord: basis}
+		}
+	}
+	return PartModeAnswer{UnstructuredWord: PartRequestUnstructuredWord}
 }
 
 // partModeApplicable answers whether one mode is applicable over the
@@ -319,50 +316,50 @@ func DerivePartRequestMode(schema PartSchemaDomain, facts map[string]VehicleFact
 // role-less keys of the Requires set (the quantity) are the completeness
 // material only — they never select the mode.
 func partModeApplicable(mode PartModeSpecDomain, schema PartSchemaDomain, facts map[string]VehicleFactInput) (bool, string) {
-        roleEvidence := []string{}
-        for _, requiredKey := range mode.Requires {
-                spec := partKeySpecOf(schema, requiredKey)
-                if spec == nil || spec.Role == "" {
-                        continue
-                }
-                material := partMaterialOf(facts, requiredKey)
-                switch spec.Role {
-                case PartRoleSymptom:
-                        if !material.Present {
-                                return false, ""
-                        }
-                        roleEvidence = append(roleEvidence, "записан симптом")
-                case PartRoleOemNumber:
-                        if !material.Present {
-                                return false, ""
-                        }
-                        roleEvidence = append(roleEvidence, "записан номер детали")
-                case PartRolePartKind:
-                        if !material.Present {
-                                return false, ""
-                        }
-                        roleEvidence = append(roleEvidence, "названа деталь")
-                case PartRolePreference:
-                        if !material.Present || material.Text != PartRequestPreferenceBothValue {
-                                return false, ""
-                        }
-                        roleEvidence = append(roleEvidence, "клиент просит выбор (значение both)")
-                }
-        }
-        if len(roleEvidence) == 0 {
-                return false, ""
-        }
-        return true, "основание: " + strings.Join(roleEvidence, "; ")
+	roleEvidence := []string{}
+	for _, requiredKey := range mode.Requires {
+		spec := partKeySpecOf(schema, requiredKey)
+		if spec == nil || spec.Role == "" {
+			continue
+		}
+		material := partMaterialOf(facts, requiredKey)
+		switch spec.Role {
+		case PartRoleSymptom:
+			if !material.Present {
+				return false, ""
+			}
+			roleEvidence = append(roleEvidence, "записан симптом")
+		case PartRoleOemNumber:
+			if !material.Present {
+				return false, ""
+			}
+			roleEvidence = append(roleEvidence, "записан номер детали")
+		case PartRolePartKind:
+			if !material.Present {
+				return false, ""
+			}
+			roleEvidence = append(roleEvidence, "названа деталь")
+		case PartRolePreference:
+			if !material.Present || material.Text != PartRequestPreferenceBothValue {
+				return false, ""
+			}
+			roleEvidence = append(roleEvidence, "клиент просит выбор (значение both)")
+		}
+	}
+	if len(roleEvidence) == 0 {
+		return false, ""
+	}
+	return true, "основание: " + strings.Join(roleEvidence, "; ")
 }
 
 // partKeySpecOf resolves one material key spec of the schema.
 func partKeySpecOf(schema PartSchemaDomain, key string) *PartMaterialKeyDomain {
-        for index := range schema.MaterialKeys {
-                if schema.MaterialKeys[index].Key == key {
-                        return &schema.MaterialKeys[index]
-                }
-        }
-        return nil
+	for index := range schema.MaterialKeys {
+		if schema.MaterialKeys[index].Key == key {
+			return &schema.MaterialKeys[index]
+		}
+	}
+	return nil
 }
 
 // ---------------------------------------------------------------------------
@@ -384,20 +381,20 @@ type PartConfirmationView = VehicleConfirmationView
 // stored rendering), the fact version with the provenance, the
 // read-time 2.2 status and the confirmation view when one exists.
 type PartAttributeView struct {
-        FactID       id.UUID                  `json:"fact_id"`
-        MaterialKey  string                   `json:"material_key"`
-        Label        string                   `json:"label"`
-        Role         string                   `json:"role"`
-        Kind         string                   `json:"kind"`
-        RawValue     string                   `json:"raw_value"`
-        NumberChecks *PartNumberNormalization `json:"number_checks,omitempty"`
-        FactVersion  int64                    `json:"fact_version"`
-        ObservedAt   time.Time                `json:"observed_at"`
-        ReceivedAt   time.Time                `json:"received_at"`
-        SourceType   string                   `json:"source_type"`
-        Channel      string                   `json:"channel"`
-        Status       string                   `json:"status"`
-        Confirmation *PartConfirmationView    `json:"confirmation,omitempty"`
+	FactID       id.UUID                  `json:"fact_id"`
+	MaterialKey  string                   `json:"material_key"`
+	Label        string                   `json:"label"`
+	Role         string                   `json:"role"`
+	Kind         string                   `json:"kind"`
+	RawValue     string                   `json:"raw_value"`
+	NumberChecks *PartNumberNormalization `json:"number_checks,omitempty"`
+	FactVersion  int64                    `json:"fact_version"`
+	ObservedAt   time.Time                `json:"observed_at"`
+	ReceivedAt   time.Time                `json:"received_at"`
+	SourceType   string                   `json:"source_type"`
+	Channel      string                   `json:"channel"`
+	Status       string                   `json:"status"`
+	Confirmation *PartConfirmationView    `json:"confirmation,omitempty"`
 }
 
 // PartCompleteness is the honest completeness answer: the completeness
@@ -406,16 +403,16 @@ type PartAttributeView struct {
 // re-asked, AC-3; the absent optional keys are honest absences, never
 // missing).
 type PartCompleteness struct {
-        CompleteWord string   `json:"complete_word"`
-        MissingKeys  []string `json:"missing_keys"`
+	CompleteWord string   `json:"complete_word"`
+	MissingKeys  []string `json:"missing_keys"`
 }
 
 // PartBoundaryView is one honesty boundary of the derivation: the
 // boundary kind word (diagnostic | safety | contradiction) and the text
 // (role=alert material — the uncertainty is text, never only color).
 type PartBoundaryView struct {
-        Kind string `json:"kind"`
-        Text string `json:"text"`
+	Kind string `json:"kind"`
+	Text string `json:"text"`
 }
 
 // PartRequestView is the read-time part request: the selected mode with
@@ -428,24 +425,24 @@ type PartBoundaryView struct {
 // extension of 4.3) and the several-parts word when the case carries
 // more than one active «поиск детали» item.
 type PartRequestView struct {
-        Mode             string                  `json:"mode"`
-        ModeLabel        string                  `json:"mode_label"`
-        ModeBasisWord    string                  `json:"mode_basis_word"`
-        UnstructuredWord string                  `json:"unstructured_word,omitempty"`
-        SchemaDictionary []PartMaterialKeyDomain `json:"schema_dictionary,omitempty"`
-        Attributes       []PartAttributeView     `json:"attributes"`
-        // NumberMatchWord carries the constant word of the exact number
-        // match (AC-4 / FR-52: the match is not a fitment proof — the
-        // catalog contour is 4.4) whenever the oem_number material exists.
-        NumberMatchWord   string             `json:"number_match_word,omitempty"`
-        Completeness      PartCompleteness   `json:"completeness"`
-        Questions         map[string]string  `json:"questions"`
-        PartRequestDigest string             `json:"part_request_digest"`
-        ConfidenceWord    string             `json:"confidence_word"`
-        Boundaries        []PartBoundaryView `json:"boundaries"`
-        HandoffWords      []string           `json:"handoff_words"`
-        SeveralPartsWord  string             `json:"several_parts_word,omitempty"`
-        StaleNote         string             `json:"stale_note,omitempty"`
+	Mode             string                  `json:"mode"`
+	ModeLabel        string                  `json:"mode_label"`
+	ModeBasisWord    string                  `json:"mode_basis_word"`
+	UnstructuredWord string                  `json:"unstructured_word,omitempty"`
+	SchemaDictionary []PartMaterialKeyDomain `json:"schema_dictionary,omitempty"`
+	Attributes       []PartAttributeView     `json:"attributes"`
+	// NumberMatchWord carries the constant word of the exact number
+	// match (AC-4 / FR-52: the match is not a fitment proof — the
+	// catalog contour is 4.4) whenever the oem_number material exists.
+	NumberMatchWord   string             `json:"number_match_word,omitempty"`
+	Completeness      PartCompleteness   `json:"completeness"`
+	Questions         map[string]string  `json:"questions"`
+	PartRequestDigest string             `json:"part_request_digest"`
+	ConfidenceWord    string             `json:"confidence_word"`
+	Boundaries        []PartBoundaryView `json:"boundaries"`
+	HandoffWords      []string           `json:"handoff_words"`
+	SeveralPartsWord  string             `json:"several_parts_word,omitempty"`
+	StaleNote         string             `json:"stale_note,omitempty"`
 }
 
 // DerivePartRequest derives the part request of one case over the
@@ -460,118 +457,118 @@ type PartRequestView struct {
 // active «поиск детали» work items of the case (the app input — the
 // SeveralPartsWord is the honest split recommendation of 2.2).
 func DerivePartRequest(schema PartSchemaDomain, facts []PartRequestFactInput, activePartSearches int) PartRequestView {
-        view := PartRequestView{
-                Attributes:   []PartAttributeView{},
-                Questions:    map[string]string{},
-                Boundaries:   []PartBoundaryView{},
-                HandoffWords: []string{},
-        }
-        byKey := map[string]VehicleFactInput{}
-        for _, fact := range facts {
-                byKey[fact.MaterialKey] = fact
-        }
-        modeAnswer := DerivePartRequestMode(schema, byKey)
-        view.Mode = modeAnswer.Mode
-        view.ModeLabel = modeAnswer.Label
-        view.ModeBasisWord = modeAnswer.BasisWord
-        view.UnstructuredWord = modeAnswer.UnstructuredWord
-        if view.UnstructuredWord != "" {
-                // The honest empty dictionary hint: the schema keys with the
-                // labels (the operator records the material by the dictionary).
-                view.SchemaDictionary = append([]PartMaterialKeyDomain(nil), schema.MaterialKeys...)
-        }
-        confirmedSet := map[string]struct {
-                VersionNo   int64
-                ValueDigest string
-        }{}
-        stale := false
-        conflicting := false
-        confirmedCount := 0
-        requiresTotal := 0
-        confirmedOfRequires := 0
-        for _, key := range schema.MaterialKeys {
-                fact, present := byKey[key.Key]
-                if !present || len(fact.Versions) == 0 {
-                        continue
-                }
-                latest := fact.Versions[len(fact.Versions)-1]
-                status, _ := DeriveFactStatus(fact.Versions, fact.Confirmations)
-                attribute := PartAttributeView{
-                        FactID: fact.FactID, MaterialKey: key.Key, Label: key.Label, Role: key.Role, Kind: key.Kind,
-                        RawValue: vehicleRawValueText(latest.Value), FactVersion: latest.VersionNo,
-                        ObservedAt: latest.ObservedAt, ReceivedAt: latest.ReceivedAt,
-                        SourceType: latest.SourceType, Channel: latest.Channel, Status: status,
-                }
-                if key.Role == PartRoleOemNumber {
-                        checks := NormalizePartNumber(attribute.RawValue)
-                        attribute.NumberChecks = &checks
-                        view.NumberMatchWord = PartNumberMatchIsNotFitmentText
-                }
-                var latestConfirmation *FactConfirmation
-                for index := range fact.Confirmations {
-                        confirmation := &fact.Confirmations[index]
-                        if latestConfirmation == nil || confirmation.VersionNo > latestConfirmation.VersionNo {
-                                latestConfirmation = confirmation
-                        }
-                }
-                if latestConfirmation != nil {
-                        confirmationView := &PartConfirmationView{
-                                ConfirmerType: latestConfirmation.ConfirmerType,
-                                VersionNo:     latestConfirmation.VersionNo,
-                                At:            latestConfirmation.CreatedAt,
-                        }
-                        if latestConfirmation.VersionNo < latest.VersionNo {
-                                confirmationView.StaleWord = fmt.Sprintf("подтверждение относилось к прежней версии (v%d)", latestConfirmation.VersionNo)
-                                stale = true
-                        }
-                        attribute.Confirmation = confirmationView
-                }
-                if status == FactStatusConfirmed {
-                        confirmedSet[key.Key] = struct {
-                                VersionNo   int64
-                                ValueDigest string
-                        }{VersionNo: latest.VersionNo, ValueDigest: latest.ValueDigest}
-                        confirmedCount++
-                }
-                if status == FactStatusConflicting {
-                        conflicting = true
-                }
-                view.Attributes = append(view.Attributes, attribute)
-        }
-        // The completeness over the SELECTED mode's Requires set: the missing
-        // keys are ONLY the not-confirmed ones (AC-3 — the confirmed material
-        // is never re-asked); the absent optional keys never appear.
-        if view.Mode != "" {
-                for _, mode := range schema.Modes {
-                        if mode.Mode != view.Mode {
-                                continue
-                        }
-                        for _, requiredKey := range mode.Requires {
-                                requiresTotal++
-                                if _, confirmed := confirmedSet[requiredKey]; confirmed {
-                                        confirmedOfRequires++
-                                        continue
-                                }
-                                view.Completeness.MissingKeys = append(view.Completeness.MissingKeys, requiredKey)
-                                view.Questions[requiredKey] = partQuestionWord(schema, requiredKey)
-                        }
-                }
-                if len(view.Completeness.MissingKeys) == 0 {
-                        view.Completeness.CompleteWord = "материал запроса полон по обязательному набору выбранного режима"
-                } else {
-                        view.Completeness.CompleteWord = "материал запроса неполон по обязательному набору выбранного режима — задайте минимальные уточняющие вопросы"
-                }
-        }
-        view.PartRequestDigest = partRequestDigest(confirmedSet)
-        view.ConfidenceWord = partConfidenceWord(conflicting, confirmedOfRequires, requiresTotal, confirmedCount)
-        partBoundaries(schema, view.Mode, byKey, conflicting, &view)
-        if activePartSearches > 1 {
-                view.SeveralPartsWord = PartRequestSeveralPartsText
-        }
-        if stale {
-                view.StaleNote = PartRequestStaleNote
-        }
-        return view
+	view := PartRequestView{
+		Attributes:   []PartAttributeView{},
+		Questions:    map[string]string{},
+		Boundaries:   []PartBoundaryView{},
+		HandoffWords: []string{},
+	}
+	byKey := map[string]VehicleFactInput{}
+	for _, fact := range facts {
+		byKey[fact.MaterialKey] = fact
+	}
+	modeAnswer := DerivePartRequestMode(schema, byKey)
+	view.Mode = modeAnswer.Mode
+	view.ModeLabel = modeAnswer.Label
+	view.ModeBasisWord = modeAnswer.BasisWord
+	view.UnstructuredWord = modeAnswer.UnstructuredWord
+	if view.UnstructuredWord != "" {
+		// The honest empty dictionary hint: the schema keys with the
+		// labels (the operator records the material by the dictionary).
+		view.SchemaDictionary = append([]PartMaterialKeyDomain(nil), schema.MaterialKeys...)
+	}
+	confirmedSet := map[string]struct {
+		VersionNo   int64
+		ValueDigest string
+	}{}
+	stale := false
+	conflicting := false
+	confirmedCount := 0
+	requiresTotal := 0
+	confirmedOfRequires := 0
+	for _, key := range schema.MaterialKeys {
+		fact, present := byKey[key.Key]
+		if !present || len(fact.Versions) == 0 {
+			continue
+		}
+		latest := fact.Versions[len(fact.Versions)-1]
+		status, _ := DeriveFactStatus(fact.Versions, fact.Confirmations)
+		attribute := PartAttributeView{
+			FactID: fact.FactID, MaterialKey: key.Key, Label: key.Label, Role: key.Role, Kind: key.Kind,
+			RawValue: vehicleRawValueText(latest.Value), FactVersion: latest.VersionNo,
+			ObservedAt: latest.ObservedAt, ReceivedAt: latest.ReceivedAt,
+			SourceType: latest.SourceType, Channel: latest.Channel, Status: status,
+		}
+		if key.Role == PartRoleOemNumber {
+			checks := NormalizePartNumber(attribute.RawValue)
+			attribute.NumberChecks = &checks
+			view.NumberMatchWord = PartNumberMatchIsNotFitmentText
+		}
+		var latestConfirmation *FactConfirmation
+		for index := range fact.Confirmations {
+			confirmation := &fact.Confirmations[index]
+			if latestConfirmation == nil || confirmation.VersionNo > latestConfirmation.VersionNo {
+				latestConfirmation = confirmation
+			}
+		}
+		if latestConfirmation != nil {
+			confirmationView := &PartConfirmationView{
+				ConfirmerType: latestConfirmation.ConfirmerType,
+				VersionNo:     latestConfirmation.VersionNo,
+				At:            latestConfirmation.CreatedAt,
+			}
+			if latestConfirmation.VersionNo < latest.VersionNo {
+				confirmationView.StaleWord = fmt.Sprintf("подтверждение относилось к прежней версии (v%d)", latestConfirmation.VersionNo)
+				stale = true
+			}
+			attribute.Confirmation = confirmationView
+		}
+		if status == FactStatusConfirmed {
+			confirmedSet[key.Key] = struct {
+				VersionNo   int64
+				ValueDigest string
+			}{VersionNo: latest.VersionNo, ValueDigest: latest.ValueDigest}
+			confirmedCount++
+		}
+		if status == FactStatusConflicting {
+			conflicting = true
+		}
+		view.Attributes = append(view.Attributes, attribute)
+	}
+	// The completeness over the SELECTED mode's Requires set: the missing
+	// keys are ONLY the not-confirmed ones (AC-3 — the confirmed material
+	// is never re-asked); the absent optional keys never appear.
+	if view.Mode != "" {
+		for _, mode := range schema.Modes {
+			if mode.Mode != view.Mode {
+				continue
+			}
+			for _, requiredKey := range mode.Requires {
+				requiresTotal++
+				if _, confirmed := confirmedSet[requiredKey]; confirmed {
+					confirmedOfRequires++
+					continue
+				}
+				view.Completeness.MissingKeys = append(view.Completeness.MissingKeys, requiredKey)
+				view.Questions[requiredKey] = partQuestionWord(schema, requiredKey)
+			}
+		}
+		if len(view.Completeness.MissingKeys) == 0 {
+			view.Completeness.CompleteWord = "материал запроса полон по обязательному набору выбранного режима"
+		} else {
+			view.Completeness.CompleteWord = "материал запроса неполон по обязательному набору выбранного режима — задайте минимальные уточняющие вопросы"
+		}
+	}
+	view.PartRequestDigest = partRequestDigest(confirmedSet)
+	view.ConfidenceWord = partConfidenceWord(conflicting, confirmedOfRequires, requiresTotal, confirmedCount)
+	partBoundaries(schema, view.Mode, byKey, conflicting, &view)
+	if activePartSearches > 1 {
+		view.SeveralPartsWord = PartRequestSeveralPartsText
+	}
+	if stale {
+		view.StaleNote = PartRequestStaleNote
+	}
+	return view
 }
 
 // partRequestDigest renders the SHA-256 of the canonical JSON of the
@@ -579,46 +576,46 @@ func DerivePartRequest(schema PartSchemaDomain, facts []PartRequestFactInput, ac
 // sorted keys (the byte-stable canonical form of «the exact version of
 // the request», AC-10; an empty set digests the honest empty object).
 func partRequestDigest(confirmedSet map[string]struct {
-        VersionNo   int64
-        ValueDigest string
+	VersionNo   int64
+	ValueDigest string
 }) string {
-        keys := make([]string, 0, len(confirmedSet))
-        for key := range confirmedSet {
-                keys = append(keys, key)
-        }
-        sort.Strings(keys)
-        canonical := make(map[string]map[string]any, len(keys))
-        for _, key := range keys {
-                entry := confirmedSet[key]
-                canonical[key] = map[string]any{"version_no": entry.VersionNo, "value_digest": entry.ValueDigest}
-        }
-        encoded, err := json.Marshal(canonical)
-        if err != nil {
-                // The shape is fixed (strings, int64, strings) — the marshal
-                // cannot fail; the honest fallback keeps the derivation total.
-                encoded = []byte("{}")
-        }
-        sum := sha256.Sum256(encoded)
-        return hex.EncodeToString(sum[:])
+	keys := make([]string, 0, len(confirmedSet))
+	for key := range confirmedSet {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	canonical := make(map[string]map[string]any, len(keys))
+	for _, key := range keys {
+		entry := confirmedSet[key]
+		canonical[key] = map[string]any{"version_no": entry.VersionNo, "value_digest": entry.ValueDigest}
+	}
+	encoded, err := json.Marshal(canonical)
+	if err != nil {
+		// The shape is fixed (strings, int64, strings) — the marshal
+		// cannot fail; the honest fallback keeps the derivation total.
+		encoded = []byte("{}")
+	}
+	sum := sha256.Sum256(encoded)
+	return hex.EncodeToString(sum[:])
 }
 
 // partConfidenceWord renders the honest confidence word — the
 // confirmedness conclusion over the SELECTED mode's mandatory set, never
 // an invented number (AC-2).
 func partConfidenceWord(conflicting bool, confirmedOfRequires, requiresTotal, confirmedCount int) string {
-        if conflicting {
-                return "уверенность не выводится: материал содержит противоречия — Staffy не выбирает вариант"
-        }
-        if requiresTotal > 0 && confirmedOfRequires == requiresTotal {
-                return "материал подтверждён"
-        }
-        if confirmedOfRequires > 0 {
-                return fmt.Sprintf("материал подтверждён частично: подтверждены %d из %d обязательных ключей выбранного режима", confirmedOfRequires, requiresTotal)
-        }
-        if confirmedCount > 0 {
-                return "материал подтверждён частично: обязательные ключи выбранного режима не подтверждены"
-        }
-        return "материал без подтверждения"
+	if conflicting {
+		return "уверенность не выводится: материал содержит противоречия — Staffy не выбирает вариант"
+	}
+	if requiresTotal > 0 && confirmedOfRequires == requiresTotal {
+		return "материал подтверждён"
+	}
+	if confirmedOfRequires > 0 {
+		return fmt.Sprintf("материал подтверждён частично: подтверждены %d из %d обязательных ключей выбранного режима", confirmedOfRequires, requiresTotal)
+	}
+	if confirmedCount > 0 {
+		return "материал подтверждён частично: обязательные ключи выбранного режима не подтверждены"
+	}
+	return "материал без подтверждения"
 }
 
 // partQuestionWord renders the minimal clarify question of one missing
@@ -627,24 +624,24 @@ func partConfidenceWord(conflicting bool, confirmedOfRequires, requiresTotal, co
 // schema key (never a hardcoded key literal — the dictionary comes from
 // the pack); the role-less keys degrade to the label question.
 func partQuestionWord(schema PartSchemaDomain, key string) string {
-        spec := partKeySpecOf(schema, key)
-        if spec == nil {
-                return "уточните значение"
-        }
-        switch spec.Role {
-        case PartRolePartKind:
-                return "уточните: какая деталь нужна?"
-        case PartRoleSymptom:
-                return "уточните и подтвердите симптом: что именно беспокоит клиента?"
-        case PartRoleOemNumber:
-                return "уточните: каталожный номер детали?"
-        case PartRolePreference:
-                return "уточните: оригинал, аналог или выбор клиента?"
-        }
-        if spec.Kind == "integer" {
-                return "уточните: сколько нужно?"
-        }
-        return fmt.Sprintf("уточните: %s?", strings.ToLower(spec.Label))
+	spec := partKeySpecOf(schema, key)
+	if spec == nil {
+		return "уточните значение"
+	}
+	switch spec.Role {
+	case PartRolePartKind:
+		return "уточните: какая деталь нужна?"
+	case PartRoleSymptom:
+		return "уточните и подтвердите симптом: что именно беспокоит клиента?"
+	case PartRoleOemNumber:
+		return "уточните: каталожный номер детали?"
+	case PartRolePreference:
+		return "уточните: оригинал, аналог или выбор клиента?"
+	}
+	if spec.Kind == "integer" {
+		return "уточните: сколько нужно?"
+	}
+	return fmt.Sprintf("уточните: %s?", strings.ToLower(spec.Label))
 }
 
 // partBoundaries renders the three honesty boundaries of the request:
@@ -656,46 +653,46 @@ func partQuestionWord(schema PartSchemaDomain, key string) string {
 // sources are handed to the human with the full material). The handoff
 // recommendation words follow the 2.13 dictionary extension of 4.3.
 func partBoundaries(schema PartSchemaDomain, mode string, facts map[string]VehicleFactInput, conflicting bool, view *PartRequestView) {
-        // The part_kind material for the safety search and the candidate
-        // word — resolved BY ROLE over the schema (never a hardcoded key
-        // literal: the dictionary comes from the pack).
-        kindKey, kindSpec := partRoleKeyOf(schema, PartRolePartKind)
-        kindMaterial := partFactMaterial{}
-        if kindSpec != nil {
-                kindMaterial = partMaterialOf(facts, kindKey)
-        }
-        safetyMatched, matchedMarkers := partSafetyMarkersOf(schema, kindMaterial.Text)
-        if mode == PartModeDiagnostic {
-                view.Boundaries = append(view.Boundaries, PartBoundaryView{Kind: "diagnostic", Text: PartRequestDiagnosticBoundaryText})
-                view.HandoffWords = append(view.HandoffWords, partHandoffWordDiagnosticUncertainty)
-                if kindMaterial.Present {
-                        view.Boundaries = append(view.Boundaries, PartBoundaryView{Kind: "diagnostic", Text: PartRequestCandidateUnderSymptomText})
-                }
-        }
-        if safetyMatched {
-                view.Boundaries = append(view.Boundaries, PartBoundaryView{Kind: "safety", Text: PartRequestSafetyNoteText + " (маркеры: " + strings.Join(matchedMarkers, ", ") + ")"})
-                view.Boundaries = append(view.Boundaries, PartBoundaryView{Kind: "safety", Text: PartRequestSafetyHeuristicText})
-                if mode == PartModeDiagnostic || conflicting {
-                        view.Boundaries = append(view.Boundaries, PartBoundaryView{Kind: "safety", Text: PartRequestSafetyStopText})
-                        view.HandoffWords = append(view.HandoffWords, partHandoffWordSafetyCritical)
-                }
-        }
-        if conflicting {
-                view.Boundaries = append(view.Boundaries, PartBoundaryView{Kind: "contradiction", Text: PartRequestContradictionBoundaryText})
-                view.HandoffWords = append(view.HandoffWords, partHandoffWordUnresolvedContradiction)
-        }
+	// The part_kind material for the safety search and the candidate
+	// word — resolved BY ROLE over the schema (never a hardcoded key
+	// literal: the dictionary comes from the pack).
+	kindKey, kindSpec := partRoleKeyOf(schema, PartRolePartKind)
+	kindMaterial := partFactMaterial{}
+	if kindSpec != nil {
+		kindMaterial = partMaterialOf(facts, kindKey)
+	}
+	safetyMatched, matchedMarkers := partSafetyMarkersOf(schema, kindMaterial.Text)
+	if mode == PartModeDiagnostic {
+		view.Boundaries = append(view.Boundaries, PartBoundaryView{Kind: "diagnostic", Text: PartRequestDiagnosticBoundaryText})
+		view.HandoffWords = append(view.HandoffWords, HandoffReasonDiagnosticUncertainty)
+		if kindMaterial.Present {
+			view.Boundaries = append(view.Boundaries, PartBoundaryView{Kind: "diagnostic", Text: PartRequestCandidateUnderSymptomText})
+		}
+	}
+	if safetyMatched {
+		view.Boundaries = append(view.Boundaries, PartBoundaryView{Kind: "safety", Text: PartRequestSafetyNoteText + " (маркеры: " + strings.Join(matchedMarkers, ", ") + ")"})
+		view.Boundaries = append(view.Boundaries, PartBoundaryView{Kind: "safety", Text: PartRequestSafetyHeuristicText})
+		if mode == PartModeDiagnostic || conflicting {
+			view.Boundaries = append(view.Boundaries, PartBoundaryView{Kind: "safety", Text: PartRequestSafetyStopText})
+			view.HandoffWords = append(view.HandoffWords, HandoffReasonSafetyCritical)
+		}
+	}
+	if conflicting {
+		view.Boundaries = append(view.Boundaries, PartBoundaryView{Kind: "contradiction", Text: PartRequestContradictionBoundaryText})
+		view.HandoffWords = append(view.HandoffWords, HandoffReasonUnresolvedContradiction)
+	}
 }
 
 // partRoleKeyOf resolves the key and the spec of the FIRST schema
 // material key carrying the given role (the role drives the ladder and
 // the boundary searches — the key names belong to the pack).
 func partRoleKeyOf(schema PartSchemaDomain, role string) (string, *PartMaterialKeyDomain) {
-        for index := range schema.MaterialKeys {
-                if schema.MaterialKeys[index].Role == role {
-                        return schema.MaterialKeys[index].Key, &schema.MaterialKeys[index]
-                }
-        }
-        return "", nil
+	for index := range schema.MaterialKeys {
+		if schema.MaterialKeys[index].Role == role {
+			return schema.MaterialKeys[index].Key, &schema.MaterialKeys[index]
+		}
+	}
+	return "", nil
 }
 
 // partSafetyMarkersOf answers whether any declared safety marker of the
@@ -703,15 +700,15 @@ func partRoleKeyOf(schema PartSchemaDomain, role string) (string, *PartMaterialK
 // lower-cased trimmed kind — the markers are the declared heuristic of
 // the pack, honestly a heuristic, never a proof).
 func partSafetyMarkersOf(schema PartSchemaDomain, kindRaw string) (bool, []string) {
-        normalized := strings.ToLower(strings.TrimSpace(kindRaw))
-        if normalized == "" {
-                return false, nil
-        }
-        matched := []string{}
-        for _, marker := range schema.SafetyMarkers {
-                if strings.Contains(normalized, strings.ToLower(strings.TrimSpace(marker))) {
-                        matched = append(matched, marker)
-                }
-        }
-        return len(matched) > 0, matched
+	normalized := strings.ToLower(strings.TrimSpace(kindRaw))
+	if normalized == "" {
+		return false, nil
+	}
+	matched := []string{}
+	for _, marker := range schema.SafetyMarkers {
+		if strings.Contains(normalized, strings.ToLower(strings.TrimSpace(marker))) {
+			matched = append(matched, marker)
+		}
+	}
+	return len(matched) > 0, matched
 }

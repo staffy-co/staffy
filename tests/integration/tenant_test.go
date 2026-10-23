@@ -353,6 +353,20 @@ func TestMain(m *testing.M) {
 	if _, err = adminPool.Exec(ctx, strings.Split(string(casesVehicleConfirmationMigration), "-- +goose Down")[0]); err != nil {
 		panic(err)
 	}
+	// Story 4.3: the handoff reason dictionary mirror of the part
+	// request boundaries (cases/00019 — the +3 operator words of the
+	// SQL CHECK, append-only). The registration stays in this hard
+	// list (the 3.3 lesson of 00017: a migration outside the list
+	// never applies and the contour tests a world that does not
+	// exist — caught live by the matrix refusal SQLSTATE 23514 on
+	// the first submission).
+	casesPartRequestReasonsMigration, err := os.ReadFile("../../migrations/cases/00019_part_request_handoff_reasons.sql")
+	if err != nil {
+		panic(err)
+	}
+	if _, err = adminPool.Exec(ctx, strings.Split(string(casesPartRequestReasonsMigration), "-- +goose Down")[0]); err != nil {
+		panic(err)
+	}
 	// Story 3.4: the FIRST migration of the action module. The
 	// registration in this hard list is load-bearing (the 3.3 lesson of
 	// 00017: a migration outside the list never applied its tables to

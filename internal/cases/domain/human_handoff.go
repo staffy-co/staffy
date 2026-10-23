@@ -57,23 +57,49 @@ import (
 // byte-identical (the control branch of 2.9).
 
 // ---------------------------------------------------------------------------
-// The reason dictionary (AC-1: the single word of the slice)
+// The reason dictionary (AC-1: the unconditional word of the client ask;
+// Story 4.3 adds the three operator boundary words — a new dictionary
+// version by the gateDictionary precedent of 4.1)
 // ---------------------------------------------------------------------------
 
-// The handoff request reasons: the fixed dictionary of the first slice.
-// client_request is the ONLY word — the unconditional ask of the client;
-// the operator transfer of 2.4 (the free reason ≤ 200 runes) is a
-// DIFFERENT surface and is never touched by this story.
-const HandoffReasonClientRequest = "client_request"
+// The handoff request reasons: the dictionary of the first slice extended
+// by the Story 4.3 boundary words. client_request stays the word of the
+// UNCONDITIONAL client ask — the operator never types it (the system
+// truth of 2.13); the operator transfer of 2.4 (the free reason ≤ 200
+// runes) is a DIFFERENT surface and is never touched by this story. The
+// three Story 4.3 words are the OPERATOR-produced reasons of the part
+// request boundaries (the panel recommends, the operator decides): the
+// producer never types a free text — the word is the dictionary constant
+// (fail-closed on GuardHandoffRequestReason; the SQL mirror of 00019 is
+// the backstop). The dictionary extension is the new spec version by the
+// gateDictionary precedent of 4.1: the old word keeps its meaning, the
+// new words are PARALLEL to the unconditional client ask (never its
+// replacement — the client's ask needs no reason, ever).
+const (
+	HandoffReasonClientRequest           = "client_request"
+	HandoffReasonDiagnosticUncertainty   = "diagnostic_uncertainty"
+	HandoffReasonSafetyCritical          = "safety_critical"
+	HandoffReasonUnresolvedContradiction = "unresolved_contradiction"
+)
 
-// HandoffReasons is the full dictionary.
-var HandoffReasons = []string{HandoffReasonClientRequest}
+// HandoffReasons is the full dictionary (the +3 Story 4.3 words mirror
+// the SQL CHECK of migrations/cases/00019 — the append-only extension of
+// the 00013 word list).
+var HandoffReasons = []string{
+	HandoffReasonClientRequest,
+	HandoffReasonDiagnosticUncertainty,
+	HandoffReasonSafetyCritical,
+	HandoffReasonUnresolvedContradiction,
+}
 
 // HandoffReasonTexts is the honest text of every reason word (the render
 // material of the panel; the texts never enter the database or the
 // outbox).
 var HandoffReasonTexts = map[string]string{
-	HandoffReasonClientRequest: "Безусловная просьба клиента: клиент попросил человека.",
+	HandoffReasonClientRequest:           "Безусловная просьба клиента: клиент попросил человека.",
+	HandoffReasonDiagnosticUncertainty:   "Диагностическая неопределённость: симптом не доказывает деталь — диагноз у специалиста.",
+	HandoffReasonSafetyCritical:          "Safety-узел с неопределённостью: автоматический подбор остановлен — нужны подтверждённый материал и решение специалиста.",
+	HandoffReasonUnresolvedContradiction: "Неустранённое противоречие источников: Staffy не выбирает вероятный вариант — материал передан человеку.",
 }
 
 // HandoffReasonText resolves the honest text of one reason word.
@@ -85,6 +111,48 @@ func HandoffReasonText(reason string) string {
 // the fixed dictionary (the request write is fail-closed on it).
 func HandoffReasonInDictionary(reason string) bool {
 	return inDictionary(HandoffReasons, reason)
+}
+
+// GuardHandoffRequestReason validates the reason word of the request
+// creation (Story 4.3 — the honest extension of the existing creation
+// path): the EMPTY word is the unconditional client ask of 2.13 (the
+// client_request constant is the SYSTEM truth — the operator never types
+// it, an explicit client_request input is refused); the three operator
+// words of the part request boundaries are the honest inputs (the panel
+// recommends, the operator decides); every other word is the honest
+// refusal with the full dictionary list. The store re-validates the same
+// guard under the locks (the SQL CHECK of 00019 is the backstop).
+func GuardHandoffRequestReason(reason string) error {
+	if reason == "" {
+		return nil
+	}
+	if reason == HandoffReasonClientRequest {
+		return fmt.Errorf("слово причины %q — системная истина безусловной просьбы клиента, оно не вводится оператором", reason)
+	}
+	if HandoffReasonInDictionary(reason) {
+		return nil
+	}
+	return fmt.Errorf("слово причины передачи %q вне словаря: %s", reason, handoffReasonDictionaryText())
+}
+
+// handoffReasonDictionaryText renders the honest quoted list of the
+// operator reason words (the refusal material — never a free input).
+func handoffReasonDictionaryText() string {
+	words := make([]string, 0, 3)
+	for _, reason := range HandoffReasons {
+		if reason == HandoffReasonClientRequest {
+			continue
+		}
+		words = append(words, "«"+reason+"»")
+	}
+	joined := ""
+	for index, word := range words {
+		if index > 0 {
+			joined += ", "
+		}
+		joined += word
+	}
+	return joined
 }
 
 // ---------------------------------------------------------------------------

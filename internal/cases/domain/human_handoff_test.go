@@ -52,11 +52,23 @@ func handoffEventOf(request HandoffRequest, eventNo int64, kind string) HandoffE
 }
 
 func TestHandoffDictionariesClosed(t *testing.T) {
-	if len(HandoffReasons) != 1 || HandoffReasons[0] != HandoffReasonClientRequest {
-		t.Fatalf("the reason dictionary carries the single AC-1 word client_request, got %v", HandoffReasons)
+	// The Story 4.3 extension: the reason dictionary carries FOUR words —
+	// the unconditional client word of 2.13 plus the three operator
+	// boundary words of the part request classification (the SQL mirror
+	// is migrations/cases/00019, append-only by the 00018 precedent).
+	if len(HandoffReasons) != 4 || HandoffReasons[0] != HandoffReasonClientRequest {
+		t.Fatalf("the reason dictionary carries the client word first plus the three Story 4.3 boundary words, got %v", HandoffReasons)
+	}
+	for _, reason := range []string{HandoffReasonDiagnosticUncertainty, HandoffReasonSafetyCritical, HandoffReasonUnresolvedContradiction} {
+		if !HandoffReasonInDictionary(reason) {
+			t.Fatalf("the Story 4.3 boundary word %q must be in the reason dictionary (the 00019 mirror)", reason)
+		}
+		if HandoffReasonText(reason) == "" {
+			t.Fatalf("the Story 4.3 boundary word %q must carry its honest text", reason)
+		}
 	}
 	if HandoffReasonInDictionary("operator_asked") || !HandoffReasonInDictionary(HandoffReasonClientRequest) {
-		t.Fatalf("the reason dictionary is closed on client_request")
+		t.Fatalf("the reason dictionary is closed on the four dictionary words")
 	}
 	if HandoffReasonText(HandoffReasonClientRequest) == "" || HandoffReasonText("made_up") != "" {
 		t.Fatalf("the reason word carries its honest text, an unknown word renders none")
@@ -138,6 +150,35 @@ func TestHandoffDictionariesClosed(t *testing.T) {
 	}
 	if HandoffClientStatusInDictionary("human_connected") {
 		t.Fatalf("an invented client status never enters the dictionary")
+	}
+}
+
+// TestGuardHandoffRequestReason pins the Story 4.3 reason guard of the
+// request creation: the EMPTY word is the unconditional client ask of
+// 2.13 (never an input); the three operator boundary words pass; an
+// explicit client_request input is the honest refusal (the word is the
+// system truth); every other word is the honest refusal with the
+// dictionary list.
+func TestGuardHandoffRequestReason(t *testing.T) {
+	if err := GuardHandoffRequestReason(""); err != nil {
+		t.Fatalf("the empty word is the unconditional client ask — never an error, got %v", err)
+	}
+	for _, reason := range []string{HandoffReasonDiagnosticUncertainty, HandoffReasonSafetyCritical, HandoffReasonUnresolvedContradiction} {
+		if err := GuardHandoffRequestReason(reason); err != nil {
+			t.Fatalf("the operator boundary word %q must pass the guard, got %v", reason, err)
+		}
+	}
+	if err := GuardHandoffRequestReason(HandoffReasonClientRequest); err == nil {
+		t.Fatal("an explicit client_request input must be refused — the word is the system truth, never typed")
+	}
+	err := GuardHandoffRequestReason("operator_asked")
+	if err == nil {
+		t.Fatal("an out-of-dictionary word must be refused")
+	}
+	for _, reason := range []string{HandoffReasonDiagnosticUncertainty, HandoffReasonSafetyCritical, HandoffReasonUnresolvedContradiction} {
+		if !strings.Contains(err.Error(), reason) {
+			t.Fatalf("the refusal must carry the honest dictionary list including %q, got %v", reason, err)
+		}
 	}
 }
 

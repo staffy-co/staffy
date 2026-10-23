@@ -191,6 +191,22 @@ func TestHandoffDBConstraintsRefuseDishonestRows(t *testing.T) {
 
 	// The request dictionary and shape backstops.
 	checkRefused("foreign reason word", w.insertHandoffRow(t, caseID, func() handoffProbeRow { r := honestRow(2); r.reason = "operator_kindness"; return r }()))
+	// The Story 4.3 boundary words of the reason dictionary land (the
+	// operator-produced reasons of the part request boundaries — the
+	// SQL mirror migrations/cases/00019 admits them append-only; the
+	// unconditional client word stays the first dictionary word). The
+	// probe numbers 5/6/8 stay clear of the later second request (2)
+	// and the FK backstop probe (7).
+	boundaryReasonRows := map[int64]string{
+		5: casesDomain.HandoffReasonDiagnosticUncertainty,
+		6: casesDomain.HandoffReasonSafetyCritical,
+		8: casesDomain.HandoffReasonUnresolvedContradiction,
+	}
+	for requestNo, reason := range boundaryReasonRows {
+		if err := w.insertHandoffRow(t, caseID, func() handoffProbeRow { r := honestRow(requestNo); r.reason = reason; return r }()); err != nil {
+			t.Fatalf("the Story 4.3 boundary word %q must land through the 00019 mirror, got %v", reason, err)
+		}
+	}
 	checkRefused("foreign owner kind", w.insertHandoffRow(t, caseID, func() handoffProbeRow { r := honestRow(2); r.ownerKind = "department"; return r }()))
 	checkRefused("foreign role word", w.insertHandoffRow(t, caseID, func() handoffProbeRow { r := honestRow(2); r.targetRoles = `["operator","manager"]`; return r }()))
 	checkRefused("duplicate role word", w.insertHandoffRow(t, caseID, func() handoffProbeRow { r := honestRow(2); r.targetRoles = `["operator","operator"]`; return r }()))
@@ -1815,4 +1831,115 @@ func TestHandoffMatrixRowsBySpec(t *testing.T) {
 	t.Run("row-24 journeys chain (the spec.ts run)", func(t *testing.T) {
 		t.Skip("the journeys chain zzz(23)-cases-human-handoff.spec.ts walks this row on the real transport")
 	})
+}
+
+// TestHandoffStoreBoundaryReasonPath walks the Story 4.3 reason extension
+// of the request creation over the FULL app command surface (the step-02
+// acceptance): the operator boundary word lands through the extended
+// path (the app guard, the hash material, the store re-validation, the
+// SQL CHECK mirror of migrations/cases/00019) with the honest reason
+// word and text in the case view; the EMPTY reason stays the
+// unconditional client ask of 2.13 (the reason row client_request — the
+// old path byte-identical); an explicit client_request input and an
+// out-of-dictionary word are the honest 400 refusals BEFORE SQL.
+func TestHandoffStoreBoundaryReasonPath(t *testing.T) {
+	if runtimePool == nil {
+		t.Skip("no runtime pool")
+	}
+	// The seed 740 is a free slot of the retro-3-3 register (the 720
+	// family of 4.2 and the 760..789 identification matrix stay clear).
+	w := newCasesWorld(t, 740)
+	ctx := context.Background()
+	caseID, _ := w.acceptedCase(t, "evt-handoff-boundary-1", "sess-handoff-boundary-1", `{"call":"inbound-call","from":"+79000000241"}`)
+	turn := w.modeTurnEvent(t, caseID, "sess-handoff-boundary-1", "evt-handoff-boundary-1-turn", `{"say":"грохот при торможении"}`)
+
+	request := func(key string, reason string) (casesAPI.WorkOutcome, error) {
+		return w.cases.RequestHuman(ctx, casesAPI.RequestHumanCommand{
+			Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID,
+			TurnRef: turn, ExpectedModeVersion: 1,
+			TargetRoles: []string{casesDomain.HandoffTargetRoleOperator}, AckDeadline: casesDomain.HandoffAck15m,
+			Reason: reason, IdempotencyKey: key, Now: ownershipNow,
+		})
+	}
+
+	view := func() casesAPI.CaseView {
+		detail, viewErr := w.cases.CaseView(ctx, w.ownershipActor(), w.tenant, caseID)
+		if viewErr != nil {
+			t.Fatal(viewErr)
+		}
+		return detail
+	}
+
+	// The operator boundary word lands through the FULL path (the app
+	// guard passes, the store re-validates under the locks, the SQL CHECK
+	// of 00019 admits the dictionary word) — the diagnostic_uncertainty
+	// recommendation of the part request boundary.
+	if _, err := request("handoff-boundary-diagnostic", casesDomain.HandoffReasonDiagnosticUncertainty); err != nil {
+		t.Fatalf("the operator boundary word must land through the extended path, got %v", err)
+	}
+	first := view()
+	if len(first.Handoff.Requests) != 1 {
+		t.Fatalf("one request row expected, got %d", len(first.Handoff.Requests))
+	}
+	row := first.Handoff.Requests[0]
+	if row.Reason != casesDomain.HandoffReasonDiagnosticUncertainty {
+		t.Fatalf("the boundary reason word must render, got %q", row.Reason)
+	}
+	if row.ReasonText != casesDomain.HandoffReasonText(casesDomain.HandoffReasonDiagnosticUncertainty) {
+		t.Fatalf("the boundary reason must carry its honest text, got %q", row.ReasonText)
+	}
+
+	// The closed lifecycle frees the case for the second probe: the EMPTY
+	// reason stays the unconditional client ask of 2.13 — the reason row
+	// is the system truth client_request, the old path byte-identical
+	// (the mode stays human_requested v2 after the first raise — the
+	// ratchet — so the second ask carries the current CAS expectation).
+	cancelTurn := w.modeTurnEvent(t, caseID, "sess-handoff-boundary-1", "evt-handoff-boundary-1-cancel", `{"say":"передумал, сам разберусь"}`)
+	if _, err := w.cases.CancelHumanRequest(ctx, casesAPI.CancelHumanRequestCommand{
+		Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID,
+		TurnRef: cancelTurn, IdempotencyKey: "handoff-boundary-cancel", Now: ownershipNow,
+	}); err != nil {
+		t.Fatalf("the closed lifecycle of the probe must cancel, got %v", err)
+	}
+	second := func(key string) (casesAPI.WorkOutcome, error) {
+		return w.cases.RequestHuman(ctx, casesAPI.RequestHumanCommand{
+			Actor: w.ownershipActor(), TenantID: w.tenant, CaseID: caseID,
+			TurnRef: turn, ExpectedModeVersion: 2,
+			TargetRoles: []string{casesDomain.HandoffTargetRoleOperator}, AckDeadline: casesDomain.HandoffAck15m,
+			IdempotencyKey: key, Now: ownershipNow,
+		})
+	}
+	if _, err := second("handoff-boundary-unconditional"); err != nil {
+		t.Fatalf("the empty reason is the unconditional client ask — never an error, got %v", err)
+	}
+	after := view()
+	if len(after.Handoff.Requests) != 2 {
+		t.Fatalf("two request rows expected, got %d", len(after.Handoff.Requests))
+	}
+	if unconditional := after.Handoff.Requests[1]; unconditional.Reason != casesDomain.HandoffReasonClientRequest {
+		t.Fatalf("the empty reason command must record the system truth client_request, got %q", unconditional.Reason)
+	}
+
+	// The honest refusals BEFORE SQL: the explicit client_request input
+	// (the word is the system truth, never typed) and the
+	// out-of-dictionary word (the refusal carries the dictionary list).
+	if _, err := request("handoff-boundary-refused-1", casesDomain.HandoffReasonClientRequest); err == nil {
+		t.Fatal("an explicit client_request input must be refused — the word is the system truth")
+	} else {
+		var ruleErr casesDomain.WorkRuleError
+		if !errors.As(err, &ruleErr) || ruleErr.Rule != "request_human" {
+			t.Fatalf("the refusal is the honest work rule error of request_human, got %v", err)
+		}
+	}
+	if _, err := request("handoff-boundary-refused-2", "operator_kindness"); err == nil {
+		t.Fatal("an out-of-dictionary reason word must be refused")
+	} else {
+		var ruleErr casesDomain.WorkRuleError
+		if !errors.As(err, &ruleErr) {
+			t.Fatalf("the refusal is the honest work rule error, got %v", err)
+		}
+		if !strings.Contains(ruleErr.Reason, casesDomain.HandoffReasonSafetyCritical) {
+			t.Fatalf("the refusal must carry the honest dictionary list, got %q", ruleErr.Reason)
+		}
+	}
 }
