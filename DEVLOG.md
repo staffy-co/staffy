@@ -4170,3 +4170,20 @@ done:
 - Коммит feat (docs+closure) БЕЗ маркера [skip ci] — голова ветки триггерит CI ×3 на CHECKPOINT 2 (урок 2-14/ретро-2-1: CI-запуск на голове).
 next: CHECKPOINT 2 по сигналу владельца — PR (титул «Story 4-1 Pilot Admission Registry — Epic 4: 1/11», пин слияния в теле) + CI ×3 зелёный поимённо + sha-pinned merge; ветка остаётся на GitHub до поручения об удалении (прецедент MERGED-зонд). Владельцу: ОТЗВАТЬ PAT после закрытия чата (retro-3-6/retro-2-6 — передавался открытым текстом многократно).
 commit: TBD
+
+---
+date: 2026-10-23
+task: 188-checkpoint-2
+role: main (Super Z)
+story: 4-1
+summary: CHECKPOINT 2 story 4-1 закрыт — Pilot Admission Registry слита в main (PR #42, sha-pinned merge 65767b5 → merge-commit 7f91503, CI ×3 зелёный поимённо: #39872443085 push / #39873850154 PR / #39874935192 merge; Epic 4: 1/11, спека done, sprint-status done); локальный main синхронен ff-only
+done:
+- Вход сессии: продолжение после «продолжайте (токен)» — мандат на оставшиеся Dev шаги 03-05 и CHECKPOINT 2 по прецеденту 3-9 (продолжайте → checkpoint-2 в той сессии закрыл слияние).
+- Dev шаги 03-05 исполнены и запушены (f82d929 → 72f6ba4 → 65767b5): поверхности (app/транспорт/страница/OpenAPI/контракт-тест), интеграционная матрица 10 строк + journeys z38 43/43 + МИГРАЦИЯ employee/00013 (SQL-зеркало словаря гейтов — единственное честное отклонение от «без SQL», обнаруженное живой матрицей), QA/closure (Major НЕТ, CJK-артефакт DEVLOG пойман сканером и исправлен).
+- CI головы 65767b5 (commit feat БЕЗ маркера пропуска — урок 2-14/ретро-2-1): push run #39872443085 — зелёный (~11 мин).
+- PR #42 создан GitHub API (титул «Story 4-1 Pilot Admission Registry — Epic 4: 1/11», пин слияния head SHA в теле), mergeable true ДО merge; PR run #39873850154 — зелёный.
+- Sha-pinned merge исполнен: 65767b5d123d1a4c52cae3f5986e7fd8a5d1fbe7 → merge-commit 7f915030e6ffd305dcbde4565dcdb0631c99f1b6 в main; локальный main синхронен ff-only (ecd8f2c → 7f91503, 8 коммитов).
+- Merge run на main #39874935192 (head 7f91503) — зелёный. CI ×3 зелёный поимённо — прецедент соблюдён.
+- Story 4-1 полностью закрыта: спека done (Spec Change Log: 181-sm / 182-checkpoint-1 / Dev 01-05), sprint-status done; Epic 4: 1/11 (осталось 4-2..4-11 + ретро). Ветка codex/story-4-1-pilot-admission-registry остаётся на GitHub (удаление — по поручению владельца, прецедент MERGED-зонд merge-base перед удалением).
+next: по сигналу владельца — SM-фаза story 4-2 «Структурированная идентификация автомобиля и защищённая передача данных» (входы: epics.md §Epic 4, PRD, каталог abcp-parts 1.1.0 декларации AC-7 — query.identify-vehicle готов) либо удаление слитой ветки по поручению. Владельцу: ОТЗВАТЬ PAT подтверждённо после закрытия чата (retro-3-6/retro-2-6 — передавался открытым текстом многократно).
+commit: TBD
