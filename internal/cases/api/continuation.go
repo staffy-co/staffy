@@ -86,6 +86,7 @@ type ContinuationSurface struct {
 	Explanation string
 	Question    string
 	Facts       []ContinuationFactView
+	Vehicle     *ContinuationVehicleView
 	ExpiresAt   time.Time
 	LimitLeft   int
 	Submitted   bool

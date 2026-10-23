@@ -28,6 +28,36 @@
 <p role="status">Подтверждённых фактов нет: исправлять пока нечего.</p>
 {{end}}
 <p class="next-note">Показаны только подтверждённые факты этого разговора. Исправление создаёт новую версию на проверку — до подтверждения оператором она не считается точной.</p>
+{{if .View.Vehicle.Present}}
+<h2>Идентификация автомобиля</h2>
+<p>Сверьте распознанные признаки вашего автомобиля. Подтверждение относится к точным версиям значений ниже — если что-то неверно, исправьте через форму исправления (новое значение попадёт на проверку оператору).</p>
+{{if .View.Vehicle.VINValue}}
+<p>VIN: <strong>{{.View.Vehicle.VINValue}}</strong></p>
+{{if .View.Vehicle.VINWords}}<div class="alert" role="alert"><ul>
+{{range .View.Vehicle.VINWords}}<li>{{.}}</li>{{end}}
+</ul></div>{{end}}
+<details class="connector-connect"><summary>Посимвольное прочтение VIN (латиница/цифры/кириллица — словами)</summary>
+<ul>
+{{range $block := .View.Vehicle.Readback}}<li><strong>{{$block.Block}}</strong> — {{range $block.Symbols}}<span>{{.Char}} — {{.Row}} {{.Word}};</span> {{end}}</li>{{end}}
+</ul>
+</details>
+{{if .View.Vehicle.FocusWords}}<div class="alert" role="alert" aria-live="polite"><p>Спорные символы — ответьте только по ним:</p><ul>
+{{range .View.Vehicle.FocusWords}}<li>{{.}}</li>{{end}}
+</ul></div>{{end}}
+{{end}}
+<ul class="continuation-facts">
+{{range .View.Vehicle.Attributes}}<li><strong>{{.Label}}:</strong> {{.Value}} — {{.StatusText}}{{if .ConfirmText}} ({{.ConfirmText}}){{end}}{{if .StaleWord}} <span class="status" role="status">{{.StaleWord}}</span>{{end}}</li>{{end}}
+</ul>
+<form method="post" action="{{.View.ConfirmURL}}" class="continuation-form">
+<fieldset>
+<legend>Подтвердите признаки автомобиля</legend>
+{{range .View.Vehicle.Attributes}}<label><input type="checkbox" name="confirm" value="{{.FactID}}:{{.VersionNo}}" checked> {{.Label}} — {{.Value}} (версия {{.VersionNo}})</label>
+{{end}}
+<button class="primary" type="submit">Подтверждаю</button>
+</fieldset>
+<p class="next-note">Кнопка подтверждает отмеченные признаки в указанных версиях. Не соглашайтесь, если значение выглядит неверно, — исправьте его формой ниже.</p>
+</form>
+{{end}}
 <h2>Открытый вопрос</h2>
 <p><strong>{{.View.Question}}</strong></p>
 {{if .View.Preserved.Error}}<p class="alert" role="alert" tabindex="-1" id="continuation-error">{{.View.Preserved.Error}}</p><script>addEventListener('DOMContentLoaded', () => document.getElementById('continuation-error').focus());</script>{{end}}

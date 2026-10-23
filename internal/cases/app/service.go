@@ -755,6 +755,16 @@ func (s *Service) CaseView(ctx context.Context, actor domain.Principal, tenantID
 	if err != nil {
 		return casesAPI.CaseView{}, err
 	}
+	// The Story 4.2 section: the vehicle identification panel — the
+	// read-time profile over the facts of the case under the pack
+	// identification schema (the schema comes from the pinned pack
+	// through the narrow taxonomy port — never a hardcoded core list;
+	// the reads degrade honestly: an unreadable pin or a pack without a
+	// schema renders the honest absence word, the read never fails).
+	vehicle, err := s.vehicleView(ctx, scope, detail)
+	if err != nil {
+		return casesAPI.CaseView{}, err
+	}
 	// The Story 2.11 section: the recorded communication preferences — the
 	// CURRENT set (the read-time derivation), the append-only revision
 	// history and the dictionaries of the record form (the reads degrade
@@ -812,10 +822,53 @@ func (s *Service) CaseView(ctx context.Context, actor domain.Principal, tenantID
 		Mode:       mode, Policy: policy,
 		Observations: observations, Objections: objections, Commitments: commitments,
 		Continuations: continuations, Accommodations: accommodations,
+		Vehicle:           vehicle,
 		RouteDegradations: routeDegradations,
 		Handoff:           handoff,
 		Waiting:           waiting,
 	}, nil
+}
+
+// vehicleView assembles the Story 4.2 vehicle identification panel of
+// the case view: the schema of the pinned pack through the narrow
+// taxonomy port (the pack material — the panel degrades with the honest
+// word when the pin is unreadable or the pack carries no schema), the
+// facts of the case converted into the domain inputs and the read-time
+// DeriveVehicleProfile derivation (the DerivePilotAdmission family:
+// zero writes, byte-stable idempotent output).
+func (s *Service) vehicleView(ctx context.Context, scope tenancy.Context, detail casesDomain.CaseDetail) (casesAPI.VehiclePanelView, error) {
+	panel := casesAPI.VehiclePanelView{Note: casesAPI.VehicleSchemaNoteAbsent}
+	if detail.Case.PackID == "" || s.taxonomy == nil {
+		return panel, nil
+	}
+	schemaPort, err := s.taxonomy.PackIdentificationSchema(detail.Case.PackID, detail.Case.PackVersion)
+	if err != nil || len(schemaPort.MaterialKeys) == 0 {
+		return panel, nil
+	}
+	schema := casesDomain.VehicleSchema{
+		MaterialKeys:    make([]casesDomain.VehicleKeySpec, 0, len(schemaPort.MaterialKeys)),
+		AlternativeSets: schemaPort.AlternativeSets,
+	}
+	for _, key := range schemaPort.MaterialKeys {
+		schema.MaterialKeys = append(schema.MaterialKeys, casesDomain.VehicleKeySpec{
+			Key: key.Key, Label: key.Label, Kind: key.Kind, Min: key.Min, Max: key.Max, Optional: key.Optional,
+		})
+	}
+	facts, err := s.repository.ReadFactsOfCase(ctx, scope, detail.Case.CaseID)
+	if err != nil {
+		return casesAPI.VehiclePanelView{}, err
+	}
+	inputs := make([]casesDomain.VehicleFactInput, 0, len(facts))
+	for _, fact := range facts {
+		inputs = append(inputs, casesDomain.VehicleFactInput{
+			FactID: fact.Anchor.FactID, MaterialKey: fact.Anchor.MaterialKey,
+			Versions: fact.Versions, Confirmations: fact.Confirmations,
+		})
+	}
+	panel.SchemaDefined = true
+	panel.Note = ""
+	panel.Profile = casesDomain.DeriveVehicleProfile(schema, inputs)
+	return panel, nil
 }
 
 // caseNumberOf resolves the case number of one case id among the detail

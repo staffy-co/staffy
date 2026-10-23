@@ -337,6 +337,57 @@ func (f *casesFixture) SubmitCorrection(_ context.Context, token string, factID 
 	return versionNo, nil
 }
 
+// SubmitVehicleConfirmation writes the Story 4.2 client confirmation of
+// the vehicle identification attributes through the link: the state
+// must be valid (the raced double-click derives consumed — the terminal
+// page honesty), every confirmed (fact, version) pair must be a fact of
+// the case of the link scoped to the Work Item of the link (the one
+// surface discipline); the append-only confirmations bind the EXACT
+// versions with confirmer=client (the note carries the link reference)
+// and the use row consumes the limit with the material pair of the
+// primary fact. The confirmation never rewrites a fact version.
+func (f *casesFixture) SubmitVehicleConfirmation(_ context.Context, token string, items []casesAPI.VehicleConfirmationItem, now time.Time) error {
+	f.lock()
+	defer f.unlock()
+	lookup, ok := f.fixtureContinuationLookup(token, now)
+	if !ok {
+		return casesDomain.ErrNotFound
+	}
+	if lookup.State != casesDomain.ContinuationStateValid {
+		return casesDomain.WorkRuleError{Rule: "vehicle_confirm", Reason: casesDomain.ContinuationNotUsableText}
+	}
+	if len(items) == 0 {
+		return casesDomain.WorkRuleError{Rule: "vehicle_confirm", Reason: "Подтверждение пусто: отметьте хотя бы один признак автомобиля."}
+	}
+	note := "Клиент подтвердил по защищённой ссылке продолжения " + lookup.Link.LinkID.String()
+	primary := items[0]
+	for _, item := range items {
+		versions := f.factVersions[item.FactID]
+		if len(versions) == 0 || versions[0].CaseID != lookup.Link.CaseID {
+			return casesDomain.WorkRuleError{Rule: "vehicle_confirm", Reason: casesDomain.ContinuationFactNotCorrectableText}
+		}
+		if versions[len(versions)-1].WorkItemID != lookup.Link.WorkItemID {
+			return casesDomain.WorkRuleError{Rule: "vehicle_confirm", Reason: casesDomain.ContinuationFactNotCorrectableText}
+		}
+		if err := casesDomain.GuardVehicleClientConfirmation(len(versions), item.VersionNo, note); err != nil {
+			return casesDomain.WorkRuleError{Rule: "vehicle_confirm", Reason: err.Error()}
+		}
+	}
+	for _, item := range items {
+		f.factConfirms[item.FactID] = append(f.factConfirms[item.FactID], casesDomain.FactConfirmation{
+			TenantID: f.tenant, CaseID: lookup.Link.CaseID, FactID: item.FactID,
+			VersionNo: item.VersionNo, ConfirmerType: "client", Note: note,
+			ActorID: lookup.Link.LinkID, CreatedAt: now.UTC(),
+		})
+	}
+	f.contUses = append(f.contUses, casesDomain.ContinuationLinkUse{
+		TenantID: f.tenant, CaseID: lookup.Link.CaseID, WorkItemID: lookup.Link.WorkItemID, LinkID: lookup.Link.LinkID,
+		UseID: f.fixtureContinuationID(), UseKind: casesDomain.ContinuationUseVehicleConfirmationSubmitted,
+		FactID: primary.FactID, FactVersionNo: primary.VersionNo, SubmittedAt: now.UTC(),
+	})
+	return nil
+}
+
 // SubmitHuman records the «позвать человека» event: the use row without
 // material and without consumption; nothing is ever mutated.
 func (f *casesFixture) SubmitHuman(_ context.Context, token string, now time.Time) error {

@@ -167,8 +167,8 @@ func TestContinuationContractIsHonest(t *testing.T) {
 	useView := mapping(t, schemas, "ContinuationUseView")
 	useKindProp := mapping(t, mapping(t, useView, "properties"), "use_kind")
 	useKind, _ := useKindProp["enum"].([]any)
-	if len(useKind) != 3 {
-		t.Errorf("the use kinds carry the three-word dictionary (the correction, the human request, the return), got %v", useKind)
+	if len(useKind) != 4 {
+		t.Errorf("the use kinds carry the four-word dictionary (the +1 vehicle_confirmation_submitted of story 4.2 — the SQL mirror 00018), got %v", useKind)
 	}
 	if _, hasFact := mapping(t, useView, "properties")["fact_id"]; !hasFact {
 		t.Errorf("ContinuationUseView documents the correction material pair")

@@ -370,7 +370,72 @@ func (s *Service) ContinueSurface(ctx context.Context, token string, now time.Ti
 		Facts:       views,
 		ExpiresAt:   lookup.Link.ExpiresAt,
 		LimitLeft:   lookup.Link.ConsumptionLimit - accepted,
+		Vehicle:     s.continuationVehicle(ctx, scope, lookup, facts),
 	}, nil
+}
+
+// continuationVehicle builds the Story 4.2 vehicle identification block
+// of the public form: the schema of the pinned pack of the case of the
+// link through the narrow taxonomy port, the facts of the WORK ITEM of
+// the link only (the one-link-one-work-item discipline of 2.10 — the
+// confirmable attributes are the material of this surface), the
+// read-time profile and the readback words of the VIN (the blocks
+// 4-4-4-4-1 and the focus re-ask of the disputed symbols). The block is
+// absent when the pack carries no schema or the work item carries no
+// identification facts (nothing to confirm — the honest absence, never
+// an invented question). The FULL VIN renders on this surface and the
+// operator work card only — every other path carries the mask.
+func (s *Service) continuationVehicle(ctx context.Context, scope tenancy.Context, lookup casesDomain.ContinuationLinkLookup, facts []casesPort.FactMaterial) *casesAPI.ContinuationVehicleView {
+	if s.taxonomy == nil {
+		return nil
+	}
+	detail, err := s.repository.ReadCase(ctx, scope, lookup.Link.CaseID)
+	if err != nil || detail.Case.PackID == "" {
+		return nil
+	}
+	schemaPort, err := s.taxonomy.PackIdentificationSchema(detail.Case.PackID, detail.Case.PackVersion)
+	if err != nil || len(schemaPort.MaterialKeys) == 0 {
+		return nil
+	}
+	schema := casesDomain.VehicleSchema{
+		MaterialKeys:    make([]casesDomain.VehicleKeySpec, 0, len(schemaPort.MaterialKeys)),
+		AlternativeSets: schemaPort.AlternativeSets,
+	}
+	for _, key := range schemaPort.MaterialKeys {
+		schema.MaterialKeys = append(schema.MaterialKeys, casesDomain.VehicleKeySpec{
+			Key: key.Key, Label: key.Label, Kind: key.Kind, Min: key.Min, Max: key.Max, Optional: key.Optional,
+		})
+	}
+	// The confirmable facts: the schema-keyed facts whose CURRENT scope is
+	// the work item of the link (the correction gate twin — the store
+	// re-validates the same boundary under the locks).
+	inputs := make([]casesDomain.VehicleFactInput, 0, len(facts))
+	for _, material := range facts {
+		if len(material.Versions) == 0 || material.Versions[len(material.Versions)-1].WorkItemID != lookup.Link.WorkItemID {
+			continue
+		}
+		inputs = append(inputs, casesDomain.VehicleFactInput{
+			FactID: material.Anchor.FactID, MaterialKey: material.Anchor.MaterialKey,
+			Versions: material.Versions, Confirmations: material.Confirmations,
+		})
+	}
+	if len(inputs) == 0 {
+		return nil
+	}
+	profile := casesDomain.DeriveVehicleProfile(schema, inputs)
+	block := &casesAPI.ContinuationVehicleView{
+		Profile:    profile,
+		Readback:   []casesDomain.VINReadbackBlock{},
+		FocusWords: []string{},
+	}
+	for _, attribute := range profile.Attributes {
+		if attribute.Kind == "vin" && attribute.NormalizedValue != nil {
+			block.Readback = casesDomain.ReadbackBlocks(attribute.NormalizedValue.Normalized)
+			block.FocusWords = casesDomain.ReadbackFocus(attribute.NormalizedValue.Normalized, attribute.NormalizedValue.CyrillicAmbiguities)
+			break
+		}
+	}
+	return block
 }
 
 // SubmitCorrection writes one public fact correction through the link:

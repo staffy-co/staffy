@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/artemiosu/staffy/internal/platform/id"
 )
 
 // ---------------------------------------------------------------------------
@@ -374,6 +376,7 @@ type VehicleSchema struct {
 // the material key with the append-only versions and the confirmations
 // (the port FactMaterial mapping of the app).
 type VehicleFactInput struct {
+	FactID        id.UUID
 	MaterialKey   string
 	Versions      []FactVersion
 	Confirmations []FactConfirmation
@@ -397,6 +400,7 @@ type VehicleConfirmationView struct {
 // rendering), the fact version with the provenance, the read-time 2.2
 // status and the confirmation view when one exists.
 type VehicleAttributeView struct {
+	FactID          id.UUID                  `json:"fact_id"`
 	MaterialKey     string                   `json:"material_key"`
 	Label           string                   `json:"label"`
 	Kind            string                   `json:"kind"`
@@ -470,7 +474,7 @@ func DeriveVehicleProfile(schema VehicleSchema, facts []VehicleFactInput) Vehicl
 		latest := fact.Versions[len(fact.Versions)-1]
 		status, _ := DeriveFactStatus(fact.Versions, fact.Confirmations)
 		attribute := VehicleAttributeView{
-			MaterialKey: key.Key, Label: key.Label, Kind: key.Kind,
+			FactID: fact.FactID, MaterialKey: key.Key, Label: key.Label, Kind: key.Kind,
 			RawValue: vehicleRawValueText(latest.Value), FactVersion: latest.VersionNo,
 			ObservedAt: latest.ObservedAt, ReceivedAt: latest.ReceivedAt,
 			SourceType: latest.SourceType, Channel: latest.Channel, Status: status,

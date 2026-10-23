@@ -5440,6 +5440,7 @@ components:
         view_scope: { type: string }
         taxonomy_types: { type: array, items: { type: string }, description: 'Journeys закреплённого пака (словарь типов)' }
         critical_entities: { type: array, items: { type: string }, description: 'CriticalEntities закреплённого пака (словарь материальных ключей — подсказки форм фактов)' }
+        vehicle: { $ref: '#/components/schemas/VehiclePanelView', description: 'Секция «Идентификация автомобиля» (Story 4.2): read-time профиль по схеме пака; schema_defined=false — честное слово отсутствия схемы (без хардкода)' }
         assurance: { $ref: '#/components/schemas/AssuranceView' }
         bindings: { type: array, items: { $ref: '#/components/schemas/BindingCard' } }
         duplicates: { type: array, items: { $ref: '#/components/schemas/DuplicateCard' } }
@@ -5977,7 +5978,7 @@ components:
         purposes: { type: array, items: { type: string, enum: [fact_correction] } }
         state: { type: string, enum: [valid, expired, revoked, consumed, owner_stale], description: 'Read-time деривация (никогда хранимое слово): expired > revoked > consumed > owner_stale > valid' }
         delivered: { type: boolean, description: 'FR-16 «доставлена»: существование связанной sales-reply (client_replies.link_id)' }
-        accepted_uses: { type: integer, minimum: 0, description: 'Принятые fact_correction-отправки (события human/return не считаются)' }
+        accepted_uses: { type: integer, minimum: 0, description: 'Принятые data-submission (исправление факта и подтверждение автомобиля Story 4.2; события human/return не считаются)' }
         consumption_limit: { type: integer, minimum: 1, maximum: 10 }
         question: { type: string }
         participant_ref: { type: string }
@@ -5989,10 +5990,99 @@ components:
       properties:
         use_id: { type: string, format: uuid }
         link_id: { type: string, format: uuid }
-        use_kind: { type: string, enum: [fact_correction_submitted, human_requested, returned_to_conversation] }
-        fact_id: { type: string, format: uuid, description: 'Только fact_correction_submitted' }
+        use_kind: { type: string, enum: [fact_correction_submitted, human_requested, returned_to_conversation, vehicle_confirmation_submitted], description: 'Словарь use-kind (Story 4.2: +vehicle_confirmation_submitted — SQL-зеркало миграции cases/00018); data-submission потребляют лимит, события human/return — нет' }
+        fact_id: { type: string, format: uuid, description: 'Только data-submission (fact_correction_submitted / vehicle_confirmation_submitted)' }
         fact_version_no: { type: integer, minimum: 2, description: 'Номер новой неподтверждённой версии факта' }
         submitted_at: { type: string, format: date-time }
+    VehiclePanelView:
+      type: object
+      required: [schema_defined, profile]
+      additionalProperties: false
+      description: 'Секция «Идентификация автомобиля» (Story 4.2): схема идентификации приходит из закреплённого пака auto-parts@3.0.0 через порт PackTaxonomy — никогда хардкод; schema_defined=false несёт честное слово отсутствия (note)'
+      properties:
+        schema_defined: { type: boolean }
+        note: { type: string, description: 'Честное слово отсутствия схемы («Схема идентификации пака не определена…») — пусто при schema_defined=true' }
+        profile: { $ref: '#/components/schemas/VehicleProfileView' }
+    VehicleProfileView:
+      type: object
+      required: [attributes, completeness, profile_digest]
+      additionalProperties: false
+      description: 'Read-time профиль автомобиля (Story 4.2): вывод над append-only фактами 2-2, идемпотентный байт-стабильным JSON; ProfileDigest = SHA-256 канонического {ключ: {версия, value-digest}} подтверждённого набора — «точная версия профиля» (AC-12); подтверждение новой версией честно устаревает (AC-8); конфликт значений = conflicting — Staffy не выбирает вариант (AC-7); подтверждение НЕ разрешает заказ/внешнее действие (контур Epic 3 не активируется)'
+      properties:
+        attributes: { type: array, items: { $ref: '#/components/schemas/VehicleAttributeView' } }
+        completeness: { $ref: '#/components/schemas/VehicleCompletenessView' }
+        profile_digest: { type: string, description: 'SHA-256 hex (64 символа) подтверждённого набора' }
+        stale_note: { type: string, description: 'Агрегатное слово устаревания: часть подтверждений относится к прежним версиям фактов' }
+    VehicleCompletenessView:
+      type: object
+      required: [satisfied_by, missing_keys]
+      additionalProperties: false
+      description: 'Полнота по альтернативным наборам схемы пака (AC-1: любой ОДИН набор достаточен); MissingKeys — только не-confirmed (подтверждённые не перезапрашиваются, AC-2)'
+      properties:
+        satisfied_by: { type: array, items: { type: string }, description: 'Собранные альтернативные наборы (ключи через +)' }
+        missing_keys: { type: array, items: { type: string, enum: [vehicle.vin, vehicle.make, vehicle.model, vehicle.year_of_manufacture, vehicle.trim, vehicle.engine], description: 'Материал-ключи схемы пака — enum-зеркало (drift = красный)' } }
+    VehicleAttributeView:
+      type: object
+      required: [fact_id, material_key, label, kind, raw_value, fact_version, observed_at, received_at, source_type, channel, status]
+      additionalProperties: false
+      description: 'Один признак профиля: значение с полным provenance и read-time статусом 2-2; полный VIN — только операторская карточка (review) и защищённая форма клиента (FR-55); подтверждение привязано к ТОЧНОЙ версии'
+      properties:
+        fact_id: { type: string, format: uuid }
+        material_key: { type: string, enum: [vehicle.vin, vehicle.make, vehicle.model, vehicle.year_of_manufacture, vehicle.trim, vehicle.engine], description: 'Материал-ключ схемы пака — enum-зеркало 6 слов (drift = красный)' }
+        label: { type: string }
+        kind: { type: string, enum: [vin, text, integer] }
+        raw_value: { type: string, description: 'Исходное значение факта дословно (JSON-строка декодирована)' }
+        normalized_value: { $ref: '#/components/schemas/VINNormalizationView', description: 'Только kind=vin: нормализованное представление и флаги — НИКОГДА не подменяет raw' }
+        fact_version: { type: integer, minimum: 1 }
+        observed_at: { type: string, format: date-time }
+        received_at: { type: string, format: date-time }
+        source_type: { type: string, enum: [channel_event, operator, connector, system] }
+        channel: { type: string }
+        status: { type: string, enum: [confirmed, unverified, conflicting], description: 'Read-time деривация 2-2 (DeriveFactStatus — замороженный канон)' }
+        confirmation: { $ref: '#/components/schemas/VehicleConfirmationView' }
+    VehicleConfirmationView:
+      type: object
+      required: [confirmer_type, version_no, at]
+      additionalProperties: false
+      description: 'Подтверждение ТОЧНОЙ версии: confirmer=client — зарезервированное слово 2-2, первый продюсер — защищённое продолжение (Story 4.2); stale_word при новой версии после подтверждения (AC-8)'
+      properties:
+        confirmer_type: { type: string, enum: [client, owning_system, operator_relay] }
+        version_no: { type: integer, minimum: 1 }
+        at: { type: string, format: date-time }
+        stale_word: { type: string, description: '«подтверждение относилось к прежней версии (vN)»' }
+    VINNormalizationView:
+      type: object
+      required: [raw, normalized, length, length_ok, forbidden_chars, cyrillic_ambiguities, check_digit, words]
+      additionalProperties: false
+      description: 'Флаги нормализации VIN (AC-3): НИ ОДНОГО молчаливого исправления — raw сохранён дословно, normalized = trim+upper+выкид ASCII-разделителей; I/O/Q и омоглифы — флаги со словами; ISO 3779 контрольная цифра позиции 9 (Applicable честно — ложных verdicts нет)'
+      properties:
+        raw: { type: string }
+        normalized: { type: string }
+        length: { type: integer, minimum: 0 }
+        length_ok: { type: boolean }
+        forbidden_chars: { type: array, items: { type: integer }, description: '0-based позиции I/O/Q' }
+        cyrillic_ambiguities: { type: array, items: { $ref: '#/components/schemas/VINAmbiguityView' } }
+        check_digit: { $ref: '#/components/schemas/VINCheckDigitView' }
+        words: { type: array, items: { type: string }, description: 'Honest-слова каждого флага текстом (AC-14)' }
+    VINAmbiguityView:
+      type: object
+      required: [position, rune, look_alike]
+      additionalProperties: false
+      description: 'Кириллический омоглиф: детект БЕЗ замены — переспрос единственное честное разрешение'
+      properties:
+        position: { type: integer, minimum: 0 }
+        rune: { type: string }
+        look_alike: { type: string }
+    VINCheckDigitView:
+      type: object
+      required: [applicable, expected, computed, match]
+      additionalProperties: false
+      description: 'ISO 3779: expected — хранимая позиция 9, computed — взвешенная сумма транслитерации; несовпадение = флаг + слово «сверьте посимвольно», НЕ отбрасывание'
+      properties:
+        applicable: { type: boolean }
+        expected: { type: string }
+        computed: { type: string }
+        match: { type: boolean }
     DrainRepliesResult:
       type: object
       required: [considered, dispatched, stale_needs_review]
