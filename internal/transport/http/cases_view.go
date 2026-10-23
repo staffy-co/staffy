@@ -133,6 +133,7 @@ type caseDetailPageView struct {
 	// after the vehicle identification panel — the read-time request
 	// derivation under the pack part request schema).
 	PartRequest partPanelView
+	Fitment     fitmentPanelView
 	// The Story 2.3 sections: the assurance panel, the bindings and the
 	// duplicate cards.
 	Assurance           assurancePanelView
@@ -855,6 +856,9 @@ func prepareCaseView(r *http.Request, view casesAPI.CaseView, facts casesAPI.Fac
 	// The Story 4.3 section: the part request panel (the case-level
 	// section right after the vehicle identification panel).
 	out.PartRequest = preparePartPanel(view)
+	// The Story 4.4 section: the applicability panel (the case-level
+	// section right after the part request panel).
+	out.Fitment = prepareFitmentPanel(view)
 	// The Story 4.3 form dictionary: the operator boundary reason words
 	// of the request_human form (the SYSTEM dictionary of 2.13/4.3 —
 	// never the pack store material; empty stays the unconditional

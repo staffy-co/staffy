@@ -1,8 +1,10 @@
 package api
 
 import (
+	"context"
 	"time"
 
+	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
 	"github.com/artemiosu/staffy/internal/identity/domain"
 	"github.com/artemiosu/staffy/internal/platform/id"
 )
@@ -47,4 +49,40 @@ type RecordFitmentEvidenceCommand struct {
 	SourceObservedAt  time.Time
 	IdempotencyKey    string
 	Now               time.Time
+}
+
+// ---------------------------------------------------------------------------
+// The Story 4.4 panel view and the service interface
+// ---------------------------------------------------------------------------
+
+// FitmentView is the domain view alias (the ZERO-drift contract mirror:
+// the panel JSON and the domain derivation carry the same shape — the
+// contract test pins the enum dictionaries of the domain words).
+type FitmentView = casesDomain.FitmentView
+
+// FitmentPositionView is the domain position view alias.
+type FitmentPositionView = casesDomain.FitmentPositionView
+
+// FitmentEvidenceView is the domain evidence view alias.
+type FitmentEvidenceView = casesDomain.FitmentEvidenceView
+
+// FitmentPanelView is the Story 4.4 section of the case view: the honest
+// degradation note when the pinned pack carries no fitment policy (the
+// 4.2/4.3 panel family precedent — the read NEVER fails).
+type FitmentPanelView struct {
+	SchemaDefined bool        `json:"schema_defined"`
+	Note          string      `json:"note,omitempty"`
+	Fitment       FitmentView `json:"fitment"`
+}
+
+// FitmentSchemaNoteAbsent is the honest degradation word of the panel when
+// the pinned pack carries no fitment policy (the 4.2/4.3 panel family
+// precedent of the unreadable-pin degradation).
+const FitmentSchemaNoteAbsent = "Схема применимости пака не определена: панель недоступна — политика доказательства (типы связей, глубина цепочки, источники, свежесть) приходит из закреплённого пака, без хардкода."
+
+// FitmentService is the write surface of the Story 4.4 evidence records
+// (the manager's catalog research results — the append-only proof rows;
+// the read surface lives in the case view of the whole service).
+type FitmentService interface {
+	RecordFitmentEvidence(context.Context, RecordFitmentEvidenceCommand) (WorkOutcome, error)
 }

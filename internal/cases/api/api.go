@@ -157,6 +157,9 @@ type CaseView struct {
 	// pinned pack carries no schema (the panel is absent, never a
 	// hardcoded set).
 	PartRequest PartPanelView `json:"part_request"`
+	// Fitment is the Story 4.4 section: the applicability panel (the
+	// read-time state ladder over the append-only evidence records).
+	Fitment FitmentPanelView `json:"fitment"`
 	// The Story 2.11 section: the recorded communication preferences
 	// of the case — the CURRENT set (the read-time derivation), the
 	// append-only revision history, the key dictionary of the record

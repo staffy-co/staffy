@@ -56,6 +56,7 @@ type Server struct {
 	accommodations      casesAPI.AccommodationService
 	degradations        casesAPI.DegradationService
 	handoffs            casesAPI.HandoffService
+	fitments            casesAPI.FitmentService
 	decisionContext     casesAPI.DecisionContextService
 	corrections         casesAPI.CorrectionService
 	waitingUpdates      casesAPI.UpdatePromiseService

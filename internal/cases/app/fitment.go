@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 
 	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
@@ -264,6 +266,39 @@ func (s *Service) liveProfileDigest(ctx context.Context, scope tenancy.Context, 
 	return casesDomain.DeriveVehicleProfile(schema, inputs).ProfileDigest, nil
 }
 
+// livePartRequestDigestWithSchema derives the CURRENT PartRequestDigest
+// of the case AND hands the assembled schema with the inputs back (the
+// panel view reuses the schema for the safety-node flag — one read, one
+// derivation family).
+func (s *Service) livePartRequestDigestWithSchema(ctx context.Context, scope tenancy.Context, detail casesDomain.CaseDetail, inputs []casesDomain.VehicleFactInput) (string, casesDomain.PartSchemaDomain, []casesDomain.VehicleFactInput, error) {
+	if detail.Case.PackID == "" || s.taxonomy == nil {
+		return "", casesDomain.PartSchemaDomain{}, nil, rule("record_fitment_evidence", fmt.Errorf("%s", fitmentPackPolicyAbsentText))
+	}
+	schemaPort, err := s.taxonomy.PackPartRequestSchema(detail.Case.PackID, detail.Case.PackVersion)
+	if err != nil || len(schemaPort.MaterialKeys) == 0 {
+		return "", casesDomain.PartSchemaDomain{}, nil, rule("record_fitment_evidence", fmt.Errorf("схема запроса детали пака не определена: пин запроса невозможен"))
+	}
+	schema := casesDomain.PartSchemaDomain{
+		MaterialKeys:  make([]casesDomain.PartMaterialKeyDomain, 0, len(schemaPort.MaterialKeys)),
+		Modes:         make([]casesDomain.PartModeSpecDomain, 0, len(schemaPort.Modes)),
+		SafetyMarkers: schemaPort.SafetyMarkers,
+	}
+	for _, key := range schemaPort.MaterialKeys {
+		schema.MaterialKeys = append(schema.MaterialKeys, casesDomain.PartMaterialKeyDomain{
+			Key: key.Key, Label: key.Label, Kind: key.Kind, Values: key.Values,
+			Min: key.Min, Max: key.Max, Optional: key.Optional, Role: key.Role,
+		})
+	}
+	for _, mode := range schemaPort.Modes {
+		schema.Modes = append(schema.Modes, casesDomain.PartModeSpecDomain{
+			Mode: mode.Mode, Label: mode.Label, Priority: mode.Priority, Requires: mode.Requires,
+		})
+	}
+	factInputs := make([]casesDomain.PartRequestFactInput, 0, len(inputs))
+	factInputs = append(factInputs, inputs...)
+	return casesDomain.DerivePartRequest(schema, factInputs, 0).PartRequestDigest, schema, inputs, nil
+}
+
 // livePartRequestDigest derives the CURRENT PartRequestDigest of the case
 // (the live derivation of 4.3 — the pin of the fitment evidence record;
 // the digest of the empty confirmed set is the honest sha256 of the
@@ -295,4 +330,195 @@ func (s *Service) livePartRequestDigest(ctx context.Context, scope tenancy.Conte
 	factInputs := make([]casesDomain.PartRequestFactInput, 0, len(inputs))
 	factInputs = append(factInputs, inputs...)
 	return casesDomain.DerivePartRequest(schema, factInputs, 0).PartRequestDigest, nil
+}
+
+// fitmentView assembles the Story 4.4 applicability panel of the case
+// view: the pack fitment policy through the narrow taxonomy port (the
+// panel degrades with the honest word when the pin is unreadable or the
+// pack carries no policy), the append-only evidence records of the case
+// grouped by the position, the CURRENT digest pins of BOTH inputs (the
+// same live derivations of the record command — the read-time ladder
+// re-derives the stale states on every read, AC-11), the safety-node flag
+// (the pack markers over the normalized part kind — the 4.3 discipline)
+// and the clarifiable profile attributes of the ambiguous questions (the
+// optional identification keys of 4.2 with the confirmed flags — the
+// confirmed attributes are never re-asked, AC-5).
+func (s *Service) fitmentView(ctx context.Context, scope tenancy.Context, detail casesDomain.CaseDetail) (casesAPI.FitmentPanelView, error) {
+	panel := casesAPI.FitmentPanelView{Note: casesAPI.FitmentSchemaNoteAbsent}
+	if detail.Case.PackID == "" || s.taxonomy == nil {
+		return panel, nil
+	}
+	policyPort, err := s.taxonomy.PackFitmentSchema(detail.Case.PackID, detail.Case.PackVersion)
+	if err != nil || len(policyPort.LinkTypes) == 0 {
+		return panel, nil
+	}
+	policy := casesDomain.FitmentPolicyDomain{
+		LinkTypes:      policyPort.LinkTypes,
+		MaxCrossDepth:  policyPort.MaxCrossDepth,
+		AllowedSources: policyPort.AllowedSources,
+		MaxAgeSeconds:  policyPort.MaxAgeSeconds,
+	}
+	// The facts of the case: the CURRENT digest pins of BOTH inputs (the
+	// same live derivations of the record command) and the safety-node
+	// flag over the part kind material.
+	facts, err := s.repository.ReadFactsOfCase(ctx, scope, detail.Case.CaseID)
+	if err != nil {
+		return casesAPI.FitmentPanelView{}, err
+	}
+	inputs := make([]casesDomain.VehicleFactInput, 0, len(facts))
+	for _, fact := range facts {
+		inputs = append(inputs, casesDomain.VehicleFactInput{
+			FactID: fact.Anchor.FactID, MaterialKey: fact.Anchor.MaterialKey,
+			Versions: fact.Versions, Confirmations: fact.Confirmations,
+		})
+	}
+	profileDigest, err := s.liveProfileDigest(ctx, scope, detail, inputs)
+	if err != nil {
+		return casesAPI.FitmentPanelView{}, err
+	}
+	partRequestDigest, partSchema, partInputs, err := s.livePartRequestDigestWithSchema(ctx, scope, detail, inputs)
+	if err != nil {
+		return casesAPI.FitmentPanelView{}, err
+	}
+	// The safety-node flag: the pack markers over the normalized part kind
+	// value (the 4.3 discipline — the declared heuristic of the pack,
+	// honestly a heuristic, never a proof).
+	safetyNode := fitmentSafetyNodeOf(partSchema, partInputs)
+	// The clarifiable profile attributes of the ambiguous questions: the
+	// optional identification keys with the confirmed flags (AC-5 — the
+	// confirmed attributes are never re-asked).
+	clarifiable, err := s.fitmentClarifiableAttributes(ctx, scope, detail, inputs)
+	if err != nil {
+		return casesAPI.FitmentPanelView{}, err
+	}
+	// The append-only evidence records grouped by the position (the store
+	// reads them ordered; the ladder elects the current record of every
+	// source by the number).
+	records, err := s.repository.ReadFitmentEvidencesOfCase(ctx, scope, detail.Case.CaseID)
+	if err != nil {
+		return casesAPI.FitmentPanelView{}, err
+	}
+	positions := make([]casesDomain.FitmentPositionInput, 0, len(records))
+	byPosition := map[string]*casesDomain.FitmentPositionInput{}
+	for _, record := range records {
+		position, ok := byPosition[record.PositionKey]
+		if !ok {
+			position = &casesDomain.FitmentPositionInput{PositionKey: record.PositionKey, Evidences: []casesDomain.FitmentEvidenceInput{}}
+			byPosition[record.PositionKey] = position
+		}
+		position.Evidences = append(position.Evidences, casesDomain.FitmentEvidenceInput{
+			EvidenceNo:           record.EvidenceNo,
+			PositionKey:          record.PositionKey,
+			CatalogNode:          record.CatalogNode,
+			Article:              record.Article,
+			LinkType:             record.LinkType,
+			Chain:                record.Chain,
+			CatalogVehicleIDs:    record.CatalogVehicleIDs,
+			SourceSystem:         record.SourceSystem,
+			SourceRecordID:       record.SourceRecordID,
+			SourceVersion:        record.SourceVersion,
+			SourceObservedAt:     record.SourceObservedAt,
+			ReceivedAt:           record.ReceivedAt,
+			ProfileDigestPin:     record.ProfileDigestPin,
+			PartRequestDigestPin: record.PartRequestDigestPin,
+		})
+	}
+	positionKeys := make([]string, 0, len(byPosition))
+	for key := range byPosition {
+		positionKeys = append(positionKeys, key)
+	}
+	sort.Strings(positionKeys)
+	for _, key := range positionKeys {
+		positions = append(positions, *byPosition[key])
+	}
+	panel.SchemaDefined = true
+	panel.Note = ""
+	panel.Fitment = casesDomain.DeriveFitment(casesDomain.FitmentDerivationInput{
+		Policy:                       policy,
+		Positions:                    positions,
+		ProfileDigest:                profileDigest,
+		PartRequestDigest:            partRequestDigest,
+		Now:                          s.clock.Now(),
+		SafetyNode:                   safetyNode,
+		ClarifiableProfileAttributes: clarifiable,
+	})
+	return panel, nil
+}
+
+// fitmentRawValueText renders the raw text of one fact value (the quoted
+// JSON string form — the 2.2 value discipline; the same rendering as the
+// domain view helper, kept local for the app-side flag derivation).
+func fitmentRawValueText(value []byte) string {
+	var text string
+	if err := json.Unmarshal(value, &text); err == nil {
+		return text
+	}
+	return string(value)
+}
+
+// fitmentSafetyNodeOf answers whether the part kind material of the case
+// matches any declared safety marker of the pack (the 4.3 discipline: the
+// substring search over the lower-cased trimmed kind — the markers are
+// the declared heuristic of the pack, honestly a heuristic, never a
+// proof).
+func fitmentSafetyNodeOf(schema casesDomain.PartSchemaDomain, facts []casesDomain.VehicleFactInput) bool {
+	kindKey, kindSpec := "", (*casesDomain.PartMaterialKeyDomain)(nil)
+	for index := range schema.MaterialKeys {
+		if schema.MaterialKeys[index].Role == casesDomain.PartRolePartKind {
+			kindKey, kindSpec = schema.MaterialKeys[index].Key, &schema.MaterialKeys[index]
+			break
+		}
+	}
+	if kindSpec == nil || kindKey == "" {
+		return false
+	}
+	byKey := map[string]casesDomain.VehicleFactInput{}
+	for _, fact := range facts {
+		byKey[fact.MaterialKey] = fact
+	}
+	fact, present := byKey[kindKey]
+	if !present || len(fact.Versions) == 0 {
+		return false
+	}
+	kind := strings.ToLower(strings.TrimSpace(fitmentRawValueText(fact.Versions[len(fact.Versions)-1].Value)))
+	if kind == "" {
+		return false
+	}
+	for _, marker := range schema.SafetyMarkers {
+		if strings.Contains(kind, strings.ToLower(strings.TrimSpace(marker))) {
+			return true
+		}
+	}
+	return false
+}
+
+// fitmentClarifiableAttributes resolves the clarifiable profile
+// attributes of the ambiguous questions (AC-5): the OPTIONAL
+// identification keys of 4.2 with the confirmed flags — the confirmed
+// attributes are never re-asked, the question asks the FIRST missing one.
+func (s *Service) fitmentClarifiableAttributes(ctx context.Context, scope tenancy.Context, detail casesDomain.CaseDetail, inputs []casesDomain.VehicleFactInput) ([]casesDomain.FitmentProfileAttribute, error) {
+	attributes := []casesDomain.FitmentProfileAttribute{}
+	if detail.Case.PackID == "" || s.taxonomy == nil {
+		return attributes, nil
+	}
+	schemaPort, err := s.taxonomy.PackIdentificationSchema(detail.Case.PackID, detail.Case.PackVersion)
+	if err != nil {
+		return attributes, nil
+	}
+	byKey := map[string]casesDomain.VehicleFactInput{}
+	for _, fact := range inputs {
+		byKey[fact.MaterialKey] = fact
+	}
+	for _, key := range schemaPort.MaterialKeys {
+		if !key.Optional {
+			continue
+		}
+		confirmed := false
+		if fact, present := byKey[key.Key]; present && len(fact.Versions) > 0 {
+			status, _ := casesDomain.DeriveFactStatus(fact.Versions, fact.Confirmations)
+			confirmed = status == casesDomain.FactStatusConfirmed
+		}
+		attributes = append(attributes, casesDomain.FitmentProfileAttribute{Key: key.Key, Label: key.Label, Confirmed: confirmed})
+	}
+	return attributes, nil
 }
