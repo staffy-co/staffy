@@ -125,6 +125,9 @@ type caseDetailPageView struct {
 	ConversationOpts []workOption
 	EventOptions     []workOption
 	Flash            string
+	// The Story 4.2 vehicle identification panel (the case-level
+	// section before the Work Control Cards).
+	Vehicle vehiclePanelView
 	// The Story 2.3 sections: the assurance panel, the bindings and the
 	// duplicate cards.
 	Assurance           assurancePanelView
@@ -834,6 +837,11 @@ func prepareCaseView(r *http.Request, view casesAPI.CaseView, facts casesAPI.Fac
 	out.Ownership = prepareOwnershipPanel(view)
 	out.Mode = prepareModePanel(view)
 	out.Policy = preparePolicyPanel(view, out.ConversationOpts, out.ActiveWIOptions, out.EventOptions)
+	// The Story 4.2 section: the vehicle identification panel (the
+	// read-time profile of the pack schema — the full VIN renders
+	// here (the operator review surface) and on the protected client
+	// form only; the mask word carries the honest boundary).
+	out.Vehicle = prepareVehiclePanel(view)
 	// The Story 2.7 section: the Owning System panel words — the field
 	// cards live on the Work Control Cards (the read form select carries
 	// the fixed matrix dictionary, never an invented option).
@@ -2609,6 +2617,8 @@ func continuationUseKindText(kind string) string {
 		return "позвать человека"
 	case casesDomain.ContinuationUseReturnedToConversation:
 		return "вернулся в разговор"
+	case casesDomain.ContinuationUseVehicleConfirmationSubmitted:
+		return "подтверждение автомобиля клиентом"
 	}
 	return kind
 }
@@ -2760,4 +2770,139 @@ func handoffStateWordText(view casesAPI.HandoffView) string {
 	}
 	last := view.Requests[len(view.Requests)-1]
 	return last.StateText + " (слово: " + last.State + ", запрос №" + strconv.FormatInt(last.RequestNo, 10) + ")"
+}
+
+// ---------------------------------------------------------------------------
+// The Story 4.2 vehicle identification panel (the operator review
+// surface — one of the TWO full-VIN surfaces)
+// ---------------------------------------------------------------------------
+
+// vehicleAttributeRow is one attribute of the panel: the label with the
+// material key, the raw value (the full VIN renders here — the operator
+// review surface), the version with the provenance, the read-time 2.2
+// status and the confirmation rendering with the stale word.
+type vehicleAttributeRow struct {
+	Key         string
+	Label       string
+	Kind        string
+	Value       string
+	Version     string
+	ObservedAt  string
+	ReceivedAt  string
+	SourceType  string
+	Channel     string
+	StatusText  string
+	StatusKind  string
+	ConfirmText string
+	StaleWord   string
+	VINWords    []string
+}
+
+// vehicleReadbackSymbolRow is one readback symbol (the row word
+// distinguishes the latin/digit/cyrillic rows — AC-4).
+type vehicleReadbackSymbolRow struct {
+	Row  string
+	Char string
+	Word string
+}
+
+// vehicleReadbackRow is one readback block (4-4-4-4-1).
+type vehicleReadbackRow struct {
+	Block   string
+	Symbols []vehicleReadbackSymbolRow
+}
+
+// vehiclePanelView is the flattened Story 4.2 panel of the case page:
+// the honest degradation note when the pinned pack carries no schema,
+// the attribute rows, the readback details of the VIN, the missing keys
+// list, the satisfied alternative sets, the ProfileDigest, the stale
+// note and the mask boundary word.
+type vehiclePanelView struct {
+	Present       bool
+	Note          string
+	Attributes    []vehicleAttributeRow
+	Readback      []vehicleReadbackRow
+	FocusWords    []string
+	MissingKeys   []string
+	SatisfiedText string
+	Digest        string
+	StaleNote     string
+	MaskedWord    string
+}
+
+// vehicleStatusText renders the honest status word of one attribute.
+func vehicleStatusText(status string) string {
+	switch status {
+	case casesDomain.FactStatusConfirmed:
+		return "подтверждён"
+	case casesDomain.FactStatusConflicting:
+		return "конфликт значений — Staffy не выбирает вариант, уточните у клиента"
+	default:
+		return "без подтверждения"
+	}
+}
+
+// prepareVehiclePanel flattens the Story 4.2 vehicle panel view of the
+// case API answer into the template rows. The full VIN renders here and
+// on the protected client form only; the mask word of the panel note
+// carries the honest boundary (AC-9).
+func prepareVehiclePanel(view casesAPI.CaseView) vehiclePanelView {
+	panel := vehiclePanelView{
+		Note:        view.Vehicle.Note,
+		MaskedWord:  "",
+		Attributes:  []vehicleAttributeRow{},
+		Readback:    []vehicleReadbackRow{},
+		FocusWords:  []string{},
+		MissingKeys: []string{},
+	}
+	if !view.Vehicle.SchemaDefined {
+		return panel
+	}
+	panel.Present = true
+	profile := view.Vehicle.Profile
+	for _, attribute := range profile.Attributes {
+		row := vehicleAttributeRow{
+			Key: attribute.MaterialKey, Label: attribute.Label, Kind: attribute.Kind,
+			Value: attribute.RawValue, Version: "v" + strconv.FormatInt(attribute.FactVersion, 10),
+			ObservedAt: formatTime(attribute.ObservedAt), ReceivedAt: formatTime(attribute.ReceivedAt),
+			SourceType: attribute.SourceType, Channel: attribute.Channel,
+			StatusText: vehicleStatusText(attribute.Status), StatusKind: attribute.Status,
+		}
+		if attribute.Status == casesDomain.FactStatusConfirmed {
+			row.StatusKind = "confirmed"
+		}
+		if attribute.Confirmation != nil {
+			row.ConfirmText = "Подтверждает: " + attribute.Confirmation.ConfirmerType +
+				" (версия v" + strconv.FormatInt(attribute.Confirmation.VersionNo, 10) +
+				", " + formatTime(attribute.Confirmation.At) + ")"
+			row.StaleWord = attribute.Confirmation.StaleWord
+		}
+		if attribute.NormalizedValue != nil {
+			row.VINWords = attribute.NormalizedValue.Words
+			if len(row.VINWords) == 0 {
+				row.VINWords = []string{"проверки пройдены: длина 17, алфавит без I/O/Q, омоглифов нет"}
+				if attribute.NormalizedValue.CheckDigit.Applicable && attribute.NormalizedValue.CheckDigit.Match {
+					row.VINWords = append(row.VINWords, "контрольная цифра (позиция 9) совпала")
+				}
+			}
+			panel.MaskedWord = casesDomain.MaskedVIN(attribute.NormalizedValue.Normalized)
+			panel.Readback = make([]vehicleReadbackRow, 0, len(casesDomain.ReadbackBlocks(attribute.NormalizedValue.Normalized)))
+			for _, block := range casesDomain.ReadbackBlocks(attribute.NormalizedValue.Normalized) {
+				readbackRow := vehicleReadbackRow{Block: block.Block, Symbols: []vehicleReadbackSymbolRow{}}
+				for _, symbol := range block.Symbols {
+					readbackRow.Symbols = append(readbackRow.Symbols, vehicleReadbackSymbolRow{
+						Row: symbol.Row, Char: symbol.Char, Word: symbol.Word,
+					})
+				}
+				panel.Readback = append(panel.Readback, readbackRow)
+			}
+			panel.FocusWords = casesDomain.ReadbackFocus(attribute.NormalizedValue.Normalized, attribute.NormalizedValue.CyrillicAmbiguities)
+		}
+		panel.Attributes = append(panel.Attributes, row)
+	}
+	panel.MissingKeys = profile.Completeness.MissingKeys
+	panel.SatisfiedText = strings.Join(profile.Completeness.SatisfiedBy, "; ")
+	panel.Digest = profile.ProfileDigest
+	panel.StaleNote = profile.StaleNote
+	return panel
 }

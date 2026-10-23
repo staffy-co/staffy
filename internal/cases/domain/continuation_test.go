@@ -45,8 +45,11 @@ func TestContinuationDictionariesAreClosed(t *testing.T) {
 	if len(ContinuationPurposes) != 1 || ContinuationPurposes[0] != ContinuationPurposeFactCorrection {
 		t.Fatalf("the purpose dictionary carries one fact_correction word, got %v", ContinuationPurposes)
 	}
-	if len(ContinuationUseKinds) != 3 {
-		t.Fatalf("the use-kind dictionary carries three words, got %v", ContinuationUseKinds)
+	if len(ContinuationUseKinds) != 4 {
+		t.Fatalf("the use-kind dictionary carries four words (the +1 vehicle_confirmation_submitted of story 4.2 — migrations/cases/00018 mirrors it), got %v", ContinuationUseKinds)
+	}
+	if !inDictionary(ContinuationUseKinds, ContinuationUseVehicleConfirmationSubmitted) {
+		t.Fatalf("the story 4.2 word %q must be in the use-kind dictionary", ContinuationUseVehicleConfirmationSubmitted)
 	}
 	if len(ContinuationStateWords) != 6 {
 		t.Fatalf("the state dictionary carries six words, got %v", ContinuationStateWords)
@@ -381,5 +384,24 @@ func TestRandomContinuationSecret(t *testing.T) {
 	// The encode refuses the wrong random length.
 	if _, err := EncodeContinuationToken(continuationTestTenant(), first[:31]); err == nil {
 		t.Fatal("the encode of 31 random bytes must refuse")
+	}
+}
+
+// TestContinuationUseConsumptionWords pins the Story 4.2 limit
+// accounting: the data submissions consume (the fact correction and the
+// vehicle confirmation), the free events never do — every counting
+// site reads the one dictionary word.
+func TestContinuationUseConsumptionWords(t *testing.T) {
+	if !ContinuationUseConsumesLimit(ContinuationUseFactCorrectionSubmitted) {
+		t.Fatal("the fact correction consumes the limit")
+	}
+	if !ContinuationUseConsumesLimit(ContinuationUseVehicleConfirmationSubmitted) {
+		t.Fatal("the vehicle confirmation of story 4.2 consumes the limit")
+	}
+	if ContinuationUseConsumesLimit(ContinuationUseHumanRequested) || ContinuationUseConsumesLimit(ContinuationUseReturnedToConversation) {
+		t.Fatal("the free events never consume the limit")
+	}
+	if ContinuationUseConsumesLimit("supplier_form") {
+		t.Fatal("an out-of-dictionary word never consumes anything (fail-closed)")
 	}
 }

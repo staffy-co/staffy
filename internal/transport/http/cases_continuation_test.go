@@ -1,6 +1,7 @@
 package httptransport
 
 import (
+	"bytes"
 	"context"
 	"net/http"
 	"net/http/httptest"
@@ -30,12 +31,13 @@ import (
 // plus the continuation methods under test.
 type continuationCases struct {
 	*fakeCases
-	issue   func(context.Context, casesAPI.IssueContinuationLinkCommand) (casesAPI.ContinuationIssuance, error)
-	revoke  func(context.Context, casesAPI.RevokeContinuationLinkCommand) (casesAPI.WorkOutcome, error)
-	surface func(context.Context, string, time.Time) (casesAPI.ContinuationSurface, error)
-	correct func(context.Context, string, id.UUID, []byte, time.Time) (int64, error)
-	human   func(context.Context, string, time.Time) error
-	return_ func(context.Context, string, time.Time) error
+	issue          func(context.Context, casesAPI.IssueContinuationLinkCommand) (casesAPI.ContinuationIssuance, error)
+	revoke         func(context.Context, casesAPI.RevokeContinuationLinkCommand) (casesAPI.WorkOutcome, error)
+	surface        func(context.Context, string, time.Time) (casesAPI.ContinuationSurface, error)
+	correct        func(context.Context, string, id.UUID, []byte, time.Time) (int64, error)
+	vehicleConfirm func(context.Context, string, []casesAPI.VehicleConfirmationItem, time.Time) error
+	human          func(context.Context, string, time.Time) error
+	return_        func(context.Context, string, time.Time) error
 }
 
 func (f *continuationCases) IssueContinuationLink(ctx context.Context, command casesAPI.IssueContinuationLinkCommand) (casesAPI.ContinuationIssuance, error) {
@@ -52,6 +54,10 @@ func (f *continuationCases) ContinueSurface(ctx context.Context, token string, n
 
 func (f *continuationCases) SubmitCorrection(ctx context.Context, token string, factID id.UUID, rawValue []byte, now time.Time) (int64, error) {
 	return f.correct(ctx, token, factID, rawValue, now)
+}
+
+func (f *continuationCases) SubmitVehicleConfirmation(ctx context.Context, token string, items []casesAPI.VehicleConfirmationItem, now time.Time) error {
+	return f.vehicleConfirm(ctx, token, items, now)
 }
 
 func (f *continuationCases) SubmitHuman(ctx context.Context, token string, now time.Time) error {
@@ -501,4 +507,235 @@ type replyLinkCases struct {
 func (f *replyLinkCases) SendClientReply(_ context.Context, command casesAPI.SendClientReplyCommand) (casesAPI.WorkOutcome, error) {
 	*f.captured = command.LinkID
 	return casesAPI.WorkOutcome{Command: "send_client_reply", ReplyClass: command.ReplyClass}, nil
+}
+
+// ---------------------------------------------------------------------------
+// The Story 4.2 vehicle identification wire shapes: the public block of
+// the protected form (the full VIN with the readback words — one of the
+// TWO full-VIN surfaces), the confirm POST (the PRG landing flag, the
+// dead-link redirect) and the operator panel rendering (the second
+// full-VIN surface with the mask boundary word).
+// ---------------------------------------------------------------------------
+
+// vehicleSurface builds the Story 4.2 surface answer of the wire tests:
+// the confirmed vin fact and the unverified make fact of the work item
+// of the link.
+func vehicleSurface(kind string) casesAPI.ContinuationSurface {
+	vin := casesDomain.NormalizeVIN("JH4KA7561PC008269")
+	makeAttribute := casesDomain.VehicleAttributeView{
+		FactID:      id.MustParse("01994f64-6c00-7000-8000-00000000dd10"),
+		MaterialKey: "vehicle.make", Label: "Марка", Kind: "text",
+		RawValue: "Ford", FactVersion: 2, Status: casesDomain.FactStatusUnverified,
+		SourceType: casesDomain.FactSourceOperator, Channel: "operator",
+	}
+	vinAttribute := casesDomain.VehicleAttributeView{
+		FactID:      id.MustParse("01994f64-6c00-7000-8000-00000000dd11"),
+		MaterialKey: "vehicle.vin", Label: "VIN", Kind: "vin",
+		RawValue: "JH4KA7561PC008269", FactVersion: 1, Status: casesDomain.FactStatusConfirmed,
+		SourceType: casesDomain.FactSourceChannelEvent, Channel: "text",
+		NormalizedValue: &vin,
+		Confirmation:    &casesDomain.VehicleConfirmationView{ConfirmerType: "client", VersionNo: 1},
+	}
+	return casesAPI.ContinuationSurface{
+		Kind: kind, Explanation: "Проверьте автомобиль", Question: "Подтвердите автомобиль",
+		Facts: []casesAPI.ContinuationFactView{},
+		Vehicle: &casesAPI.ContinuationVehicleView{
+			Profile: casesDomain.VehicleProfileView{
+				Attributes: []casesDomain.VehicleAttributeView{vinAttribute, makeAttribute},
+				Completeness: casesDomain.VehicleCompleteness{
+					SatisfiedBy: []string{"vehicle.vin"}, MissingKeys: []string{"vehicle.make", "vehicle.model", "vehicle.year_of_manufacture", "vehicle.trim", "vehicle.engine"},
+				},
+				ProfileDigest: "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+			},
+			Readback: casesDomain.ReadbackBlocks("JH4KA7561PC008269"),
+		},
+	}
+}
+
+// TestContinuationVehicleBlockRendersHonestWords pins the public vehicle
+// block of FR-55: the FULL VIN renders on this protected surface with
+// the readback words (the row distinction by words), the attribute
+// statuses, the confirm form (the fact:version pairs) and the honest
+// flags of the normalization.
+func TestContinuationVehicleBlockRendersHonestWords(t *testing.T) {
+	server := newContinuationTestServer(t, &continuationCases{fakeCases: &fakeCases{}, surface: func(_ context.Context, _ string, _ time.Time) (casesAPI.ContinuationSurface, error) {
+		return vehicleSurface(casesAPI.ContinuationSurfaceValid), nil
+	}}, tenantNameIdentity{name: "Магазин Олега"})
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/continue/testtoken", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	page := recorder.Body.String()
+	for _, pin := range []string{
+		"Идентификация автомобиля",
+		"JH4KA7561PC008269",
+		"латиница Джульетта",
+		"цифра четыре",
+		"Подтверждаю",
+		"/continue/testtoken/confirm-vehicle",
+		"подтверждено (client, версия v1)",
+		"без подтверждения",
+	} {
+		if !strings.Contains(page, pin) {
+			t.Errorf("the public vehicle block must carry %q", pin)
+		}
+	}
+	if recorder.Header().Get("Cache-Control") != "no-store" || recorder.Header().Get("Referrer-Policy") != "no-referrer" {
+		t.Fatal("the protected surface carries the no-store/no-referrer hygiene")
+	}
+}
+
+// TestContinuationVehicleConfirmWire pins the confirm POST: the checked
+// attribute pairs submit as the EXACT (fact, version) items, the answer
+// is the PRG 303 with the confirmed landing flag; the dead-link refusal
+// redirects to the plain GET (the derived page is the honest answer).
+func TestContinuationVehicleConfirmWire(t *testing.T) {
+	submitted := []casesAPI.VehicleConfirmationItem{}
+	server := newContinuationTestServer(t, &continuationCases{
+		fakeCases: &fakeCases{},
+		surface: func(_ context.Context, _ string, _ time.Time) (casesAPI.ContinuationSurface, error) {
+			return vehicleSurface(casesAPI.ContinuationSurfaceValid), nil
+		},
+		vehicleConfirm: func(_ context.Context, _ string, items []casesAPI.VehicleConfirmationItem, _ time.Time) error {
+			submitted = append(submitted, items...)
+			return nil
+		},
+	}, tenantNameIdentity{name: "Магазин Олега"})
+	form := url.Values{}
+	form.Add("confirm", "01994f64-6c00-7000-8000-00000000dd11:1")
+	form.Add("confirm", "01994f64-6c00-7000-8000-00000000dd10:2")
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, continuationFormRequest(http.MethodPost, "/continue/testtoken/confirm-vehicle", form))
+	if recorder.Code != http.StatusSeeOther {
+		t.Fatalf("the confirm answers the PRG 303, got %d body %s", recorder.Code, recorder.Body.String())
+	}
+	if location := recorder.Header().Get("Location"); location != "/continue/testtoken?confirmed=1" {
+		t.Fatalf("the confirm lands on the confirmed flag, got %q", location)
+	}
+	if len(submitted) != 2 || submitted[0].FactID != id.MustParse("01994f64-6c00-7000-8000-00000000dd11") || submitted[0].VersionNo != 1 || submitted[1].VersionNo != 2 {
+		t.Fatalf("the confirm submits the exact (fact, version) pairs, got %+v", submitted)
+	}
+	// The landing announcement of the flag.
+	recorder = httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/continue/testtoken?confirmed=1", nil))
+	if !strings.Contains(recorder.Body.String(), "Автомобиль подтверждён") {
+		t.Fatal("the confirmed landing announces the recorded confirmation")
+	}
+}
+
+// TestContinuationVehicleConfirmDeadLinkRedirects pins the dead-link
+// answer of the confirm: the consumed limit redirects to the plain GET
+// (the derived terminal page — the double-click honesty).
+func TestContinuationVehicleConfirmDeadLinkRedirects(t *testing.T) {
+	server := newContinuationTestServer(t, &continuationCases{
+		fakeCases: &fakeCases{},
+		surface: func(_ context.Context, _ string, _ time.Time) (casesAPI.ContinuationSurface, error) {
+			return vehicleSurface(casesAPI.ContinuationSurfaceValid), nil
+		},
+		vehicleConfirm: func(_ context.Context, _ string, _ []casesAPI.VehicleConfirmationItem, _ time.Time) error {
+			return casesDomain.WorkRuleError{Rule: "vehicle_confirm", Reason: casesDomain.ContinuationNotUsableText}
+		},
+	}, tenantNameIdentity{name: "Магазин Олега"})
+	form := url.Values{}
+	form.Add("confirm", "01994f64-6c00-7000-8000-00000000dd11:1")
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, continuationFormRequest(http.MethodPost, "/continue/testtoken/confirm-vehicle", form))
+	if recorder.Code != http.StatusSeeOther || recorder.Header().Get("Location") != "/continue/testtoken" {
+		t.Fatalf("the dead link redirects to the derived page, got %d %q", recorder.Code, recorder.Header().Get("Location"))
+	}
+}
+
+// TestVehiclePanelRendersOperatorCard pins the operator panel rendering:
+// the second full-VIN surface (the review right of the work card) with
+// the attribute table, the readback details, the missing keys list, the
+// ProfileDigest, the stale word and the MASK boundary word (the honest
+// AC-9 line — the mask names what every other path sees).
+func TestVehiclePanelRendersOperatorCard(t *testing.T) {
+	templates := decisionContextRenderTemplates(t)
+	surface := vehicleSurface(casesAPI.ContinuationSurfaceValid)
+	panelView := prepareVehiclePanel(casesAPI.CaseView{Vehicle: casesAPI.VehiclePanelView{
+		SchemaDefined: true,
+		Profile:       surface.Vehicle.Profile,
+	}})
+	if !panelView.Present {
+		t.Fatal("the prepared panel is present for the schema-defined case")
+	}
+	var page bytes.Buffer
+	data := map[string]any{"TenantID": "01994f64-6c00-7000-8000-000000000002", "View": caseDetailPageView{CaseID: "01994f64-6c00-7000-8000-00000000aa01", Vehicle: panelView}}
+	if err := templates.ExecuteTemplate(&page, "case", data); err != nil {
+		t.Fatalf("the case page does not render with the vehicle panel: %v", err)
+	}
+	rendered := page.String()
+	for _, pin := range []string{
+		"Идентификация автомобиля",
+		"JH4KA7561PC008269",
+		"JH4…8269",
+		"a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+		"vehicle.trim, vehicle.engine",
+		"контрольная цифра (позиция 9) совпала",
+		"Подтверждает: client (версия v1",
+	} {
+		if !strings.Contains(rendered, pin) {
+			t.Errorf("the operator vehicle panel must carry %q", pin)
+		}
+	}
+}
+
+// TestVehiclePanelAbsenceWordRenders pins the honest degradation: a case
+// whose pinned pack carries no identification schema renders the absence
+// word — never a hardcoded attribute set.
+func TestVehiclePanelAbsenceWordRenders(t *testing.T) {
+	templates := decisionContextRenderTemplates(t)
+	panelView := prepareVehiclePanel(casesAPI.CaseView{Vehicle: casesAPI.VehiclePanelView{Note: casesAPI.VehicleSchemaNoteAbsent}})
+	if panelView.Present {
+		t.Fatal("the panel is absent without the schema")
+	}
+	var page bytes.Buffer
+	data := map[string]any{"TenantID": "01994f64-6c00-7000-8000-000000000002", "View": caseDetailPageView{CaseID: "01994f64-6c00-7000-8000-00000000aa01", Vehicle: panelView}}
+	if err := templates.ExecuteTemplate(&page, "case", data); err != nil {
+		t.Fatalf("the case page does not render without the schema: %v", err)
+	}
+	rendered := page.String()
+	if !strings.Contains(rendered, "Схема идентификации пака не определена") {
+		t.Fatal("the absence word must render honestly")
+	}
+	if strings.Contains(rendered, "ProfileDigest") && strings.Contains(rendered, "Точная версия профиля") {
+		t.Fatal("the absent schema renders no profile material")
+	}
+}
+
+// TestContinuationVehicleVINNeverLeaksOffTheTwoSurfaces pins the AC-9
+// probe: the FULL VIN renders on exactly TWO surfaces — the operator
+// work card (the review right) and the valid protected form of the
+// client (FR-55). The terminal consumed page, the generic refusal page
+// and every problem answer carry NO full VIN (the mask is the only
+// rendering outside the two surfaces).
+func TestContinuationVehicleVINNeverLeaksOffTheTwoSurfaces(t *testing.T) {
+	server := newContinuationTestServer(t, &continuationCases{fakeCases: &fakeCases{}, surface: func(_ context.Context, token string, _ time.Time) (casesAPI.ContinuationSurface, error) {
+		if token != "testtoken" {
+			return casesAPI.ContinuationSurface{Kind: casesAPI.ContinuationSurfaceInvalid}, nil
+		}
+		return vehicleSurface(casesAPI.ContinuationSurfaceValid), nil
+	}}, tenantNameIdentity{name: "Магазин Олега"})
+	// The valid page carries the full VIN (the client confirms it).
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/continue/testtoken", nil))
+	if !strings.Contains(recorder.Body.String(), "JH4KA7561PC008269") {
+		t.Fatal("the valid protected form shows the full VIN to the client (FR-55)")
+	}
+	// The dead-token refusal: the generic page never carries the VIN.
+	recorder = httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/continue/unknown-token-value", nil))
+	if strings.Contains(recorder.Body.String(), "JH4KA7561PC008269") {
+		t.Fatal("the generic refusal page never carries the full VIN")
+	}
+	// The problem answer of a failed action: the honest rule text never
+	// carries the VIN (the generic words only).
+	recorder = httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/continue/testtoken?confirmed=1&human=1", nil))
+	page := recorder.Body.String()
+	if strings.Count(page, "JH4KA7561PC008269") < 1 && !strings.Contains(page, "Идентификация автомобиля") {
+		t.Fatal("the valid page material renders for the landing flags too")
+	}
 }

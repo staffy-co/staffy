@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	casesPort "github.com/artemiosu/staffy/internal/cases/port"
 	"github.com/artemiosu/staffy/internal/employee/api"
 	"github.com/artemiosu/staffy/internal/employee/domain"
 	"github.com/artemiosu/staffy/internal/employee/packs"
@@ -181,6 +182,35 @@ func (s *Service) PackCriticalEntities(packID, packVersion string) ([]string, er
 		return nil, fmt.Errorf("закреплённый пак %s@%s не читается из каталога: манифест отсутствует", packID, packVersion)
 	}
 	return append([]string(nil), manifest.CriticalEntities...), nil
+}
+
+// PackIdentificationSchema resolves the vehicle identification schema of
+// one Domain Pack version (Story 4.2 — the material keys with the kinds
+// and the alternative sufficient sets). The same immutability guarantees
+// as PackJourneys; a pack without a schema is the honest absent answer
+// (the caller degrades the panel honestly, never a hardcoded list); an
+// unknown pack version is an honest error.
+func (s *Service) PackIdentificationSchema(packID, packVersion string) (casesPort.IdentificationSchema, error) {
+	if packID == "" || packVersion == "" {
+		return casesPort.IdentificationSchema{}, fmt.Errorf("пак не закреплён: схема идентификации неизвестна")
+	}
+	manifest, ok := packs.Get(packID, packVersion)
+	if !ok {
+		return casesPort.IdentificationSchema{}, fmt.Errorf("закреплённый пак %s@%s не читается из каталога: манифест отсутствует", packID, packVersion)
+	}
+	schema := casesPort.IdentificationSchema{MaterialKeys: []casesPort.MaterialKeySpec{}, AlternativeSets: [][]string{}}
+	if manifest.VehicleIdentification == nil {
+		return schema, nil
+	}
+	for _, key := range manifest.VehicleIdentification.MaterialKeys {
+		schema.MaterialKeys = append(schema.MaterialKeys, casesPort.MaterialKeySpec{
+			Key: key.Key, Label: key.Label, Kind: key.Kind, Min: key.Min, Max: key.Max, Optional: key.Optional,
+		})
+	}
+	for _, set := range manifest.VehicleIdentification.AlternativeSets {
+		schema.AlternativeSets = append(schema.AlternativeSets, append([]string(nil), set...))
+	}
+	return schema, nil
 }
 
 // entitlementAdmissionWord relays the scope-based entitlement admission

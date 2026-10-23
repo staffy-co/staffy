@@ -64,12 +64,21 @@ const ContinuationPurposeFactCorrection = "fact_correction"
 var ContinuationPurposes = []string{ContinuationPurposeFactCorrection}
 
 // The link use kinds: an accepted fact correction consumes the link
-// limit; the human request and the return to the conversation are
-// events, not data submissions — they never consume anything.
+// limit; the vehicle confirmation of Story 4.2 consumes it too (a data
+// submission — the client confirms the EXACT versions of the
+// identification attributes); the human request and the return to the
+// conversation are events, not data submissions — they never consume
+// anything.
 const (
 	ContinuationUseFactCorrectionSubmitted = "fact_correction_submitted"
 	ContinuationUseHumanRequested          = "human_requested"
 	ContinuationUseReturnedToConversation  = "returned_to_conversation"
+	// ContinuationUseVehicleConfirmationSubmitted is the +1 word of Story
+	// 4.2: the client confirmation of the vehicle identification
+	// attributes through the protected continuation (the SQL mirror of
+	// the dictionary extends with migrations/cases/00018 — extending it
+	// is a new spec version; this spec is that version).
+	ContinuationUseVehicleConfirmationSubmitted = "vehicle_confirmation_submitted"
 )
 
 // ContinuationUseKinds is the full dictionary.
@@ -77,6 +86,17 @@ var ContinuationUseKinds = []string{
 	ContinuationUseFactCorrectionSubmitted,
 	ContinuationUseHumanRequested,
 	ContinuationUseReturnedToConversation,
+	ContinuationUseVehicleConfirmationSubmitted,
+}
+
+// ContinuationUseConsumesLimit answers whether one use kind consumes
+// the link limit: the data submissions do (the fact correction and the
+// vehicle confirmation of 4.2), the free events never do (the human
+// request and the return). Every counting site (the store lookup, the
+// app panel, the surface) reads THIS word — the limit accounting
+// lives in one dictionary place.
+func ContinuationUseConsumesLimit(useKind string) bool {
+	return useKind == ContinuationUseFactCorrectionSubmitted || useKind == ContinuationUseVehicleConfirmationSubmitted
 }
 
 // FactChannelProtectedContinuation is the +1 word of the FactChannels

@@ -86,6 +86,7 @@ type ContinuationSurface struct {
 	Explanation string
 	Question    string
 	Facts       []ContinuationFactView
+	Vehicle     *ContinuationVehicleView
 	ExpiresAt   time.Time
 	LimitLeft   int
 	Submitted   bool
@@ -164,6 +165,14 @@ const (
 	ContinuationSurfaceInvalid  = "invalid"
 )
 
+// VehicleConfirmationItem is one attribute confirmation of the Story
+// 4.2 submission (the machine form of the public POST): the fact anchor
+// and the EXACT version the client confirmed on the protected form.
+type VehicleConfirmationItem struct {
+	FactID    id.UUID `json:"fact_id"`
+	VersionNo int64   `json:"version_no"`
+}
+
 // ContinuationService is the command and surface interface of Story 2.10
 // (the two operator commands are idempotent by the tenant-scoped key with
 // the stored outcome — the token NEVER enters the stored material; the
@@ -176,6 +185,12 @@ type ContinuationService interface {
 	RevokeContinuationLink(context.Context, RevokeContinuationLinkCommand) (WorkOutcome, error)
 	ContinueSurface(context.Context, string, time.Time) (ContinuationSurface, error)
 	SubmitCorrection(context.Context, string, id.UUID, []byte, time.Time) (int64, error)
+	// SubmitVehicleConfirmation is the Story 4.2 client confirmation of
+	// the vehicle identification attributes: the opaque token is the only
+	// credential (the same public-surface discipline); the confirmation
+	// binds the EXACT versions with confirmer=client and consumes the
+	// link limit in one transaction.
+	SubmitVehicleConfirmation(context.Context, string, []VehicleConfirmationItem, time.Time) error
 	SubmitHuman(context.Context, string, time.Time) error
 	SubmitReturn(context.Context, string, time.Time) error
 }

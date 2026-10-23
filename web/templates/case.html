@@ -1119,6 +1119,57 @@
 </form></details>
 {{end}}
 
+<h2>Идентификация автомобиля</h2>
+<p class="next-note">Профиль — производная чтения над append-only фактами: подтверждения привязаны к ТОЧНЫМ версиям; полнота — по альтернативным наборам схемы пака (VIN либо марка+модель+год); ProfileDigest — «точная версия профиля» (SHA-256 подтверждённого набора). Схема приходит из закреплённого пака — без хардкода; результаты каталога отсутствуют — ABCP-адаптер не реализован (AG-4).</p>
+{{if .View.Vehicle.Present}}
+<section class="panel" aria-label="Идентификация автомобиля" id="vehicle">
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Признаки идентификации автомобиля">
+<table class="datamap-table">
+<caption>Признаки идентификации: значение, версия, источник, канал, статус, подтверждение</caption>
+<thead><tr><th scope="col">Признак</th><th scope="col">Значение</th><th scope="col">Версия</th><th scope="col">Источник</th><th scope="col">Канал</th><th scope="col">Статус</th><th scope="col">Подтверждение</th></tr></thead>
+<tbody>
+{{range .View.Vehicle.Attributes}}<tr><th scope="row">{{.Label}} <span class="digest-block">{{.Key}}</span>{{if eq .Kind "vin"}} (VIN){{end}}</th><td><code>{{.Value}}</code></td><td>{{.Version}}</td><td>{{.SourceType}}</td><td>{{.Channel}}</td><td>{{.StatusText}}</td><td>{{if .ConfirmText}}{{.ConfirmText}}{{else}}—{{end}}{{if .StaleWord}}<br><span class="status" role="status">{{.StaleWord}}</span>{{end}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+{{range .View.Vehicle.Attributes}}{{if .VINWords}}
+<details class="connector-connect"><summary>Проверки VIN ({{.Key}}) — флаги текстом</summary>
+<ul>
+{{range .VINWords}}<li>{{.}}</li>{{end}}
+</ul>
+</details>
+{{end}}{{end}}
+{{if .View.Vehicle.Readback}}
+<details class="connector-connect"><summary>Посимвольный readback VIN — блоки 4-4-4-4-1, ряды словами (латиница/цифра/кириллица)</summary>
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Readback VIN по блокам">
+<table class="datamap-table">
+<caption>Readback VIN: блок, символ, ряд, слово</caption>
+<thead><tr><th scope="col">Блок</th><th scope="col">Символ</th><th scope="col">Ряд</th><th scope="col">Слово</th></tr></thead>
+<tbody>
+{{range $block := .View.Vehicle.Readback}}{{range $block.Symbols}}<tr><td>{{$block.Block}}</td><td><code>{{.Char}}</code></td><td>{{.Row}}</td><td>{{.Word}}</td></tr>{{end}}{{end}}
+</tbody>
+</table>
+</div>
+{{end}}
+{{if .View.Vehicle.FocusWords}}
+<details class="connector-connect" open><summary>Спорные символы — переспрос только их</summary>
+<ul>
+{{range .View.Vehicle.FocusWords}}<li>{{.}}</li>{{end}}
+</ul>
+</details>
+{{end}}
+{{if .View.Vehicle.MissingKeys}}
+<p class="status" role="status">Не хватает (не подтверждено): {{range $i, $k := .View.Vehicle.MissingKeys}}{{if $i}}, {{end}}{{$k}}{{end}} — подтверждённые атрибуты не перезапрашиваются.</p>
+{{else}}
+<p class="status" role="status">Все признаки схемы подтверждены — перезапрос не нужен.</p>
+{{end}}
+<p>Достаточный набор: <strong>{{if .View.Vehicle.SatisfiedText}}{{.View.Vehicle.SatisfiedText}}{{else}}не собран{{end}}</strong>. Точная версия профиля (ProfileDigest): <span class="digest-block">{{.View.Vehicle.Digest}}</span>{{if .View.Vehicle.MaskedWord}}; вне карточки и защищённой формы клиента VIN выводится маской <span class="digest-block">{{.View.Vehicle.MaskedWord}}</span>{{end}}.</p>
+{{if .View.Vehicle.StaleNote}}<p class="alert" role="alert">{{.View.Vehicle.StaleNote}}</p>{{end}}
+<p class="next-note">Подтверждение признаков клиентом — защищённая ссылка продолжения существующей формой выпуска (вопрос «подтвердите автомобиль», цель — исправление факта); правка признака — штатная команда записи факта (новая версия делает прежнее подтверждение устаревшим честным словом).</p>
+</section>
+{{else}}
+<p class="next-note">{{.View.Vehicle.Note}}</p>
+{{end}}
 <h2>Диалоги канала</h2>
 <p role="status" aria-live="polite">{{if .View.HasConversations}}Диалогов: <strong>{{len .View.Conversations}}</strong>; каждый — продолжение одной channel session.{{else}}Диалогов нет.{{end}}</p>
 {{if .View.HasConversations}}

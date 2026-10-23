@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
 	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
@@ -60,13 +61,47 @@ type continuationPageView struct {
 	Explanation   string
 	Question      string
 	FactOptions   []continuationFactOption
-	ExpiresText   string
-	LimitLeft     string
-	Notice        string
-	Preserved     continuationFormInput
-	CorrectURL    string
-	HumanURL      string
-	ReturnURL     string
+	// The Story 4.2 vehicle identification block (the protected client
+	// surface of FR-55 — the FULL VIN renders here and on the operator
+	// work card only).
+	Vehicle     continuationVehicleBlock
+	ExpiresText string
+	LimitLeft   string
+	Notice      string
+	Preserved   continuationFormInput
+	CorrectURL  string
+	ConfirmURL  string
+	HumanURL    string
+	ReturnURL   string
+}
+
+// continuationVehicleAttributeRow is one confirmable attribute of the
+// public vehicle block: the label, the value the client confirms, the
+// status word and the hidden form material (the fact id with the EXACT
+// version — the confirmation binds that version).
+type continuationVehicleAttributeRow struct {
+	FactID      string
+	VersionNo   string
+	Label       string
+	Key         string
+	Value       string
+	StatusText  string
+	StatusKind  string
+	ConfirmText string
+	StaleWord   string
+}
+
+// continuationVehicleBlock is the flattened vehicle identification
+// block of the public form: the full VIN with the readback blocks and
+// the focus words, the attributes with the statuses and the hidden
+// confirm material.
+type continuationVehicleBlock struct {
+	Present    bool
+	VINValue   string
+	VINWords   []string
+	Readback   []vehicleReadbackRow
+	FocusWords []string
+	Attributes []continuationVehicleAttributeRow
 }
 
 // continuationPage answers GET /continue/{token}: the surface of the
@@ -130,6 +165,60 @@ func (s *Server) continuationCorrectForm(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	http.Redirect(w, r, casesAPI.ContinuationURLPath(token)+"?submitted=1", http.StatusSeeOther)
+}
+
+// continuationVehicleConfirmForm answers POST /continue/{token}/confirm-vehicle:
+// the Story 4.2 PRG submission of the client vehicle confirmation (the
+// fact/version pairs of the checked attributes — the confirmation binds
+// the EXACT versions the client saw); the dead-link refusals redirect
+// to the plain GET (the derived page is the honest answer — the
+// double-click of the limit is the terminal consumed page); the honest
+// validation errors re-render the form (the 400 — the data never
+// disappears). The submission itself writes NO fact versions — only
+// the append-only client confirmations and the use row.
+func (s *Server) continuationVehicleConfirmForm(w http.ResponseWriter, r *http.Request) {
+	token := r.PathValue("token")
+	if !formParse(w, r) {
+		http.Redirect(w, r, casesAPI.ContinuationURLPath(token), http.StatusSeeOther)
+		return
+	}
+	// Every checked attribute carries its EXACT version in the value
+	// (factID:versionNo — the pair never desynchronizes with the
+	// checkbox state; the confirmation binds that version).
+	items := []casesAPI.VehicleConfirmationItem{}
+	for _, value := range r.Form["confirm"] {
+		parts := strings.SplitN(strings.TrimSpace(value), ":", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		factID, err := id.Parse(parts[0])
+		if err != nil {
+			continue
+		}
+		versionNo, err := strconv.ParseInt(parts[1], 10, 64)
+		if err != nil || versionNo < 1 {
+			continue
+		}
+		items = append(items, casesAPI.VehicleConfirmationItem{FactID: factID, VersionNo: versionNo})
+	}
+	if len(items) == 0 {
+		s.continuationReRender(w, r, token, continuationFormInput{Error: "Отметьте хотя бы один признак автомобиля для подтверждения."})
+		return
+	}
+	if err := s.continuations.SubmitVehicleConfirmation(r.Context(), token, items, s.clock.Now().UTC()); err != nil {
+		if continuationRedirectsToSurface(err) {
+			http.Redirect(w, r, casesAPI.ContinuationURLPath(token), http.StatusSeeOther)
+			return
+		}
+		var rule casesDomain.WorkRuleError
+		if errors.As(err, &rule) {
+			s.continuationReRender(w, r, token, continuationFormInput{Error: rule.Reason})
+			return
+		}
+		s.continuationServerError(w, r)
+		return
+	}
+	http.Redirect(w, r, casesAPI.ContinuationURLPath(token)+"?confirmed=1", http.StatusSeeOther)
 }
 
 // continuationHumanForm answers POST /continue/{token}/human: the PRG
@@ -228,6 +317,7 @@ func (s *Server) renderContinuation(w http.ResponseWriter, r *http.Request, toke
 	view := continuationPageView{
 		Kind: surface.Kind, RoleWord: casesAPI.ContinuationRoleWord,
 		CorrectURL: casesAPI.ContinuationURLPath(token) + "/correct",
+		ConfirmURL: casesAPI.ContinuationURLPath(token) + "/confirm-vehicle",
 		HumanURL:   casesAPI.ContinuationURLPath(token) + "/human",
 		ReturnURL:  casesAPI.ContinuationURLPath(token) + "/return",
 		Preserved:  input,
@@ -246,6 +336,7 @@ func (s *Server) renderContinuation(w http.ResponseWriter, r *http.Request, toke
 				Text:  fact.MaterialKey + " — " + fact.ValueText,
 			})
 		}
+		view.Vehicle = prepareContinuationVehicleBlock(surface.Vehicle)
 		if tenantID, _, err := casesDomain.ParseContinuationToken(token); err == nil && s.tenantNamer != nil {
 			if name, nameErr := s.tenantNamer.TenantName(r.Context(), tenantID); nameErr == nil && name != "" {
 				view.TenantName = name
@@ -262,6 +353,10 @@ func (s *Server) renderContinuation(w http.ResponseWriter, r *http.Request, toke
 	switch r.URL.Query().Get("submitted") {
 	case "1":
 		view.Notice = "Исправление отправлено — оператор проверит и подтвердит его штатным путём. Ссылка завершена: повторная отправка по ней невозможна."
+	}
+	switch r.URL.Query().Get("confirmed") {
+	case "1":
+		view.Notice = "Автомобиль подтверждён: подтверждение записано по точным версиям признаков. Ссылка завершена: повторное действие по ней невозможно."
 	}
 	switch r.URL.Query().Get("human") {
 	case "1":
@@ -296,4 +391,47 @@ func pluralRu(count int, one, few, many string) string {
 	default:
 		return many
 	}
+}
+
+// prepareContinuationVehicleBlock flattens the Story 4.2 vehicle block
+// of the public form: the full VIN (the protected client surface of
+// FR-55 — one of the TWO full-VIN surfaces) with the honest flag words
+// and the readback blocks, the confirmable attributes with the status
+// words and the hidden EXACT-version material of the confirm form.
+func prepareContinuationVehicleBlock(block *casesAPI.ContinuationVehicleView) continuationVehicleBlock {
+	out := continuationVehicleBlock{Attributes: []continuationVehicleAttributeRow{}, Readback: []vehicleReadbackRow{}, FocusWords: []string{}, VINWords: []string{}}
+	if block == nil {
+		return out
+	}
+	out.Present = true
+	for _, attribute := range block.Profile.Attributes {
+		row := continuationVehicleAttributeRow{
+			FactID: attribute.FactID.String(), VersionNo: strconv.FormatInt(attribute.FactVersion, 10),
+			Label: attribute.Label, Key: attribute.MaterialKey, Value: attribute.RawValue,
+			StatusText: vehicleStatusText(attribute.Status), StatusKind: attribute.Status,
+		}
+		if attribute.Status == casesDomain.FactStatusConfirmed {
+			row.StatusKind = "confirmed"
+		}
+		if attribute.Confirmation != nil {
+			row.ConfirmText = "подтверждено (" + attribute.Confirmation.ConfirmerType + ", версия v" + strconv.FormatInt(attribute.Confirmation.VersionNo, 10) + ")"
+			row.StaleWord = attribute.Confirmation.StaleWord
+		}
+		if attribute.NormalizedValue != nil {
+			out.VINValue = attribute.RawValue
+			out.VINWords = attribute.NormalizedValue.Words
+			for _, readback := range block.Readback {
+				readbackRow := vehicleReadbackRow{Block: readback.Block, Symbols: []vehicleReadbackSymbolRow{}}
+				for _, symbol := range readback.Symbols {
+					readbackRow.Symbols = append(readbackRow.Symbols, vehicleReadbackSymbolRow{
+						Row: symbol.Row, Char: symbol.Char, Word: symbol.Word,
+					})
+				}
+				out.Readback = append(out.Readback, readbackRow)
+			}
+			out.FocusWords = block.FocusWords
+		}
+		out.Attributes = append(out.Attributes, row)
+	}
+	return out
 }

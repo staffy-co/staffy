@@ -217,6 +217,12 @@ var FactSourceProducers = map[string]bool{FactSourceChannelEvent: true, FactSour
 // the write-path connectors of the later stories will arrive with them);
 // the only producer of this slice is operator_relay — the operator fixes
 // the words of the client with an evidence reference.
+// Story 4.2: the reserved word «client» receives its FIRST producer —
+// the protected continuation confirms the vehicle identification
+// attributes (SubmitVehicleConfirmation) with the link as the actor; the
+// dictionary itself gains no word (the SQL CHECK of 00002 admitted it
+// always) — the producer activation is the legal continuation of the
+// 2.2 canon.
 const ConfirmerOperatorRelay = "operator_relay"
 
 // ConfirmerTypes is the reserved dictionary.
