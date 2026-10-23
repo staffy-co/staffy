@@ -5441,6 +5441,7 @@ components:
         taxonomy_types: { type: array, items: { type: string }, description: 'Journeys закреплённого пака (словарь типов)' }
         critical_entities: { type: array, items: { type: string }, description: 'CriticalEntities закреплённого пака (словарь материальных ключей — подсказки форм фактов)' }
         vehicle: { $ref: '#/components/schemas/VehiclePanelView', description: 'Секция «Идентификация автомобиля» (Story 4.2): read-time профиль по схеме пака; schema_defined=false — честное слово отсутствия схемы (без хардкода)' }
+        part_request: { $ref: '#/components/schemas/PartRequestPanelView', description: 'Секция «Запрос детали» (Story 4.3): read-time запрос по схеме пака (режим/атрибуты/полнота/digest/границы); schema_defined=false — честное слово отсутствия схемы (без хардкода)' }
         assurance: { $ref: '#/components/schemas/AssuranceView' }
         bindings: { type: array, items: { $ref: '#/components/schemas/BindingCard' } }
         duplicates: { type: array, items: { $ref: '#/components/schemas/DuplicateCard' } }
@@ -6083,6 +6084,98 @@ components:
         expected: { type: string }
         computed: { type: string }
         match: { type: boolean }
+    PartRequestPanelView:
+      type: object
+      required: [schema_defined, part]
+      additionalProperties: false
+      description: 'Секция «Запрос детали» (Story 4.3): схема запроса детали приходит из закреплённого пака auto-parts@4.0.0 через порт PackTaxonomy — никогда хардкод; schema_defined=false несёт честное слово отсутствия (note)'
+      properties:
+        schema_defined: { type: boolean }
+        note: { type: string, description: 'Честное слово отсутствия схемы («Схема запроса детали пака не определена…») — пусто при schema_defined=true' }
+        part: { $ref: '#/components/schemas/PartRequestView' }
+    PartRequestView:
+      type: object
+      required: [attributes, completeness, questions, part_request_digest, confidence_word, boundaries, handoff_words]
+      additionalProperties: false
+      description: 'Read-time запрос детали (Story 4.3): детерминированный вывод над append-only фактами 2-2, идемпотентный байт-стабильным JSON; режим — лестница приоритетов пака (симптом доминирует всегда — вероятностное предположение не превращается в каталогический запрос AC-7); PartRequestDigest = SHA-256 канонического {ключ: {версия, value-digest}} подтверждённого набора — «точная версия запроса» (AC-10); уверенность — слово подтверждённости, НЕ число; границы диагностики/safety/противоречий — слова + handoff-рекомендации словаря 00019; точное совпадение номера — НЕ доказательство применимости (FR-52, контур 4-4)'
+      properties:
+        mode: { type: string, enum: [diagnostic, exact_repeat, original_vs_analog, named_part], description: 'Словарь режимов пака auto-parts@4.0.0 — enum-зеркало (drift = красный); пусто при пустом материале' }
+        mode_label: { type: string }
+        mode_basis_word: { type: string, description: 'Прозрачное основание выбора режима (лестница приоритетов — вывод, НЕ мнение модели)' }
+        unstructured_word: { type: string, description: 'Честное слово пустого материала: «запрос не структурирован» — режим честно отсутствует, НЕ догадка' }
+        schema_dictionary: { type: array, items: { $ref: '#/components/schemas/PartMaterialKeyView' }, description: 'Подсказка словаря материал-ключей — только при пустом материале (оператор записывает материал по словарю пака)' }
+        attributes: { type: array, items: { $ref: '#/components/schemas/PartAttributeView' } }
+        number_match_word: { type: string, description: 'Constant-слово: точное совпадение номера не считается доказательством применимости к подтверждённому автомобилю (AC-4/FR-52 — каталогический контур 4-4)' }
+        completeness: { $ref: '#/components/schemas/PartCompletenessView' }
+        questions: { type: object, additionalProperties: { type: string }, description: 'Минимальные уточняющие вопросы НЕ подтверждённых ключей выбранного режима (AC-3: подтверждённый материал НЕ переспрашивается)' }
+        part_request_digest: { type: string, description: 'SHA-256 hex (64 символа) подтверждённого набора — «точная версия запроса» (AC-10)' }
+        confidence_word: { type: string, description: 'Честное слово подтверждённости (полный/частичный/без подтверждения/противоречия) — числовые выдумки запрещены' }
+        boundaries: { type: array, items: { $ref: '#/components/schemas/PartBoundaryView' } }
+        handoff_words: { type: array, items: { type: string, enum: [diagnostic_uncertainty, safety_critical, unresolved_contradiction], description: 'Рекомендации передачи человеку — словарь причин 00019 (зеркало SQL-CHECK, drift = красный)' } }
+        several_parts_word: { type: string, description: 'Слово нескольких деталей: один структурированный набор на обращение — разделяйте элементы работы (split 2-2)' }
+        stale_note: { type: string, description: 'Агрегатное слово устаревания: зависимые контуры 4-4..4-9 обязаны пиннить digest и считать прежние результаты устаревшими' }
+    PartCompletenessView:
+      type: object
+      required: [complete_word, missing_keys]
+      additionalProperties: false
+      description: 'Полнота по обязательному набору ВЫБРАННОГО режима (AC-3: MissingKeys — только не-confirmed; отсутствующий optional — честное отсутствие, НЕ missing)'
+      properties:
+        complete_word: { type: string }
+        missing_keys: { type: array, items: { type: string, enum: [part.kind, part.side, part.quantity, part.preference, part.oem_number, part.symptom, part.budget, part.deadline, part.brands, part.constraints], description: 'Материал-ключи схемы пака — enum-зеркало 10 слов (drift = красный)' } }
+    PartAttributeView:
+      type: object
+      required: [fact_id, material_key, label, role, kind, raw_value, fact_version, observed_at, received_at, source_type, channel, status]
+      additionalProperties: false
+      description: 'Один признак материала запроса: значение с полным provenance и read-time статусом 2-2; подтверждение привязано к ТОЧНОЙ версии (новая версия — conflicting + stale-слово)'
+      properties:
+        fact_id: { type: string, format: uuid }
+        material_key: { type: string, enum: [part.kind, part.side, part.quantity, part.preference, part.oem_number, part.symptom, part.budget, part.deadline, part.brands, part.constraints], description: 'Материал-ключ схемы пака — enum-зеркало 10 слов (drift = красный)' }
+        label: { type: string }
+        role: { type: string, enum: [part_kind, symptom, oem_number, preference], description: 'Роль ключа в лестнице режимов — enum-зеркало' }
+        kind: { type: string, enum: [text, integer, enum] }
+        raw_value: { type: string, description: 'Исходное значение факта дословно (JSON-строка декодирована)' }
+        number_checks: { $ref: '#/components/schemas/PartNumberNormalizationView', description: 'Только роль oem_number: нормализованное представление и флаги — НИКОГДА не подменяет raw' }
+        fact_version: { type: integer, minimum: 1 }
+        observed_at: { type: string, format: date-time }
+        received_at: { type: string, format: date-time }
+        source_type: { type: string, enum: [channel_event, operator, connector, system] }
+        channel: { type: string }
+        status: { type: string, enum: [confirmed, unverified, conflicting], description: 'Read-time деривация 2-2 (DeriveFactStatus — замороженный канон)' }
+        confirmation: { $ref: '#/components/schemas/VehicleConfirmationView' }
+    PartNumberNormalizationView:
+      type: object
+      required: [raw, normalized, alphabet_ok, bad_chars, cyrillic_ambiguities, words]
+      additionalProperties: false
+      description: 'Флаги нормализации номера детали (AC-4, VIN-дисциплина 4-2): НИ ОДНОГО молчаливого исправления — raw сохранён дословно, normalized = trim+upper+пробелы выкинуты+«_»/«.»→«-»; кириллица-омоглифы — детект по Unicode-блоку БЕЗ замены (переспрос — единственное честное разрешение); алфавит — буквы/цифры/дефис'
+      properties:
+        raw: { type: string }
+        normalized: { type: string }
+        alphabet_ok: { type: boolean }
+        bad_chars: { type: array, items: { type: integer }, description: '0-based позиции символов вне алфавита' }
+        cyrillic_ambiguities: { type: array, items: { $ref: '#/components/schemas/VINAmbiguityView' } }
+        words: { type: array, items: { type: string }, description: 'Honest-слова каждого флага текстом' }
+    PartBoundaryView:
+      type: object
+      required: [kind, text]
+      additionalProperties: false
+      description: 'Граница честности запроса детали (role=alert материал — текст, НЕ только цвет AC-13): diagnostic — симптом не становится каталогическим заказом (AC-7); safety — стоп только при диагностической неопределённости/конфликте (AC-8); contradiction — Staffy не выбирает вероятный вариант (AC-9)'
+      properties:
+        kind: { type: string, enum: [diagnostic, safety, contradiction] }
+        text: { type: string }
+    PartMaterialKeyView:
+      type: object
+      required: [key, label, kind]
+      additionalProperties: false
+      description: 'Один материал-ключ словаря схемы (подсказка пустого материала): обязательность определяет Domain Pack — НЕ код магазина (AC-2)'
+      properties:
+        key: { type: string, enum: [part.kind, part.side, part.quantity, part.preference, part.oem_number, part.symptom, part.budget, part.deadline, part.brands, part.constraints], description: 'Материал-ключ схемы пака — enum-зеркало 10 слов (drift = красный)' }
+        label: { type: string }
+        kind: { type: string, enum: [text, integer, enum] }
+        values: { type: array, items: { type: string, enum: [original, analogs, both], description: 'Значения enum-ключа — enum-зеркало словаря preference пака (единый корень со Schema.parts_interest)' } }
+        min: { type: integer }
+        max: { type: integer }
+        optional: { type: boolean }
+        role: { type: string, enum: [part_kind, symptom, oem_number, preference], description: 'Пустая роль — материал полноты, НЕ выбора режима' }
     DrainRepliesResult:
       type: object
       required: [considered, dispatched, stale_needs_review]
@@ -6381,12 +6474,13 @@ components:
       type: object
       required: [turn_ref, expected_mode_version, target_roles, ack_deadline]
       additionalProperties: false
-      description: 'Безусловная просьба клиента о человеке (Story 2.13): причина НЕ поле запроса — системная константа словаря client_request (оператор причину НЕ вводит); номера запроса/события НЕ поля запроса — серверная истина под локами; request_no/события запрос не несёт'
+      description: 'Безусловная просьба клиента о человеке (Story 2.13): причина системная константа словаря client_request — оператор её НЕ вводит; ОПЦИОНАЛЬНОЕ слово границы запроса детали (Story 4.3: одно из трёх операторских слов панели «Запрос детали» — SQL-зеркало миграции cases/00019, append-only); номера запроса/события НЕ поля запроса — серверная истина под локами; request_no/события запрос не несёт'
       properties:
         turn_ref: { type: string, format: uuid, description: 'Принятая реплика клиента ЭТОГО обращения — якорь безусловной просьбы (страж стора: событие кейса)' }
         expected_mode_version: { type: integer, minimum: 1, description: 'CAS-ожидание версии лестницы режимов (гонка режима — честный 409 mode_conflict)' }
         target_roles: { type: array, minItems: 1, items: { type: string, enum: [operator, supervision] }, description: 'Целевые роли запроса (непустой набор слов словаря без дублей — кого адресует просьба)' }
         ack_deadline: { type: string, enum: [ack_15m, ack_1h, ack_4h], description: 'Слово дедлайна подтверждения (утверждённая policy v0)' }
+        reason: { type: string, enum: [diagnostic_uncertainty, safety_critical, unresolved_contradiction], description: 'Слово границы запроса детали (Story 4.3 — операторский продюсер по рекомендации панели; пусто = безусловная просьба клиента 2.13; явный client_request вводом НЕВОЗМОЖЕН — системная истина; словарь — зеркало миграции cases/00019)' }
     AssignHumanHandoffRequest:
       type: object
       required: [assignee, backup, ack_deadline]

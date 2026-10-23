@@ -642,11 +642,16 @@
 <option value="">— выберите слово дедлайна —</option>
 {{range $.View.HandoffDeadlineOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}
 </select>
+<label for="handoff-reason">Причина передачи — слово границы запроса детали (необязательно: пусто = безусловная просьба клиента)</label>
+<select id="handoff-reason" name="reason">
+<option value="">— безусловная просьба клиента (без причины) —</option>
+{{range $.View.HandoffReasonOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}
+</select>
 <input type="hidden" name="expected_mode_version" value="{{.View.Mode.CurrentVersion}}">
 <input type="hidden" name="expected_handoff_requests" value="{{.View.HandoffRequestsAnchor}}">
 <button class="primary" type="submit">Записать просьбу клиента</button>
 </form>
-<p class="next-note">Причину оператор НЕ вводит: просьба безусловна, причина — системная константа словаря. Режим поднимается машиной (трещотка): строже активного — режим не тронут, просьба всё равно записывается. Повторная просьба при активном запросе — отказ одной конкурирующей задачи (409).</p>
+<p class="next-note">Слово причины client_request — системная константа безусловной просьбы: оператор его НЕ вводит (пустой выбор). Слово границы (панель «Запрос детали» рекомендует) — словарь фиксирован, вне словаря отказ. Режим поднимается машиной (трещотка): строже активного — режим не тронут, просьба всё равно записывается. Повторная просьба при активном запросе — отказ одной конкурирующей задачи (409).</p>
 </details>
 <details class="connector-connect"><summary>Назначить специалиста (assign_human_handoff — назначение ≠ принятие)</summary>
 <form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/human-requests/assignment">
@@ -1169,6 +1174,68 @@
 </section>
 {{else}}
 <p class="next-note">{{.View.Vehicle.Note}}</p>
+{{end}}
+<h2>Запрос детали</h2>
+<p class="next-note">Запрос детали — производная чтения над append-only фактами: режим — детерминированная лестница приоритетов схемы пака (симптом доминирует всегда), полнота — по обязательному набору ВЫБРАННОГО режима (подтверждённые ключи не перезапрашиваются), PartRequestDigest — «точная версия запроса» (SHA-256 подтверждённого набора). Схема приходит из закреплённого пака — без хардкода; каталога нет (AG-4), применимость — контур 4-4.</p>
+{{if .View.PartRequest.Present}}
+<section class="panel" aria-label="Запрос детали" id="part-request">
+<p id="part-mode" aria-live="polite">Режим запроса: <strong>{{if .View.PartRequest.Mode}}{{.View.PartRequest.ModeLabel}} ({{.View.PartRequest.Mode}}){{else}}запрос не структурирован{{end}}</strong>{{if .View.PartRequest.ModeBasisWord}} — {{.View.PartRequest.ModeBasisWord}}{{end}}{{if .View.PartRequest.UnstructuredWord}} — {{.View.PartRequest.UnstructuredWord}}{{end}}.</p>
+{{if .View.PartRequest.Dictionary}}
+<details class="connector-connect" open><summary>Словарь материал-ключей схемы пака — запишите материал по словарю</summary>
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Словарь материал-ключей запроса детали">
+<table class="datamap-table">
+<caption>Материал-ключи схемы: ключ, подпись, тип, роль</caption>
+<thead><tr><th scope="col">Ключ</th><th scope="col">Подпись</th><th scope="col">Тип</th><th scope="col">Роль</th><th scope="col">Обязательность</th></tr></thead>
+<tbody>
+{{range .View.PartRequest.Dictionary}}<tr><td><span class="digest-block">{{.Key}}</span></td><td>{{.Label}}</td><td>{{.Kind}}</td><td>{{if .Role}}{{.Role}}{{else}}—{{end}}</td><td>{{if .Optional}}необязательный{{else}}обязательный{{end}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+</details>
+{{end}}
+{{if .View.PartRequest.Attributes}}
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Материал запроса детали">
+<table class="datamap-table">
+<caption>Материал запроса: значение, версия, источник, канал, статус, подтверждение</caption>
+<thead><tr><th scope="col">Признак</th><th scope="col">Значение</th><th scope="col">Версия</th><th scope="col">Источник</th><th scope="col">Канал</th><th scope="col">Статус</th><th scope="col">Подтверждение</th></tr></thead>
+<tbody>
+{{range .View.PartRequest.Attributes}}<tr><th scope="row">{{.Label}} <span class="digest-block">{{.Key}}</span>{{if .Role}} (роль: {{.Role}}){{end}}</th><td><code>{{.Value}}</code></td><td>{{.Version}}</td><td>{{.SourceType}}</td><td>{{.Channel}}</td><td>{{.StatusText}}</td><td>{{if .ConfirmText}}{{.ConfirmText}}{{else}}—{{end}}{{if .StaleWord}}<br><span class="status" role="status">{{.StaleWord}}</span>{{end}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+{{range .View.PartRequest.Attributes}}{{if .NumberWords}}
+<details class="connector-connect"><summary>Проверки номера ({{.Key}}) — флаги текстом{{if .Normalized}}; нормализованное представление: <span class="digest-block">{{.Normalized}}</span>{{end}}</summary>
+<ul>
+{{range .NumberWords}}<li>{{.}}</li>{{end}}
+</ul>
+</details>
+{{end}}{{end}}
+{{end}}
+{{if .View.PartRequest.NumberMatchWord}}
+<p class="next-note">{{.View.PartRequest.NumberMatchWord}}</p>
+{{end}}
+{{if .View.PartRequest.Questions}}
+<details class="connector-connect" open><summary>Уточняющие вопросы — только НЕ подтверждённые ключи выбранного режима</summary>
+<ul>
+{{range .View.PartRequest.Questions}}<li><span class="digest-block">{{.Key}}</span>: {{.Question}}</li>{{end}}
+</ul>
+</details>
+{{end}}
+{{if .View.PartRequest.Boundaries}}
+<div class="alert" role="alert" aria-label="Границы честности запроса детали">
+{{range .View.PartRequest.Boundaries}}<p class="alert" role="alert"><strong>Граница ({{.Kind}}):</strong> {{.Text}}</p>{{end}}
+</div>
+{{end}}
+{{if .View.PartRequest.HandoffWords}}
+<p class="status" role="status">Рекомендация передачи человеку: {{range $i, $w := .View.PartRequest.HandoffWords}}{{if $i}}; {{end}}{{$w}}{{end}} — оператор создаёт запрос человека существующей командой с этим словом причины.</p>
+{{end}}
+<p>Полнота: <strong>{{.View.PartRequest.CompleteWord}}</strong>{{if .View.PartRequest.MissingKeys}} (не хватает: {{range $i, $k := .View.PartRequest.MissingKeys}}{{if $i}}, {{end}}{{$k}}{{end}}){{end}}. Уверенность: <strong>{{.View.PartRequest.ConfidenceWord}}</strong>. Точная версия запроса (PartRequestDigest): <span class="digest-block">{{.View.PartRequest.Digest}}</span>.</p>
+{{if .View.PartRequest.SeveralPartsWord}}<p class="alert" role="alert">{{.View.PartRequest.SeveralPartsWord}}</p>{{end}}
+{{if .View.PartRequest.StaleNote}}<p class="alert" role="alert">{{.View.PartRequest.StaleNote}}</p>{{end}}
+<p class="next-note">Правка материала — штатная команда записи факта (новая версия после подтверждения делает его устаревшим честным словом); подтверждение части материала клиентом — существующая защищённая форма продолжения; несколько деталей — существующий split элементов работы.</p>
+</section>
+{{else}}
+<p class="next-note">{{.View.PartRequest.Note}}</p>
 {{end}}
 <h2>Диалоги канала</h2>
 <p role="status" aria-live="polite">{{if .View.HasConversations}}Диалогов: <strong>{{len .View.Conversations}}</strong>; каждый — продолжение одной channel session.{{else}}Диалогов нет.{{end}}</p>

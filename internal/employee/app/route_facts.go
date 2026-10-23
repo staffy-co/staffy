@@ -244,6 +244,7 @@ func (s *Service) PackPartRequestSchema(packID, packVersion string) (casesPort.P
 		})
 	}
 	schema.SafetyMarkers = append([]string(nil), manifest.PartRequests.SafetyMarkers...)
+	schema.PartSearchJourney = manifest.PartRequests.PartSearchJourney
 	return schema, nil
 }
 

@@ -33,15 +33,19 @@ import (
 // turn of the accepted client reply that asked for the human, the CAS
 // expectation of the mode ladder version, the target roles of the ask
 // (the non-empty subset of the fixed dictionary) and the ack-deadline
-// word of the approved policy. The reason is NEVER a request field —
-// the dictionary constant client_request is the system truth (the
-// operator never types it); the request and event numbers are NEVER
-// request fields — the store derives them under the locks.
+// word of the approved policy. The reason of the unconditional ask is
+// NEVER a request field — the dictionary constant client_request is the
+// system truth (the operator never types it); the OPTIONAL Story 4.3
+// boundary word (one of the three operator reasons of the part request
+// panel recommendation) is the honest exception — empty stays the
+// unconditional ask. The request and event numbers are NEVER request
+// fields — the store derives them under the locks.
 type requestHumanInput struct {
 	TurnRef             *string  `json:"turn_ref"`
 	ExpectedModeVersion *int64   `json:"expected_mode_version"`
 	TargetRoles         []string `json:"target_roles"`
 	AckDeadline         *string  `json:"ack_deadline"`
+	Reason              *string  `json:"reason"`
 }
 
 // assignHumanHandoffInput is the request of the assignment round: the
@@ -200,6 +204,7 @@ func (s *Server) requestHumanAPI(w http.ResponseWriter, r *http.Request) {
 		Actor: actor, CorrelationID: correlation, TenantID: tenant, CaseID: caseID,
 		TurnRef: turnRef, ExpectedModeVersion: *input.ExpectedModeVersion,
 		TargetRoles: roles, AckDeadline: deadline,
+		Reason:         stringOrEmpty(input.Reason),
 		IdempotencyKey: key, Now: s.clock.Now().UTC(),
 	})
 	if err != nil {
@@ -442,12 +447,19 @@ func (s *Server) requestHumanForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	anchor := r.FormValue("expected_handoff_requests")
+	// The OPTIONAL Story 4.3 boundary reason of the form: the empty
+	// choice stays the unconditional client ask (the 2.13 path — the
+	// operator never types the system word); one of the three
+	// dictionary words rides the existing command (the app guard is
+	// fail-closed on the dictionary).
+	reason := r.FormValue("reason")
 	correlation, _ := correlationFromRequest(r)
 	_, err = s.handoffs.RequestHuman(r.Context(), casesAPI.RequestHumanCommand{
 		Actor: actor, CorrelationID: correlation, TenantID: tenant, CaseID: caseID,
 		TurnRef: turnRef, ExpectedModeVersion: expectedVersion,
 		TargetRoles: roles, AckDeadline: deadline,
-		IdempotencyKey: formCommandKey("request-human", actor.ID.String(), caseID.String(), turn, deadline, strconv.FormatInt(expectedVersion, 10), anchor, joinFormWords(roles)),
+		Reason:         reason,
+		IdempotencyKey: formCommandKey("request-human", actor.ID.String(), caseID.String(), turn, deadline, strconv.FormatInt(expectedVersion, 10), anchor, joinFormWords(roles), reason),
 		Now:            s.clock.Now().UTC(),
 	})
 	if err != nil {

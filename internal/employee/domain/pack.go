@@ -98,14 +98,17 @@ type PartModeSpec struct {
 
 // PartRequestSchema is the versioned part request schema of one Domain
 // Pack (Story 4.3): the material keys with the roles, the mode dictionary
-// with the priorities and the mandatory sets, and the safety markers (the
+// with the priorities and the mandatory sets, the safety markers (the
 // declared heuristic of the safety-critical nodes — a substring match
-// over the normalized part.kind, honestly a heuristic, never a proof).
-// Packs without a schema carry nil.
+// over the normalized part.kind, honestly a heuristic, never a proof)
+// and the part-search journey word (the work item type whose active
+// items count for the several-parts word — the STORE word of the pack,
+// never a core literal). Packs without a schema carry nil.
 type PartRequestSchema struct {
-	MaterialKeys  []PartMaterialKey `json:"material_keys"`
-	Modes         []PartModeSpec    `json:"modes"`
-	SafetyMarkers []string          `json:"safety_markers"`
+	MaterialKeys      []PartMaterialKey `json:"material_keys"`
+	Modes             []PartModeSpec    `json:"modes"`
+	SafetyMarkers     []string          `json:"safety_markers"`
+	PartSearchJourney string            `json:"part_search_journey,omitempty"`
 }
 
 type VariantField struct {

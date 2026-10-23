@@ -726,12 +726,15 @@ type PartModeSpec struct {
 }
 
 // PartRequestSchema is the port answer of the pack part request schema
-// (Story 4.3): the material keys with the roles, the mode dictionary and
-// the safety markers.
+// (Story 4.3): the material keys with the roles, the mode dictionary, the
+// safety markers and the part-search journey word (the work item type
+// of the several-parts count — the STORE word of the pack, never a core
+// literal).
 type PartRequestSchema struct {
-	MaterialKeys  []PartMaterialKeySpec
-	Modes         []PartModeSpec
-	SafetyMarkers []string
+	MaterialKeys      []PartMaterialKeySpec
+	Modes             []PartModeSpec
+	SafetyMarkers     []string
+	PartSearchJourney string
 }
 
 // CommandLookup is the idempotency answer of one command key BEFORE any
