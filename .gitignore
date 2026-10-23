@@ -30,3 +30,5 @@ scripts/env.sh
 
 /journeys
 staffy-core
+# Root-level playwright artifacts (accidental runs from the repo root).
+/test-results/

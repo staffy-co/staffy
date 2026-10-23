@@ -52,12 +52,14 @@ func handoffEventOf(request HandoffRequest, eventNo int64, kind string) HandoffE
 }
 
 func TestHandoffDictionariesClosed(t *testing.T) {
-	// The Story 4.3 extension: the reason dictionary carries FOUR words —
+	// The Story 4.4 extension: the reason dictionary carries FIVE words —
 	// the unconditional client word of 2.13 plus the three operator
 	// boundary words of the part request classification (the SQL mirror
-	// is migrations/cases/00019, append-only by the 00018 precedent).
-	if len(HandoffReasons) != 4 || HandoffReasons[0] != HandoffReasonClientRequest {
-		t.Fatalf("the reason dictionary carries the client word first plus the three Story 4.3 boundary words, got %v", HandoffReasons)
+	// is migrations/cases/00019, append-only by the 00018 precedent) plus
+	// the fitment research word of the applicability panel (the SQL mirror
+	// is migrations/cases/00021, append-only by the 00019 precedent).
+	if len(HandoffReasons) != 5 || HandoffReasons[0] != HandoffReasonClientRequest {
+		t.Fatalf("the reason dictionary carries the client word first plus the three Story 4.3 boundary words plus the Story 4.4 research word, got %v", HandoffReasons)
 	}
 	for _, reason := range []string{HandoffReasonDiagnosticUncertainty, HandoffReasonSafetyCritical, HandoffReasonUnresolvedContradiction} {
 		if !HandoffReasonInDictionary(reason) {
@@ -67,8 +69,14 @@ func TestHandoffDictionariesClosed(t *testing.T) {
 			t.Fatalf("the Story 4.3 boundary word %q must carry its honest text", reason)
 		}
 	}
+	if !HandoffReasonInDictionary(HandoffReasonFitmentResearch) {
+		t.Fatalf("the Story 4.4 research word %q must be in the reason dictionary (the 00021 mirror)", HandoffReasonFitmentResearch)
+	}
+	if HandoffReasonText(HandoffReasonFitmentResearch) == "" {
+		t.Fatalf("the Story 4.4 research word %q must carry its honest text", HandoffReasonFitmentResearch)
+	}
 	if HandoffReasonInDictionary("operator_asked") || !HandoffReasonInDictionary(HandoffReasonClientRequest) {
-		t.Fatalf("the reason dictionary is closed on the four dictionary words")
+		t.Fatalf("the reason dictionary is closed on the five dictionary words")
 	}
 	if HandoffReasonText(HandoffReasonClientRequest) == "" || HandoffReasonText("made_up") != "" {
 		t.Fatalf("the reason word carries its honest text, an unknown word renders none")

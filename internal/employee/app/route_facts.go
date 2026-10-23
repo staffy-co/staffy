@@ -248,6 +248,31 @@ func (s *Service) PackPartRequestSchema(packID, packVersion string) (casesPort.P
 	return schema, nil
 }
 
+// PackFitmentSchema resolves the fitment evidence policy of one Domain
+// Pack version (Story 4.4 — the link types, the maximal cross chain
+// depth, the allowed catalog sources and the maximal evidence age). The
+// same immutability guarantees as PackJourneys; a pack without a policy
+// is the honest absent answer (the caller degrades the panel honestly,
+// never a hardcoded policy); an unknown pack version is an honest error.
+func (s *Service) PackFitmentSchema(packID, packVersion string) (casesPort.FitmentPolicySpec, error) {
+	if packID == "" || packVersion == "" {
+		return casesPort.FitmentPolicySpec{}, fmt.Errorf("пак не закреплён: политика применимости неизвестна")
+	}
+	manifest, ok := packs.Get(packID, packVersion)
+	if !ok {
+		return casesPort.FitmentPolicySpec{}, fmt.Errorf("закреплённый пак %s@%s не читается из каталога: манифест отсутствует", packID, packVersion)
+	}
+	policy := casesPort.FitmentPolicySpec{LinkTypes: []string{}, AllowedSources: []string{}}
+	if manifest.Fitment == nil {
+		return policy, nil
+	}
+	policy.LinkTypes = append([]string(nil), manifest.Fitment.LinkTypes...)
+	policy.MaxCrossDepth = manifest.Fitment.MaxCrossDepth
+	policy.AllowedSources = append([]string(nil), manifest.Fitment.AllowedSources...)
+	policy.MaxAgeSeconds = manifest.Fitment.MaxAgeSeconds
+	return policy, nil
+}
+
 // entitlementAdmissionWord relays the scope-based entitlement admission
 // state. Without the port the facade honestly refuses.
 func (s *Service) entitlementAdmissionWord(ctx context.Context, scope tenancy.Context) (api.RouteEntitlementWord, error) {

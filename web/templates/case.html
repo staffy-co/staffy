@@ -1237,6 +1237,96 @@
 {{else}}
 <p class="next-note">{{.View.PartRequest.Note}}</p>
 {{end}}
+<h2>Применимость</h2>
+<p class="next-note">Применимость — доказанный факт каталога, не догадка: менеджер исследует каталог (ABCP/Laximo) и записывает результат; запись хранится навсегда (append-only) с источником, идентификатором, версией и временем; статус — производная чтения над записями; «не проверено» не значит «не подходит»; совпадение номера — не доказательство; уточнение автомобиля или запроса делает прежние проверки устаревшими; решение действует в пределах одного обращения.</p>
+{{if .View.Fitment.Present}}
+<section class="panel" aria-label="Применимость" id="fitment">
+{{if .View.Fitment.CaseUnknownWord}}
+<p id="fitment-unknown" aria-live="polite">Статус: <strong>не проверено</strong> — {{.View.Fitment.CaseUnknownWord}}{{if .View.Fitment.CaseHandoffWords}}. Рекомендация: {{range $i, $w := .View.Fitment.CaseHandoffWords}}{{if $i}}; {{end}}{{$w}}{{end}}{{end}}.</p>
+{{end}}
+{{if .View.Fitment.NumberMatchWord}}
+<p class="next-note">{{.View.Fitment.NumberMatchWord}}</p>
+{{end}}
+{{if .View.Fitment.Positions}}
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Позиции применимости">
+<table class="datamap-table">
+<caption>Позиции: ключ, статус, версия доказательства (FitmentDigest)</caption>
+<thead><tr><th scope="col">Позиция</th><th scope="col">Статус</th><th scope="col">Версия доказательства</th></tr></thead>
+<tbody>
+{{range .View.Fitment.Positions}}<tr><th scope="row"><span class="digest-block">{{.PositionKey}}</span></th><td>{{.StatusWord}}</td><td>{{if .Digest}}<span class="digest-block">{{.Digest}}</span>{{else}}—{{end}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+{{end}}
+{{range .View.Fitment.Positions}}
+<details class="connector-connect" open><summary>Позиция <span class="digest-block">{{.PositionKey}}</span> — {{.Status}}{{if .Digest}} (доказательство: <span class="digest-block">{{.Digest}}</span>){{end}}</summary>
+<p>Статус: <strong>{{.StatusWord}}</strong>{{range .Words}}; {{.}}{{end}}.</p>
+{{if .Questions}}
+<p>Уточните недостающий признак (подтверждённые не переспрашиваются):</p>
+<ul>
+{{range .Questions}}<li><span class="digest-block">{{.Key}}</span>: {{.Question}}</li>{{end}}
+</ul>
+{{end}}
+{{if .HandoffWords}}
+<p class="status" role="status">Рекомендация передачи человеку: {{range $i, $w := .HandoffWords}}{{if $i}}; {{end}}{{$w}}{{end}} — оператор создаёт запрос человека существующей командой с этим словом причины.</p>
+{{end}}
+{{range .Evidences}}
+<details class="connector-connect"><summary>Доказательство №{{.EvidenceNo}} — источник {{.SourceSystem}} (запись <span class="digest-block">{{.SourceRecordID}}</span>, версия {{.SourceVersion}})</summary>
+<p>Тип связи: {{.LinkType}}{{if .Found}}; найдено: идентификаторы автомобиля каталога {{range $i, $v := .CatalogVehicleIDs}}{{if $i}}, {{end}}<span class="digest-block">{{$v}}</span>{{end}}{{if .CatalogNode}}; узел: {{.CatalogNode}}{{end}}{{if .Article}}; артикул: {{.Article}}{{end}}{{else}}; источник исследован, доказательство не найдено{{end}}.</p>
+{{if .Chain}}<p>Цепочка показана целиком: {{range $i, $node := .Chain}}{{if $i}} → {{end}}{{$node}}{{end}}.</p>{{end}}
+<p>Время источника: {{.SourceObservedAt}}; получено: {{.ReceivedAt}}. Пины: профиль <span class="digest-block">{{.ProfileDigestPin}}</span>, запрос <span class="digest-block">{{.PartRequestDigestPin}}</span>.</p>
+{{if .StaleWords}}
+<div class="alert" role="alert" aria-label="Устаревание доказательства">
+{{range .StaleWords}}<p class="alert" role="alert">{{.}}</p>{{end}}
+</div>
+{{end}}
+</details>
+{{end}}
+</details>
+{{end}}
+{{if .View.Fitment.PriceNote}}<p class="next-note">{{.View.Fitment.PriceNote}}</p>{{end}}
+{{if .View.Fitment.ScopeWord}}<p class="next-note">{{.View.Fitment.ScopeWord}}</p>{{end}}
+{{range .View.ActiveWIOptions}}
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/work-items/{{.Value}}/fitment-evidences" class="panel-form">
+<fieldset>
+<legend>Записать результат каталогического исследования (элемент {{.Value}})</legend>
+<p class="next-note">Продюсер — менеджер: автоматический запрос к каталогу НЕ выполняется (реестр допусков 4-1); запишите результат фактического исследования с материалом трассируемости.</p>
+<label for="fitment-position-{{.Value}}">Ключ позиции (нормализованный артикул: без пробелов, верхний регистр)</label>
+<input id="fitment-position-{{.Value}}" name="position_key" type="text" autocomplete="off" required>
+<label for="fitment-node-{{.Value}}">Каталогический узел или группа детали (при найденном доказательстве)</label>
+<input id="fitment-node-{{.Value}}" name="catalog_node" type="text" autocomplete="off">
+<label for="fitment-article-{{.Value}}">Артикул/OEM (при найденном доказательстве)</label>
+<input id="fitment-article-{{.Value}}" name="article" type="text" autocomplete="off">
+<label for="fitment-link-{{.Value}}">Тип связи</label>
+<select id="fitment-link-{{.Value}}" name="link_type" required>
+<option value="">— выберите —</option>
+<option value="original">original — оригинальная позиция</option>
+<option value="cross">cross — аналог через кросс-ссылку</option>
+</select>
+<label for="fitment-chain-{{.Value}}">Cross-цепочка целиком (один узел в строке: оригинальная позиция → кросс-запись → аналог; для original — одна строка)</label>
+<textarea id="fitment-chain-{{.Value}}" name="chain" rows="4" placeholder="Фильтр салона (оригинальная позиция)&#10;кросс-запись источника&#10;аналог B330PR"></textarea>
+<label for="fitment-vehicles-{{.Value}}">Идентификаторы автомобиля каталога (один в строке; пусто = исследовано и не найдено)</label>
+<textarea id="fitment-vehicles-{{.Value}}" name="catalog_vehicle_ids" rows="2" placeholder="ABCP-12345"></textarea>
+<label for="fitment-source-{{.Value}}">Источник исследования</label>
+<select id="fitment-source-{{.Value}}" name="source_system" required>
+<option value="">— выберите —</option>
+<option value="abcp_catalog">ABCP — каталог</option>
+<option value="laximo_catalog">Laximo — каталог</option>
+</select>
+<label for="fitment-record-{{.Value}}">Идентификатор записи источника (трассируемость)</label>
+<input id="fitment-record-{{.Value}}" name="source_record_id" type="text" autocomplete="off" required>
+<label for="fitment-version-{{.Value}}">Версия источника (трассируемость)</label>
+<input id="fitment-version-{{.Value}}" name="source_version" type="text" autocomplete="off" required>
+<label for="fitment-observed-{{.Value}}">Время получения материала источника (RFC 3339)</label>
+<input id="fitment-observed-{{.Value}}" name="source_observed_at" type="text" autocomplete="off" placeholder="2026-10-24T10:00:00Z" required>
+<button type="submit">Записать доказательство</button>
+</fieldset>
+</form>
+{{end}}
+</section>
+{{else}}
+<p class="next-note">{{.View.Fitment.Note}}</p>
+{{end}}
 <h2>Диалоги канала</h2>
 <p role="status" aria-live="polite">{{if .View.HasConversations}}Диалогов: <strong>{{len .View.Conversations}}</strong>; каждый — продолжение одной channel session.{{else}}Диалогов нет.{{end}}</p>
 {{if .View.HasConversations}}

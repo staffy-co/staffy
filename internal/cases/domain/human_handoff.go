@@ -80,6 +80,12 @@ const (
 	HandoffReasonDiagnosticUncertainty   = "diagnostic_uncertainty"
 	HandoffReasonSafetyCritical          = "safety_critical"
 	HandoffReasonUnresolvedContradiction = "unresolved_contradiction"
+	// HandoffReasonFitmentResearch is the Story 4.4 research task word:
+	// the fitment panel recommends the manager's catalog research — the
+	// decision-ready task of 2.14 with the recorded material (the SQL
+	// mirror 00021 admits it from this spec on; the automatic catalog
+	// request is never performed — OQ-5/AG-4).
+	HandoffReasonFitmentResearch = "fitment_research"
 )
 
 // HandoffReasons is the full dictionary (the +3 Story 4.3 words mirror
@@ -90,6 +96,9 @@ var HandoffReasons = []string{
 	HandoffReasonDiagnosticUncertainty,
 	HandoffReasonSafetyCritical,
 	HandoffReasonUnresolvedContradiction,
+	// The Story 4.4 word — the fifth: the dictionary extension is the new
+	// spec version, the SQL mirror 00021 backstops the same list.
+	HandoffReasonFitmentResearch,
 }
 
 // HandoffReasonTexts is the honest text of every reason word (the render
@@ -100,6 +109,7 @@ var HandoffReasonTexts = map[string]string{
 	HandoffReasonDiagnosticUncertainty:   "Диагностическая неопределённость: симптом не доказывает деталь — диагноз у специалиста.",
 	HandoffReasonSafetyCritical:          "Safety-узел с неопределённостью: автоматический подбор остановлен — нужны подтверждённый материал и решение специалиста.",
 	HandoffReasonUnresolvedContradiction: "Неустранённое противоречие источников: Staffy не выбирает вероятный вариант — материал передан человеку.",
+	HandoffReasonFitmentResearch:         "Каталогическое исследование применимости: доказательства нет либо оно устарело — менеджеру задача исследовать каталог и записать результат.",
 }
 
 // HandoffReasonText resolves the honest text of one reason word.

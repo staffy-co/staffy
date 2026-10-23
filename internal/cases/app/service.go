@@ -773,6 +773,14 @@ func (s *Service) CaseView(ctx context.Context, actor domain.Principal, tenantID
 	if err != nil {
 		return casesAPI.CaseView{}, err
 	}
+	// The Story 4.4 section: the applicability panel (the same read-only
+	// family — the read-time state ladder over the append-only evidence
+	// records under the pack fitment policy with the CURRENT digest pins
+	// of both inputs; the reads degrade honestly — the same view scope).
+	fitmentPanel, err := s.fitmentView(ctx, scope, detail)
+	if err != nil {
+		return casesAPI.CaseView{}, err
+	}
 	// The Story 2.11 section: the recorded communication preferences — the
 	// CURRENT set (the read-time derivation), the append-only revision
 	// history and the dictionaries of the record form (the reads degrade
@@ -832,6 +840,7 @@ func (s *Service) CaseView(ctx context.Context, actor domain.Principal, tenantID
 		Continuations: continuations, Accommodations: accommodations,
 		Vehicle:           vehicle,
 		PartRequest:       partPanel,
+		Fitment:           fitmentPanel,
 		RouteDegradations: routeDegradations,
 		Handoff:           handoff,
 		Waiting:           waiting,
