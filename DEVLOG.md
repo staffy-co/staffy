@@ -4325,3 +4325,19 @@ done:
 - Коммит feat (docs+closure) БЕЗ маркера пропуска — голова ветки триггерит CI ×3 на CHECKPOINT 2 (урок 2-14/ретро-2-1: CI-запуск на голове).
 next: CHECKPOINT 2 по мандату «продолжайте» (прецедент 188): пуш ветки → PR (титул «Story 4-2 Vehicle Identification VIN — Epic 4: 2/11», пин слияния head SHA в теле) → CI ×3 зелёный поимённо (push/PR/merge) → sha-pinned merge в main → локальный main ff-only → DEVLOG checkpoint-2 [skip ci] → пуш main; ветка остаётся на GitHub до поручения об удалении (прецедент MERGED-зонд). Владельцу: ОТЗВАТЬ PAT подтверждённо после закрытия чата (retro-3-6/retro-2-6 — передавался открытым текстом многократно; токен сессии ЖИВ и используется для пуша/PR/merge).
 commit: TBD
+
+---
+date: 2026-10-23
+task: 197-checkpoint-2
+role: main (Super Z)
+story: 4-2
+summary: CHECKPOINT 2 story 4-2 закрыт — Vehicle Identification (VIN) слита в main (PR #43, sha-pinned merge 033e6f7 → merge-commit 3451b6c, CI ×3 зелёный поимённо: #39925246061 push / #39925250477 PR / #39926404917 merge; Epic 4: 2/11, спека done, sprint-status done); локальный main синхронен ff-only; мандат «продолжайте» сессии исполнен полностью (CHECKPOINT 1 190 → Dev шаги 01-05 191-196 → инфра-страж 194 по пути → CHECKPOINT 2)
+done:
+- Вход сессии: «продолжайте (токен)» владельца — мандат на Dev шаги 01-05 + CHECKPOINT 2 по прецеденту 3-9/188; параллельный явный запрос владельца «зависло? добавь скрипт, проверяющий каждую минуту» исполнен инфра-коммитом bf735aa (scripts/run-with-watchdog.sh, DEVLOG 194) — корень честно: НЕ зависание, таймаут инструмента 900с > потолка 600с.
+- Пуш ветки e203699..033e6f7 (CHECKPOINT 1 → 66ee373 step-01 → 4bac1c0 step-02 → 75b4988 step-03 → bf735aa инфра-страж → bc1b07a step-04 → 033e6f7 step-05 голова БЕЗ маркера — CI на голове запущен).
+- PR #43 создан (титул «Story 4-2 Vehicle Identification VIN — Epic 4: 2/11», пин слияния головы 033e6f7ce93f277744055957c947825a08b69625 в теле — прецедент 4-1 PR #42).
+- CI ×3 зелёный поимённо: push #39925246061 (голова 033e6f7) success / PR #39925250477 success / merge #39926404917 (main 3451b6c) success — опрос API 60с-интервалом, всё живое.
+- Sha-pinned merge исполнен: 033e6f7 → merge-commit 3451b6c70c970b22b6f2c4c434dfeead594029a6 в main; локальный main ff-only синхронен (038d4c0 → 3451b6c, 10 коммитов).
+- Story 4-2 полностью закрыта: спека done (Spec Change Log: 189-sm / 190-checkpoint-1 / Dev 01-05 191-196), sprint-status done; Epic 4: 2/11 (осталось 4-3..4-11 + ретро). Ветка codex/story-4-2-vehicle-identification-vin остаётся на GitHub (удаление — по поручению владельца, прецедент MERGED-зонд merge-base перед удалением).
+next: по сигналу владельца — SM-фаза story 4-3 «Классификация запроса детали и граница диагностики» (входы: epics.md §Epic 4 story 4.3, спеки 4-1/4-2 — идентификация готова, канон фактов 2-2) либо удаление слитой ветки 4-2 по поручению. Владельцу: ОТЗВАТЬ PAT подтверждённо после закрытия чата (retro-3-6/retro-2-6 — передавался открытым текстом многократно; токен этой сессии ЖИВ — использовался для пуша/PR/merge, отозвать по закрытии).
+commit: TBD
