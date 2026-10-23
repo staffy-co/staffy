@@ -765,6 +765,14 @@ func (s *Service) CaseView(ctx context.Context, actor domain.Principal, tenantID
 	if err != nil {
 		return casesAPI.CaseView{}, err
 	}
+	// The Story 4.3 section: the part request panel (the same
+	// read-only family — the derivation over the facts under the
+	// pack part request schema; the count of the active part-search
+	// work items by the pack-declared journey word).
+	partPanel, err := s.partRequestView(ctx, scope, detail)
+	if err != nil {
+		return casesAPI.CaseView{}, err
+	}
 	// The Story 2.11 section: the recorded communication preferences — the
 	// CURRENT set (the read-time derivation), the append-only revision
 	// history and the dictionaries of the record form (the reads degrade
@@ -823,6 +831,7 @@ func (s *Service) CaseView(ctx context.Context, actor domain.Principal, tenantID
 		Observations: observations, Objections: objections, Commitments: commitments,
 		Continuations: continuations, Accommodations: accommodations,
 		Vehicle:           vehicle,
+		PartRequest:       partPanel,
 		RouteDegradations: routeDegradations,
 		Handoff:           handoff,
 		Waiting:           waiting,
@@ -868,6 +877,69 @@ func (s *Service) vehicleView(ctx context.Context, scope tenancy.Context, detail
 	panel.SchemaDefined = true
 	panel.Note = ""
 	panel.Profile = casesDomain.DeriveVehicleProfile(schema, inputs)
+	return panel, nil
+}
+
+// partRequestView assembles the Story 4.3 part request panel of the case
+// view: the schema of the pinned pack through the narrow taxonomy port
+// (the pack material — the panel degrades with the honest word when the
+// pin is unreadable or the pack carries no schema), the facts of the
+// case converted into the domain inputs, the count of the ACTIVE
+// part-search work items (by the pack-declared journey word — the store
+// word never lives in the core code) and the read-time DerivePartRequest
+// derivation (the DeriveVehicleProfile family: zero writes, byte-stable
+// idempotent output).
+func (s *Service) partRequestView(ctx context.Context, scope tenancy.Context, detail casesDomain.CaseDetail) (casesAPI.PartPanelView, error) {
+	panel := casesAPI.PartPanelView{Note: casesAPI.PartSchemaNoteAbsent}
+	if detail.Case.PackID == "" || s.taxonomy == nil {
+		return panel, nil
+	}
+	schemaPort, err := s.taxonomy.PackPartRequestSchema(detail.Case.PackID, detail.Case.PackVersion)
+	if err != nil || len(schemaPort.MaterialKeys) == 0 {
+		return panel, nil
+	}
+	schema := casesDomain.PartSchemaDomain{
+		MaterialKeys:  make([]casesDomain.PartMaterialKeyDomain, 0, len(schemaPort.MaterialKeys)),
+		Modes:         make([]casesDomain.PartModeSpecDomain, 0, len(schemaPort.Modes)),
+		SafetyMarkers: schemaPort.SafetyMarkers,
+	}
+	for _, key := range schemaPort.MaterialKeys {
+		schema.MaterialKeys = append(schema.MaterialKeys, casesDomain.PartMaterialKeyDomain{
+			Key: key.Key, Label: key.Label, Kind: key.Kind, Values: key.Values,
+			Min: key.Min, Max: key.Max, Optional: key.Optional, Role: key.Role,
+		})
+	}
+	for _, mode := range schemaPort.Modes {
+		schema.Modes = append(schema.Modes, casesDomain.PartModeSpecDomain{
+			Mode: mode.Mode, Label: mode.Label, Priority: mode.Priority, Requires: mode.Requires,
+		})
+	}
+	facts, err := s.repository.ReadFactsOfCase(ctx, scope, detail.Case.CaseID)
+	if err != nil {
+		return casesAPI.PartPanelView{}, err
+	}
+	inputs := make([]casesDomain.PartRequestFactInput, 0, len(facts))
+	for _, fact := range facts {
+		inputs = append(inputs, casesDomain.PartRequestFactInput{
+			FactID: fact.Anchor.FactID, MaterialKey: fact.Anchor.MaterialKey,
+			Versions: fact.Versions, Confirmations: fact.Confirmations,
+		})
+	}
+	// The active part-search items by the pack-declared journey word:
+	// the SeveralPartsWord is the honest split recommendation of the
+	// existing 2.2 machinery (one structured set per case).
+	activePartSearches := 0
+	if schemaPort.PartSearchJourney != "" {
+		for _, item := range detail.WorkItems {
+			if item.Terminal || item.Type != schemaPort.PartSearchJourney {
+				continue
+			}
+			activePartSearches++
+		}
+	}
+	panel.SchemaDefined = true
+	panel.Note = ""
+	panel.Part = casesDomain.DerivePartRequest(schema, inputs, activePartSearches)
 	return panel, nil
 }
 

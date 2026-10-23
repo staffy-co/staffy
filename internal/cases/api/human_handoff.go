@@ -22,13 +22,18 @@ import (
 // proves the turn belongs to THIS case), the CAS expectation of the mode
 // ladder version, the target roles of the ask (the non-empty subset of
 // the fixed dictionary) and the ack-deadline word of the expected
-// confirmation window (the approved policy v0 dictionary). The reason is
-// NEVER an input: the dictionary constant client_request is the system
-// truth (the operator never types it — the unconditional ask). The mode
-// raise is the conditional ratchet term (a stricter active mode is never
-// touched — the ask is still recorded); the request and event numbers
-// are the server-side truth (the store derives the next monotonic
-// numbers under the locks — the request never carries them).
+// confirmation window (the approved policy v0 dictionary). The reason of
+// the unconditional ask is NEVER an input: the dictionary constant
+// client_request is the system truth (the operator never types it). The
+// Story 4.3 extension: the operator MAY carry one boundary word
+// (diagnostic_uncertainty / safety_critical / unresolved_contradiction —
+// the recommendation of the part request panel, the operator's decision
+// — GuardHandoffRequestReason is fail-closed on the dictionary; the SQL
+// CHECK of 00019 is the backstop). The mode raise is the conditional
+// ratchet term (a stricter active mode is never touched — the ask is
+// still recorded); the request and event numbers are the server-side
+// truth (the store derives the next monotonic numbers under the locks —
+// the request never carries them).
 type RequestHumanCommand struct {
 	Actor               domain.Principal
 	CorrelationID       id.UUID
@@ -38,8 +43,13 @@ type RequestHumanCommand struct {
 	ExpectedModeVersion int64
 	TargetRoles         []string
 	AckDeadline         string
-	IdempotencyKey      string
-	Now                 time.Time
+	// Reason is the OPTIONAL Story 4.3 boundary word (empty = the
+	// unconditional client ask of 2.13 — the reason stays the system
+	// truth client_request; an explicit client_request input is the
+	// honest refusal — the word is never typed).
+	Reason         string
+	IdempotencyKey string
+	Now            time.Time
 }
 
 // AssignHumanHandoffCommand records one assignment round of the open

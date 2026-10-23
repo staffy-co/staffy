@@ -254,17 +254,28 @@ func (s *Service) RequestHuman(ctx context.Context, command casesAPI.RequestHuma
 	if err := rule("request_human", casesDomain.GuardRequestHuman(command.TurnRef, command.ExpectedModeVersion, command.TargetRoles, command.AckDeadline)); err != nil {
 		return casesAPI.WorkOutcome{}, err
 	}
+	// The Story 4.3 reason guard: the EMPTY word stays the unconditional
+	// client ask (the 2.13 path byte-identical); the three boundary
+	// words are the operator inputs (fail-closed on the dictionary —
+	// the store re-validates under the locks, the SQL CHECK 00019 is
+	// the backstop).
+	if err := rule("request_human", casesDomain.GuardHandoffRequestReason(command.Reason)); err != nil {
+		return casesAPI.WorkOutcome{}, err
+	}
 	// The request hash covers the WHOLE command material INCLUDING the
-	// turn anchor, the CAS expectation, the target roles and the deadline
-	// word (the replay of the exact repeat returns the stored outcome;
-	// the same key with another material is the honest key conflict).
+	// turn anchor, the CAS expectation, the target roles, the deadline
+	// word and the optional boundary reason (the replay of the exact
+	// repeat returns the stored outcome; the same key with another
+	// material is the honest key conflict; the omitempty keeps the hash
+	// of the unconditional ask byte-identical to the pre-4.3 shape).
 	hash := requestHash(struct {
 		Case        string   `json:"case"`
 		Turn        string   `json:"turn_ref"`
 		Expected    int64    `json:"expected_mode_version"`
 		TargetRoles []string `json:"target_roles"`
 		AckDeadline string   `json:"ack_deadline"`
-	}{command.CaseID.String(), command.TurnRef.String(), command.ExpectedModeVersion, command.TargetRoles, command.AckDeadline})
+		Reason      string   `json:"reason,omitempty"`
+	}{command.CaseID.String(), command.TurnRef.String(), command.ExpectedModeVersion, command.TargetRoles, command.AckDeadline, command.Reason})
 	if outcome, replay, err := s.lookupCommand(ctx, scope, "request_human", command.IdempotencyKey, hash); replay || err != nil {
 		return outcome, err
 	}
@@ -354,6 +365,7 @@ func (s *Service) RequestHuman(ctx context.Context, command casesAPI.RequestHuma
 		TurnRef: command.TurnRef, ExpectedModeVersion: command.ExpectedModeVersion,
 		ModeTermID: ids[0], OutboxEventID: ids[1],
 		HandoffTargetRoles: command.TargetRoles, HandoffAckDeadline: command.AckDeadline,
+		HandoffReason:        command.Reason,
 		HandoffOutboxEventID: ids[2], CorrelationID: correlation,
 		Outcome: outcomeJSON,
 		Now:     command.Now.UTC().Truncate(time.Microsecond),

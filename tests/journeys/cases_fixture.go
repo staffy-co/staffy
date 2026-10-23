@@ -435,6 +435,12 @@ func (f *casesFixture) accept(envelope casesDomain.Envelope, command casesAPI.In
 			// over it; the c2xx slot of the retro-3-3 register).
 			packVersion = fixtureVehiclePackVersion
 		}
+		if fixturePartSession(envelope.ProviderSessionID) {
+			// The Story 4.3 part request world: the schema-bearing 4.0.0
+			// pin (the part request panel derives over it; the next c2xx
+			// slot of the retro-3-3 register).
+			packVersion = fixturePartPackVersion
+		}
 		material := &fixtureCaseMaterial{cases: casesDomain.Case{
 			TenantID: f.tenant, CaseID: caseID, CaseNo: caseNo, EmployeeID: outcome.EmployeeID,
 			State: casesDomain.CaseStateOpen, PackID: fixturePackID, PackVersion: packVersion, CreatedAt: now,
@@ -724,6 +730,11 @@ func (f *casesFixture) CaseView(_ context.Context, actor domain.Principal, tenan
 		// vehicle world; every other case renders the honest absence word —
 		// the 2-2 unreadable-pin degradation mirror).
 		Vehicle: fixtureVehiclePanelOf(material.cases.PackVersion, f.fixtureVehicleFacts(caseID)),
+		// The Story 4.3 section: the part request panel over the REAL
+		// domain derivation (only the schema-bearing 4.0.0 pin of the
+		// part request world; every other case renders the honest
+		// absence word — the 2.2 unreadable-pin degradation mirror).
+		PartRequest: f.fixturePartPanelOf(material.cases.PackVersion, caseID),
 		// The Story 2.11 section: the «Предпочтения связи» panel over
 		// the REAL read-time derivation (the current set, the honest
 		// append-only history, the dictionaries of the record form).

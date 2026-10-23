@@ -72,20 +72,41 @@ func TestHandoffContractIsHonest(t *testing.T) {
 	schemas := mapping(t, mapping(t, document, "components"), "schemas")
 
 	// The unconditional ask request: the anchor turn, the CAS expectation,
-	// the target roles and the deadline word — and NO reason field (the
-	// ask is unconditional — the dictionary constant is the system truth,
-	// the operator never types it) and NO request_no field (the number is
-	// the server-side truth under the locks).
+	// the target roles and the deadline word — the reason of the
+	// unconditional ask is NEVER typed (client_request stays the system
+	// truth — the Story 4.3 extension admits ONLY the three operator
+	// boundary words of the part request panel, OPTIONAL, never the
+	// client word) and NO request_no field (the number is the
+	// server-side truth under the locks).
 	request := mapping(t, schemas, "RequestHumanRequest")
 	requestProperties := mapping(t, request, "properties")
-	if _, hasReason := requestProperties["reason"]; hasReason {
-		t.Errorf("RequestHumanRequest must NOT carry the reason: the ask is unconditional — the system constant is the only truth")
+	if reason, hasReason := requestProperties["reason"].(map[string]any); hasReason {
+		reasonEnum, _ := reason["enum"].([]any)
+		reasonWords := map[string]bool{}
+		for _, word := range reasonEnum {
+			if text, _ := word.(string); text == "diagnostic_uncertainty" || text == "safety_critical" || text == "unresolved_contradiction" {
+				reasonWords[text] = true
+			} else {
+				t.Errorf("the reason enum carries an out-of-dictionary word %q", text)
+			}
+		}
+		if len(reasonWords) != 3 {
+			t.Errorf("the Story 4.3 reason enum carries the three operator boundary words (the 00019 mirror), got %v", reasonEnum)
+		}
+	} else {
+		t.Errorf("RequestHumanRequest must carry the OPTIONAL Story 4.3 boundary reason (the three operator words)")
+	}
+	requestRequired, _ := request["required"].([]any)
+	if len(requestRequired) != 4 {
+		t.Errorf("the ask requires the turn, the CAS expectation, the roles and the deadline (the reason stays OPTIONAL), got %v", requestRequired)
+	}
+	for _, requiredWord := range requestRequired {
+		if text, _ := requiredWord.(string); text == "reason" {
+			t.Errorf("the reason is OPTIONAL — the empty word stays the unconditional client ask")
+		}
 	}
 	if _, hasRequestNo := requestProperties["request_no"]; hasRequestNo {
 		t.Errorf("RequestHumanRequest must NOT carry the request_no: the number is derived server-side under the locks")
-	}
-	if requestRequired, _ := request["required"].([]any); len(requestRequired) != 4 {
-		t.Errorf("the ask requires the turn, the CAS expectation, the roles and the deadline, got %v", requestRequired)
 	}
 	rolesItems, _ := mapping(t, requestProperties, "target_roles")["items"].(map[string]any)
 	rolesEnum, _ := rolesItems["enum"].([]any)

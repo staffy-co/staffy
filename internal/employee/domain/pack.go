@@ -27,12 +27,18 @@ type PackManifest struct {
 	// montagio-services stay nil — the immutability of the published
 	// versions is never violated).
 	VehicleIdentification *VehicleIdentificationSchema `json:"vehicle_identification,omitempty"`
-	AtLeastOneOf          []string                     `json:"at_least_one_of,omitempty"`
-	PolicyRef             string                       `json:"policy_ref"`
-	KnowledgeRef          string                       `json:"knowledge_ref"`
-	EvalRef               string                       `json:"eval_ref"`
-	UpgradeFrom           map[string]PackImpact        `json:"upgrade_from,omitempty"`
-	ReplacementImpact     PackImpact                   `json:"replacement_impact"`
+	// PartRequests is the part request schema of Story 4.3: nil for
+	// every pack without one (the 1.0.0/2.0.0/3.0.0 auto-parts and
+	// montagio-services stay nil — the immutability of the published
+	// versions is never violated; the first schema arrives with
+	// auto-parts@4.0.0).
+	PartRequests      *PartRequestSchema    `json:"part_requests,omitempty"`
+	AtLeastOneOf      []string              `json:"at_least_one_of,omitempty"`
+	PolicyRef         string                `json:"policy_ref"`
+	KnowledgeRef      string                `json:"knowledge_ref"`
+	EvalRef           string                `json:"eval_ref"`
+	UpgradeFrom       map[string]PackImpact `json:"upgrade_from,omitempty"`
+	ReplacementImpact PackImpact            `json:"replacement_impact"`
 }
 
 // VehicleMaterialKey is one identification material key of the pack
@@ -57,6 +63,52 @@ type VehicleMaterialKey struct {
 type VehicleIdentificationSchema struct {
 	MaterialKeys    []VehicleMaterialKey `json:"material_keys"`
 	AlternativeSets [][]string           `json:"alternative_sets"`
+}
+
+// PartMaterialKey is one request material key of the pack schema (Story
+// 4.3): the fact form hint of the part request panel — the key, the human
+// label, the kind (text | integer | enum), the enum values, the integer
+// bounds, the optional flag and the ROLE of the key in the request
+// classification (part_kind | symptom | oem_number | preference | пусто —
+// the role drives the deterministic mode ladder, the mandatory-field
+// dictionary comes from the pack, never from a store's code). The schema
+// is declarative setup metadata: it never carries executable tenant
+// policy.
+type PartMaterialKey struct {
+	Key      string   `json:"key"`
+	Label    string   `json:"label"`
+	Kind     string   `json:"kind"` // text | integer | enum
+	Values   []string `json:"values,omitempty"`
+	Min      int      `json:"min,omitempty"`
+	Max      int      `json:"max,omitempty"`
+	Optional bool     `json:"optional,omitempty"`
+	Role     string   `json:"role,omitempty"` // part_kind | symptom | oem_number | preference | пусто
+}
+
+// PartModeSpec is one request mode of the pack dictionary (Story 4.3):
+// the mode word, the human label, the ladder priority (the LOWER number
+// wins — symptom dominates always) and the mandatory key set of the mode
+// (the completeness is derived against the SELECTED mode's set only).
+type PartModeSpec struct {
+	Mode     string   `json:"mode"`
+	Label    string   `json:"label"`
+	Priority int      `json:"priority"`
+	Requires []string `json:"requires"`
+}
+
+// PartRequestSchema is the versioned part request schema of one Domain
+// Pack (Story 4.3): the material keys with the roles, the mode dictionary
+// with the priorities and the mandatory sets, the safety markers (the
+// declared heuristic of the safety-critical nodes — a substring match
+// over the normalized part.kind, honestly a heuristic, never a proof)
+// and the part-search journey word (the work item type whose active
+// items count for the several-parts word — the STORE word of the pack,
+// never a core literal). Packs without a schema carry nil.
+type PartRequestSchema struct {
+	MaterialKeys      []PartMaterialKey `json:"material_keys"`
+	Modes             []PartModeSpec    `json:"modes"`
+	SafetyMarkers     []string          `json:"safety_markers"`
+	PartSearchJourney string            `json:"part_search_journey,omitempty"`
 }
 
 type VariantField struct {

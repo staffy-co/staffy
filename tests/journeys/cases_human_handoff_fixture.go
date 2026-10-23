@@ -202,15 +202,25 @@ func (f *casesFixture) RequestHuman(_ context.Context, command casesAPI.RequestH
 	if err := fixtureWorkRule("request_human", casesDomain.GuardRequestHuman(command.TurnRef, command.ExpectedModeVersion, command.TargetRoles, command.AckDeadline)); err != nil {
 		return casesAPI.WorkOutcome{}, err
 	}
+	// The Story 4.3 reason guard: the EMPTY word stays the unconditional
+	// client ask (the 2.13 path byte-identical); the three operator
+	// boundary words are the honest inputs (fail-closed on the dictionary
+	// — the REAL domain guard, the mirror of the app discipline).
+	if err := fixtureWorkRule("request_human", casesDomain.GuardHandoffRequestReason(command.Reason)); err != nil {
+		return casesAPI.WorkOutcome{}, err
+	}
 	// The request hash covers the WHOLE material INCLUDING the turn
-	// anchor, the CAS expectation, the target roles and the deadline word.
+	// anchor, the CAS expectation, the target roles, the deadline word and
+	// the optional boundary reason (the omitempty keeps the hash of the
+	// unconditional ask byte-identical to the pre-4.3 shape).
 	outcome, fresh, err := f.workCommandFlow("request_human", command.IdempotencyKey, struct {
 		Case        string   `json:"case"`
 		Turn        string   `json:"turn_ref"`
 		Expected    int64    `json:"expected_mode_version"`
 		TargetRoles []string `json:"target_roles"`
 		AckDeadline string   `json:"ack_deadline"`
-	}{command.CaseID.String(), command.TurnRef.String(), command.ExpectedModeVersion, command.TargetRoles, command.AckDeadline})
+		Reason      string   `json:"reason,omitempty"`
+	}{command.CaseID.String(), command.TurnRef.String(), command.ExpectedModeVersion, command.TargetRoles, command.AckDeadline, command.Reason})
 	if err != nil || !fresh {
 		return outcome, err
 	}
@@ -269,9 +279,17 @@ func (f *casesFixture) RequestHuman(_ context.Context, command casesAPI.RequestH
 	if state := f.fixtureState(command.CaseID, command.Now); state.Current != nil {
 		ownerKind, ownerRef, ownerEpoch = state.Current.OwnerKind, state.Current.OwnerRef, state.Current.Epoch
 	}
+	// The reason word of the request row: the EMPTY command word stays
+	// the unconditional client ask of 2.13 (the system truth); the Story
+	// 4.3 boundary word of the operator (validated above) is the honest
+	// reason of the boundary handoff.
+	requestReason := command.Reason
+	if requestReason == "" {
+		requestReason = casesDomain.HandoffReasonClientRequest
+	}
 	f.handoffs[command.CaseID] = append(f.handoffs[command.CaseID], casesDomain.HandoffRequest{
 		TenantID: f.tenant, CaseID: command.CaseID, RequestNo: requestNo,
-		Reason:    casesDomain.HandoffReasonClientRequest,
+		Reason:    requestReason,
 		OwnerKind: ownerKind, OwnerRef: ownerRef, OwnerEpoch: ownerEpoch,
 		TargetRoles:   append([]string(nil), command.TargetRoles...),
 		AckDeadline:   command.AckDeadline,

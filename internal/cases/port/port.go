@@ -669,6 +669,15 @@ type PackTaxonomy interface {
 	// from the pinned pack»); a pack without a schema is the honest
 	// absent answer, the caller degrades the panel honestly.
 	PackIdentificationSchema(packID, packVersion string) (IdentificationSchema, error)
+	// PackPartRequestSchema resolves the part request schema of the
+	// pinned pack (Story 4.3) — the material keys with the roles, the
+	// mode dictionary with the priorities and the mandatory sets, and
+	// the safety markers. The same immutability argument as the
+	// journeys and the identification schema: the catalog resolves the
+	// same schema for the same (id, version), no TOCTOU exists; a pack
+	// without a schema is the honest absent answer, the caller degrades
+	// the panel honestly.
+	PackPartRequestSchema(packID, packVersion string) (PartRequestSchema, error)
 }
 
 // MaterialKeySpec is one identification material key of the port answer:
@@ -690,6 +699,42 @@ type MaterialKeySpec struct {
 type IdentificationSchema struct {
 	MaterialKeys    []MaterialKeySpec
 	AlternativeSets [][]string
+}
+
+// PartMaterialKeySpec is one request material key of the port answer
+// (Story 4.3): the simple structural type of the narrow port — the key,
+// the label, the kind, the enum values, the integer bounds, the optional
+// flag and the role of the key in the request classification ladder.
+type PartMaterialKeySpec struct {
+	Key      string
+	Label    string
+	Kind     string // text | integer | enum
+	Values   []string
+	Min      int
+	Max      int
+	Optional bool
+	Role     string // part_kind | symptom | oem_number | preference | пусто
+}
+
+// PartModeSpec is one request mode of the port answer (Story 4.3): the
+// mode word, the label, the ladder priority and the mandatory key set.
+type PartModeSpec struct {
+	Mode     string
+	Label    string
+	Priority int
+	Requires []string
+}
+
+// PartRequestSchema is the port answer of the pack part request schema
+// (Story 4.3): the material keys with the roles, the mode dictionary, the
+// safety markers and the part-search journey word (the work item type
+// of the several-parts count — the STORE word of the pack, never a core
+// literal).
+type PartRequestSchema struct {
+	MaterialKeys      []PartMaterialKeySpec
+	Modes             []PartModeSpec
+	SafetyMarkers     []string
+	PartSearchJourney string
 }
 
 // CommandLookup is the idempotency answer of one command key BEFORE any
@@ -982,8 +1027,17 @@ type WorkCommandParams struct {
 	// envelope carries its own). The request and event numbers are the
 	// server-side truth: the store derives the next monotonic numbers
 	// under the locks (the requests never carry them).
-	HandoffTargetRoles   []string
-	HandoffAckDeadline   string
+	HandoffTargetRoles []string
+	HandoffAckDeadline string
+	// HandoffReason is the OPTIONAL Story 4.3 boundary word of the
+	// request creation: empty = the unconditional client ask of 2.13
+	// (the reason row stays the dictionary constant client_request);
+	// one of the three operator words (diagnostic_uncertainty /
+	// safety_critical / unresolved_contradiction) = the boundary
+	// recommendation of the part request panel (the store re-validates
+	// the dictionary under the locks; the SQL CHECK of 00019 is the
+	// backstop).
+	HandoffReason        string
 	HandoffAssignee      id.UUID
 	HandoffBackup        id.UUID
 	HandoffAssigneeRole  string

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -128,6 +129,10 @@ type caseDetailPageView struct {
 	// The Story 4.2 vehicle identification panel (the case-level
 	// section before the Work Control Cards).
 	Vehicle vehiclePanelView
+	// The Story 4.3 part request panel (the case-level section right
+	// after the vehicle identification panel — the read-time request
+	// derivation under the pack part request schema).
+	PartRequest partPanelView
 	// The Story 2.3 sections: the assurance panel, the bindings and the
 	// duplicate cards.
 	Assurance           assurancePanelView
@@ -227,9 +232,14 @@ type caseDetailPageView struct {
 	HandoffCardAssignee    string
 	HandoffRoleWords       []workOption
 	HandoffDeadlineOptions []workOption
-	HandoffResultOptions   []workOption
-	HandoffRequestsAnchor  string
-	HandoffEventsAnchor    string
+	// HandoffReasonOptions is the Story 4.3 dictionary of the operator
+	// boundary reason words of the request_human form (the SYSTEM
+	// dictionary — the three words of the part request boundaries; the
+	// empty choice stays the unconditional client ask of 2.13).
+	HandoffReasonOptions  []workOption
+	HandoffResultOptions  []workOption
+	HandoffRequestsAnchor string
+	HandoffEventsAnchor   string
 	// The Story 2.16 section: the truthful waiting updates — the
 	// «Ожидание человека» block of the last round (the client
 	// waiting status in the three distinctions of AC-1, the state of
@@ -842,6 +852,19 @@ func prepareCaseView(r *http.Request, view casesAPI.CaseView, facts casesAPI.Fac
 	// here (the operator review surface) and on the protected client
 	// form only; the mask word carries the honest boundary).
 	out.Vehicle = prepareVehiclePanel(view)
+	// The Story 4.3 section: the part request panel (the case-level
+	// section right after the vehicle identification panel).
+	out.PartRequest = preparePartPanel(view)
+	// The Story 4.3 form dictionary: the operator boundary reason words
+	// of the request_human form (the SYSTEM dictionary of 2.13/4.3 —
+	// never the pack store material; empty stays the unconditional
+	// client ask).
+	for _, reason := range casesDomain.HandoffReasons {
+		if reason == casesDomain.HandoffReasonClientRequest {
+			continue
+		}
+		out.HandoffReasonOptions = append(out.HandoffReasonOptions, workOption{Value: reason, Text: casesDomain.HandoffReasonText(reason)})
+	}
 	// The Story 2.7 section: the Owning System panel words — the field
 	// cards live on the Work Control Cards (the read form select carries
 	// the fixed matrix dictionary, never an invented option).
@@ -2904,5 +2927,193 @@ func prepareVehiclePanel(view casesAPI.CaseView) vehiclePanelView {
 	panel.SatisfiedText = strings.Join(profile.Completeness.SatisfiedBy, "; ")
 	panel.Digest = profile.ProfileDigest
 	panel.StaleNote = profile.StaleNote
+	return panel
+}
+
+// ---------------------------------------------------------------------------
+// The Story 4.3 part request panel (the operator review surface — the
+// read-time request derivation under the pack part request schema)
+// ---------------------------------------------------------------------------
+
+// partAttributeRow is one attribute of the part request panel: the label
+// with the material key and the role, the raw value, the version with
+// the provenance, the read-time 2.2 status, the confirmation rendering
+// with the stale word and the number checks words of the oem_number
+// role (the flags are TEXT — never only color).
+type partAttributeRow struct {
+	Key         string
+	Label       string
+	Role        string
+	Kind        string
+	Value       string
+	Version     string
+	ObservedAt  string
+	ReceivedAt  string
+	SourceType  string
+	Channel     string
+	StatusText  string
+	StatusKind  string
+	ConfirmText string
+	StaleWord   string
+	NumberWords []string
+	Normalized  string
+}
+
+// partQuestionRow is one missing-key clarify question of the SELECTED
+// mode's mandatory set (the minimal question of the not-confirmed key —
+// the confirmed material is never re-asked, AC-3).
+type partQuestionRow struct {
+	Key      string
+	Question string
+}
+
+// partBoundaryRow is one honesty boundary of the request: the kind word
+// (diagnostic | safety | contradiction) and the text — the alert
+// material renders as TEXT with role=alert (never only color, AC-13).
+type partBoundaryRow struct {
+	Kind string
+	Text string
+}
+
+// partDictionaryRow is one key of the schema dictionary hint of the
+// empty material (the operator records the material by the pack
+// dictionary — the honest absence, never a guess).
+type partDictionaryRow struct {
+	Key      string
+	Label    string
+	Kind     string
+	Role     string
+	Optional bool
+}
+
+// partPanelView is the flattened Story 4.3 panel of the case page: the
+// honest degradation note when the pinned pack carries no schema, the
+// mode with the basis word (or the unstructured word with the
+// dictionary hint), the attribute rows, the missing-key questions, the
+// honesty boundaries (the alert material), the number-match constant
+// word, the confidence word, the PartRequestDigest, the several-parts
+// word and the stale note.
+type partPanelView struct {
+	Present          bool
+	Note             string
+	Mode             string
+	ModeLabel        string
+	ModeBasisWord    string
+	UnstructuredWord string
+	Dictionary       []partDictionaryRow
+	Attributes       []partAttributeRow
+	Questions        []partQuestionRow
+	MissingKeys      []string
+	CompleteWord     string
+	Boundaries       []partBoundaryRow
+	HandoffWords     []string
+	NumberMatchWord  string
+	ConfidenceWord   string
+	Digest           string
+	SeveralPartsWord string
+	StaleNote        string
+}
+
+// partStatusText renders the honest status word of one attribute (the
+// same words as the vehicle panel — the 2.2 canon).
+func partStatusText(status string) string {
+	switch status {
+	case casesDomain.FactStatusConfirmed:
+		return "подтверждён"
+	case casesDomain.FactStatusConflicting:
+		return "конфликт значений — Staffy не выбирает вариант, уточните у клиента"
+	default:
+		return "без подтверждения"
+	}
+}
+
+// partRoleText renders the honest role word of one material key (the
+// ladder roles of the pack schema).
+func partRoleText(role string) string {
+	switch role {
+	case casesDomain.PartRolePartKind:
+		return "деталь"
+	case casesDomain.PartRoleSymptom:
+		return "симптом"
+	case casesDomain.PartRoleOemNumber:
+		return "номер детали"
+	case casesDomain.PartRolePreference:
+		return "предпочтение"
+	default:
+		return ""
+	}
+}
+
+// preparePartPanel flattens the Story 4.3 part request panel view of the
+// case API answer into the template rows. The mode with the basis word
+// is TEXT; the boundaries carry role=alert material; the number checks
+// render the flags with the honest words (never only color).
+func preparePartPanel(view casesAPI.CaseView) partPanelView {
+	panel := partPanelView{
+		Note:         view.PartRequest.Note,
+		Attributes:   []partAttributeRow{},
+		Questions:    []partQuestionRow{},
+		Boundaries:   []partBoundaryRow{},
+		HandoffWords: []string{},
+		Dictionary:   []partDictionaryRow{},
+		MissingKeys:  []string{},
+	}
+	if !view.PartRequest.SchemaDefined {
+		return panel
+	}
+	panel.Present = true
+	part := view.PartRequest.Part
+	panel.Mode = part.Mode
+	panel.ModeLabel = part.ModeLabel
+	panel.ModeBasisWord = part.ModeBasisWord
+	panel.UnstructuredWord = part.UnstructuredWord
+	panel.NumberMatchWord = part.NumberMatchWord
+	panel.ConfidenceWord = part.ConfidenceWord
+	panel.Digest = part.PartRequestDigest
+	panel.SeveralPartsWord = part.SeveralPartsWord
+	panel.StaleNote = part.StaleNote
+	panel.CompleteWord = part.Completeness.CompleteWord
+	panel.MissingKeys = part.Completeness.MissingKeys
+	for key, question := range part.Questions {
+		panel.Questions = append(panel.Questions, partQuestionRow{Key: key, Question: question})
+	}
+	sort.Slice(panel.Questions, func(i, j int) bool { return panel.Questions[i].Key < panel.Questions[j].Key })
+	for _, key := range part.SchemaDictionary {
+		panel.Dictionary = append(panel.Dictionary, partDictionaryRow{
+			Key: key.Key, Label: key.Label, Kind: key.Kind, Role: partRoleText(key.Role), Optional: key.Optional,
+		})
+	}
+	for _, boundary := range part.Boundaries {
+		panel.Boundaries = append(panel.Boundaries, partBoundaryRow{Kind: boundary.Kind, Text: boundary.Text})
+	}
+	for _, word := range part.HandoffWords {
+		panel.HandoffWords = append(panel.HandoffWords, word+" — "+casesDomain.HandoffReasonText(word))
+	}
+	for _, attribute := range part.Attributes {
+		row := partAttributeRow{
+			Key: attribute.MaterialKey, Label: attribute.Label, Role: partRoleText(attribute.Role), Kind: attribute.Kind,
+			Value: attribute.RawValue, Version: "v" + strconv.FormatInt(attribute.FactVersion, 10),
+			ObservedAt: formatTime(attribute.ObservedAt), ReceivedAt: formatTime(attribute.ReceivedAt),
+			SourceType: attribute.SourceType, Channel: attribute.Channel,
+			StatusText: partStatusText(attribute.Status), StatusKind: attribute.Status,
+		}
+		if attribute.Status == casesDomain.FactStatusConfirmed {
+			row.StatusKind = "confirmed"
+		}
+		if attribute.Confirmation != nil {
+			row.ConfirmText = "Подтверждает: " + attribute.Confirmation.ConfirmerType +
+				" (версия v" + strconv.FormatInt(attribute.Confirmation.VersionNo, 10) +
+				", " + formatTime(attribute.Confirmation.At) + ")"
+			row.StaleWord = attribute.Confirmation.StaleWord
+		}
+		if attribute.NumberChecks != nil {
+			row.Normalized = attribute.NumberChecks.Normalized
+			row.NumberWords = attribute.NumberChecks.Words
+			if len(row.NumberWords) == 0 {
+				row.NumberWords = []string{"проверки номера пройдены: алфавит чист, омоглифов нет"}
+			}
+		}
+		panel.Attributes = append(panel.Attributes, row)
+	}
 	return panel
 }

@@ -409,6 +409,12 @@ func (s *Postgres) execRequestHuman(ctx context.Context, tx pgx.Tx, tenantID id.
 	if err := casesDomain.GuardRequestHuman(p.TurnRef, p.ExpectedModeVersion, p.HandoffTargetRoles, p.HandoffAckDeadline); err != nil {
 		return casesDomain.WorkRuleError{Rule: p.Command, Reason: err.Error()}
 	}
+	// The Story 4.3 reason re-validation under the locks (the honest
+	// 400 of the out-of-dictionary word BEFORE SQL; the table CHECK of
+	// 00019 is the material backstop).
+	if err := casesDomain.GuardHandoffRequestReason(p.HandoffReason); err != nil {
+		return casesDomain.WorkRuleError{Rule: p.Command, Reason: err.Error()}
+	}
 	// The mode CAS under the locks: ANY raced mode change refuses with the
 	// honest conflict (the loser re-reads the ladder); the conditional
 	// write below then decides the ratchet direction.
@@ -461,9 +467,18 @@ func (s *Postgres) execRequestHuman(ctx context.Context, tx pgx.Tx, tenantID id.
 		tenantID, p.CaseID).Scan(&requestNo); err != nil {
 		return err
 	}
+	// The reason word of the request row: the EMPTY command word stays
+	// the unconditional client ask of 2.13 (the system truth — the old
+	// path byte-identical); the Story 4.3 boundary word of the operator
+	// (validated above) is the honest reason of the boundary handoff
+	// (the SQL CHECK of 00019 admits the four dictionary words).
+	requestReason := p.HandoffReason
+	if requestReason == "" {
+		requestReason = casesDomain.HandoffReasonClientRequest
+	}
 	request := casesDomain.HandoffRequest{
 		TenantID: tenantID, CaseID: p.CaseID, RequestNo: requestNo,
-		Reason:    casesDomain.HandoffReasonClientRequest,
+		Reason:    requestReason,
 		OwnerKind: current.OwnerKind, OwnerRef: current.OwnerRef, OwnerEpoch: current.Epoch,
 		TargetRoles: p.HandoffTargetRoles, AckDeadline: p.HandoffAckDeadline,
 		AckDeadlineAt: now.Add(casesDomain.HandoffAckDeadlineWindow(p.HandoffAckDeadline)),

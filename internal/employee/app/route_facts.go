@@ -213,6 +213,41 @@ func (s *Service) PackIdentificationSchema(packID, packVersion string) (casesPor
 	return schema, nil
 }
 
+// PackPartRequestSchema resolves the part request schema of one Domain
+// Pack version (Story 4.3 — the material keys with the roles, the mode
+// dictionary with the priorities and the mandatory sets, and the safety
+// markers). The same immutability guarantees as PackJourneys; a pack
+// without a schema is the honest absent answer (the caller degrades the
+// panel honestly, never a hardcoded list); an unknown pack version is an
+// honest error.
+func (s *Service) PackPartRequestSchema(packID, packVersion string) (casesPort.PartRequestSchema, error) {
+	if packID == "" || packVersion == "" {
+		return casesPort.PartRequestSchema{}, fmt.Errorf("пак не закреплён: схема запроса детали неизвестна")
+	}
+	manifest, ok := packs.Get(packID, packVersion)
+	if !ok {
+		return casesPort.PartRequestSchema{}, fmt.Errorf("закреплённый пак %s@%s не читается из каталога: манифест отсутствует", packID, packVersion)
+	}
+	schema := casesPort.PartRequestSchema{MaterialKeys: []casesPort.PartMaterialKeySpec{}, Modes: []casesPort.PartModeSpec{}, SafetyMarkers: []string{}}
+	if manifest.PartRequests == nil {
+		return schema, nil
+	}
+	for _, key := range manifest.PartRequests.MaterialKeys {
+		schema.MaterialKeys = append(schema.MaterialKeys, casesPort.PartMaterialKeySpec{
+			Key: key.Key, Label: key.Label, Kind: key.Kind, Values: append([]string(nil), key.Values...),
+			Min: key.Min, Max: key.Max, Optional: key.Optional, Role: key.Role,
+		})
+	}
+	for _, mode := range manifest.PartRequests.Modes {
+		schema.Modes = append(schema.Modes, casesPort.PartModeSpec{
+			Mode: mode.Mode, Label: mode.Label, Priority: mode.Priority, Requires: append([]string(nil), mode.Requires...),
+		})
+	}
+	schema.SafetyMarkers = append([]string(nil), manifest.PartRequests.SafetyMarkers...)
+	schema.PartSearchJourney = manifest.PartRequests.PartSearchJourney
+	return schema, nil
+}
+
 // entitlementAdmissionWord relays the scope-based entitlement admission
 // state. Without the port the facade honestly refuses.
 func (s *Service) entitlementAdmissionWord(ctx context.Context, scope tenancy.Context) (api.RouteEntitlementWord, error) {
