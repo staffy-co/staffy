@@ -650,6 +650,34 @@ type PackTaxonomy interface {
 	// same immutability argument holds: the catalog resolves the same
 	// dictionary for the same (id, version), no TOCTOU exists.
 	PackCriticalEntities(packID, packVersion string) ([]string, error)
+	// PackIdentificationSchema resolves the vehicle identification
+	// schema of the pinned pack (Story 4.2) — the material keys with the
+	// kinds and the alternative sufficient sets. The schema is the pack
+	// material, never a hardcoded core list («the fact form hint comes
+	// from the pinned pack»); a pack without a schema is the honest
+	// absent answer, the caller degrades the panel honestly.
+	PackIdentificationSchema(packID, packVersion string) (IdentificationSchema, error)
+}
+
+// MaterialKeySpec is one identification material key of the port answer:
+// the simple structural type of the narrow port (the employee facade
+// satisfies it structurally — the same DAG argument as the journeys and
+// the critical entities: cases never imports employee).
+type MaterialKeySpec struct {
+	Key      string
+	Label    string
+	Kind     string // vin | text | integer
+	Min      int
+	Max      int
+	Optional bool
+}
+
+// IdentificationSchema is the port answer of the pack schema: the
+// material keys and the alternative sufficient sets (any ONE set
+// satisfies the identification).
+type IdentificationSchema struct {
+	MaterialKeys    []MaterialKeySpec
+	AlternativeSets [][]string
 }
 
 // CommandLookup is the idempotency answer of one command key BEFORE any

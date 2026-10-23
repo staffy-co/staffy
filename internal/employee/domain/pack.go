@@ -9,25 +9,54 @@ func (e VariantError) Unwrap() error { return ErrInvalid }
 
 // PackManifest is declarative setup metadata. It never contains executable tenant policy.
 type PackManifest struct {
-	ID                string                  `json:"id"`
-	Version           string                  `json:"version"`
-	Name              string                  `json:"name"`
-	Purpose           string                  `json:"purpose"`
-	SupportStatus     string                  `json:"support_status"`
-	Stage             string                  `json:"stage"`
-	ConnectorTypes    []string                `json:"connector_types"`
-	Journeys          []string                `json:"journeys"`
-	CriticalEntities  []string                `json:"critical_entities"`
-	Policies          []string                `json:"policies"`
-	Capabilities      []string                `json:"capabilities"`
-	Gates             []string                `json:"gates"`
-	Schema            map[string]VariantField `json:"schema"`
-	AtLeastOneOf      []string                `json:"at_least_one_of,omitempty"`
-	PolicyRef         string                  `json:"policy_ref"`
-	KnowledgeRef      string                  `json:"knowledge_ref"`
-	EvalRef           string                  `json:"eval_ref"`
-	UpgradeFrom       map[string]PackImpact   `json:"upgrade_from,omitempty"`
-	ReplacementImpact PackImpact              `json:"replacement_impact"`
+	ID               string                  `json:"id"`
+	Version          string                  `json:"version"`
+	Name             string                  `json:"name"`
+	Purpose          string                  `json:"purpose"`
+	SupportStatus    string                  `json:"support_status"`
+	Stage            string                  `json:"stage"`
+	ConnectorTypes   []string                `json:"connector_types"`
+	Journeys         []string                `json:"journeys"`
+	CriticalEntities []string                `json:"critical_entities"`
+	Policies         []string                `json:"policies"`
+	Capabilities     []string                `json:"capabilities"`
+	Gates            []string                `json:"gates"`
+	Schema           map[string]VariantField `json:"schema"`
+	// VehicleIdentification is the identification schema of Story 4.2:
+	// nil for every pack without one (the 1.0.0/2.0.0 auto-parts and
+	// montagio-services stay nil — the immutability of the published
+	// versions is never violated).
+	VehicleIdentification *VehicleIdentificationSchema `json:"vehicle_identification,omitempty"`
+	AtLeastOneOf          []string                     `json:"at_least_one_of,omitempty"`
+	PolicyRef             string                       `json:"policy_ref"`
+	KnowledgeRef          string                       `json:"knowledge_ref"`
+	EvalRef               string                       `json:"eval_ref"`
+	UpgradeFrom           map[string]PackImpact        `json:"upgrade_from,omitempty"`
+	ReplacementImpact     PackImpact                   `json:"replacement_impact"`
+}
+
+// VehicleMaterialKey is one identification material key of the pack
+// schema (Story 4.2): the fact form hint of the vehicle identification
+// panel — the key, the human label, the kind (vin | text | integer), the
+// integer bounds and the optional flag. The schema is declarative setup
+// metadata: it never carries executable tenant policy.
+type VehicleMaterialKey struct {
+	Key      string `json:"key"`
+	Label    string `json:"label"`
+	Kind     string `json:"kind"`
+	Min      int    `json:"min,omitempty"`
+	Max      int    `json:"max,omitempty"`
+	Optional bool   `json:"optional,omitempty"`
+}
+
+// VehicleIdentificationSchema is the versioned identification schema of
+// one Domain Pack (Story 4.2): the material keys of the vehicle facts and
+// the alternative sufficient sets (any ONE set satisfies the
+// identification — «VIN либо допустимая комбинация»). Packs without a
+// schema carry nil (montagio-services is untouched).
+type VehicleIdentificationSchema struct {
+	MaterialKeys    []VehicleMaterialKey `json:"material_keys"`
+	AlternativeSets [][]string           `json:"alternative_sets"`
 }
 
 type VariantField struct {
