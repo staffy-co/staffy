@@ -312,7 +312,7 @@ func continuationLookupOfTx(ctx context.Context, tx pgx.Tx, tenantID id.UUID, li
 	}
 	accepted := 0
 	for _, use := range uses {
-		if use.UseKind == casesDomain.ContinuationUseFactCorrectionSubmitted {
+		if casesDomain.ContinuationUseConsumesLimit(use.UseKind) {
 			accepted++
 		}
 	}
@@ -706,6 +706,149 @@ func (s *Postgres) SubmitContinuationEvent(ctx context.Context, p casesPort.Cont
 		link.CaseID, sourceConnection, p.CorrelationID, now, payload,
 		casesDomain.DedupKeyContinuationEvent(p.UseID), now); err != nil {
 		return mapContinuationInsertError(err, "continuation_event")
+	}
+	return tx.Commit(ctx)
+}
+
+// SubmitVehicleConfirmation writes the Story 4.2 client confirmation of
+// the vehicle identification attributes in one transaction: the link by
+// the hash, the case + work item + link + fact locks, the state
+// re-derived under the locks (a dead link refuses; the raced
+// double-click derives consumed — the same idempotency-by-consumption
+// as the correction), every confirmation binds the EXACT version the
+// client saw with confirmer=client (the first producer of the reserved
+// 2.2 word) and the note carrying the link reference (the evidence
+// discipline of 2.2: the note branch — the public page is no case
+// event), the use row consumes the limit with the material pair of the
+// primary fact, the metadata-only outbox event reuses the
+// continuation_submitted vocabulary (no values in the envelope — the
+// «кандидат не покидает строку» precedent). Zero new fact versions: a
+// confirmation never rewrites a fact.
+func (s *Postgres) SubmitVehicleConfirmation(ctx context.Context, p casesPort.SubmitVehicleConfirmationParams) error {
+	tx, err := s.begin(ctx, p.Scope, false)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	now := p.Now.UTC().Truncate(time.Microsecond)
+	tenantID := p.Scope.TenantID()
+	if len(p.Confirmations) == 0 {
+		return casesDomain.WorkRuleError{Rule: "vehicle_confirm", Reason: "Подтверждение пусто: отметьте хотя бы один признак автомобиля."}
+	}
+	link, err := continuationLinkByHashTx(ctx, tx, tenantID, p.TokenHash)
+	if err != nil {
+		return err
+	}
+	// The lock plan pre-read: the material keys of the confirmed anchors
+	// (the fact-key locks sort with the case/work/link keys).
+	lockKeys := []string{
+		caseLockKey(tenantID, link.CaseID),
+		workLockKey(tenantID, link.WorkItemID),
+		linkLockKey(tenantID, link.LinkID),
+	}
+	anchors := make(map[id.UUID]string, len(p.Confirmations))
+	for _, item := range p.Confirmations {
+		var anchorCase id.UUID
+		var anchorKey string
+		if err := tx.QueryRow(ctx, `
+                select case_id, material_key from cases.facts where tenant_id=$1 and fact_id=$2`,
+			tenantID, item.FactID).Scan(&anchorCase, &anchorKey); err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return casesDomain.ErrNotFound
+			}
+			return err
+		}
+		if anchorCase != link.CaseID {
+			return casesDomain.WorkRuleError{Rule: "vehicle_confirm", Reason: casesDomain.ContinuationFactNotCorrectableText}
+		}
+		anchors[item.FactID] = anchorKey
+		lockKeys = append(lockKeys,
+			factKeyLockKey(tenantID, link.CaseID, anchorKey),
+			factIDLockKey(tenantID, item.FactID))
+	}
+	sort.Strings(lockKeys)
+	for _, key := range lockKeys {
+		if _, err = tx.Exec(ctx, "select pg_advisory_xact_lock(hashtextextended($1,0))", key); err != nil {
+			return err
+		}
+	}
+	// The state derivation under the locks (the raced double-click derives
+	// consumed — the second POST redirects to the terminal page).
+	lookup, err := continuationLookupOfTx(ctx, tx, tenantID, link, now)
+	if err != nil {
+		return err
+	}
+	if lookup.State != casesDomain.ContinuationStateValid {
+		return casesDomain.WorkRuleError{Rule: "vehicle_confirm", Reason: casesDomain.ContinuationNotUsableText}
+	}
+	// The per-fact gates under the locks: the CURRENT scope is the work
+	// item of the link (the surface discipline of 2.10 — one link, one
+	// work item material), the confirmed version exists, the client-path
+	// guard bounds the note evidence.
+	note := fmt.Sprintf("Клиент подтвердил по защищённой ссылке продолжения %s", link.LinkID)
+	primary := casesPort.VehicleConfirmationItem{}
+	for _, item := range p.Confirmations {
+		material, err := readFactMaterialTx(ctx, tx, tenantID, link.CaseID, item.FactID)
+		if err != nil {
+			return err
+		}
+		if len(material.Versions) == 0 || material.Versions[len(material.Versions)-1].WorkItemID != link.WorkItemID {
+			return casesDomain.WorkRuleError{Rule: "vehicle_confirm", Reason: casesDomain.ContinuationFactNotCorrectableText}
+		}
+		if err := casesDomain.GuardVehicleClientConfirmation(len(material.Versions), item.VersionNo, note); err != nil {
+			return casesDomain.WorkRuleError{Rule: "vehicle_confirm", Reason: err.Error()}
+		}
+		if primary.FactID == "" {
+			primary = item
+		}
+	}
+	// The confirmation rows: append-only, bound to the EXACT versions,
+	// confirmer=client (the first producer of the reserved dictionary
+	// word — the SQL CHECK of 00002 admitted it always), the link as the
+	// acting capability (the correction precedent).
+	for _, item := range p.Confirmations {
+		if _, err = tx.Exec(ctx, `
+                insert into cases.fact_confirmations (tenant_id, fact_id, confirmation_id, version_no, confirmer_type, evidence_event_id, note, actor_id, created_at)
+                values ($1,$2,$3,$4,'client',null,$5,$6,$7)`,
+			tenantID, item.FactID, item.ConfirmationID, item.VersionNo, note, link.LinkID, now); err != nil {
+			return mapContinuationInsertError(err, "vehicle_confirm")
+		}
+	}
+	// The use row consumes the limit (a data submission) with the
+	// material pair of the primary fact.
+	if _, err = tx.Exec(ctx, `
+                insert into cases.continuation_link_uses (tenant_id, case_id, work_item_id, link_id, use_id,
+                        use_kind, fact_id, fact_version_no, submitted_at, created_at)
+                values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+		tenantID, link.CaseID, link.WorkItemID, link.LinkID, p.UseID,
+		casesDomain.ContinuationUseVehicleConfirmationSubmitted, primary.FactID, primary.VersionNo, now, now); err != nil {
+		return mapContinuationInsertError(err, "vehicle_confirm")
+	}
+	var sourceConnection id.UUID
+	if err := tx.QueryRow(ctx, `
+                select connection_id from cases.conversations
+                where tenant_id=$1 and case_id=$2 order by conversation_no limit 1`,
+		tenantID, link.CaseID).Scan(&sourceConnection); err != nil {
+		return err
+	}
+	// The metadata-only outbox event (the continuation_submitted
+	// vocabulary reused — the bounded event CHECK of 00010 stays intact;
+	// the use row carries the vehicle_confirmation_submitted word).
+	payload, err := casesDomain.ContinuationSubmittedPayloadJSON(casesDomain.ContinuationSubmittedPayload{
+		TenantID: tenantID, CaseID: link.CaseID, WorkItemID: link.WorkItemID, LinkID: link.LinkID,
+		UseID: p.UseID, FactID: primary.FactID, FactVersionNo: primary.VersionNo,
+		ActorID: link.LinkID, OccurredAt: now,
+	})
+	if err != nil {
+		return err
+	}
+	if _, err = tx.Exec(ctx, `
+                insert into cases.outbox_events (tenant_id,event_id,event_type,schema_version,aggregate_id,source_connection_id,correlation_id,occurred_at,payload,dedup_key,created_at)
+                values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+		tenantID, p.OutboxEventID, casesDomain.OutboxEventContinuationSubmitted, casesDomain.OutboxEventContinuationV1,
+		link.CaseID, sourceConnection, p.CorrelationID, now, payload,
+		casesDomain.DedupKeyContinuationSubmitted(p.UseID), now); err != nil {
+		return mapContinuationInsertError(err, "vehicle_confirm")
 	}
 	return tx.Commit(ctx)
 }

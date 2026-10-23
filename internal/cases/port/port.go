@@ -317,6 +317,18 @@ type Repository interface {
 	// use row without material and without consumption + the outbox
 	// event; nothing is ever mutated).
 	SubmitContinuationEvent(ctx context.Context, p ContinuationEventParams) error
+	// SubmitVehicleConfirmation writes the Story 4.2 client
+	// confirmation of the vehicle identification attributes in one
+	// transaction: the link state is re-derived under the locks (a
+	// dead link refuses, the raced double-click derives consumed),
+	// every confirmation binds the EXACT version of its fact with
+	// confirmer=client (the reserved word of the 2.2 dictionary
+	// receives its first producer) and the note carries the link
+	// reference, the use row consumes the limit
+	// (vehicle_confirmation_submitted), the metadata-only outbox event
+	// reuses the continuation_submitted vocabulary. Zero new versions:
+	// the confirmation never rewrites a fact.
+	SubmitVehicleConfirmation(ctx context.Context, p SubmitVehicleConfirmationParams) error
 	// ReadContinuations reads the whole continuation material of one
 	// case (the links, the use feed, the revocations and the delivered
 	// binding — the operator panel input; the states are derived
@@ -1058,6 +1070,31 @@ type ContinuationEventParams struct {
 	Scope         tenancy.Context
 	TokenHash     []byte
 	UseKind       string
+	UseID         id.UUID
+	OutboxEventID id.UUID
+	CorrelationID id.UUID
+	Now           time.Time
+}
+
+// VehicleConfirmationItem is one attribute confirmation of the Story 4.2
+// submission: the confirmation row id, the fact anchor and the EXACT
+// version the client saw and confirmed on the protected form (the
+// confirmation binds that version — a newer version arrived meanwhile,
+// the store refuses honestly).
+type VehicleConfirmationItem struct {
+	ConfirmationID id.UUID
+	FactID         id.UUID
+	VersionNo      int64
+}
+
+// SubmitVehicleConfirmationParams is the material of the Story 4.2
+// client confirmation: the public scope of the verified token hash, the
+// confirmed (fact, version) pairs, the ids of the use row and the
+// outbox event.
+type SubmitVehicleConfirmationParams struct {
+	Scope         tenancy.Context
+	TokenHash     []byte
+	Confirmations []VehicleConfirmationItem
 	UseID         id.UUID
 	OutboxEventID id.UUID
 	CorrelationID id.UUID

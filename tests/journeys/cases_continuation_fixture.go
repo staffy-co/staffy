@@ -208,7 +208,7 @@ func (f *casesFixture) fixtureContinuationLookup(token string, now time.Time) (c
 	}
 	accepted := 0
 	for _, use := range uses {
-		if use.UseKind == casesDomain.ContinuationUseFactCorrectionSubmitted {
+		if casesDomain.ContinuationUseConsumesLimit(use.UseKind) {
 			accepted++
 		}
 	}
@@ -246,7 +246,7 @@ func (f *casesFixture) ContinueSurface(_ context.Context, token string, now time
 	views := []casesAPI.ContinuationFactView{}
 	accepted := 0
 	for _, use := range lookup.Uses {
-		if use.UseKind == casesDomain.ContinuationUseFactCorrectionSubmitted {
+		if casesDomain.ContinuationUseConsumesLimit(use.UseKind) {
 			accepted++
 		}
 	}
@@ -420,7 +420,7 @@ func (f *casesFixture) fixtureContinuationView(caseID id.UUID) casesAPI.Continua
 		if use.CaseID != caseID {
 			continue
 		}
-		if use.UseKind == casesDomain.ContinuationUseFactCorrectionSubmitted {
+		if casesDomain.ContinuationUseConsumesLimit(use.UseKind) {
 			accepted[use.LinkID]++
 		}
 	}

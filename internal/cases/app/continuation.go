@@ -341,7 +341,7 @@ func (s *Service) ContinueSurface(ctx context.Context, token string, now time.Ti
 	views := []casesAPI.ContinuationFactView{}
 	accepted := 0
 	for _, use := range lookup.Uses {
-		if use.UseKind == casesDomain.ContinuationUseFactCorrectionSubmitted {
+		if casesDomain.ContinuationUseConsumesLimit(use.UseKind) {
 			accepted++
 		}
 	}
@@ -420,6 +420,52 @@ func (s *Service) SubmitCorrection(ctx context.Context, token string, factID id.
 // nothing is ever mutated.
 func (s *Service) SubmitHuman(ctx context.Context, token string, now time.Time) error {
 	return s.submitContinuationEvent(ctx, token, casesDomain.ContinuationUseHumanRequested, now)
+}
+
+// SubmitVehicleConfirmation writes the Story 4.2 client confirmation
+// of the vehicle identification attributes through the link: the parse
+// and the hash lookup refuse with the same generic word as every dead
+// link; the store re-derives the state, re-validates every (fact,
+// version) pair under the locks (the confirmation binds the EXACT
+// version the client saw), writes the append-only client confirmations
+// (confirmer=client — the first producer of the reserved 2.2 word) and
+// the limit-consuming use row in one transaction. The answer of a
+// replayed double-click is the consumed terminal page (the same
+// idempotency-by-consumption as the correction).
+func (s *Service) SubmitVehicleConfirmation(ctx context.Context, token string, items []casesAPI.VehicleConfirmationItem, now time.Time) error {
+	scope, _, tokenHash, err := s.resolveContinuation(ctx, token, now)
+	if err != nil {
+		return err
+	}
+	if len(items) == 0 {
+		return rule("vehicle_confirm", fmt.Errorf("подтверждение пусто: отметьте хотя бы один признак автомобиля"))
+	}
+	useID, err := s.ids.New(now)
+	if err != nil {
+		return err
+	}
+	outboxEventID, err := s.ids.New(now)
+	if err != nil {
+		return err
+	}
+	correlation, err := s.ids.New(now)
+	if err != nil {
+		return err
+	}
+	confirmations := make([]casesPort.VehicleConfirmationItem, 0, len(items))
+	for _, item := range items {
+		confirmationID, err := s.ids.New(now)
+		if err != nil {
+			return err
+		}
+		confirmations = append(confirmations, casesPort.VehicleConfirmationItem{
+			ConfirmationID: confirmationID, FactID: item.FactID, VersionNo: item.VersionNo,
+		})
+	}
+	return s.repository.SubmitVehicleConfirmation(ctx, casesPort.SubmitVehicleConfirmationParams{
+		Scope: scope, TokenHash: tokenHash, Confirmations: confirmations,
+		UseID: useID, OutboxEventID: outboxEventID, CorrelationID: correlation, Now: now,
+	})
 }
 
 // SubmitReturn records the «вернуться в разговор» event through the
@@ -502,7 +548,7 @@ func (s *Service) continuationView(ctx context.Context, scope tenancy.Context, d
 	}
 	accepted := map[id.UUID]int{}
 	for _, use := range material.Uses {
-		if use.UseKind == casesDomain.ContinuationUseFactCorrectionSubmitted {
+		if casesDomain.ContinuationUseConsumesLimit(use.UseKind) {
 			accepted[use.LinkID]++
 		}
 	}
