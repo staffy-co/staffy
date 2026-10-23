@@ -162,9 +162,14 @@ type casesFixture struct {
 	// client statuses are the read-time derivations over the REAL domain
 	// function — never stored; the request and the event numbers are the
 	// fixture-owned monotonic truths, the requests never carry them).
-	handoffs      map[id.UUID][]casesDomain.HandoffRequest
-	handoffEvents map[id.UUID][]casesDomain.HandoffEvent
-	handoffSeq    int
+	handoffs map[id.UUID][]casesDomain.HandoffRequest
+	// fitmentEvidences is the Story 4.4 append-only in-memory storage of
+	// the manager's catalog research records (the monotonic numbers per
+	// (case, position, source) — the supersede is the NEW number).
+	fitmentEvidences   map[id.UUID][]casesDomain.FitmentEvidenceInput
+	fitmentEvidenceSeq int
+	handoffEvents      map[id.UUID][]casesDomain.HandoffEvent
+	handoffSeq         int
 
 	// The Story 2.14 summary material: the append-only AI summary rows
 	// per case (the staleness is the read-time derivation over the REAL
@@ -280,8 +285,9 @@ func newCasesFixture() *casesFixture {
 		degradations:        map[id.UUID][]casesDomain.RouteDegradationRecord{},
 		replyDeliveryEvents: map[id.UUID][]casesDomain.ReplyDeliveryEvent{},
 		// The Story 2.13 material:
-		handoffs:      map[id.UUID][]casesDomain.HandoffRequest{},
-		handoffEvents: map[id.UUID][]casesDomain.HandoffEvent{},
+		handoffs:         map[id.UUID][]casesDomain.HandoffRequest{},
+		fitmentEvidences: map[id.UUID][]casesDomain.FitmentEvidenceInput{},
+		handoffEvents:    map[id.UUID][]casesDomain.HandoffEvent{},
 		// The Story 2.14 material:
 		summaries: map[id.UUID][]casesDomain.RecordedSummary{},
 		// The Story 2.15 material:
@@ -440,6 +446,12 @@ func (f *casesFixture) accept(envelope casesDomain.Envelope, command casesAPI.In
 			// pin (the part request panel derives over it; the next c2xx
 			// slot of the retro-3-3 register).
 			packVersion = fixturePartPackVersion
+		}
+		if fixtureFitmentSession(envelope.ProviderSessionID) {
+			// The Story 4.4 fitment world: the policy-bearing 5.0.0 pin
+			// (the applicability panel and the record command derive over
+			// it; the next c2xx slot of the retro-3-3 register).
+			packVersion = fixtureFitmentPackVersion
 		}
 		material := &fixtureCaseMaterial{cases: casesDomain.Case{
 			TenantID: f.tenant, CaseID: caseID, CaseNo: caseNo, EmployeeID: outcome.EmployeeID,
@@ -735,6 +747,7 @@ func (f *casesFixture) CaseView(_ context.Context, actor domain.Principal, tenan
 		// part request world; every other case renders the honest
 		// absence word — the 2.2 unreadable-pin degradation mirror).
 		PartRequest: f.fixturePartPanelOf(material.cases.PackVersion, caseID),
+		Fitment:     f.fixtureFitmentPanelOf(material.cases.PackVersion, caseID),
 		// The Story 2.11 section: the «Предпочтения связи» panel over
 		// the REAL read-time derivation (the current set, the honest
 		// append-only history, the dictionaries of the record form).

@@ -194,11 +194,22 @@ func (s *Postgres) execRecordFitmentEvidence(ctx context.Context, tx pgx.Tx, ten
 	if digest := casesDomain.FitmentDigestOf(evidence); digest != p.Fitment.FitmentDigest {
 		return casesDomain.WorkRuleError{Rule: p.Command, Reason: "канонический дайджест записи не совпадает с материалом — пересчитайте доказательство"}
 	}
-	chainJSON, err := json.Marshal(p.Fitment.Chain)
+	// The jsonb columns are ALWAYS arrays: a nil list marshals into the
+	// empty array (the honest not-found record carries the EMPTY id list —
+	// never SQL NULL, the CHECK mirrors the array shape).
+	chain := p.Fitment.Chain
+	if chain == nil {
+		chain = []string{}
+	}
+	vehicleIDs := p.Fitment.CatalogVehicleIDs
+	if vehicleIDs == nil {
+		vehicleIDs = []string{}
+	}
+	chainJSON, err := json.Marshal(chain)
 	if err != nil {
 		return err
 	}
-	vehicleIDsJSON, err := json.Marshal(p.Fitment.CatalogVehicleIDs)
+	vehicleIDsJSON, err := json.Marshal(vehicleIDs)
 	if err != nil {
 		return err
 	}
