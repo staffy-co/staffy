@@ -62,7 +62,7 @@ func clone(m domain.PackManifest) domain.PackManifest {
 			mode.Requires = append([]string(nil), mode.Requires...)
 			modes = append(modes, mode)
 		}
-		m.PartRequests = &domain.PartRequestSchema{MaterialKeys: partKeys, Modes: modes, SafetyMarkers: append([]string(nil), m.PartRequests.SafetyMarkers...)}
+		m.PartRequests = &domain.PartRequestSchema{MaterialKeys: partKeys, Modes: modes, SafetyMarkers: append([]string(nil), m.PartRequests.SafetyMarkers...), PartSearchJourney: m.PartRequests.PartSearchJourney}
 	}
 	schema := map[string]domain.VariantField{}
 	for k, v := range m.Schema {
