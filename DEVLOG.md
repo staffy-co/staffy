@@ -4461,3 +4461,19 @@ done:
 - Коммит feat(story-4-3): step-05 БЕЗ маркера пропуска — голова ветки триггерит CI ×3 на CHECKPOINT 2 (урок 2-14/ретро-2-1, прецеденты 4-1/4-2); пуш сразу за коммитом.
 next: CHECKPOINT 2 story 4-3 — PR из ветки codex/story-4-3-part-request-classification (sha-пин головы в теле PR) → ожидание CI ×3 зелёного поимённо (push/PR/merge) → sha-pinned merge в main → локальный main ff-only → DEVLOG 205-checkpoint-2 [skip ci] + пуш → RPO=0 живым ls-remote → worklog; владельцу: ОТЗВАТЬ PAT подтверждённо после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — использовался для пушей шагов).
 commit: TBD
+
+---
+date: 2026-10-23
+task: 205-checkpoint-2
+role: main (Super Z)
+story: 4-3
+summary: CHECKPOINT 2 story 4-3 закрыт — Part Request Classification слита в main: PR #44 (sha-пин головы 2ff8eaf в теле), CI ×3 зелёный поимённо (#39989508269 push / #39989633253 pull_request на голове ветки, #39990717849 merge на merge-commit e72322e), sha-pinned merge e72322e (TOCTOU: голова сверена с пином непосредственно перед merge), локальный main ff-only; Epic 4: 3/11
+done:
+- Dev шаги 01-05 закрыты и опубликованы инкрементально (1014c01 step-01 пак+порт+домен; 4d076b5 step-02 миграция 00019+словарь; e44a550 step-03 поверхности+OpenAPI; 3dfd13b step-04 матрица+journeys z40; 2ff8eaf step-05 QA/closure БЕЗ маркера — голова триггерит CI).
+- PR #44 создан с sha-пином головы 2ff8eaf3799de3be24941507fdec67b2012ce6de в теле (TOCTOU-дисциплина по прецеденту PR #43).
+- CI ×3 зелёный поимённо: push #39989508269 и pull_request #39989633253 на голове ветки 2ff8eaf (completed/success), merge-run #39990717849 на merge-commit e72322e (completed/success).
+- Sha-pinned merge: голова PR сверена с пином живым GET непосредственно перед merge (совпадение), merge-commit e72322e4c4f52b7b6a50ada2d3cc7cc8fe98579f в main; локальный main подтянут ff-only (b4c31c2 → e72322e).
+- Closure-состояние исполнено в step-05 до merge: спека 4-3 done, sprint-status 4-3 done, Spec Change Log Dev 01-05 головой.
+next: SM-фаза story 4-4 (Part Applicability Proof — каталогический контур) по сигналу владельца; удаление слитой ветки 4-3 — по поручению владельца.
+владельцу: ОТЗВАТЬ PAT подтверждённо после закрытия чата (retro-3-6/retro-2-6 — передавался открытым текстом многократно; токен этой сессии ЖИВ — использовался для пушей шагов, PR и merge).
+commit: TBD
