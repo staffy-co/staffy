@@ -678,6 +678,14 @@ type PackTaxonomy interface {
 	// without a schema is the honest absent answer, the caller degrades
 	// the panel honestly.
 	PackPartRequestSchema(packID, packVersion string) (PartRequestSchema, error)
+	// PackFitmentSchema resolves the fitment evidence policy of the pinned
+	// pack (Story 4.4) — the link types, the maximal cross chain depth, the
+	// allowed catalog sources and the maximal evidence age. The same
+	// immutability argument as the journeys and the identification schema:
+	// the catalog resolves the same policy for the same (id, version), no
+	// TOCTOU exists; a pack without a policy is the honest absent answer,
+	// the caller degrades the panel honestly.
+	PackFitmentSchema(packID, packVersion string) (FitmentPolicySpec, error)
 }
 
 // MaterialKeySpec is one identification material key of the port answer:
@@ -735,6 +743,18 @@ type PartRequestSchema struct {
 	Modes             []PartModeSpec
 	SafetyMarkers     []string
 	PartSearchJourney string
+}
+
+// FitmentPolicySpec is the port answer of the pack fitment policy (Story
+// 4.4): the simple structural type of the narrow port — the allowed link
+// types, the maximal cross chain depth, the allowed catalog sources and
+// the maximal evidence age (the TTL of the proof freshness — the Domain
+// Policy of the pack, never the code of one store).
+type FitmentPolicySpec struct {
+	LinkTypes      []string
+	MaxCrossDepth  int
+	AllowedSources []string
+	MaxAgeSeconds  int
 }
 
 // CommandLookup is the idempotency answer of one command key BEFORE any

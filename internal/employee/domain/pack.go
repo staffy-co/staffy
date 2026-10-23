@@ -32,7 +32,12 @@ type PackManifest struct {
 	// montagio-services stay nil — the immutability of the published
 	// versions is never violated; the first schema arrives with
 	// auto-parts@4.0.0).
-	PartRequests      *PartRequestSchema    `json:"part_requests,omitempty"`
+	PartRequests *PartRequestSchema `json:"part_requests,omitempty"`
+	// Fitment is the fitment evidence policy of Story 4.4: nil for every
+	// pack without one (the 1.0.0..4.0.0 auto-parts and montagio-services
+	// stay nil — the immutability of the published versions is never
+	// violated; the first policy arrives with auto-parts@5.0.0).
+	Fitment           *FitmentPolicySchema  `json:"fitment,omitempty"`
 	AtLeastOneOf      []string              `json:"at_least_one_of,omitempty"`
 	PolicyRef         string                `json:"policy_ref"`
 	KnowledgeRef      string                `json:"knowledge_ref"`
@@ -109,6 +114,19 @@ type PartRequestSchema struct {
 	Modes             []PartModeSpec    `json:"modes"`
 	SafetyMarkers     []string          `json:"safety_markers"`
 	PartSearchJourney string            `json:"part_search_journey,omitempty"`
+}
+
+// FitmentPolicySchema is the versioned fitment evidence policy of one
+// Domain Pack (Story 4.4): the allowed link types (original | cross), the
+// maximal cross chain depth, the allowed catalog sources and the maximal
+// evidence age (the TTL of the proof freshness). The policy is declarative
+// setup metadata — the Domain Policy of the pack, never the code of one
+// store; the domain guards and the read-time state ladder derive over it.
+type FitmentPolicySchema struct {
+	LinkTypes      []string `json:"link_types"`
+	MaxCrossDepth  int      `json:"max_cross_depth"`
+	AllowedSources []string `json:"allowed_sources"`
+	MaxAgeSeconds  int      `json:"max_age_seconds"`
 }
 
 type VariantField struct {
