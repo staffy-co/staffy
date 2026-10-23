@@ -367,6 +367,24 @@ func TestMain(m *testing.M) {
 	if _, err = adminPool.Exec(ctx, strings.Split(string(casesPartRequestReasonsMigration), "-- +goose Down")[0]); err != nil {
 		panic(err)
 	}
+	// Story 4.4: the fitment evidence table + the reason dictionary word.
+	// The registration stays in this hard list (the 3.3 lesson of 00017: a
+	// migration outside the list never applies its tables and the whole
+	// contour tests a world that does not exist).
+	casesFitmentMigration, err := os.ReadFile("../../migrations/cases/00020_fitment_evidences.sql")
+	if err != nil {
+		panic(err)
+	}
+	if _, err = adminPool.Exec(ctx, strings.Split(string(casesFitmentMigration), "-- +goose Down")[0]); err != nil {
+		panic(err)
+	}
+	casesFitmentReasonMigration, err := os.ReadFile("../../migrations/cases/00021_fitment_research_reason.sql")
+	if err != nil {
+		panic(err)
+	}
+	if _, err = adminPool.Exec(ctx, strings.Split(string(casesFitmentReasonMigration), "-- +goose Down")[0]); err != nil {
+		panic(err)
+	}
 	// Story 3.4: the FIRST migration of the action module. The
 	// registration in this hard list is load-bearing (the 3.3 lesson of
 	// 00017: a migration outside the list never applied its tables to

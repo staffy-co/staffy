@@ -255,10 +255,12 @@ func TestPartRequestOpenAPIContractMirrorsDictionaries(t *testing.T) {
 	}
 }
 
-// TestPartRequestFormReasonOptionsRender pins the Story 4.3 reason select
-// of the existing request_human form: the three operator boundary words
-// with their honest texts and the empty unconditional choice (the
-// client_request word is NEVER an option — the system truth).
+// TestPartRequestFormReasonOptionsRender pins the reason select of the
+// existing request_human form: the three operator boundary words of Story
+// 4.3 plus the fitment research word of Story 4.4 (the 3→4 dictionary
+// extension, the 00021 SQL mirror) with their honest texts and the empty
+// unconditional choice (the client_request word is NEVER an option — the
+// system truth).
 func TestPartRequestFormReasonOptionsRender(t *testing.T) {
 	options := []workOption{}
 	for _, reason := range casesDomain.HandoffReasons {
@@ -267,15 +269,19 @@ func TestPartRequestFormReasonOptionsRender(t *testing.T) {
 		}
 		options = append(options, workOption{Value: reason, Text: casesDomain.HandoffReasonText(reason)})
 	}
-	if len(options) != 3 {
-		t.Fatalf("the three operator boundary words expected, got %d", len(options))
+	if len(options) != 4 {
+		t.Fatalf("the four operator words (three Story 4.3 boundary words plus the Story 4.4 research word) expected, got %d", len(options))
 	}
 	for _, option := range options {
 		if option.Text == "" {
 			t.Fatalf("the reason word %q must carry its honest text", option.Value)
 		}
 	}
-	if strings.Contains(strings.Join([]string{options[0].Value, options[1].Value, options[2].Value}, ","), casesDomain.HandoffReasonClientRequest) {
+	joined := strings.Join([]string{options[0].Value, options[1].Value, options[2].Value, options[3].Value}, ",")
+	if strings.Contains(joined, casesDomain.HandoffReasonClientRequest) {
 		t.Fatal("the client_request word is never a form option — the system truth")
+	}
+	if !strings.Contains(joined, casesDomain.HandoffReasonFitmentResearch) {
+		t.Fatal("the Story 4.4 fitment research word must be a form option (the 00021 mirror)")
 	}
 }

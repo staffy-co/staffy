@@ -469,6 +469,11 @@ func (s *Postgres) ExecuteWorkCommand(ctx context.Context, p casesPort.WorkComma
 		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID), conversationLockKey(tenantID, p.ConversationID))
 	case "read_owning_system":
 		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID), workLockKey(tenantID, p.WorkItemID))
+	case "record_fitment_evidence":
+		// The Story 4.4 append-only proof write: the case + work item locks
+		// serialize the monotonic evidence number of the (work item,
+		// position, source) ladder with every work command of the item.
+		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID), workLockKey(tenantID, p.WorkItemID))
 	case "record_objection":
 		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID), workLockKey(tenantID, p.WorkItemID))
 	case "create_commitment", "record_commitment_decline":
@@ -610,6 +615,8 @@ func (s *Postgres) ExecuteWorkCommand(ctx context.Context, p casesPort.WorkComma
 		err = s.execEvaluatePolicy(ctx, tx, tenantID, p, now)
 	case "read_owning_system":
 		err = s.execReadOwningSystem(ctx, tx, tenantID, p, now)
+	case "record_fitment_evidence":
+		err = s.execRecordFitmentEvidence(ctx, tx, tenantID, p, now)
 	case "record_objection":
 		err = s.execRecordObjection(ctx, tx, tenantID, p, now)
 	case "create_commitment":

@@ -209,6 +209,11 @@ type Repository interface {
 	// inserts of the command material and the command record with the
 	// outcome JSON.
 	ExecuteWorkCommand(ctx context.Context, p WorkCommandParams) error
+	// ReadFitmentEvidencesOfCase reads every fitment evidence record of
+	// the case (the Story 4.4 read surface — the read-time state ladder
+	// input, ordered by the work item, the position, the source and the
+	// evidence number).
+	ReadFitmentEvidencesOfCase(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]FitmentEvidenceRecord, error)
 	// Story 2.3 — the verification, binding and duplicate surface:
 	// ReadConversationOfCase reads one conversation of the case (the
 	// verification context and the binding target validation).
@@ -766,6 +771,55 @@ type CommandLookup struct {
 	Outcome     []byte
 }
 
+// FitmentEvidenceCommandMaterial is the Story 4.4 record material of ONE
+// fitment evidence write: the generated evidence identifier, the position
+// key (canonical), the found/not-found catalog material (the node, the
+// article, the link type, the whole cross chain, the catalog vehicle ids
+// — empty is the honest not-found record), the source traceability (the
+// system word, the record identifier, the version, the observed time),
+// BOTH digest pins (the exact input versions — AC-1/AC-11) and the
+// canonical FitmentDigest of the record.
+type FitmentEvidenceCommandMaterial struct {
+	EvidenceID           id.UUID
+	PositionKey          string
+	CatalogNode          string
+	Article              string
+	LinkType             string
+	Chain                []string
+	CatalogVehicleIDs    []string
+	SourceSystem         string
+	SourceRecordID       string
+	SourceVersion        string
+	SourceObservedAt     time.Time
+	ProfileDigestPin     string
+	PartRequestDigestPin string
+	FitmentDigest        string
+}
+
+// FitmentEvidenceRecord is ONE stored evidence record of the read surface
+// (the store reads them ordered by the evidence number — the read-time
+// ladder elects the current record of every source by the number).
+type FitmentEvidenceRecord struct {
+	WorkItemID           id.UUID
+	EvidenceID           id.UUID
+	EvidenceNo           int64
+	PositionKey          string
+	CatalogNode          string
+	Article              string
+	LinkType             string
+	Chain                []string
+	CatalogVehicleIDs    []string
+	SourceSystem         string
+	SourceRecordID       string
+	SourceVersion        string
+	SourceObservedAt     time.Time
+	ReceivedAt           time.Time
+	ProfileDigestPin     string
+	PartRequestDigestPin string
+	FitmentDigest        string
+	CreatedAt            time.Time
+}
+
 // WorkTargetParams is one split target: the app-generated anchor id with
 // the type and the title.
 type WorkTargetParams struct {
@@ -1057,7 +1111,16 @@ type WorkCommandParams struct {
 	// recommendation of the part request panel (the store re-validates
 	// the dictionary under the locks; the SQL CHECK of 00019 is the
 	// backstop).
-	HandoffReason        string
+	HandoffReason string
+	// Fitment is the Story 4.4 record material of the
+	// record_fitment_evidence command (nil for every other command — the
+	// one-structure material of the append-only proof write).
+	Fitment *FitmentEvidenceCommandMaterial
+	// FitmentPolicy is the pack policy of the Story 4.4 record command
+	// (the app resolves it through the taxonomy port BEFORE the write;
+	// the store guard re-validates the material against it under the
+	// locks — the Domain Policy of the pack, never the store code).
+	FitmentPolicy        FitmentPolicySpec
 	HandoffAssignee      id.UUID
 	HandoffBackup        id.UUID
 	HandoffAssigneeRole  string

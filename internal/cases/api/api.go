@@ -492,6 +492,14 @@ type WorkOutcome struct {
 	// the stored outcome never carries them; the mode raise reuses the
 	// 2.5 fields ModeTermID/ModeVersion, the ownership transition reuses
 	// the 2.4 fields Epoch/TransferRequestID).
+	// The Story 4.4 material: the fitment evidence record of the write
+	// command (the generated identifier, the monotonic number, the
+	// position and the canonical digest — «the exact version of the
+	// proof» for the contours 4.5..4.9).
+	FitmentEvidenceID  id.UUID `json:"fitment_evidence_id,omitempty"`
+	FitmentEvidenceNo  int64   `json:"fitment_evidence_no,omitempty"`
+	FitmentPositionKey string  `json:"fitment_position_key,omitempty"`
+	FitmentDigest      string  `json:"fitment_digest,omitempty"`
 	HandoffTurnRef     id.UUID `json:"handoff_turn_ref,omitempty"`
 	HandoffAssignee    id.UUID `json:"handoff_assignee,omitempty"`
 	HandoffBackup      id.UUID `json:"handoff_backup,omitempty"`

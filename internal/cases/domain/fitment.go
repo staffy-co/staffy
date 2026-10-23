@@ -74,13 +74,10 @@ const (
 )
 
 // FitmentResearchWord is the manager task reason word of the fitment
-// research recommendation (the 2.13 dictionary extension of Story 4.4 — the
-// SQL mirror 00021 admits it from step-02 on; the write path guard of the
-// handoff reason stays 4+client_request words until then: the word lives
-// here first exactly as the 4.3 precedent — the part boundary words lived
-// in part.go first, then switched onto the public human_handoff constants
-// with the dictionary extension step).
-const FitmentResearchWord = "fitment_research"
+// research recommendation — the PUBLIC dictionary constant of 2.13 (the
+// Story 4.4 extension, the SQL mirror 00021; the step-02 switch onto the
+// public constant follows the 4.3 precedent of the part boundary words).
+const FitmentResearchWord = HandoffReasonFitmentResearch
 
 // The honest state words (the text, never only color).
 const (
