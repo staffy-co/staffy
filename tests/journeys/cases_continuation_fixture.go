@@ -273,6 +273,7 @@ func (f *casesFixture) ContinueSurface(_ context.Context, token string, now time
 		Explanation: lookup.Link.Explanation,
 		Question:    lookup.Link.Question,
 		Facts:       views,
+		Vehicle:     f.fixtureVehicleSurface(lookup.Link),
 		ExpiresAt:   lookup.Link.ExpiresAt,
 		LimitLeft:   lookup.Link.ConsumptionLimit - accepted,
 	}, nil

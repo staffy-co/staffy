@@ -30,11 +30,42 @@ import (
 const (
 	fixturePackID      = "auto-parts"
 	fixturePackVersion = "1.0.0"
+	// fixtureVehiclePackVersion is the Story 4.2 pin of the vehicle world
+	// (the c2xx slot of the retro-3-3 register): the sessions carrying the
+	// vehicle prefix pin auto-parts@3.0.0 — the schema-bearing pack the
+	// identification panel derives over. Every other session keeps the
+	// 1.0.0 world pin (the frozen words of the neighboring journeys stay
+	// byte-stable — the rule 161).
+	fixtureVehiclePackVersion = "3.0.0"
 )
+
+// fixtureVehicleSessionPrefix marks the ingress sessions of the vehicle
+// world (the pin convention of the fixture — deterministic, no new
+// toggles: the session id itself carries the world).
+const fixtureVehicleSessionPrefix = "journey-vehicle-"
+
+// fixtureVehicleSession answers whether one ingress session belongs to
+// the vehicle world (the 3.0.0 pin).
+func fixtureVehicleSession(sessionID string) bool {
+	return strings.HasPrefix(sessionID, fixtureVehicleSessionPrefix)
+}
 
 // fixtureJourneys is the journeys dictionary the fixture taxonomy resolves
 // (the real manifest of auto-parts@1.0.0 — «поиск детали», «уточнение аналога»).
 var fixtureJourneys = []string{"поиск детали", "уточнение аналога"}
+
+// fixtureVehicleJourneys is the journeys dictionary of the 3.0.0 pin (the
+// real manifest of auto-parts@3.0.0 — the +1 identification journey).
+var fixtureVehicleJourneys = []string{"поиск детали", "уточнение аналога", "идентификация автомобиля"}
+
+// journeysOf resolves the journeys dictionary of one pinned pack version
+// (the fixture taxonomy mirror of the newest catalog read).
+func journeysOf(packVersion string) []string {
+	if packVersion == fixtureVehiclePackVersion {
+		return fixtureVehicleJourneys
+	}
+	return fixtureJourneys
+}
 
 // fixtureCriticalEntities is the material key dictionary of the same
 // manifest (the fact form hint comes from the pinned pack, never a
@@ -125,7 +156,7 @@ func (f *casesFixture) CreateWorkItem(_ context.Context, command casesAPI.Create
 	if err := fixtureWorkRule("create_work_item", casesDomain.GuardWorkTitle(command.Title)); err != nil {
 		return casesAPI.WorkOutcome{}, err
 	}
-	if !f.fixtureTypeInTaxonomy(command.Type) {
+	if !f.fixtureTypeInTaxonomy(command.CaseID, command.Type) {
 		return casesAPI.WorkOutcome{}, fixtureWorkRule("create_work_item", fmt.Errorf("тип «%s» не входит в journeys закреплённого пака обращения", command.Type))
 	}
 	if _, known := f.sessionsOfCase(command.CaseID)[command.ConversationID]; !known {
@@ -149,10 +180,15 @@ func (f *casesFixture) CreateWorkItem(_ context.Context, command casesAPI.Create
 	return outcome, nil
 }
 
-// fixtureTypeInTaxonomy resolves the pinned dictionary (the same manifest
-// the real facade reads).
-func (f *casesFixture) fixtureTypeInTaxonomy(workType string) bool {
-	for _, journey := range fixtureJourneys {
+// fixtureTypeInTaxonomy resolves the pinned dictionary of the case of
+// the classified work item (the same manifest the real facade reads —
+// the journeys travel with the pinned pack version of the case).
+func (f *casesFixture) fixtureTypeInTaxonomy(caseID id.UUID, workType string) bool {
+	packVersion := fixturePackVersion
+	if material := f.material[caseID]; material != nil {
+		packVersion = material.cases.PackVersion
+	}
+	for _, journey := range journeysOf(packVersion) {
 		if journey == workType {
 			return true
 		}
@@ -184,7 +220,7 @@ func (f *casesFixture) ClassifyWorkItem(_ context.Context, command casesAPI.Clas
 	if err := fixtureWorkRule("classify_work_item", casesDomain.GuardClassify(current, command.Type, command.Title)); err != nil {
 		return casesAPI.WorkOutcome{}, err
 	}
-	if !f.fixtureTypeInTaxonomy(command.Type) {
+	if !f.fixtureTypeInTaxonomy(command.CaseID, command.Type) {
 		return casesAPI.WorkOutcome{}, fixtureWorkRule("classify_work_item", fmt.Errorf("тип «%s» не входит в journeys закреплённого пака обращения", command.Type))
 	}
 	state := current.State
@@ -259,7 +295,7 @@ func (f *casesFixture) SplitWorkItem(_ context.Context, command casesAPI.SplitCo
 		return casesAPI.WorkOutcome{}, err
 	}
 	for _, target := range command.Targets {
-		if !f.fixtureTypeInTaxonomy(target.Type) {
+		if !f.fixtureTypeInTaxonomy(command.CaseID, target.Type) {
 			return casesAPI.WorkOutcome{}, fixtureWorkRule("split_work_item", fmt.Errorf("тип «%s» не входит в journeys закреплённого пака обращения", target.Type))
 		}
 	}

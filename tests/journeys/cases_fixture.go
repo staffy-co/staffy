@@ -428,9 +428,16 @@ func (f *casesFixture) accept(envelope casesDomain.Envelope, command casesAPI.In
 	if newCase {
 		caseID = id.MustParse("01994f64-6c00-7000-8000-" + digit12(int(5000+f.caseNo)))
 		caseNo = f.caseNo
+		packVersion := fixturePackVersion
+		if fixtureVehicleSession(envelope.ProviderSessionID) {
+			// The Story 4.2 vehicle world: the schema-bearing 3.0.0 pin
+			// (the identification panel and the schema-driven forms derive
+			// over it; the c2xx slot of the retro-3-3 register).
+			packVersion = fixtureVehiclePackVersion
+		}
 		material := &fixtureCaseMaterial{cases: casesDomain.Case{
 			TenantID: f.tenant, CaseID: caseID, CaseNo: caseNo, EmployeeID: outcome.EmployeeID,
-			State: casesDomain.CaseStateOpen, PackID: fixturePackID, PackVersion: fixturePackVersion, CreatedAt: now,
+			State: casesDomain.CaseStateOpen, PackID: fixturePackID, PackVersion: packVersion, CreatedAt: now,
 		}}
 		material.conversations = append(material.conversations, casesDomain.Conversation{
 			TenantID: f.tenant, CaseID: caseID, ConversationID: conversationID, ConversationNo: f.conversationNo,
@@ -679,7 +686,7 @@ func (f *casesFixture) CaseView(_ context.Context, actor domain.Principal, tenan
 		Exceptions:    f.exceptionsOf(caseID),
 		UntriagedText: "Запрос ещё не классифицирован.", NoAutoReplyText: "Автоответ клиенту не отправляется.",
 		CanViewPayload: true, CanViewFacts: true, CanManageWork: true, ViewScope: casesAPI.CaseScopeView,
-		TaxonomyTypes:    append([]string(nil), fixtureJourneys...),
+		TaxonomyTypes:    append([]string(nil), journeysOf(material.cases.PackVersion)...),
 		CriticalEntities: append([]string(nil), fixtureCriticalEntities...),
 		Assurance: casesAPI.AssuranceView{
 			State:           casesDomain.DeriveAssuranceState(records, timeNow()),
@@ -712,6 +719,11 @@ func (f *casesFixture) CaseView(_ context.Context, actor domain.Principal, tenan
 		// REAL read-time derivations (the states, the delivery binding
 		// and the event feed).
 		Continuations: f.fixtureContinuationView(caseID),
+		// The Story 4.2 section: the vehicle identification panel over the
+		// REAL domain derivation (only the schema-bearing 3.0.0 pin of the
+		// vehicle world; every other case renders the honest absence word —
+		// the 2-2 unreadable-pin degradation mirror).
+		Vehicle: fixtureVehiclePanelOf(material.cases.PackVersion, f.fixtureVehicleFacts(caseID)),
 		// The Story 2.11 section: the «Предпочтения связи» panel over
 		// the REAL read-time derivation (the current set, the honest
 		// append-only history, the dictionaries of the record form).
