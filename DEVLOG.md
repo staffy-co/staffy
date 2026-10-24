@@ -4831,3 +4831,18 @@ done:
 next: ответ владельца на повторное предъявление: «одобряю»/«продолжайте» → CHECKPOINT 1 (флип спека+sprint-status → ready-for-dev синхронно, прецеденты 208/217-checkpoint-1) → Dev шаги 01-05 с инкрементальными коммитами/пушами → CHECKPOINT 2 (Epic 4: 6/11); правки/возражения → переработка спеки SM-ролью
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — использовался для верификации /user, ls-remote и пуша DEVLOG 225-sm)
 commit: TBD
+
+---
+date: 2026-10-25
+task: 226-checkpoint-1
+role: main (Super Z)
+story: 4-6
+summary: CHECKPOINT 1 story 4-6 — одобрение спеки «Создание одного клиентского заказа в ABCP» владельцем: «продолжайте (токен)» В ОТВЕТ на повторное предъявление 225-sm (дисциплина 52-sm удовлетворена, прецеденты 53-sm/207-sm/216-sm/217-checkpoint-1); флип синхронно спека backlog → ready-for-dev + sprint-status 4-6 → ready-for-dev
+done:
+- Позиция верифицирована живьём ДО правок: PAT API /user 200 env-only, ls-remote RPO=0 (ветка 225d650 = HEAD, main ad8467c нетронут), дерево чистое
+- Флип: spec-4-6-abcp-client-order.md status backlog → ready-for-dev + запись 226-checkpoint-1 головой Spec Change Log; sprint-status ключ 4-6-создание-одного-клиентского-заказа-в-abcp → ready-for-dev; epic-4 остаётся in-progress
+- Окружение: контейнер сброшен (Go/PG отсутствуют) — bootstrap поднимается лёгким режимом ДО Dev шага 01
+- Гигиена: дифф ровно 3 файла (спека/спринт/DEVLOG), токен в диффе 0
+next: Dev шаги 01-05 по Tasks & Acceptance спеки 4-6 (step-01 definition create_abcp_customer_order@1.0.0 + домен order.go + admission-тест; step-02 билдер + порт OrderVersionSource + шаг лестницы + receipt-рендер + 00025 reason 6→7; step-03 панель «Заказ клиента» + OpenAPI зеркала; step-04 eval-матрица + journeys z43; step-05 QA-саморевью и closure) → CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge — Epic 4: 6/11)
+владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для пуша чекпоинта и Dev-шагов)
+commit: TBD
