@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/artemiosu/staffy/internal/action/domain"
@@ -120,21 +121,92 @@ func TestLatestFromSemantics(t *testing.T) {
 	}
 }
 
-// TestBinaryCatalogIsHonestlyEmpty — бинарный каталог продуктового бинарника
-// ПУСТ по AG-4: ни один пак не связан с capability-коннектором. Это честное
-// состояние, а не дефект (контрольная ветка).
-func TestBinaryCatalogIsHonestlyEmpty(t *testing.T) {
-	if got := List(); len(got) != 0 {
-		t.Fatalf("бинарный каталог обязан быть честно пуст, получено %d записей", len(got))
+// TestBinaryCatalogCarriesTheFirstProductEntry — первый продуктовый энтри
+// появился (story 4.6): бинарный каталог несёт РОВНО один энтри —
+// create_abcp_customer_order@1.0.0, пин резолвится, Latest работает, guard
+// проходит. Каталог перестал быть пустым, потому что декларация 4-1
+// (abcp-parts@1.1.0/command.prepare-client-order, Idempotent=true)
+// резолвится против живого каталога коннекторов.
+func TestBinaryCatalogCarriesTheFirstProductEntry(t *testing.T) {
+	listed := List()
+	if len(listed) != 1 {
+		t.Fatalf("бинарный каталог несёт ровно один продуктовый энтри (4-6), получено %d записей", len(listed))
 	}
-	if _, ok := Get("quote.send-price-quote", "1.2.0"); ok {
-		t.Fatal("пустой каталог не резолвит записей")
+	first := listed[0]
+	if first.ID != "create_abcp_customer_order" || first.Version != "1.0.0" {
+		t.Fatalf("первый продуктовый энтри — create_abcp_customer_order@1.0.0, получено %s@%s", first.ID, first.Version)
 	}
-	if _, _, exists := Latest("quote.send-price-quote", "1.2.0"); exists {
-		t.Fatal("пустой каталог не отдаёт Latest")
+	pinned, ok := Get("create_abcp_customer_order", "1.0.0")
+	if !ok {
+		t.Fatal("пин первого продуктового энтри обязан резолвиться")
 	}
-	if err := domain.CatalogIntegrity(nil); err != nil {
-		t.Fatalf("пустой каталог целостен vacuously: %v", err)
+	if pinned.Name == "" || pinned.Purpose == "" {
+		t.Fatal("пин обязан нести полное определение")
+	}
+	newest, isLatest, exists := Latest("create_abcp_customer_order", "1.0.0")
+	if !exists || !isLatest || newest.Version != "1.0.0" {
+		t.Fatalf("Latest первого энтри: exists=%v isLatest=%v version=%q", exists, isLatest, newest.Version)
+	}
+	_, wrongIsLatest, wrongExists := Latest("create_abcp_customer_order", "9.9.9")
+	if !wrongExists || wrongIsLatest {
+		t.Fatalf("запрос чужой версии: exists=%v isLatest=%v — ID существует, версия не является текущей", wrongExists, wrongIsLatest)
+	}
+	if _, _, missingExists := Latest("missing.action", "1.0.0"); missingExists {
+		t.Fatal("несуществующий ID не существует")
+	}
+	if err := domain.CatalogIntegrity(All()); err != nil {
+		t.Fatalf("каталог с первым продуктовым энтри целостен: %v", err)
+	}
+}
+
+// TestFirstProductEntryCarriesNoSupplierSendFields — зонд fence OQ-3:
+// типовые схемы первого продуктового энтри НЕ содержат НИ ОДНОГО поля
+// отправки/формирования поставщику (supplier_form/send отсутствует в Action
+// Catalog — «passing OQ-3/OQ-5 does not authorize supplier-send»).
+func TestFirstProductEntryCarriesNoSupplierSendFields(t *testing.T) {
+	def, ok := Get("create_abcp_customer_order", "1.0.0")
+	if !ok {
+		t.Fatal("первый продуктовый энтри обязан резолвиться")
+	}
+	forbidden := []string{"supplier_form", "supplier_send", "send_to_supplier", "supplier_send_form", "delivery_to_supplier", "ship_to_supplier"}
+	for _, schema := range []struct {
+		label  string
+		fields []domain.FieldSchema
+	}{
+		{"typed_input_schema", def.TypedInputSchema},
+		{"typed_output_schema", def.TypedOutputSchema},
+	} {
+		for _, f := range schema.fields {
+			joined := strings.ToLower(f.Name + " " + f.Label + " " + f.Description)
+			for _, word := range forbidden {
+				if strings.Contains(joined, word) {
+					t.Fatalf("схема %s несёт поле отправки поставщику «%s» — fence OQ-3 нарушен", schema.label, f.Name)
+				}
+			}
+		}
+	}
+	// Пин контура действия: пак/capability/erp/provider_idempotent/required/single_use/critical.
+	if def.PackRef.PackID != "auto-parts" || def.PackRef.PackVersion != "6.0.0" {
+		t.Fatalf("пин пака обязан быть auto-parts@6.0.0, получено %s@%s", def.PackRef.PackID, def.PackRef.PackVersion)
+	}
+	if def.RequiredCapability.ConnectorID != "abcp-parts" || def.RequiredCapability.ConnectorVersion != "1.1.0" ||
+		def.RequiredCapability.CapabilityID != "command.prepare-client-order" {
+		t.Fatal("пин capability обязан быть abcp-parts@1.1.0/command.prepare-client-order")
+	}
+	if def.OwningSystem != "erp" {
+		t.Fatalf("владеющая система заказа — erp, получено %q", def.OwningSystem)
+	}
+	if def.DeliveryContract.CapabilityClass != domain.CapabilityProviderIdempotent {
+		t.Fatalf("класс доставки — provider_idempotent (декларация 4-1: Idempotent=true), получено %q", def.DeliveryContract.CapabilityClass)
+	}
+	if def.Conditions.Confirmation != domain.ConfirmationRequired {
+		t.Fatal("подтверждение клиента обязательно (confirm-before-mutate, AD-6)")
+	}
+	if def.Conditions.ConsumptionRule != domain.ConsumptionSingleUse {
+		t.Fatal("потребление single_use")
+	}
+	if def.Conditions.RiskClass != domain.RiskCritical {
+		t.Fatal("класс риска critical")
 	}
 }
 
@@ -176,15 +248,18 @@ func TestGetFromReturnsDefensiveCopies(t *testing.T) {
 }
 
 // TestAllExposesEveryVersionOfTheBinaryDictionary — All() отдаёт ВСЕ записи
-// словаря (не только новейшие) — материал прохода допуска; честная пустота
-// бинарника = пустой НЕ-nil срез (контрольная ветка байт-в-байт).
+// словаря (не только новейшие) — материал прохода допуска; бинарник несёт
+// первый продуктовый энтри (4-6) = НЕ-nil срез ровно с одной записью.
 func TestAllExposesEveryVersionOfTheBinaryDictionary(t *testing.T) {
 	all := All()
 	if all == nil {
-		t.Fatal("честный пустой бинарный каталог обязан отдавать пустой НЕ-nil срез (контрольная ветка пустоты)")
+		t.Fatal("бинарный каталог обязан отдавать НЕ-nil срез (пустота была бы нулевой веткой)")
 	}
-	if len(all) != 0 {
-		t.Fatalf("бинарный каталог честно пуст — All обязан быть пуст, получено записей: %d", len(all))
+	if len(all) != 1 {
+		t.Fatalf("бинарный каталог несёт первый продуктовый энтри (4-6) — All обязан отдать ровно 1 запись, получено: %d", len(all))
+	}
+	if all[0].ID != "create_abcp_customer_order" {
+		t.Fatalf("первая запись All — первый продуктовый энтри, получено %q", all[0].ID)
 	}
 	// The From-variant semantics hold for every version: the fixture slice
 	// keeps ALL pinned versions visible to the admission pass.

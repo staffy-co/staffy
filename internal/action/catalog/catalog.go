@@ -6,24 +6,72 @@ import (
 
 // definitions is the immutable binary catalog of Authorized Business Actions.
 //
-// The catalog is HONESTLY EMPTY — this is a state, not a defect. A first
-// entry may appear only when ALL of the following hold:
-//  1. a Domain Pack is published and references a connector type,
-//  2. that pack's connector declares query/command capabilities
-//     (a real CapabilityDeclaration, not StatusDeferred with none),
-//  3. the definition's PackRef and RequiredCapability resolve against the
-//     live employee and connector catalogs (app layer, through ports),
-//  4. GuardValidateActionDefinition and the delivery-word cross-check pass.
-//
-// Today no published pack is linked to a connector that declares any
-// capability (auto-parts/montagio-services reference catalog/inventory/
-// service_catalog connector types whose connectors are StatusDeferred with
-// zero capabilities; the only capability-bearing connector — the synthetic
-// telephony — is referenced by no pack). Forcing a pack binding without the
-// pack's connector is forbidden (AG-4 gates real providers). The test
-// circuit closes the vertical with fixture definitions registered by the
-// test composition root — never in this product binary.
-var definitions []domain.ActionDefinition
+// The FIRST product entry appears with story 4.6, because the 4-1 admission
+// registry finally holds a capability-bearing declaration the entry can
+// resolve against: abcp-parts@1.1.0 (StatusCandidate, AdapterImplemented
+// false) declares command.prepare-client-order with Idempotent=true — the
+// auto-parts@6.0.0 pack is published, so the definition's PackRef and
+// RequiredCapability resolve against the LIVE employee and connector
+// catalogs, and the delivery-word cross-check (provider_idempotent vs the
+// declared Idempotent=true) passes. AdapterImplemented=false does NOT
+// block the catalog — it blocks the PRODUCTION dispatch (the nil mutation
+// adapter, AG-4): the entry is honest about what Staffy may commit to AFTER
+// the customer Confirmation, never about a wired provider. The entry carries
+// no supplier-send field at all (the OQ-3 fence: supplier_form/send stays
+// absent from the Action Catalog). The test circuit keeps registering
+// fixture definitions ON TOP of this product list (the ListFrom pattern).
+var definitions = []domain.ActionDefinition{
+	{
+		// Story 4.6 (step-01): the first product entry — one client
+		// order in ABCP through the action contour. The typed input is
+		// the builder-derived Order Commitment material (the operator
+		// never types it); the typed output is the receipt triple plus
+		// the derived state word. NO supplier-send field exists in
+		// either schema — structurally (the OQ-3 fence).
+		ID:      "create_abcp_customer_order",
+		Version: "1.0.0",
+		Name:    "Создание клиентского заказа в ABCP",
+		Purpose: "Создание одного клиентского заказа в ABCP (без отправки поставщику) по точной версии состава после Confirmation клиента; заказ ожидает проверки менеджером.",
+		TypedInputSchema: []domain.FieldSchema{
+			{Name: "order_digest", Label: "Пин точной версии заказа", Type: domain.FieldText, Required: true, Description: "64-hex SHA-256 канонического состава заказа над пинами всех пяти входов (профиль, запрос, применимость, предложение, выбор) — подтверждается клиентом именно эта версия."},
+			{Name: "order_material", Label: "Канонический материал заказа", Type: domain.FieldText, Required: true, Description: "Детерминированный рендер состава: позиции с брендом/артикулом, оригинал/аналог, количеством, клиентской ценой и известными условиями; известная сумма и слово менеджерской проверки."},
+			{Name: "known_client_sum", Label: "Известная клиентская сумма", Type: domain.FieldText, Required: true, Description: "Арифметика выбора 4-5 без доставки и сбора — окончательная стоимость не рассчитана."},
+			{Name: "currency", Label: "Валюта", Type: domain.FieldText, Required: true, Description: "Слово словаря пака auto-parts@6.0.0 (RUB)."},
+		},
+		TypedOutputSchema: []domain.FieldSchema{
+			{Name: "external_order_id", Label: "Внешний идентификатор заказа", Type: domain.FieldText, Required: true, Description: "Идентификатор подготовленного заказа в ABCP (квитанция)."},
+			{Name: "external_order_version", Label: "Версия внешнего объекта", Type: domain.FieldText, Required: true, Description: "Версия внешнего объекта квитанции ABCP."},
+			{Name: "external_order_time", Label: "Время квитанции", Type: domain.FieldText, Required: true, Description: "Время подтверждённой квитанции ABCP."},
+			{Name: "order_state", Label: "Состояние заказа", Type: domain.FieldText, Required: true, Description: "Производное слово чтения состояния (pending_manager_verification) — заказ создан в магазине и ожидает проверки менеджера."},
+		},
+		PackRef:            domain.PackRef{PackID: "auto-parts", PackVersion: "6.0.0"},
+		RequiredCapability: domain.CapabilityRef{ConnectorID: "abcp-parts", ConnectorVersion: "1.1.0", CapabilityID: "command.prepare-client-order"},
+		OwningSystem:       "erp",
+		Conditions: domain.Conditions{
+			RiskClass:                domain.RiskCritical,
+			AutonomyClass:            domain.AutonomyAssisted,
+			AllowedConversationModes: []string{"sales"},
+			AllowedRoles:             []string{"operator"},
+			RequiredFacts: []domain.FactRequirement{
+				{MaterialField: "price", Freshness: "fresh"},
+				{MaterialField: "availability", Freshness: "fresh"},
+			},
+			Confirmation:     domain.ConfirmationRequired,
+			RequiredGates:    []string{"OQ-3", "AG-4"},
+			TimeoutMS:        30000,
+			MaterialityClass: domain.MaterialityCritical,
+			ConsumptionRule:  domain.ConsumptionSingleUse,
+			AllowedStages:    []string{domain.StageSynthetic, domain.StageClosedAccountTest},
+		},
+		DeliveryContract: domain.DeliveryContract{
+			CapabilityClass:       domain.CapabilityProviderIdempotent,
+			IdempotencyScope:      "идемпотентность провайдера ABCP (декларация 4-1: Idempotent=true) — повторная доставка команды не создаёт второй заказ",
+			TerminalEvidence:      "квитанция ABCP с идентификатором подготовленного заказа (accepted → delivered)",
+			ReconciliationQuery:   "query_reconcilable по OQ-3: повторное чтение статуса prepared order (декларация 4-1)",
+			CancelCompensationSem: "prepared order не отправляется поставщику автоматически; отмена подготовки — отдельная команда до отправки (декларация 4-1)",
+		},
+	},
+}
 
 // List returns a defensive copy of the newest version of every action
 // definition. Pinned older versions stay resolvable through Get only, so
