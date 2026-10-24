@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -673,3 +674,48 @@ func quotedVerifyBlockReasons() string {
 	}
 	return out
 }
+
+// ---------------------------------------------------------------------------
+// The app-layer sentinel errors and the machine-readable conflicts (the
+// word IS the message; the transport maps them by name)
+// ---------------------------------------------------------------------------
+
+var (
+	// ErrOrderVerificationNoReceipt — the anchor refusal: no committed
+	// receipt of the order operation, no task (the task is built over the
+	// CREATED order only).
+	ErrOrderVerificationNoReceipt = errors.New(OrderVerificationNoReceiptWord)
+	// ErrOrderVerificationCompositionChanged — the decision fence refusal
+	// (AC-9): the live re-derivation diverged from the pinned version (or
+	// the command's expected digest is not the operation's pin) — the
+	// decision is refused BY NAME, the repeated full check is required.
+	ErrOrderVerificationCompositionChanged = errors.New(OrderVerificationCompositionChangedWord)
+)
+
+// OrderVerificationActiveError is the honest one-active-task conflict of
+// the repeated assign (the 409, AC-of-the-one-task): the CURRENT
+// lifecycle words travel with the conflict — the derived state word with
+// its honest text — so the operator sees what already lives instead of a
+// bare refusal (the HandoffActiveError precedent of 2.13).
+type OrderVerificationActiveError struct {
+	State     string
+	StateText string
+}
+
+// Error renders the fixed refusal line (the words travel as the fields of
+// the problem contract — the transport carries them, never a re-parse of
+// this text).
+func (e OrderVerificationActiveError) Error() string { return OrderVerificationActiveText }
+
+// OrderVerificationRacedError is the honest CAS refusal of the raced
+// append (the parallel decision of the second manager, the reassignment):
+// the raced command NEVER wrote — the CURRENT lifecycle words travel with
+// the refusal (the honest «задача переназначена» family, AC-7).
+type OrderVerificationRacedError struct {
+	State     string
+	StateText string
+}
+
+// Error renders the fixed refusal line (the current words ride the
+// fields of the problem contract).
+func (e OrderVerificationRacedError) Error() string { return OrderVerificationReassignedWord }
