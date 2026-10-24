@@ -4931,3 +4931,19 @@ done:
 next: CHECKPOINT 2 — PR через GitHub API (sha-pinned HEAD в теле) → CI ×3 зелёный поимённо (push/PR/merge) → sha-pinned merge в main → локальный main ff-only → DEVLOG 232-checkpoint-2 → пуш; после merge: следующая story по сигналу владельца; удаление слитых веток 4-5/4-6 на GitHub — по поручению владельца
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для PR, проверки CI и merge)
 commit: TBD
+
+---
+date: 2026-10-25
+task: 232-checkpoint-2
+role: main (Super Z)
+story: 4-6
+summary: CHECKPOINT 2 story 4-6 — ветка слита в main (PR #47, sha-pinned merge 204d84d → merge-commit 6893c59, CI ×3 зелёный поимённо: #40130831720 push / #40130901925 PR / #40131775001 merge; Epic 4: 6/11 — спека done, sprint-status done); мандат «продолжайте (токен)» В ОТВЕТ на предъявление 225-sm исполнен полностью (CHECKPOINT 1 → Dev 01-05 с инкрементальными коммитами/пушами → CHECKPOINT 2)
+done:
+- PR #47 создан python-JSON сборкой (scripts/pr_story_4_6.py — урок 4-4: sha-pin 204d84de242a803ba3e2c51c4b962634e4d4334d в теле; bash-артефакты исключены)
+- CI ×3 зелёный поимённо: push #40130831720 и pull_request #40130901925 на голове ветки 204d84d (completed/success), merge-run #40131775001 на merge-commit 6893c59 (completed/success)
+- Sha-pinned merge: голова PR сверена живым GET непосредственно перед merge (совпадение 204d84d), merge-commit 6893c59052d1148e1b52bbe6746157de0581a720 в main
+- Локальный main подтянут ff-only (ad8467c → 6893c59), RPO=0
+- Closure-состояние исполнено в step-05 до merge: спека 4-6 done, sprint-status 4-6 done, Spec Change Log Dev 01-04 + QA головой
+- Токен нигде не зафиксирован: env-only STAFFY_GH_TOKEN ре-экспорт в команде каждого auth-шага, remote-URL чистый, дифф-сканы 0
+next: следующая story по сигналу владельца «продолжайте» (спека 4-7 decision-ready проверка заказа менеджером — SM-фаза); удаление слитых веток 4-5/4-6 на GitHub — по поручению владельца; владельцу: ОТЗВАТЬ PAT подтверждённо после закрытия чата (retro-3-6/retro-2-6 — передавался открытым текстом многократно; токен этой сессии ЖИВ — использовался для пушей шагов, PR #47, проверки CI и merge)
+commit: TBD
