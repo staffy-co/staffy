@@ -102,9 +102,9 @@ const (
 
 // OfferResearchWord is the manager task reason word of the offer research
 // recommendation — the PUBLIC dictionary constant of 2.13 (the Story 4.5
-// extension, the SQL mirror 00024; the step-02 switch onto the public
+// extension, the SQL mirror 00024 — the switch onto the public HandoffReason
 // constant follows the 4.4 precedent of the fitment research word).
-const OfferResearchWord = "offers_research"
+const OfferResearchWord = HandoffReasonOffersResearch
 
 // The honest words (the text, never only color).
 const (
@@ -1248,6 +1248,113 @@ func nilIfZero(value *int) any {
                 return nil
         }
         return *value
+}
+
+// OfferView is the OPERATOR material of ONE recorded offer (the panel's
+// internal section of the case page): the full record material WITH the
+// purchase price and its internal-data word (AC-2 — the operator section
+// renders it; the CLIENT material family — the comparison variants and
+// the voice block — never carries it, structurally).
+type OfferView struct {
+	OfferNo           int64           `json:"offer_no"`
+	PositionKey       string          `json:"position_key"`
+	SupplierID        string          `json:"supplier_id"`
+	SupplierName      string          `json:"supplier_name"`
+	Brand             string          `json:"brand"`
+	Article           string          `json:"article"`
+	ClientPrice       float64         `json:"client_price"`
+	PurchasePrice     *float64        `json:"purchase_price,omitempty"`
+	PurchaseWord      string          `json:"purchase_word,omitempty"`
+	Currency          string          `json:"currency"`
+	QuantityAvailable int             `json:"quantity_available"`
+	TermDays          *int            `json:"term_days,omitempty"`
+	TermWord          string          `json:"term_word"`
+	Conditions        string          `json:"conditions,omitempty"`
+	Source            OfferSourceView `json:"source"`
+	OfferDigest       string          `json:"offer_digest"`
+}
+
+// OfferViewOf renders the operator view of ONE offer record (the purchase
+// word appears only when the internal data exists — the honest absent
+// price never renders a word).
+func OfferViewOf(offer SupplierOfferInput) OfferView {
+	termWord := OfferNoTermWord
+	if offer.TermDays != nil {
+		termWord = OfferTermEstimateWord
+	}
+	purchaseWord := ""
+	if offer.PurchasePrice != nil {
+		purchaseWord = OfferPurchaseInternalWord
+	}
+	return OfferView{
+		OfferNo:           offer.OfferNo,
+		PositionKey:       offer.PositionKey,
+		SupplierID:        offer.SupplierID,
+		SupplierName:      offer.SupplierName,
+		Brand:             offer.Brand,
+		Article:           offer.Article,
+		ClientPrice:       offer.ClientPrice,
+		PurchasePrice:     offer.PurchasePrice,
+		PurchaseWord:      purchaseWord,
+		Currency:          offer.Currency,
+		QuantityAvailable: offer.QuantityAvailable,
+		TermDays:          offer.TermDays,
+		TermWord:          termWord,
+		Conditions:        offer.Conditions,
+		Source: OfferSourceView{
+			SourceSystem: offer.SourceSystem, SourceRecordID: offer.SourceRecordID, SourceVersion: offer.SourceVersion,
+			SourceObservedAt: offer.SourceObservedAt, ReceivedAt: offer.ReceivedAt,
+		},
+		OfferDigest: OfferDigestOf(offer),
+	}
+}
+
+// SelectionSnapshotView is the rendered material of ONE recorded client
+// choice: the position, the supplier and the offer number of the chosen
+// CURRENT record, the quantity, the unit client price (the recorded
+// permitted ABCP price), the known client sum with its boundary word
+// (AC-4 — the ONLY arithmetic of the slice, never the final cost), the
+// pins of the EXACT versions of ALL FOUR inputs (AC-13) and the order
+// boundary word (the fence OQ-3/OQ-4 — the order contour of 4.6).
+type SelectionSnapshotView struct {
+	SnapshotNo           int64     `json:"snapshot_no"`
+	PositionKey          string    `json:"position_key"`
+	SupplierID           string    `json:"supplier_id"`
+	OfferNo              int64     `json:"offer_no"`
+	Quantity             int       `json:"quantity"`
+	UnitClientPrice      float64   `json:"unit_client_price"`
+	Currency             string    `json:"currency"`
+	KnownClientSum       float64   `json:"known_client_sum"`
+	SumBoundaryWord      string    `json:"sum_boundary_word"`
+	OrderBoundaryWord    string    `json:"order_boundary_word"`
+	ProfileDigestPin     string    `json:"profile_digest_pin"`
+	PartRequestDigestPin string    `json:"part_request_digest_pin"`
+	FitmentDigestPin     string    `json:"fitment_digest_pin"`
+	OfferDigestPin       string    `json:"offer_digest_pin"`
+	SelectionDigest      string    `json:"selection_digest"`
+	CreatedAt            time.Time `json:"created_at"`
+}
+
+// SelectionSnapshotViewOf renders the view of ONE snapshot record.
+func SelectionSnapshotViewOf(material SelectionSnapshotMaterial, snapshotNo int64, createdAt time.Time) SelectionSnapshotView {
+	return SelectionSnapshotView{
+		SnapshotNo:           snapshotNo,
+		PositionKey:          material.PositionKey,
+		SupplierID:           material.SupplierID,
+		OfferNo:              material.OfferNo,
+		Quantity:             material.Quantity,
+		UnitClientPrice:      material.UnitClientPrice,
+		Currency:             material.Currency,
+		KnownClientSum:       material.KnownClientSum,
+		SumBoundaryWord:      OfferSumBoundaryWord,
+		OrderBoundaryWord:    OfferOrderBoundaryWord,
+		ProfileDigestPin:     material.ProfileDigestPin,
+		PartRequestDigestPin: material.PartRequestDigestPin,
+		FitmentDigestPin:     material.FitmentDigestPin,
+		OfferDigestPin:       material.OfferDigestPin,
+		SelectionDigest:      material.SelectionDigest,
+		CreatedAt:            createdAt,
+	}
 }
 
 // sha256Canonical marshals the canonical map (the sorted keys of the Go

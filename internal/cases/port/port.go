@@ -214,6 +214,16 @@ type Repository interface {
         // input, ordered by the work item, the position, the source and the
         // evidence number).
         ReadFitmentEvidencesOfCase(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]FitmentEvidenceRecord, error)
+        // ReadSupplierOffersOfCase reads every supplier offer record of the
+        // case (the Story 4.5 read surface — the read-time comparison
+        // derivation input, ordered by the work item, the position, the
+        // supplier and the monotonic offer number).
+        ReadSupplierOffersOfCase(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]SupplierOfferRecord, error)
+        // ReadSelectionSnapshotsOfCase reads every selection snapshot record
+        // of the case (the Story 4.5 read surface — the recorded client
+        // choices, ordered by the work item and the monotonic snapshot
+        // number).
+        ReadSelectionSnapshotsOfCase(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]SelectionSnapshotRecord, error)
         // Story 2.3 — the verification, binding and duplicate surface:
         // ReadConversationOfCase reads one conversation of the case (the
         // verification context and the binding target validation).
@@ -845,6 +855,121 @@ type FitmentEvidenceRecord struct {
         CreatedAt            time.Time
 }
 
+// SupplierOfferCommandMaterial is the Story 4.5 record material of ONE
+// supplier offer write: the generated offer identifier, the position key
+// (canonical), the supplier material (the identifier, the name, the brand,
+// the article), the commercial conditions (the client price by the ABCP
+// permission — the recorded permitted price, the OPTIONAL purchase price
+// of the internal data, the currency, the availability, the term estimate
+// with its single kind word, the conditions text), the source
+// traceability (the system word, the record identifier, the version, the
+// observed time) and BOTH mandatory digest pins (the exact input versions
+// — AC-2/AC-10) with the OPTIONAL fitment pin. The canonical OfferDigest
+// is NOT the command material: it pins the monotonic offer number (the
+// server truth derived under the locks — the store computes and writes
+// it, the read surface re-derives the same bytes).
+type SupplierOfferCommandMaterial struct {
+        OfferID              id.UUID
+        PositionKey          string
+        SupplierID           string
+        SupplierName         string
+        Brand                string
+        Article              string
+        ClientPrice          float64
+        PurchasePrice        *float64
+        Currency             string
+        QuantityAvailable    int
+        TermDays             *int
+        Conditions           string
+        SourceSystem         string
+        SourceRecordID       string
+        SourceVersion        string
+        SourceObservedAt     time.Time
+        ProfileDigestPin     string
+        PartRequestDigestPin string
+        FitmentDigestPin     string
+}
+
+// SupplierOfferRecord is ONE stored offer record of the read surface (the
+// store reads them ordered by the offer number — the read-time comparison
+// elects the current record of every supplier by the number). The
+// PurchasePrice is the internal data of the store: the record owns it,
+// the CLIENT material of the comparison view never does (AC-2).
+type SupplierOfferRecord struct {
+        WorkItemID           id.UUID
+        OfferID              id.UUID
+        OfferNo              int64
+        PositionKey          string
+        SupplierID           string
+        SupplierName         string
+        Brand                string
+        Article              string
+        ClientPrice          float64
+        PurchasePrice        *float64
+        Currency             string
+        QuantityAvailable    int
+        TermDays             *int
+        TermKind             string
+        Conditions           string
+        SourceSystem         string
+        SourceRecordID       string
+        SourceVersion        string
+        SourceObservedAt     time.Time
+        ReceivedAt           time.Time
+        ProfileDigestPin     string
+        PartRequestDigestPin string
+        FitmentDigestPin     string
+        OfferDigest          string
+        CreatedAt            time.Time
+}
+
+// SelectionSnapshotCommandMaterial is the Story 4.5 record material of ONE
+// client selection write: the generated snapshot identifier, the position
+// key (canonical), the chosen CURRENT offer (the supplier, the offer
+// number, the OfferDigest pin), the chosen quantity, the unit client price
+// (the recorded permitted ABCP price — never a computed one), the known
+// client sum (the ONLY arithmetic of the slice: the quantity × the
+// recorded price, AC-4), the pins of the EXACT versions of ALL FOUR
+// inputs (AC-13) and the canonical SelectionDigest.
+type SelectionSnapshotCommandMaterial struct {
+        SnapshotID           id.UUID
+        PositionKey          string
+        SupplierID           string
+        OfferNo              int64
+        OfferDigestPin       string
+        Quantity             int
+        UnitClientPrice      float64
+        Currency             string
+        KnownClientSum       float64
+        ProfileDigestPin     string
+        PartRequestDigestPin string
+        FitmentDigestPin     string
+        SelectionDigest      string
+}
+
+// SelectionSnapshotRecord is ONE stored selection snapshot record of the
+// read surface (the recorded client choice with the pins of the exact
+// versions of ALL FOUR inputs — the material of the order contour of 4.6;
+// NO ABCP Order is ever created by this surface — the fence OQ-3/OQ-4).
+type SelectionSnapshotRecord struct {
+        WorkItemID           id.UUID
+        SnapshotID           id.UUID
+        SnapshotNo           int64
+        PositionKey          string
+        SupplierID           string
+        OfferNo              int64
+        OfferDigestPin       string
+        Quantity             int
+        UnitClientPrice      float64
+        Currency             string
+        KnownClientSum       float64
+        ProfileDigestPin     string
+        PartRequestDigestPin string
+        FitmentDigestPin     string
+        SelectionDigest      string
+        CreatedAt            time.Time
+}
+
 // WorkTargetParams is one split target: the app-generated anchor id with
 // the type and the title.
 type WorkTargetParams struct {
@@ -1146,6 +1271,19 @@ type WorkCommandParams struct {
         // the store guard re-validates the material against it under the
         // locks — the Domain Policy of the pack, never the store code).
         FitmentPolicy        FitmentPolicySpec
+        // Offer is the Story 4.5 record material of the record_supplier_offer
+        // command (nil for every other command — the one-structure material
+        // of the append-only commercial conditions write).
+        Offer *SupplierOfferCommandMaterial
+        // Selection is the Story 4.5 record material of the
+        // record_client_selection command (nil for every other command — the
+        // one-structure material of the append-only client choice write).
+        Selection *SelectionSnapshotCommandMaterial
+        // ComparisonPolicy is the pack policy of the Story 4.5 record
+        // commands (the app resolves it through the taxonomy port BEFORE the
+        // write; the store guard re-validates the material against it under
+        // the locks — the Domain Policy of the pack, never the store code).
+        ComparisonPolicy ComparisonPolicySpec
         HandoffAssignee      id.UUID
         HandoffBackup        id.UUID
         HandoffAssigneeRole  string

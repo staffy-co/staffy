@@ -503,6 +503,11 @@ type WorkOutcome struct {
 	FitmentEvidenceNo  int64   `json:"fitment_evidence_no,omitempty"`
 	FitmentPositionKey string  `json:"fitment_position_key,omitempty"`
 	FitmentDigest      string  `json:"fitment_digest,omitempty"`
+	SupplierOfferID    id.UUID `json:"supplier_offer_id,omitempty"`
+	OfferPositionKey   string  `json:"offer_position_key,omitempty"`
+	SelectionSnapshotID id.UUID `json:"selection_snapshot_id,omitempty"`
+	SelectionPositionKey string `json:"selection_position_key,omitempty"`
+	SelectionDigest    string  `json:"selection_digest,omitempty"`
 	HandoffTurnRef     id.UUID `json:"handoff_turn_ref,omitempty"`
 	HandoffAssignee    id.UUID `json:"handoff_assignee,omitempty"`
 	HandoffBackup      id.UUID `json:"handoff_backup,omitempty"`

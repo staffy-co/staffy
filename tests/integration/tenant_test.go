@@ -385,6 +385,31 @@ func TestMain(m *testing.M) {
 	if _, err = adminPool.Exec(ctx, strings.Split(string(casesFitmentReasonMigration), "-- +goose Down")[0]); err != nil {
 		panic(err)
 	}
+	// Story 4.5: the supplier offers + the selection snapshots + the reason
+	// dictionary extension. The registration stays in this hard list (the
+	// 3.3 lesson of 00017: a migration outside the list never applies its
+	// tables and the whole contour tests a world that does not exist).
+	casesSupplierOffersMigration, err := os.ReadFile("../../migrations/cases/00022_supplier_offers.sql")
+	if err != nil {
+		panic(err)
+	}
+	if _, err = adminPool.Exec(ctx, strings.Split(string(casesSupplierOffersMigration), "-- +goose Down")[0]); err != nil {
+		panic(err)
+	}
+	casesSelectionSnapshotsMigration, err := os.ReadFile("../../migrations/cases/00023_selection_snapshots.sql")
+	if err != nil {
+		panic(err)
+	}
+	if _, err = adminPool.Exec(ctx, strings.Split(string(casesSelectionSnapshotsMigration), "-- +goose Down")[0]); err != nil {
+		panic(err)
+	}
+	casesOffersReasonMigration, err := os.ReadFile("../../migrations/cases/00024_offers_research_reason.sql")
+	if err != nil {
+		panic(err)
+	}
+	if _, err = adminPool.Exec(ctx, strings.Split(string(casesOffersReasonMigration), "-- +goose Down")[0]); err != nil {
+		panic(err)
+	}
 	// Story 3.4: the FIRST migration of the action module. The
 	// registration in this hard list is load-bearing (the 3.3 lesson of
 	// 00017: a migration outside the list never applied its tables to
