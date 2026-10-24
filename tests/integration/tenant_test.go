@@ -482,6 +482,19 @@ func TestMain(m *testing.M) {
 	if _, err = adminPool.Exec(ctx, strings.Split(string(actionRecoveryMigration), "-- +goose Down")[0]); err != nil {
 		panic(err)
 	}
+	// Story 4.7: the SIXTH migration of the action module — the manager
+	// order verification contour (the append-only delegated-task tables
+	// over the committed receipt of 4.6). The registration stays in this
+	// hard list (the 3.3 lesson: a migration outside the list never
+	// applies its tables and the whole contour tests a world that does
+	// not exist).
+	actionOrderVerificationMigration, err := os.ReadFile("../../migrations/action/00006_order_verifications.sql")
+	if err != nil {
+		panic(err)
+	}
+	if _, err = adminPool.Exec(ctx, strings.Split(string(actionOrderVerificationMigration), "-- +goose Down")[0]); err != nil {
+		panic(err)
+	}
 	if _, err = adminPool.Exec(ctx, "alter role staffy_app login password 'staffy-runtime-test'"); err != nil {
 		panic(err)
 	}
