@@ -4914,3 +4914,20 @@ done:
 next: Dev step-05 — QA-саморевью по живому диффу шагов 01-04 (замороженные секции/лестница 3-6/поля отправки 0/оператор не вводит пины/маркетинг 0/import-graph) + финальный регресс свежими прогонами + closure (Spec Change Log Dev 01-04, спека done, sprint-status done — Epic 4: 6/11) + коммит feat БЕЗ маркера — CI ×3 на CHECKPOINT 2
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для пушей шагов)
 commit: TBD
+
+---
+date: 2026-10-25
+task: 231-dev-step-05
+role: main (Super Z, Dev-фаза)
+story: 4-6
+summary: Dev step-05 story 4-6 — QA-саморевью свежим контекстом по живому диффу (вердикт: Major-находок НЕТ) + closure (спека done, sprint-status done — Epic 4: 6/11) + коммит feat БЕЗ маркера для CI ×3 на CHECKPOINT 2
+done:
+- QA-скан scripts/qa_step05_4_6_scan.py по живому диффу main...HEAD (46 изменений, 43 кодовых файла): секреты 0 / CJK 0 / mixed 0
+- Замороженные секции: human_handoff.go — ТОЛЬКО добавления (+1 слово order_creation словаря причин с текстом — спека); dispatch.go лестница 3-6 — новый забор FENCE 4.5 ПОСЛЕ confirmation-fence ДО case-alive, порядок существующих шагов неприкосновенен (живой пин юнит-теста TestDispatchOrderRevalidationRunsBeforeCaseLiveness; единственные «удаления» диффа — реструктуризация литерала actionReceiptViews для производных слов, persist-машина 3-6 не тронута); observation/decision-context/work/commitment/external_commitment/каталог паков — НЕ тронуты
+- SQL среза: РОВНО 1 новая миграция (00025 — словарное расширение CHECK reason 6→7 по прецедентам 00019/00021/00024, honest-Down); новых таблиц нет; чужих миграций нет
+- Честные границы структурны: supplier-send поля 0 в КОДЕ каталога и домена (зонд); оператор НЕ вводит материал — PrepareOrderProposalCommand несёт ТОЛЬКО якоря (структурный зонд полей); маркетинговые слова 0 в домене заказа; import-graph домена заказа чист (ноль сетевых, ноль модульных импортов — AD-2); AD-10 зонд сырых SHA-256 расширен честно до ДВУХ именинных сайтов (легаси DeriveProposalKey + пин версии OrderDigestOf класса OfferDigestOf 4-5)
+- Финальный регресс свежими прогонами: build/vet OK, unit ./... 33 пакета ok, интеграция ok ×2 (TZ=Europe/Moscow), journeys ПОЛНЫЙ суит 48/48 (3.2m)
+- Closure: Spec Change Log запись Dev 01-04 + QA (коммиты шагов: b265aa8/0956e63/76fa7ed/5f70283); спека ready-for-dev → done; sprint-status 4-6-создание-одного-клиентского-заказа-в-abcp → done — Epic 4: 6/11; коммит feat БЕЗ [skip ci] — голова триггерит CI ×3 (push + PR + merge — урок 2-14/ретро-2-1)
+next: CHECKPOINT 2 — PR через GitHub API (sha-pinned HEAD в теле) → CI ×3 зелёный поимённо (push/PR/merge) → sha-pinned merge в main → локальный main ff-only → DEVLOG 232-checkpoint-2 → пуш; после merge: следующая story по сигналу владельца; удаление слитых веток 4-5/4-6 на GitHub — по поручению владельца
+владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для PR, проверки CI и merge)
+commit: TBD
