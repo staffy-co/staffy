@@ -572,6 +572,15 @@ func (s *Server) caseDetailPage(w http.ResponseWriter, r *http.Request) {
 	}
 	page := prepareCaseView(r, view, facts, flash)
 	page.DecisionContext = contextPanel
+	// The Story 4.6 order panel: the honest degradation of the
+	// decision-context precedent (an unwired action surface or a
+	// scope-forbidden member renders the zero panel — the page keeps the
+	// rest; every other failure fails the page honestly).
+	page.Order, err = s.orderPanelOf(r.Context(), actor, tenant, caseID, view)
+	if err != nil {
+		s.casesPageProblem(w, r, err)
+		return
+	}
 	s.render(w, "case", map[string]any{
 		"TenantID": tenant,
 		"View":     page,

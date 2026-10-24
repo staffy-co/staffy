@@ -4881,3 +4881,21 @@ done:
 next: Dev step-03 — панель «Заказ клиента» (карточка подтверждения с РАЗНЫМИ кнопками подтверждения/исправления + панель квитанции + рекомендация order_creation на parked AG-4) + reason-select 6 + OpenAPI зеркала + контракт-тест + wire-тесты
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для пушей шагов)
 commit: TBD
+
+---
+date: 2026-10-25
+task: 229-dev-step-03
+role: main (Super Z)
+story: 4-6
+summary: Dev step-03 story 4-6 — поверхности + OpenAPI: панель «Заказ клиента» на странице кейса после «Предложений и сравнение» (карточка подтверждения с РАЗНЫМИ кнопками + панель квитанции с производными словами + рекомендация order_creation AG-4) + маршруты билдера (JSON + PRG-форма) + api.OrderProposalService + OpenAPI-зеркала + wire-тесты 5
+done:
+- internal/transport/http/cases_order.go (новой): orderPanelView/orderPreviewCardView/orderReceiptRowView; orderPanelOf — честная деградация прецедента decision-context (незашитый action-контур/скоуп-отказ = нулевая панель, страница живёт); prepareOrderPanel — единая логика (нет выбора = слово; карточка ТЕКУЩЕГО preview порядка заказа с материал-строками/дайджестом/суммой/границей/обязательным словом AC-1; квитанции операций заказа с производными словами; рекомендация AG-4 order_creation на операции без committed-квитанции — панель рекомендует, оператор решает); BindOrderProposals — маршруты POST /v1/.../work-items/{wi}/order-proposals (строгий decode ПУСТОГО тела — материал НЕ поле запроса) + /app/... PRG-форма (origin-гейт, якоря путём); orderProblem — честная лестница 409 слов билдера/403/404
+- api.OrderProposalService (узкий интерфейс, type-assert над preview-сервисом — прецедент ActionCatalogService); поле orderProposals в Server; проводка main.go + fixture_server.go
+- caseDetailPageView.Order + caseDetailPage читает панель с честной деградацией; web/templates/case.html: секция «Заказ клиента» после «Предложений и сравнение» — карточка подтверждения (таблица материала, итого + граница суммы, ОБЯЗАТЕЛЬНОЕ слово менеджерской проверки role=status, пин дайджеста, состояние/готовность/свежесть) + ДВЕ РАЗНЫЕ формы: подтверждение → существующий маршрут operations/confirmations (step-up, скрытые preview_id/version_no) и исправление → маршрут билдера order-proposals (пересборка живьём, состав руками НЕ вводится) — AC-16; панель квитанций (внешний ID/версия/время, состояние + клиентские слова, 1С-unknown role=alert, слово назначения менеджера); секция AG-4 (role=alert честное слово блокировки + рекомендация order_creation со словом причины — существующая форма request_human); нет выбора → честное слово
+- contracts/openapi/staffy.yaml: путь order-proposals (лестница 200/400/401/403/404/409, summary с пинами контура); OrderProposalRequest (ПУСТОЕ тело); OrderCommitmentTypedInput (closed-shape 4 поля — БЕЗ полей отправки поставщику, описание пинит create_abcp_customer_order@1.0.0/адмиссию 4-1/provider_idempotent/fence OQ-3); ActionReceiptView +5 опциональных полей производных слов заказа (order_state enum [pending_manager_verification] и слова); reason enum 5→6 операторских (+order_creation, зеркало 00025)
+- Wire-тесты cases_order_render_test.go (новой, 5): карточка подтверждения (материал-строки/слово AC-1/дайджест/ДВЕ кнопки с РАЗНЫМИ маршрутами — зонд AC-16 + запрет supplier-send слов панели) + квитанции (производные слова + 1С role=alert) + рекомендация AG-4 (слово + текст + role=alert) + честное слово нет выбора + контракт-зеркала (путь/схемы/enum-ы/00025/фенс-зонд полей блока)
+- Обновлены контракт-пины reason-enum (handoff_contract_test 6 слов; fitment mirror 6 слов — расширение словаря по спеке); reason-select request_human 5→6 автоматически (итерация словаря)
+- Регресс: build/vet/unit 33 пакета зелёные; интеграция ×2 TZ зелёная; скан CLEAN (секреты 0/CJK 0/mixed 0/supplier-send 0/маркетинг 0)
+next: Dev step-04 — интеграционная eval-матрица AC-15 живым PG (tests/integration/cases_order_test.go: полная цепочка выбор→предложение→preview→подтверждение→авторизация→синтетический dispatch→receipt committed + pending_manager_verification + клиентские слова + 1С-unknown; eval-набор поимённо) + journeys z43
+владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для пушей шагов)
+commit: TBD

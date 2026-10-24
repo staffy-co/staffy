@@ -3500,6 +3500,27 @@ paths:
         '403': { description: 'Policy-гейт заблокировал валидную попытку (blocked_reason — точное слово словаря из 10) / участник только с audit', content: { application/json: { schema: { type: object, required: [proposal], properties: { proposal: { $ref: '#/components/schemas/ProposalOutcome' } } } } } }
         '404': { description: 'Не-участник / кейс или work item или определение не найдены — ДО материала', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
         '409': { description: 'Терминальный rejected (повторная невалидность, попытки исчерпаны) / третья попытка структурно не существует', content: { application/json: { schema: { type: object, required: [proposal], properties: { proposal: { $ref: '#/components/schemas/ProposalOutcome' } } } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/order-proposals:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - $ref: '#/components/parameters/WorkItemID'
+    post:
+      operationId: prepareOrderProposal
+      summary: 'Собрать предложение заказа клиента (Story 4.6): билдер выводит материал ЖИВО из записанного выбора 4-5 и текущих дериваций (пины всех пяти входов, позиции, известная сумма, ОБЯЗАТЕЛЬНОЕ слово менеджерской проверки AC-1) — тело команды ПУСТО: якоря едут путём, состав заказа руками НЕ вводится (принцип «оператор не вводит дайджесты» 4-4/4-5); определение create_abcp_customer_order@1.0.0 (первый продуктовый энтри каталога; адмиссия против декларации 4-1 abcp-parts@1.1.0/command.prepare-client-order Idempotent=true → provider_idempotent); заказ НЕ отправляется поставщику (fence OQ-3); отказы ДО предложения — честные слова (нет выбора / non-proven применимость / смешанные версии входов)'
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrderProposalRequest' }
+      responses:
+        '200': { description: 'Предложение построено машиной 3-4 (typed input — OrderCommitment-материал: order_digest/order_material/known_client_sum/currency)', content: { application/json: { schema: { type: object, required: [proposal], properties: { proposal: { $ref: '#/components/schemas/ProposalOutcome' } } } } } }
+        '400': { description: 'Типовая невалидность словами (verdict invalid)', content: { application/json: { schema: { type: object, required: [proposal], properties: { proposal: { $ref: '#/components/schemas/ProposalOutcome' } } } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Policy-гейт заблокировал валидную попытку (blocked_reason — точное слово)', content: { application/json: { schema: { type: object, required: [proposal], properties: { proposal: { $ref: '#/components/schemas/ProposalOutcome' } } } } } }
+        '404': { description: 'Не-участник / кейс, work item или определение заказа не найдены — ДО материала', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '409': { description: 'Заказ не строится из текущего материала: нет подтверждённого выбора / применимость не подтверждена / версии входов расходятся / предложение не резолвится — честные слова ДО какого-либо предложения', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
   /v1/tenants/{tenant_id}/cases/{case_id}/action-previews/{preview_id}/versions:
     parameters:
       - $ref: '#/components/parameters/TenantID'
@@ -6554,7 +6575,7 @@ components:
         expected_mode_version: { type: integer, minimum: 1, description: 'CAS-ожидание версии лестницы режимов (гонка режима — честный 409 mode_conflict)' }
         target_roles: { type: array, minItems: 1, items: { type: string, enum: [operator, supervision] }, description: 'Целевые роли запроса (непустой набор слов словаря без дублей — кого адресует просьба)' }
         ack_deadline: { type: string, enum: [ack_15m, ack_1h, ack_4h], description: 'Слово дедлайна подтверждения (утверждённая policy v0)' }
-        reason: { type: string, enum: [diagnostic_uncertainty, safety_critical, unresolved_contradiction, fitment_research, offers_research], description: 'Слово границы (Story 4.3 — операторский продюсер по рекомендации панели «Запрос детали»; Story 4.4 — слово каталогического исследования по рекомендации панели «Применимость»; Story 4.5 — слово запроса актуальных условий по рекомендации панели «Предложения и сравнение»; пусто = безусловная просьба клиента 2.13; явный client_request вводом НЕВОЗМОЖЕН — системная истина; словарь — зеркало миграции cases/00019 + cases/00021 + cases/00024, append-only)' }
+        reason: { type: string, enum: [diagnostic_uncertainty, safety_critical, unresolved_contradiction, fitment_research, offers_research, order_creation], description: 'Слово границы (Story 4.3 — операторский продюсер по рекомендации панели «Запрос детали»; Story 4.4 — слово каталогического исследования по рекомендации панели «Применимость»; Story 4.5 — слово запроса актуальных условий по рекомендации панели «Предложения и сравнение»; Story 4.6 — слово создания клиентского заказа по рекомендации панели «Заказ клиента» запаркованной операции AG-4; пусто = безусловная просьба клиента 2.13; явный client_request вводом НЕВОЗМОЖЕН — системная истина; словарь — зеркало миграции cases/00019 + cases/00021 + cases/00024 + cases/00025, append-only)' }
     RecordFitmentEvidenceRequest:
       type: object
       required: [position_key, link_type, source_system, source_record_id, source_version, source_observed_at]
@@ -7763,6 +7784,20 @@ components:
         attempt_no: { type: integer, enum: [1, 2] }
         blocked_reason: { $ref: '#/components/schemas/PreviewPolicyReason' }
         preview_digest: { type: string, minLength: 64, maxLength: 64 }
+    OrderProposalRequest:
+      type: object
+      additionalProperties: false
+      description: 'Тело команды заказа — ровно один ПУСТОЙ объект (Story 4.6): якоря (кейс, work item) едут путём; НИ ОДНОГО поля материала не существует — состав заказа билдер выводит живьём из записанного выбора 4-5 (принцип «оператор не вводит дайджесты» 4-4/4-5); свободное поле = 400 строгим decode ДО сервиса'
+    OrderCommitmentTypedInput:
+      type: object
+      additionalProperties: false
+      description: 'Closed-shape зеркала типовых полей определения create_abcp_customer_order@1.0.0 (первый продуктовый энтри каталога действий; PackRef auto-parts@6.0.0; RequiredCapability abcp-parts@1.1.0/command.prepare-client-order; OwningSystem erp; класс provider_idempotent — декларация 4-1 Idempotent=true): БЕЗ ЕДИНОГО поля отправки поставщику (fence OQ-3: supplier_form/send отсутствует в Action Catalog); подтверждение required, потребление single_use, риск critical'
+      required: [order_digest, order_material, known_client_sum, currency]
+      properties:
+        order_digest: { type: string, minLength: 64, maxLength: 64, description: 'Пин точной версии заказа: 64-hex SHA-256 канонического состава над пинами ВСЕХ ПЯТИ входов (профиль 4-2, запрос 4-3, применимость 4-4, предложение 4-5, выбор 4-5) + позиции + известная сумма + слово менеджерской проверки; execute-time revalidation сверяет живую ре-деривацию ДО lease (AC-5)' }
+        order_material: { type: string, maxLength: 2000, description: 'Канонический рендер состава: позиции с брендом/артикулом, оригинал/аналог, количеством, клиентской ценой и известными условиями; итого; ОБЯЗАТЕЛЬНОЕ слово «заказ сначала будет проверен менеджером и ещё не отправляется поставщику» (AC-1)' }
+        known_client_sum: { type: string, description: 'Известная клиентская сумма арифметики выбора 4-5 (без доставки и сбора — окончательная стоимость не рассчитана)' }
+        currency: { type: string, enum: [RUB], description: 'Валюта — слово словаря пака auto-parts@6.0.0' }
     NewPreviewVersionRequest:
       type: object
       additionalProperties: false
@@ -8196,6 +8231,11 @@ components:
         external_object_version: { type: string, description: 'Версия внешнего объекта; пусто = не выдана' }
         details: { type: string, description: 'Safe-details ≤500 рун — идентификаторы и слова, материал НИКОГДА' }
         created_at: { type: string, format: date-time }
+        order_state: { type: string, enum: [pending_manager_verification], description: 'Story 4.6: ПРОИЗВОДНОЕ слово чтения состояния заказа (только committed квитанция действия create_abcp_customer_order; хранимая квитанция остаётся трёхсловной) — заказ создан в магазине и ожидает проверки менеджера' }
+        order_state_word: { type: string, description: 'Клиентское слово состояния заказа (AC-14): «заказ создан в магазине и ожидает проверки менеджера»' }
+        order_boundary_word: { type: string, description: 'Граничное слово клиента (AC-14): НЕ заказан у поставщика, НЕ выкуплен, НЕ отправлен, НЕ гарантирован' }
+        order_one_c_word: { type: string, description: 'Честное 1С-слово (AC-13, OQ-4/OQ-19): проекция в 1С неизвестна (unknown) — синхронизация не доказана' }
+        order_manager_word: { type: string, description: 'Слово назначения менеджера (производное чтения; механика delegated task — контур 4-7)' }
     ReconcileOperationsRequest:
       type: object
       additionalProperties: false

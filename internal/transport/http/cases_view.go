@@ -135,6 +135,9 @@ type caseDetailPageView struct {
 	PartRequest partPanelView
 	Fitment     fitmentPanelView
 	Offers      offersPanelView
+	// The Story 4.6 order panel (the case-level section after the offers —
+	// the Order Commitment surface of the existing machines).
+	Order orderPanelView
 	// The Story 2.3 sections: the assurance panel, the bindings and the
 	// duplicate cards.
 	Assurance           assurancePanelView

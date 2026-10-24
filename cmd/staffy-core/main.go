@@ -223,6 +223,7 @@ func run(logger *slog.Logger) error {
 		WithRecovery(actionStore.NewPostgres(pool))
 	transport.BindActionCatalog(actionService)
 	transport.BindActionPreviews(actionService)
+	transport.BindOrderProposals(actionService)
 	transport.BindAuthorization(actionService)
 	transport.BindDispatch(actionService)
 	transport.BindReconcile(actionService)

@@ -1032,6 +1032,7 @@ func main() {
 			WithReconcile(reconcileRepo, nil).
 			WithRecovery(recoveryRepo))
 	server.BindActionPreviews(actions)
+	server.BindOrderProposals(actions)
 	server.BindAuthorization(actions)
 	server.BindDispatch(actions)
 	server.BindReconcile(actions)

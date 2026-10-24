@@ -85,14 +85,14 @@ func TestHandoffContractIsHonest(t *testing.T) {
 		reasonEnum, _ := reason["enum"].([]any)
 		reasonWords := map[string]bool{}
 		for _, word := range reasonEnum {
-			if text, _ := word.(string); text == "diagnostic_uncertainty" || text == "safety_critical" || text == "unresolved_contradiction" || text == "fitment_research" || text == "offers_research" {
+			if text, _ := word.(string); text == "diagnostic_uncertainty" || text == "safety_critical" || text == "unresolved_contradiction" || text == "fitment_research" || text == "offers_research" || text == "order_creation" {
 				reasonWords[text] = true
 			} else {
 				t.Errorf("the reason enum carries an out-of-dictionary word %q", text)
 			}
 		}
-		if len(reasonWords) != 5 {
-			t.Errorf("the reason enum carries the three Story 4.3 operator boundary words plus the Story 4.4 and 4.5 research words (the 00019 + cases/00024 + 00021 mirrors), got %v", reasonEnum)
+		if len(reasonWords) != 6 {
+			t.Errorf("the reason enum carries the three Story 4.3 operator boundary words plus the Story 4.4, 4.5 and 4.6 task words (the 00019 + 00021 + 00024 + 00025 mirrors), got %v", reasonEnum)
 		}
 	} else {
 		t.Errorf("RequestHumanRequest must carry the OPTIONAL boundary reason (the three Story 4.3 operator words plus the Story 4.4 research word)")
