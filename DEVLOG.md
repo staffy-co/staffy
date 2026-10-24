@@ -4667,3 +4667,17 @@ done:
 next: ответ владельца на повторное предъявление: «одобряю»/«продолжайте» В ОТВЕТ → CHECKPOINT 1 (флип спека backlog → ready-for-dev + sprint-status → ready-for-dev синхронно, прецедент 208-checkpoint-1) → Dev шаги 01-05 → CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge — Epic 4: 5/11); правки/возражения → переработка спеки SM-ролью
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — использовался для верификации /user и ls-remote)
 commit: TBD
+
+---
+date: 2026-10-24
+task: 217-checkpoint-1
+role: main (Super Z)
+story: 4-5
+summary: CHECKPOINT 1 story 4-5 ЗАКРЫТ — мандат владельца «продолжайте (токен)» пришёл В ОТВЕТ на повторное предъявление 216-sm (дисциплина 52-sm удовлетворена); флип синхронно спека+sprint-status backlog → ready-for-dev; Dev 01-05 стартует
+done:
+- Мандат верифицирован как ответ на предъявление: предъявление 216-sm было финальным ответом сессии, «продолжайте (токен)» владельца пришёл следующим сообщением — паттерн прецедента 208-checkpoint-1 (214-цикл 4-4); стартовое «продолжайте» НЕ считалось одобрением, повторное предъявление выпущено 216-sm, теперь ответ на него получен
+- Позиция верифицирована живьём ДО правок: PAT API /user 200 (env-only STAFFY_GH_TOKEN, remote-URL чистый), ls-remote RPO=0: ветка 2ce9b65 = локальный HEAD, main 86a45d0 нетронут, дерево чистое
+- Флип исполнен синхронно в 3 файлах: spec-4-5-offers-and-comparison.md status 'backlog' → 'ready-for-dev' + запись 217-checkpoint-1 головой Spec Change Log (формат 208-прецедента); sprint-status.yaml 4-5-актуальные-предложения-и-сравнение-вариантов backlog → ready-for-dev; DEVLOG этой записью; epic-4 остаётся in-progress (активен с 4-1); замороженные секции не тронуты
+next: Dev шаги 01-05 по Tasks & Acceptance спеки 4-5 (step-01 пак auto-parts@6.0.0 ComparisonPolicy + порт +PackComparisonSchema + домен offers.go + offers_test.go; step-02 миграции 00022/00023/00024 + HandoffReasons +1 offers_research + стор insert/read ×2 + команды записи RecordSupplierOffer/RecordClientSelection; step-03 панель «Предложения и сравнение» + PRG-формы ×2 + JSON API ×2 + reason-select 4→5 + OpenAPI зеркала + контракт-тест + wire-тесты; step-04 интеграционная матрица миры 755/756 + journeys z42; step-05 QA-саморевью и closure — Epic 4: 5/11) → CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge); окружение поднять bootstrap (контейнер сброшен — go не найден зондом сессии)
+владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для пуша чекпоинта и Dev-шагов)
+commit: TBD
