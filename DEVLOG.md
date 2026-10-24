@@ -4725,3 +4725,27 @@ next: step-03 — панель «Предложения и сравнение» 
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для пуша Dev-шагов)
 commit: TBD
 
+---
+date: 2026-10-24
+task: 220-dev-step-03
+role: main (Super Z, Dev-фаза)
+story: 4-5
+summary: Dev step-03 story 4-5 — панель «Предложения и сравнение» + PRG-формы ×2 + JSON API ×2 + app-сборка offersView с критериями из подтверждённого материала + OpenAPI зеркала (2 пути + 11 схем closed-shapes + enum-зеркала) + wire-тесты 6
+done:
+- app/offers.go: offersView — сборка панели (политика пака через порт с честной деградацией; живые пины; критерии comparisonCriteriaOf из подтверждённого материала запроса — budget/brands/deadline/quantity по ключам схемы пака, неподтверждённые не ранжируются; позиции = union записей предложений и позиций применимости 4-4 со статусами/пином из DeriveFitment; DeriveComparison; операторская секция записей OfferViewOf; снапшоты SelectionSnapshotViewOf) + positionLinkTypeOf (тип связи из found-доказательства)
+- api/api.go: CaseView +Comparison ComparisonPanelView; WorkOutcome поля step-02
+- service.go: offersView в сборке caseView после fitmentView
+- transport/http/cases_offers.go (новой, ~640 строк): recordSupplierOfferInput/recordClientSelectionInput JSON; recordSupplierOfferAPI (обязательные поля 400 словами ДО команды) + recordSupplierOfferForm (PRG; опциональные числа — пустое слово честного отсутствия, НЕ ноль; formCommandKey идемпотентность) + recordClientSelectionAPI/Form; offersFormError → #offers; prepareOffersPanel флаттенинг (offerVariantRow/offerPositionRow/offersPanelView); offersStatusKindText
+- cases.go: 4 маршрута (JSON POST /v1/.../supplier-offers + /selection-snapshots; PRG POST /app/... ×2) через OffersService type-assertion (прецедент FitmentService); server.go +offers поле
+- cases_view.go: Offers offersPanelView + prepareOffersPanel вызов после prepareFitmentPanel
+- web/templates/case.html: секция «Предложения и сравнение» байт-точной вставкой после {{end}} секции применимости ДО «Диалоги канала» (интро-слово честности; таблица позиций связь/применимость/условия; детали позиций с вариантами — ранг и объясняющее слово, shortfall role=alert, слова изменений/устаревания role=alert, трассируемость; voice-блок role=alert «Слово для телефона»; операторская секция «Записанные предложения» с закупочной ценой и словом внутренних данных; снапшоты с уравнением суммы и границей заказа; слова цены/срока/scope кейса; PRG-формы ×2 на ActiveWIOptions с labels/select словарей пака/опциональными полями)
+- OpenAPI staffy.yaml: +2 пути (recordSupplierOffer/recordClientSelection с лестницей 201/200/400/401/403/404/409 и честными описаниями отказов) + CaseView +comparison + 11 схем closed-shapes (ComparisonPanelView/ComparisonView/ComparisonPositionView/ComparisonVariantView/ComparisonVoiceBlock/OfferSourceView/OfferView с закупочной ценой операторской/SelectionSnapshotView/RecordSupplierOfferRequest/RecordClientSelectionRequest) + enum-зеркала: status 3 {current, stale, unknown}, currency 1 {RUB}, variant status 2, link_type 2, fitment_status 5 re-shown, handoff words offers_research; ссылки cases/00022/00024
+- Wire-тесты cases_offers_render_test.go (новой, 6 тестов): TestOffersPanelRendersOperatorCard (группировка оригинал+proven, ранги 1/2 со словом budget, shortfall, voice-блок ключевых различий + рекомендуемый, закупочная 3900 со словом внутренних данных, снапшот 2 × 4200 = 8400 с границей, дайджесты) + TestOffersStaleWordsAreTextNotColor (role=alert) + TestOffersDegradedPanelNote (отсутствие секции + слово) + TestOffersRecordFormsRender (обе формы: action-пути, все name-поля, словари select, честные слова) + TestOffersPurchasePriceBoundary (клиентский материал ДО операторской секции без закупочной цены и слова — AC-2 wire-зонд; операторская секция с ценой и словом) + TestOffersOpenAPIContractMirrorsDictionaries (enum-зеркала + имена схем + пути + cases/00022/00024)
+- Исправление по живому тесту: шаблон операторской таблицы .Source.SourceSystem (вложенное поле — поймано TestOffersPanelRendersOperatorCard при первом прогоне)
+- reason-select формы request_human: 4→5 операторских слов автоматически через HandoffReasons итерацию (TestPartRequestFormReasonOptionsRender обновлён в step-02)
+- Регресс: build/vet OK, unit ./... FAIL 0, интеграция ok 42s, контракт-тесты ok, скан CLEAN
+next: step-04 — интеграционная матрица живой PG (миры 755/756): пин-цепочка до 6.0.0 живым релизным контуром; запись предложений живым POST (два поставщика; оригинал+аналог; изменение цены новой записью → слово изменений; TTL clock-фикстурой → stale; неполное количество → shortfall; guard-отказы живьём); запись выбора живым POST (снапшот с 4 пинами; отказы: устаревшее/non-proven/сверх наличия); RLS-слепота; мир 756 деградация 5.0.0 (панель сравнения отсутствует со словом, панель применимости работает); journeys z42 (менеджерский живой сценарий + a11y 320px + зонд секретов); регресс полным контуром
+владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для пуша Dev-шагов)
+commit: TBD
+
+

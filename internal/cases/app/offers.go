@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
@@ -107,7 +110,7 @@ func (s *Service) liveFitmentPinOf(ctx context.Context, scope tenancy.Context, d
 	for key := range byPosition {
 		positionKeys = append(positionKeys, key)
 	}
-	sortStrings(positionKeys)
+	sort.Strings(positionKeys)
 	for _, key := range positionKeys {
 		positions = append(positions, *byPosition[key])
 	}
@@ -132,16 +135,6 @@ func (s *Service) liveFitmentPinOf(ctx context.Context, scope tenancy.Context, d
 		}
 	}
 	return "", casesDomain.FitmentStatusUnknown, nil
-}
-
-// sortStrings sorts the string slice in place (the tiny local helper of
-// the position assembly — the same ordering as the fitment panel).
-func sortStrings(values []string) {
-	for i := 1; i < len(values); i++ {
-		for j := i; j > 0 && values[j] < values[j-1]; j-- {
-			values[j], values[j-1] = values[j-1], values[j]
-		}
-	}
 }
 
 // RecordSupplierOffer records ONE manager's commercial conditions research
@@ -563,4 +556,214 @@ func supplierOfferDomainInputOf(record casesPort.SupplierOfferRecord) casesDomai
 		PartRequestDigestPin: record.PartRequestDigestPin,
 		FitmentDigestPin:     record.FitmentDigestPin,
 	}
+}
+
+// offersView assembles the Story 4.5 comparison panel of the case view:
+// the pack comparison policy through the narrow taxonomy port (the panel
+// degrades with the honest word when the pin is unreadable or the pack
+// carries no policy — the 4.2/4.3/4.4 panel family precedent, the read
+// NEVER fails), the append-only offer records of the case grouped by the
+// position with the read-time fitment answers of 4.4 (the comparison
+// READS the fitment output — the availability NEVER changes the fitment
+// status, AC-1), the CONFIRMED criteria of the part request material
+// (AC-6 — never the unconfirmed ones), the read-time DeriveComparison
+// derivation, the operator record material (the internal section with
+// the purchase price and its internal-data word) and the recorded
+// selection snapshots.
+func (s *Service) offersView(ctx context.Context, scope tenancy.Context, detail casesDomain.CaseDetail) (casesAPI.ComparisonPanelView, error) {
+	panel := casesAPI.ComparisonPanelView{Note: casesAPI.ComparisonSchemaNoteAbsent}
+	if detail.Case.PackID == "" || s.taxonomy == nil {
+		return panel, nil
+	}
+	policyPort, err := s.taxonomy.PackComparisonSchema(detail.Case.PackID, detail.Case.PackVersion)
+	if err != nil || len(policyPort.Currencies) == 0 {
+		return panel, nil
+	}
+	policy := casesDomain.ComparisonPolicyDomain{
+		Currencies:         policyPort.Currencies,
+		MaxOfferAgeSeconds: policyPort.MaxOfferAgeSeconds,
+		RankCriteria:       policyPort.RankCriteria,
+		RankCriteriaLabels: policyPort.RankCriteriaLabels,
+		TieBreakers:        policyPort.TieBreakers,
+		MaxVisibleVariants: policyPort.MaxVisibleVariants,
+	}
+	// The facts of the case: the CURRENT digest pins of the inputs, the
+	// confirmed criteria material and the read-time fitment answers.
+	facts, err := s.repository.ReadFactsOfCase(ctx, scope, detail.Case.CaseID)
+	if err != nil {
+		return casesAPI.ComparisonPanelView{}, err
+	}
+	inputs := make([]casesDomain.VehicleFactInput, 0, len(facts))
+	for _, fact := range facts {
+		inputs = append(inputs, casesDomain.VehicleFactInput{
+			FactID: fact.Anchor.FactID, MaterialKey: fact.Anchor.MaterialKey,
+			Versions: fact.Versions, Confirmations: fact.Confirmations,
+		})
+	}
+	profileDigest, err := s.liveProfileDigest(ctx, scope, detail, inputs)
+	if err != nil {
+		return casesAPI.ComparisonPanelView{}, err
+	}
+	partRequestDigest, partSchema, partInputs, err := s.livePartRequestDigestWithSchema(ctx, scope, detail, inputs)
+	if err != nil {
+		return casesAPI.ComparisonPanelView{}, err
+	}
+	factInputs := make([]casesDomain.PartRequestFactInput, 0, len(partInputs))
+	factInputs = append(factInputs, partInputs...)
+	criteria := comparisonCriteriaOf(casesDomain.DerivePartRequest(partSchema, factInputs, 0))
+	// The read-time fitment answers of the positions (the comparison READS
+	// the output of 4.4 — never re-derives its own fitment states; a pack
+	// without the fitment policy renders the honest unknown status words).
+	fitmentPanel, err := s.fitmentView(ctx, scope, detail)
+	if err != nil {
+		return casesAPI.ComparisonPanelView{}, err
+	}
+	fitmentByPosition := map[string]casesDomain.FitmentPositionView{}
+	if fitmentPanel.SchemaDefined {
+		for _, position := range fitmentPanel.Fitment.Positions {
+			fitmentByPosition[position.PositionKey] = position
+		}
+	}
+	// The append-only offer records grouped by the position (the store
+	// reads them ordered; the derivation elects the current record of
+	// every supplier by the number).
+	records, err := s.repository.ReadSupplierOffersOfCase(ctx, scope, detail.Case.CaseID)
+	if err != nil {
+		return casesAPI.ComparisonPanelView{}, err
+	}
+	positions := []casesDomain.ComparisonPositionInput{}
+	byPosition := map[string]*casesDomain.ComparisonPositionInput{}
+	offerViews := []casesDomain.OfferView{}
+	for _, record := range records {
+		position, ok := byPosition[record.PositionKey]
+		if !ok {
+			position = &casesDomain.ComparisonPositionInput{PositionKey: record.PositionKey, Offers: []casesDomain.SupplierOfferInput{}}
+			byPosition[record.PositionKey] = position
+		}
+		offer := supplierOfferDomainInputOf(record)
+		position.Offers = append(position.Offers, offer)
+		offerViews = append(offerViews, casesDomain.OfferViewOf(offer))
+	}
+	for _, fitment := range fitmentByPosition {
+		if _, ok := byPosition[fitment.PositionKey]; ok {
+			continue
+		}
+		position := &casesDomain.ComparisonPositionInput{PositionKey: fitment.PositionKey, Offers: []casesDomain.SupplierOfferInput{}}
+		byPosition[fitment.PositionKey] = position
+	}
+	positionKeys := make([]string, 0, len(byPosition))
+	for key := range byPosition {
+		positionKeys = append(positionKeys, key)
+	}
+	sort.Strings(positionKeys)
+	for _, key := range positionKeys {
+		position := byPosition[key]
+		if fitment, ok := fitmentByPosition[key]; ok {
+			position.LinkType = positionLinkTypeOf(fitment)
+			position.FitmentStatus = fitment.Status
+			position.FitmentStatusWord = fitment.StatusWord
+			position.FitmentDigest = fitment.FitmentDigest
+		} else {
+			position.FitmentStatus = casesDomain.FitmentStatusUnknown
+			position.FitmentStatusWord = casesDomain.FitmentUnknownWord
+		}
+		positions = append(positions, *position)
+	}
+	// The recorded selection snapshots (the material of the order contour
+	// of 4.6 — NO ABCP Order is ever created by this surface).
+	snapshots, err := s.repository.ReadSelectionSnapshotsOfCase(ctx, scope, detail.Case.CaseID)
+	if err != nil {
+		return casesAPI.ComparisonPanelView{}, err
+	}
+	selectionViews := make([]casesDomain.SelectionSnapshotView, 0, len(snapshots))
+	for _, snapshot := range snapshots {
+		material := casesDomain.SelectionSnapshotMaterial{
+			PositionKey:          snapshot.PositionKey,
+			SupplierID:           snapshot.SupplierID,
+			OfferNo:              snapshot.OfferNo,
+			Quantity:             snapshot.Quantity,
+			UnitClientPrice:      snapshot.UnitClientPrice,
+			Currency:             snapshot.Currency,
+			KnownClientSum:       snapshot.KnownClientSum,
+			ProfileDigestPin:     snapshot.ProfileDigestPin,
+			PartRequestDigestPin: snapshot.PartRequestDigestPin,
+			FitmentDigestPin:     snapshot.FitmentDigestPin,
+			OfferDigestPin:       snapshot.OfferDigestPin,
+		}
+		selectionViews = append(selectionViews, casesDomain.SelectionSnapshotViewOf(material, snapshot.SnapshotNo, snapshot.CreatedAt))
+	}
+	panel.SchemaDefined = true
+	panel.Note = ""
+	panel.Records = offerViews
+	panel.Selections = selectionViews
+	panel.Comparison = casesDomain.DeriveComparison(casesDomain.ComparisonDerivationInput{
+		Policy:            policy,
+		Positions:         positions,
+		ProfileDigest:     profileDigest,
+		PartRequestDigest: partRequestDigest,
+		Criteria:          criteria,
+		Now:               s.clock.Now(),
+	})
+	return panel, nil
+}
+
+// comparisonCriteriaOf extracts the CONFIRMED criteria material of the
+// ranking from the read-time part request view (AC-6: the primary
+// criterion comes from the confirmed facts of the part request — never
+// from the unconfirmed ones). The material keys belong to the pinned pack
+// schema (the auto-parts contour declares the budget, the brands, the
+// deadline and the quantity keys); a pack without them honestly yields
+// the no-criteria question of the comparison (never a hardcoded core
+// list — the keys are looked up in the pack-declared schema, the
+// unconfirmed attributes are never ranked).
+func comparisonCriteriaOf(view casesDomain.PartRequestView) casesDomain.ComparisonCriteria {
+	criteria := casesDomain.ComparisonCriteria{Brands: []string{}}
+	for _, attribute := range view.Attributes {
+		if attribute.Status != casesDomain.FactStatusConfirmed {
+			continue
+		}
+		switch attribute.MaterialKey {
+		case "part.budget":
+			criteria.BudgetConfirmed = true
+		case "part.brands":
+			criteria.BrandsConfirmed = true
+			criteria.Brands = parseBrandList(attribute.RawValue)
+		case "part.deadline":
+			criteria.TermConfirmed = true
+		case "part.quantity":
+			if quantity, err := strconv.Atoi(strings.TrimSpace(attribute.RawValue)); err == nil && quantity > 0 {
+				criteria.RequestedQty = quantity
+			}
+		}
+	}
+	return criteria
+}
+
+// parseBrandList splits the confirmed brand material into the normalized
+// list (the comma-separated words, trimmed; the empty words never appear).
+func parseBrandList(raw string) []string {
+	brands := []string{}
+	for _, word := range strings.Split(raw, ",") {
+		word = strings.TrimSpace(word)
+		if word != "" {
+			brands = append(brands, word)
+		}
+	}
+	return brands
+}
+
+// positionLinkTypeOf resolves the link type word of ONE fitment position
+// (the grouping material of AC-5): the link type of the first FOUND
+// evidence of the position (the proven record's link word; the not-found
+// records honestly carry the source material only).
+func positionLinkTypeOf(position casesDomain.FitmentPositionView) string {
+	for _, evidence := range position.Evidences {
+		if len(evidence.CatalogVehicleIDs) > 0 {
+			return evidence.LinkType
+		}
+	}
+	if len(position.Evidences) > 0 {
+		return position.Evidences[0].LinkType
+	}
+	return ""
 }
