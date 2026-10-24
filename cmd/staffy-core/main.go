@@ -220,10 +220,16 @@ func run(logger *slog.Logger) error {
 		// nil reconciliation adapter is the honest AG-4 production FACT the
 		// ladder reads (reconciliation_unavailable — the human is
 		// mandatory, the recovery cases still get created).
-		WithRecovery(actionStore.NewPostgres(pool))
+		WithRecovery(actionStore.NewPostgres(pool)).
+		// The Story 4.7 manager order verification contour: the Delegated
+		// Task over the committed receipt of the order action (the anchor
+		// reads ride the authorization/dispatch repositories wired above;
+		// the decision fence rides the case material of the preparation).
+		WithOrderVerifications(actionStore.NewPostgres(pool))
 	transport.BindActionCatalog(actionService)
 	transport.BindActionPreviews(actionService)
 	transport.BindOrderProposals(actionService)
+	transport.BindOrderVerifications(actionService)
 	transport.BindAuthorization(actionService)
 	transport.BindDispatch(actionService)
 	transport.BindReconcile(actionService)

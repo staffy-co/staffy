@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/artemiosu/staffy/internal/action/api"
 	"github.com/artemiosu/staffy/internal/action/domain"
 	"github.com/artemiosu/staffy/internal/action/port"
 	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
@@ -35,96 +36,22 @@ const orderVerificationScopeText = "Назначение и переназнач
 // contour (the preview precedent).
 const orderVerificationPortsMissingText = "Контур проверки заказа не сконфигурирован: живые источники не подключены, команда честно отклоняется."
 
-// AssignOrderVerificationCommand is the owner's assignment ask: the
-// anchors (the case, the work item, the COMMITTED operation of the order
-// action), the assignee and the backup (validated against the LIVE
-// member facts with the Review scope) and the deadline word of the
-// approved policy dictionary. The task material is NEVER an input — the
-// receipt identity and the external ABCP Order ID pin from the LIVE
-// operation read.
-type AssignOrderVerificationCommand struct {
-	Actor       identityDomain.Principal
-	TenantID    id.UUID
-	CaseID      id.UUID
-	WorkItemID  id.UUID
-	OperationID id.UUID
-	Assignee    id.UUID
-	BackupOwner id.UUID
-	Deadline    string
-	Now         time.Time
-}
+// The Story 4.7 commands and the outcome live in the api package (the
+// transport type-asserts the narrow surface — the OrderProposalService
+// precedent); the app aliases them (byte-stable — no second shape).
+type (
+	AssignOrderVerificationCommand      = api.AssignOrderVerificationCommand
+	AcknowledgeOrderVerificationCommand = api.AcknowledgeOrderVerificationCommand
+	ApproveOrderVerificationCommand     = api.ApproveOrderVerificationCommand
+	BlockOrderVerificationCommand       = api.BlockOrderVerificationCommand
+	ReassignOrderVerificationCommand    = api.ReassignOrderVerificationCommand
+	OrderVerificationOutcome            = api.OrderVerificationOutcome
+)
 
-// AcknowledgeOrderVerificationCommand is the assignee's explicit
-// acceptance: the task anchor, the CAS assignment-epoch expectation (the
-// event_no of the assigned round the manager saw) — the assignment or a
-// notification NEVER counts (the server truth: actor=assignee).
-type AcknowledgeOrderVerificationCommand struct {
-	Actor              identityDomain.Principal
-	TenantID           id.UUID
-	CaseID             id.UUID
-	VerificationNo     int64
-	ExpectedAssignment int64
-	Now                time.Time
-}
-
-// ApproveOrderVerificationCommand is the «Подтвердить проверку» decision:
-// the CAS epoch expectation AND the expected order digest — the 64-hex
-// pin of the exact version the manager verified. The fence re-derives
-// the LIVE composition and compares BOTH with the operation's pin: any
-// divergence refuses the decision BY NAME (AC-9) — the event is never
-// written over a stale version.
-type ApproveOrderVerificationCommand struct {
-	Actor               identityDomain.Principal
-	TenantID            id.UUID
-	CaseID              id.UUID
-	VerificationNo      int64
-	ExpectedAssignment  int64
-	ExpectedOrderDigest string
-	Now                 time.Time
-}
-
-// BlockOrderVerificationCommand is the «Нужна коррекция» decision: the
-// affected position keys (validated against the composition of the
-// OPERATION — the pinned canonical render) and the structured reason word
-// of the five-word dictionary. The manager never types a free reason.
-type BlockOrderVerificationCommand struct {
-	Actor              identityDomain.Principal
-	TenantID           id.UUID
-	CaseID             id.UUID
-	VerificationNo     int64
-	ExpectedAssignment int64
-	Positions          []string
-	Reason             string
-	Now                time.Time
-}
-
-// ReassignOrderVerificationCommand is the owner's explicit reassignment
-// (the overdue fallback — never an automatic takeover): the new round's
-// assignee, backup and deadline word. The new assigned event opens a NEW
-// epoch — the former assignee's stale-epoch attempts answer the honest
-// «задача переназначена».
-type ReassignOrderVerificationCommand struct {
-	Actor          identityDomain.Principal
-	TenantID       id.UUID
-	CaseID         id.UUID
-	VerificationNo int64
-	Assignee       id.UUID
-	BackupOwner    id.UUID
-	Deadline       string
-	Now            time.Time
-}
-
-// OrderVerificationOutcome is the honest result of every command: the
-// derived state view of the task AFTER the write (or the current state
-// of a refusal when the transport wants it) and the derived words of the
-// moment. The outcome NEVER claims a delivery (the notification is the
-// surface's card — the 2-13 Never precedent).
-type OrderVerificationOutcome struct {
-	Task      domain.OrderVerification
-	View      domain.OrderVerificationStateView
-	Word      string
-	StateText string
-}
+// The compile-time proof of the narrow interface registration (the
+// transport type-asserts api.OrderVerificationService — the
+// OrderProposalService precedent).
+var _ api.OrderVerificationService = (*Service)(nil)
 
 // requireOrderVerificationPorts refuses honestly when the contour is not
 // wired: the verification repository, the operation reads, the receipt
@@ -669,3 +596,23 @@ func (s *Service) ReadOrderVerificationCaseView(ctx context.Context, actor ident
 
 // Suppress nothing: every import is live (tenancy rides the scope reads,
 // id rides the anchors, casesDomain rides the honest 404 mapping).
+
+// ReadOrderVerificationLiveMaterial derives the LIVE order commitment
+// material of the case (the panel read of step-03): the SAME derivation
+// the builder and the decision fence run — the screen renders the
+// current composition and the explicit differences against the pinned
+// version. The honest derivation refusals travel BY NAME (the screen
+// speaks them).
+func (s *Service) ReadOrderVerificationLiveMaterial(ctx context.Context, actor identityDomain.Principal, tenantID, caseID id.UUID) (domain.OrderCommitmentMaterial, error) {
+	if s.caseMaterial == nil {
+		return domain.OrderCommitmentMaterial{}, fmt.Errorf("%s", orderVerificationPortsMissingText)
+	}
+	view, err := s.caseMaterial.CaseView(ctx, actor, tenantID, caseID)
+	if err != nil {
+		if errors.Is(err, casesDomain.ErrNotFound) {
+			return domain.OrderCommitmentMaterial{}, domain.ErrNotFound
+		}
+		return domain.OrderCommitmentMaterial{}, err
+	}
+	return DeriveOrderCommitmentMaterial(view)
+}

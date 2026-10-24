@@ -138,6 +138,17 @@ type caseDetailPageView struct {
 	// The Story 4.6 order panel (the case-level section after the offers —
 	// the Order Commitment surface of the existing machines).
 	Order orderPanelView
+	// The Story 4.7 verification panel (the case-level section after the
+	// order — the Delegated Task over the committed receipt).
+	OrderVerification orderVerificationPanelView
+	// The Story 4.7 success flags of the PRG forms (the honest status
+	// words of the five commands — the manual-contour word of the
+	// approved decision rides the panel constant).
+	VerificationAssigned     bool
+	VerificationAcknowledged bool
+	VerificationApproved     bool
+	VerificationBlocked      bool
+	VerificationReassigned   bool
 	// The Story 2.3 sections: the assurance panel, the bindings and the
 	// duplicate cards.
 	Assurance           assurancePanelView
@@ -917,6 +928,11 @@ func prepareCaseView(r *http.Request, view casesAPI.CaseView, facts casesAPI.Fac
 	// honest status line of the section — the flag rides the URL, the
 	// error rides the flash cookie).
 	out.CorrectionRecorded = r.URL.Query().Get("correction_recorded") == "1"
+	out.VerificationAssigned = r.URL.Query().Get("verification_assigned") == "1"
+	out.VerificationAcknowledged = r.URL.Query().Get("verification_acknowledged") == "1"
+	out.VerificationApproved = r.URL.Query().Get("verification_approved") == "1"
+	out.VerificationBlocked = r.URL.Query().Get("verification_blocked") == "1"
+	out.VerificationReassigned = r.URL.Query().Get("verification_reassigned") == "1"
 	// The Story 2.16 PRG success flag of the «Обещать обновление» form
 	// (the honest status line of the waiting section — the flag rides the
 	// URL, the error rides the flash cookie).

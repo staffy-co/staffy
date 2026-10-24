@@ -1534,6 +1534,122 @@
 {{else}}
 <p class="next-note">{{.View.Order.NoSelectionWord}}</p>
 {{end}}
+{{if .View.VerificationAssigned}}<p class="status" role="status" id="verification-assigned">Задача проверки создана: менеджер назначен, ожидание принятия.</p>{{end}}
+{{if .View.VerificationAcknowledged}}<p class="status" role="status" id="verification-acknowledged">Задача принята: проверка идёт.</p>{{end}}
+{{if .View.VerificationApproved}}<p class="status" role="status" id="verification-approved">Проверка подтверждена. {{.View.OrderVerification.ManualContourWord}}</p>{{end}}
+{{if .View.VerificationBlocked}}<p class="status" role="status" id="verification-blocked">Продвижение заказа заблокировано. {{.View.OrderVerification.ManualContourWord}}</p>{{end}}
+{{if .View.VerificationReassigned}}<p class="status" role="status" id="verification-reassigned">Задача переназначена: новая эпоха назначения открыта.</p>{{end}}
+{{if .View.OrderVerification.Present}}
+<h2>Проверка заказа</h2>
+<section class="panel" aria-label="Проверка заказа" id="order-verification">
+<p class="next-note">Задача проверки — контур 4-7: решение применяется ТОЛЬКО к точной версии заказа (пин ниже); {{.View.OrderVerification.DeliveryWord}}.</p>
+<p class="alert" role="alert">{{.View.OrderVerification.FenceWord}}</p>
+{{range .View.OrderVerification.Cards}}
+<details class="connector-connect" open><summary>Задача №{{.VerificationNo}} — {{.StateText}}</summary>
+<p>Назначен: <span class="digest-block">{{.Assignee}}</span>; резервный владелец: <span class="digest-block">{{.BackupOwner}}</span>; дедлайн: {{.DeadlineText}} ({{.DeadlineAt}}); эпоха назначения: {{.AssignmentEpoch}}.</p>
+{{if .Overdue}}<p class="alert" role="alert">{{.OverdueWord}}</p>{{end}}
+<p>Техническая строка: {{.TechnicalLine}}; слово 1С: {{$.View.OrderVerification.OneCWord}}.</p>
+{{if .DecisionDigest}}
+<p class="status" role="status">Решение зафиксировано: пин версии <span class="digest-block">{{.DecisionDigest}}</span>{{if .DecisionAnchors}}; якоря evidence: {{range .DecisionAnchors}}<span class="digest-block">{{.}}</span> {{end}}{{end}}.</p>
+{{if not .Applicable}}<p class="alert" role="alert">{{.ApplicabilityWord}}</p>{{end}}
+{{end}}
+{{if eq .State "approved"}}<p class="status" role="status">{{$.View.OrderVerification.ManualContourWord}}</p>{{end}}
+{{if .DecisionReason}}
+<p class="status" role="status">Причина коррекции: {{.DecisionReasonText}} (слово {{.DecisionReason}}); затронутые позиции: {{range .DecisionPositions}}<span class="digest-block">{{.}}</span> {{end}}.</p>
+{{end}}
+{{if eq .State "assigned"}}
+<form method="post" action="{{.AcknowledgeTarget}}" class="panel-form">
+<fieldset>
+<legend>Принять задачу проверки (явное действие назначенного менеджера)</legend>
+<input type="hidden" name="expected_assignment" value="{{.AssignmentEpoch}}">
+<button type="submit">Принять задачу проверки</button>
+</fieldset>
+</form>
+{{end}}
+{{if eq .State "acknowledged"}}
+<form method="post" action="{{.ApproveTarget}}" class="panel-form">
+<fieldset>
+<legend>Подтвердить проверку (точная версия — пин обязателен)</legend>
+<input type="hidden" name="expected_assignment" value="{{.AssignmentEpoch}}">
+<input type="hidden" name="expected_order_digest" value="{{$.View.OrderVerification.LiveDigest}}">
+<p class="next-note">Пин подтверждаемой версии: <span class="digest-block">{{$.View.OrderVerification.LiveDigest}}</span>. Подтверждение применяется только к этой версии; при расхождении живой состав откажет решению словом состава.</p>
+<p class="next-note">{{$.View.OrderVerification.ManualContourWord}}</p>
+<button type="submit">Подтвердить проверку</button>
+</fieldset>
+</form>
+<form method="post" action="{{.BlockTarget}}" class="panel-form">
+<fieldset>
+<legend>Нужна коррекция (ДРУГОЕ действие — выбор позиции и причины)</legend>
+<input type="hidden" name="expected_assignment" value="{{.AssignmentEpoch}}">
+{{range $.View.OrderVerification.LivePositions}}
+<label for="block-position-{{.PositionKey}}"><input type="checkbox" id="block-position-{{.PositionKey}}" name="positions" value="{{.PositionKey}}"> позиция {{.PositionKey}} — {{.Brand}} / {{.Article}}</label>
+{{end}}
+<label for="block-reason-{{.VerificationNo}}">Причина коррекции (слово словаря)</label>
+<select id="block-reason-{{.VerificationNo}}" name="reason" required>
+<option value="wrong_part">Неподходящая деталь</option>
+<option value="wrong_vehicle">Ошибка автомобиля</option>
+<option value="price_changed">Цена изменилась</option>
+<option value="availability_changed">Наличие изменилось</option>
+<option value="confirmation_issue">Проблема подтверждения</option>
+</select>
+<button type="submit">Нужна коррекция</button>
+</fieldset>
+</form>
+{{end}}
+{{if or (eq .State "assigned") (eq .State "acknowledged") (eq .State "overdue")}}
+<form method="post" action="{{.ReassignTarget}}" class="panel-form">
+<fieldset>
+<legend>Переназначить задачу (явное решение владельца)</legend>
+<label for="reassign-assignee-{{.VerificationNo}}">Новый менеджер (UUID участника с review)</label>
+<input id="reassign-assignee-{{.VerificationNo}}" name="assignee" type="text" autocomplete="off" required>
+<label for="reassign-backup-{{.VerificationNo}}">Резервный участник (UUID)</label>
+<input id="reassign-backup-{{.VerificationNo}}" name="backup_owner" type="text" autocomplete="off" required>
+<label for="reassign-deadline-{{.VerificationNo}}">Слово дедлайна</label>
+<select id="reassign-deadline-{{.VerificationNo}}" name="deadline" required>
+<option value="verify_4h">Четыре часа</option>
+<option value="verify_1d">Сутки</option>
+</select>
+<button type="submit">Переназначить задачу</button>
+</fieldset>
+</form>
+{{end}}
+</details>
+{{end}}
+{{if .View.OrderVerification.LivePresent}}
+<h3>Контекст проверки (живые панели)</h3>
+<p class="next-note">{{.View.OrderVerification.VehicleAnchorText}}; {{.View.OrderVerification.PartRequestText}}.</p>
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Живой состав заказа">
+<table class="datamap-table">
+<caption>Позиции живого состава: бренд/артикул, оригинальность, количество, клиентская цена, условия, пины</caption>
+<thead><tr><th scope="col">Позиция</th><th scope="col">Материал</th><th scope="col">Количество/цена</th><th scope="col">Закупочная цена</th><th scope="col">Пины доказательств</th></tr></thead>
+<tbody>
+{{range .View.OrderVerification.LivePositions}}
+<tr><th scope="row">{{.PositionKey}}</th><td>{{.Brand}} / {{.Article}} ({{.OriginalityText}}){{if .Conditions}}; условия: {{.Conditions}}{{end}}</td><td>{{.Quantity}} × {{.ClientPrice}} {{.Currency}}</td><td>{{.PurchasingText}}</td><td><span class="digest-block">{{.FitmentDigestPin}}</span><br><span class="digest-block">{{.OfferDigestPin}}</span><br><span class="digest-block">{{.SelectionDigest}}</span></td></tr>
+{{end}}
+</tbody>
+</table>
+</div>
+<p>Живой дайджест состава: <span class="digest-block">{{.View.OrderVerification.LiveDigest}}</span>; известная сумма: {{.View.OrderVerification.LiveSumText}}.</p>
+{{if .View.OrderVerification.DiffRows}}
+<h3>Явные различия полей (пин → живое значение)</h3>
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Явные различия версии">
+<table class="datamap-table">
+<caption>Изменившиеся позиции: подтверждённая версия против живого состава</caption>
+<thead><tr><th scope="col">Позиция</th><th scope="col">Подтверждено (пин)</th><th scope="col">Живое значение</th></tr></thead>
+<tbody>
+{{range .View.OrderVerification.DiffRows}}
+<tr><th scope="row">{{.PositionKey}}</th><td>{{.PinnedLine}}</td><td>{{.LiveLine}}</td></tr>
+{{end}}
+</tbody>
+</table>
+</div>
+{{end}}
+{{else}}
+{{if .View.OrderVerification.LiveRefusalWord}}<p class="alert" role="alert">{{.View.OrderVerification.LiveRefusalWord}}</p>{{end}}
+{{end}}
+{{if .View.OrderVerification.PurchasingHidden}}<p class="next-note">{{.View.OrderVerification.PurchasingHiddenWord}}</p>{{end}}
+</section>
+{{end}}
 <h2>Диалоги канала</h2>
 <p role="status" aria-live="polite">{{if .View.HasConversations}}Диалогов: <strong>{{len .View.Conversations}}</strong>; каждый — продолжение одной channel session.{{else}}Диалогов нет.{{end}}</p>
 {{if .View.HasConversations}}
