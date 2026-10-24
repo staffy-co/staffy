@@ -781,6 +781,15 @@ func (s *Service) CaseView(ctx context.Context, actor domain.Principal, tenantID
 	if err != nil {
 		return casesAPI.CaseView{}, err
 	}
+	// The Story 4.5 section: the offers and comparison panel (the same
+	// read-only family — the read-time comparison over the append-only
+	// offer records under the pack comparison policy with the CURRENT
+	// digest pins and the CONFIRMED criteria of the request material; the
+	// reads degrade honestly — the same view scope).
+	offersPanel, err := s.offersView(ctx, scope, detail)
+	if err != nil {
+		return casesAPI.CaseView{}, err
+	}
 	// The Story 2.11 section: the recorded communication preferences — the
 	// CURRENT set (the read-time derivation), the append-only revision
 	// history and the dictionaries of the record form (the reads degrade
@@ -841,6 +850,7 @@ func (s *Service) CaseView(ctx context.Context, actor domain.Principal, tenantID
 		Vehicle:           vehicle,
 		PartRequest:       partPanel,
 		Fitment:           fitmentPanel,
+		Comparison:        offersPanel,
 		RouteDegradations: routeDegradations,
 		Handoff:           handoff,
 		Waiting:           waiting,

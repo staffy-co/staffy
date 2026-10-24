@@ -136,7 +136,11 @@ func (f *casesFixture) RecordFitmentEvidence(_ context.Context, command casesAPI
 // inventions). The packs without the fitment policy render the honest
 // absence word (the 4.2/4.3 panel family degradation mirror).
 func (f *casesFixture) fixtureFitmentPanelOf(packVersion string, caseID id.UUID) casesAPI.FitmentPanelView {
-	if packVersion != fixtureFitmentPackVersion {
+	// The packs carrying the fitment policy render the panel: the 5.0.0
+	// pin of the fitment world AND the 6.0.0 pin of the offers world (the
+	// additive manifest keeps the policy — the honest mirror of the real
+	// catalog; every earlier pin renders the honest absence word).
+	if packVersion != fixtureFitmentPackVersion && packVersion != fixtureOffersPackVersion {
 		return casesAPI.FitmentPanelView{Note: casesAPI.FitmentSchemaNoteAbsent}
 	}
 	profilePin, requestPin := f.fixtureFitmentPins(caseID)

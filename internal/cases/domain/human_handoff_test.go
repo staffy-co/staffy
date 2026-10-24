@@ -52,14 +52,16 @@ func handoffEventOf(request HandoffRequest, eventNo int64, kind string) HandoffE
 }
 
 func TestHandoffDictionariesClosed(t *testing.T) {
-	// The Story 4.4 extension: the reason dictionary carries FIVE words —
+	// The Story 4.5 extension: the reason dictionary carries SIX words —
 	// the unconditional client word of 2.13 plus the three operator
 	// boundary words of the part request classification (the SQL mirror
 	// is migrations/cases/00019, append-only by the 00018 precedent) plus
 	// the fitment research word of the applicability panel (the SQL mirror
-	// is migrations/cases/00021, append-only by the 00019 precedent).
-	if len(HandoffReasons) != 5 || HandoffReasons[0] != HandoffReasonClientRequest {
-		t.Fatalf("the reason dictionary carries the client word first plus the three Story 4.3 boundary words plus the Story 4.4 research word, got %v", HandoffReasons)
+	// is migrations/cases/00021, append-only by the 00019 precedent) plus
+	// the offers research word of the comparison panel (the SQL mirror is
+	// migrations/cases/00024, append-only by the 00021 precedent).
+	if len(HandoffReasons) != 6 || HandoffReasons[0] != HandoffReasonClientRequest {
+		t.Fatalf("the reason dictionary carries the client word first plus the three Story 4.3 boundary words plus the Story 4.4 and 4.5 research words, got %v", HandoffReasons)
 	}
 	for _, reason := range []string{HandoffReasonDiagnosticUncertainty, HandoffReasonSafetyCritical, HandoffReasonUnresolvedContradiction} {
 		if !HandoffReasonInDictionary(reason) {
@@ -68,6 +70,12 @@ func TestHandoffDictionariesClosed(t *testing.T) {
 		if HandoffReasonText(reason) == "" {
 			t.Fatalf("the Story 4.3 boundary word %q must carry its honest text", reason)
 		}
+	}
+	if !HandoffReasonInDictionary(HandoffReasonOffersResearch) {
+		t.Fatalf("the Story 4.5 research word %q must be in the reason dictionary (the 00024 mirror)", HandoffReasonOffersResearch)
+	}
+	if HandoffReasonText(HandoffReasonOffersResearch) == "" {
+		t.Fatalf("the Story 4.5 research word %q must carry its honest text", HandoffReasonOffersResearch)
 	}
 	if !HandoffReasonInDictionary(HandoffReasonFitmentResearch) {
 		t.Fatalf("the Story 4.4 research word %q must be in the reason dictionary (the 00021 mirror)", HandoffReasonFitmentResearch)

@@ -86,6 +86,12 @@ const (
 	// mirror 00021 admits it from this spec on; the automatic catalog
 	// request is never performed — OQ-5/AG-4).
 	HandoffReasonFitmentResearch = "fitment_research"
+	// HandoffReasonOffersResearch is the Story 4.5 research task word:
+	// the comparison panel recommends the manager's conditions research —
+	// the decision-ready task of 2.14 with the recorded material (the SQL
+	// mirror 00024 admits it from this spec on; the automatic supplier
+	// request is never performed — OQ-5/AG-4).
+	HandoffReasonOffersResearch = "offers_research"
 )
 
 // HandoffReasons is the full dictionary (the +3 Story 4.3 words mirror
@@ -99,6 +105,9 @@ var HandoffReasons = []string{
 	// The Story 4.4 word — the fifth: the dictionary extension is the new
 	// spec version, the SQL mirror 00021 backstops the same list.
 	HandoffReasonFitmentResearch,
+	// The Story 4.5 word — the sixth: the dictionary extension is the new
+	// spec version, the SQL mirror 00024 backstops the same list.
+	HandoffReasonOffersResearch,
 }
 
 // HandoffReasonTexts is the honest text of every reason word (the render
@@ -110,6 +119,7 @@ var HandoffReasonTexts = map[string]string{
 	HandoffReasonSafetyCritical:          "Safety-узел с неопределённостью: автоматический подбор остановлен — нужны подтверждённый материал и решение специалиста.",
 	HandoffReasonUnresolvedContradiction: "Неустранённое противоречие источников: Staffy не выбирает вероятный вариант — материал передан человеку.",
 	HandoffReasonFitmentResearch:         "Каталогическое исследование применимости: доказательства нет либо оно устарело — менеджеру задача исследовать каталог и записать результат.",
+	HandoffReasonOffersResearch:          "Запрос актуальных условий: предложений нет либо они устарели — менеджеру задача запросить условия у подключённых поставщиков и записать предложения.",
 }
 
 // HandoffReasonText resolves the honest text of one reason word.

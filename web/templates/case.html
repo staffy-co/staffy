@@ -1327,6 +1327,143 @@
 {{else}}
 <p class="next-note">{{.View.Fitment.Note}}</p>
 {{end}}
+<h2>Предложения и сравнение</h2>
+<p class="next-note">Предложения — записываемый менеджером материал фактически подключённых поставщиков: автоматический запрос НЕ выполняется (реестр допусков 4-1); клиентская цена — только записанная разрешённая цена ABCP, скидка/наценка/итог системой не рассчитываются; срок — оценка поставщика, не обещание магазина; сравнение — производная чтения над записями; устаревшая цена не повторяется как действующая; выбранный вариант фиксируется снапшотом с точными версиями всех четырёх входов; ABCP Order не создаётся и поставщику ничего не отправляется — заказ строит контур 4-6.</p>
+{{if .View.Offers.Present}}
+<section class="panel" aria-label="Предложения и сравнение" id="offers">
+{{if .View.Offers.CaseUnknownWord}}
+<p id="offers-unknown" aria-live="polite">Статус: <strong>условия неизвестны</strong> — {{.View.Offers.CaseUnknownWord}}{{if .View.Offers.CaseHandoffWords}}. Рекомендация: {{range $i, $w := .View.Offers.CaseHandoffWords}}{{if $i}}; {{end}}{{$w}}{{end}}{{end}}.</p>
+{{end}}
+{{if .View.Offers.Positions}}
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Позиции предложений">
+<table class="datamap-table">
+<caption>Позиции: ключ, тип связи, применимость, актуальность условий</caption>
+<thead><tr><th scope="col">Позиция</th><th scope="col">Тип связи</th><th scope="col">Применимость</th><th scope="col">Условия</th></tr></thead>
+<tbody>
+{{range .View.Offers.Positions}}<tr><th scope="row"><span class="digest-block">{{.PositionKey}}</span></th><td>{{if .LinkTypeWord}}{{.LinkTypeWord}}{{else}}—{{end}}</td><td>{{.FitmentStatusWord}}</td><td>{{.StatusWord}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+{{end}}
+{{range .View.Offers.Positions}}
+<details class="connector-connect" open><summary>Позиция <span class="digest-block">{{.PositionKey}}</span> — {{if .LinkTypeWord}}{{.LinkTypeWord}}; {{end}}применимость: {{.FitmentStatusWord}}{{if .Variants}} (вариантов: {{len .Variants}}){{end}}</summary>
+<p>Условия: <strong>{{.StatusWord}}</strong>{{range .Words}}; {{.}}{{end}}.</p>
+{{if .Question}}
+<p class="status" role="status">{{.Question}} — «лучший» вариант без указанного приоритета не выбирается.</p>
+{{end}}
+{{if .HandoffWords}}
+<p class="status" role="status">Рекомендация передачи человеку: {{range $i, $w := .HandoffWords}}{{if $i}}; {{end}}{{$w}}{{end}} — оператор создаёт запрос человека существующей командой с этим словом причины.</p>
+{{end}}
+{{range .Variants}}
+<details class="connector-connect"><summary>Вариант — {{.Brand}} / {{.Article}}, поставщик {{.SupplierName}} ({{.SupplierID}}), запись №{{.OfferNo}}{{if .Rank}} (ранг {{.Rank}}){{end}}</summary>
+<p>Клиентская цена: {{.ClientPrice}} {{.Currency}}; наличие: {{.QuantityAvailable}}; срок: {{if .TermDays}}{{.TermDays}} дн. — {{.TermWord}}{{else}}{{.TermWord}}{{end}}{{if .Conditions}}; условия получения: {{.Conditions}}{{end}}.</p>
+{{if .RankWord}}<p class="status" role="status">{{.RankWord}}.</p>{{end}}
+{{if .ShortfallWord}}<p class="alert" role="alert">{{.ShortfallWord}} — разбие́ние заказа между поставщиками и изменение количества не выполняются.</p>{{end}}
+{{range .ChangeWords}}<p class="alert" role="alert">{{.}}</p>{{end}}
+{{range .StaleWords}}<p class="alert" role="alert">{{.}}</p>{{end}}
+<p>Источник: {{.SourceSystem}} (запись <span class="digest-block">{{.SourceRecordID}}</span>, версия {{.SourceVersion}}); время источника: {{.SourceObservedAt}}; получено: {{.ReceivedAt}}. Версия условий: <span class="digest-block">{{.OfferDigest}}</span>.</p>
+</details>
+{{end}}
+</details>
+{{end}}
+{{if .View.Offers.VoiceDifferences}}
+<div class="alert" role="alert" aria-label="Слово для телефона">
+<p><strong>Слово для телефона:</strong> ключевые различия — {{range $i, $d := .View.Offers.VoiceDifferences}}{{if $i}}; {{end}}{{$d}}{{end}}.</p>
+{{if .View.Offers.VoiceRecommended}}<p>{{.View.Offers.VoiceRecommended}}.</p>{{end}}
+<p>{{.View.Offers.VoiceFullWord}}.</p>
+</div>
+{{end}}
+{{if .View.Offers.Records}}
+<details class="connector-connect"><summary>Записанные предложения — внутренняя секция оператора (закупочная цена: внутренние данные, клиенту не раскрывается)</summary>
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Записанные предложения">
+<table class="datamap-table">
+<caption>Записи: поставщик, бренд, артикул, клиентская цена, закупочная цена (внутренние данные), наличие, срок, источник</caption>
+<thead><tr><th scope="col">№</th><th scope="col">Позиция</th><th scope="col">Поставщик</th><th scope="col">Бренд/артикул</th><th scope="col">Клиентская цена</th><th scope="col">Закупочная цена</th><th scope="col">Наличие</th><th scope="col">Срок</th><th scope="col">Источник</th></tr></thead>
+<tbody>
+{{range .View.Offers.Records}}<tr><th scope="row">{{.OfferNo}}</th><td><span class="digest-block">{{.PositionKey}}</span></td><td>{{.SupplierName}} ({{.SupplierID}})</td><td>{{.Brand}} / {{.Article}}</td><td>{{.ClientPrice}} {{.Currency}}</td><td>{{if .PurchasePrice}}{{.PurchasePrice}} {{.Currency}} — {{.PurchaseWord}}{{else}}не записана{{end}}</td><td>{{.QuantityAvailable}}</td><td>{{if .TermDays}}{{.TermDays}} дн.{{else}}не указан{{end}}</td><td>{{.Source.SourceSystem}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+</details>
+{{end}}
+{{if .View.Offers.Selections}}
+<details class="connector-connect" open><summary>Выбор клиента — снапшоты (ABCP Order не создаётся; поставщику не отправляется — заказ строится контуром 4-6)</summary>
+{{range .View.Offers.Selections}}
+<p>Снапшот №{{.SnapshotNo}}: позиция <span class="digest-block">{{.PositionKey}}</span>, поставщик {{.SupplierID}}, запись №{{.OfferNo}}, количество {{.Quantity}} × {{.UnitClientPrice}} {{.Currency}} = {{.KnownClientSum}} {{.Currency}} — {{.SumBoundaryWord}}. {{.OrderBoundaryWord}}.</p>
+<p>Пины: профиль <span class="digest-block">{{.ProfileDigestPin}}</span>, запрос <span class="digest-block">{{.PartRequestDigestPin}}</span>, применимость <span class="digest-block">{{.FitmentDigestPin}}</span>, предложение <span class="digest-block">{{.OfferDigestPin}}</span>; версия выбора: <span class="digest-block">{{.SelectionDigest}}</span>.</p>
+{{end}}
+</details>
+{{end}}
+{{if .View.Offers.PriceAuthorityWord}}<p class="next-note">{{.View.Offers.PriceAuthorityWord}}</p>{{end}}
+{{if .View.Offers.TermEstimateWord}}<p class="next-note">{{.View.Offers.TermEstimateWord}}</p>{{end}}
+{{if .View.Offers.ScopeWord}}<p class="next-note">{{.View.Offers.ScopeWord}}</p>{{end}}
+{{range .View.ActiveWIOptions}}
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/work-items/{{.Value}}/supplier-offers" class="panel-form">
+<fieldset>
+<legend>Записать предложение поставщика (элемент {{.Value}})</legend>
+<p class="next-note">Продюсер — менеджер: автоматический запрос к поставщикам НЕ выполняется (реестр допусков 4-1); запишите фактические условия с материалом трассируемости. Пины версий не вводятся — они записываются автоматически.</p>
+<label for="offer-position-{{.Value}}">Ключ позиции (нормализованный артикул: без пробелов, верхний регистр)</label>
+<input id="offer-position-{{.Value}}" name="position_key" type="text" autocomplete="off" required>
+<label for="offer-supplier-{{.Value}}">Идентификатор поставщика</label>
+<input id="offer-supplier-{{.Value}}" name="supplier_id" type="text" autocomplete="off" required>
+<label for="offer-supplier-name-{{.Value}}">Название поставщика</label>
+<input id="offer-supplier-name-{{.Value}}" name="supplier_name" type="text" autocomplete="off" required>
+<label for="offer-brand-{{.Value}}">Бренд</label>
+<input id="offer-brand-{{.Value}}" name="brand" type="text" autocomplete="off" required>
+<label for="offer-article-{{.Value}}">Артикул</label>
+<input id="offer-article-{{.Value}}" name="article" type="text" autocomplete="off" required>
+<label for="offer-client-price-{{.Value}}">Клиентская цена по разрешению ABCP (записывается, не рассчитывается)</label>
+<input id="offer-client-price-{{.Value}}" name="client_price" type="text" autocomplete="off" placeholder="4850" required>
+<label for="offer-purchase-price-{{.Value}}">Закупочная цена — опциональные внутренние данные (пусто = не записана; клиенту не раскрывается)</label>
+<input id="offer-purchase-price-{{.Value}}" name="purchase_price" type="text" autocomplete="off" placeholder="3900">
+<label for="offer-currency-{{.Value}}">Валюта (словарь пака)</label>
+<select id="offer-currency-{{.Value}}" name="currency" required>
+<option value="">— выберите —</option>
+<option value="RUB">RUB — российский рубль</option>
+</select>
+<label for="offer-quantity-{{.Value}}">Количество у поставщика</label>
+<input id="offer-quantity-{{.Value}}" name="quantity_available" type="text" autocomplete="off" placeholder="4" required>
+<label for="offer-term-{{.Value}}">Срок оценкой поставщика, дней (пусто = срок не указан)</label>
+<input id="offer-term-{{.Value}}" name="term_days" type="text" autocomplete="off" placeholder="2">
+<label for="offer-conditions-{{.Value}}">Условия получения (опционально)</label>
+<input id="offer-conditions-{{.Value}}" name="conditions" type="text" autocomplete="off">
+<label for="offer-source-{{.Value}}">Источник условий</label>
+<select id="offer-source-{{.Value}}" name="source_system" required>
+<option value="">— выберите —</option>
+<option value="abcp_catalog">ABCP — каталог</option>
+<option value="laximo_catalog">Laximo — каталог</option>
+</select>
+<label for="offer-record-{{.Value}}">Идентификатор записи источника (трассируемость)</label>
+<input id="offer-record-{{.Value}}" name="source_record_id" type="text" autocomplete="off" required>
+<label for="offer-version-{{.Value}}">Версия источника (трассируемость)</label>
+<input id="offer-version-{{.Value}}" name="source_version" type="text" autocomplete="off" required>
+<label for="offer-observed-{{.Value}}">Время получения материала источника (RFC 3339)</label>
+<input id="offer-observed-{{.Value}}" name="source_observed_at" type="text" autocomplete="off" placeholder="2026-10-24T10:00:00Z" required>
+<button type="submit">Записать предложение</button>
+</fieldset>
+</form>
+{{end}}
+{{range .View.ActiveWIOptions}}
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/work-items/{{.Value}}/selection-snapshots" class="panel-form">
+<fieldset>
+<legend>Записать выбор клиента (элемент {{.Value}})</legend>
+<p class="next-note">Выбор фиксируется снапшотом с точными версиями всех четырёх входов; ABCP Order не создаётся и поставщику не отправляется. Сумма и пины не вводятся — они записываются автоматически.</p>
+<label for="selection-position-{{.Value}}">Ключ позиции (нормализованный артикул)</label>
+<input id="selection-position-{{.Value}}" name="position_key" type="text" autocomplete="off" required>
+<label for="selection-supplier-{{.Value}}">Идентификатор поставщика выбранного предложения</label>
+<input id="selection-supplier-{{.Value}}" name="supplier_id" type="text" autocomplete="off" required>
+<label for="selection-offer-{{.Value}}">Номер записи выбранного предложения</label>
+<input id="selection-offer-{{.Value}}" name="offer_no" type="text" autocomplete="off" placeholder="1" required>
+<label for="selection-quantity-{{.Value}}">Количество (не меньше 1, не больше наличия поставщика)</label>
+<input id="selection-quantity-{{.Value}}" name="quantity" type="text" autocomplete="off" placeholder="2" required>
+<button type="submit">Записать выбор</button>
+</fieldset>
+</form>
+{{end}}
+</section>
+{{else}}
+<p class="next-note">{{.View.Offers.Note}}</p>
+{{end}}
 <h2>Диалоги канала</h2>
 <p role="status" aria-live="polite">{{if .View.HasConversations}}Диалогов: <strong>{{len .View.Conversations}}</strong>; каждый — продолжение одной channel session.{{else}}Диалогов нет.{{end}}</p>
 {{if .View.HasConversations}}

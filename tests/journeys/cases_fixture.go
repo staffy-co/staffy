@@ -167,6 +167,18 @@ type casesFixture struct {
 	// the manager's catalog research records (the monotonic numbers per
 	// (case, position, source) — the supersede is the NEW number).
 	fitmentEvidences   map[id.UUID][]casesDomain.FitmentEvidenceInput
+	// supplierOffers is the Story 4.5 append-only in-memory storage of
+	// the manager's commercial conditions records (the offers world of
+	// the 6.0.0 pin).
+	supplierOffers map[id.UUID][]casesDomain.SupplierOfferInput
+	// selectionSnapshots is the Story 4.5 append-only in-memory storage
+	// of the recorded client choices (the selection snapshots of the
+	// offers world).
+	selectionSnapshots map[id.UUID][]casesDomain.SelectionSnapshotView
+	// supplierOfferSeq and selectionSnapshotSeq keep the fixture ids
+	// unique (the deterministic id family of the fixture).
+	supplierOfferSeq    int
+	selectionSnapshotSeq int
 	fitmentEvidenceSeq int
 	handoffEvents      map[id.UUID][]casesDomain.HandoffEvent
 	handoffSeq         int
@@ -286,7 +298,9 @@ func newCasesFixture() *casesFixture {
 		replyDeliveryEvents: map[id.UUID][]casesDomain.ReplyDeliveryEvent{},
 		// The Story 2.13 material:
 		handoffs:         map[id.UUID][]casesDomain.HandoffRequest{},
-		fitmentEvidences: map[id.UUID][]casesDomain.FitmentEvidenceInput{},
+		fitmentEvidences:   map[id.UUID][]casesDomain.FitmentEvidenceInput{},
+		supplierOffers:     map[id.UUID][]casesDomain.SupplierOfferInput{},
+		selectionSnapshots: map[id.UUID][]casesDomain.SelectionSnapshotView{},
 		handoffEvents:    map[id.UUID][]casesDomain.HandoffEvent{},
 		// The Story 2.14 material:
 		summaries: map[id.UUID][]casesDomain.RecordedSummary{},
@@ -452,6 +466,12 @@ func (f *casesFixture) accept(envelope casesDomain.Envelope, command casesAPI.In
 			// (the applicability panel and the record command derive over
 			// it; the next c2xx slot of the retro-3-3 register).
 			packVersion = fixtureFitmentPackVersion
+		}
+		if fixtureOffersSession(envelope.ProviderSessionID) {
+			// The Story 4.5 offers world: the policy-bearing 6.0.0 pin
+			// (the comparison panel and the record commands derive over
+			// it; the d2xx slot of the retro-3-3 register).
+			packVersion = fixtureOffersPackVersion
 		}
 		material := &fixtureCaseMaterial{cases: casesDomain.Case{
 			TenantID: f.tenant, CaseID: caseID, CaseNo: caseNo, EmployeeID: outcome.EmployeeID,
@@ -748,6 +768,11 @@ func (f *casesFixture) CaseView(_ context.Context, actor domain.Principal, tenan
 		// absence word — the 2.2 unreadable-pin degradation mirror).
 		PartRequest: f.fixturePartPanelOf(material.cases.PackVersion, caseID),
 		Fitment:     f.fixtureFitmentPanelOf(material.cases.PackVersion, caseID),
+		// The Story 4.5 section: the offers and comparison panel over the
+		// REAL domain derivation (only the policy-bearing 6.0.0 pin of
+		// the offers world; every other case renders the honest absence
+		// word — the 4.2/4.3/4.4 panel family degradation mirror).
+		Comparison: f.fixtureOffersPanelOf(material.cases.PackVersion, caseID),
 		// The Story 2.11 section: the «Предпочтения связи» panel over
 		// the REAL read-time derivation (the current set, the honest
 		// append-only history, the dictionaries of the record form).

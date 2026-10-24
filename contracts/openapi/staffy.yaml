@@ -2716,6 +2716,54 @@ paths:
         '403': { description: 'Гейт прав ДО стражей: команда записи требует review или configuration', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
         '404': { $ref: '#/components/responses/Problem' }
         '409': { description: 'Тот же ключ с иным материалом — command_key_conflict', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/supplier-offers:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - $ref: '#/components/parameters/WorkItemID'
+    post:
+      operationId: recordSupplierOffer
+      summary: 'Записать предложение поставщика (Story 4-5, AC-2): продюсер — оператор-менеджер, автоматическое обращение к поставщикам НЕ выполняется (маршрут parts_catalog_abcp не допущен реестром 4-1 — OQ-5/AG-4); append-only строка с монотонным offer_no per (work item, позиция, поставщик) — суперсид НОВЫМ номером, обновлений нет; пины ProfileDigest/PartRequestDigest НЕ поля запроса — живые деривации app ДО записи (FitmentDigest опционален: пусто = честное отсутствие доказательства); guard отказывает честными словами ДО SQL (словари пака/канонический position_key/материал/трассируемость 2-7); канонический OfferDigest — серверная истина под локами; закупочная цена — опциональные внутренние данные (клиентскому материалу НЕ принадлежит — AC-2)'
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecordSupplierOfferRequest' }
+      responses:
+        '201': { description: 'Предложение записано (append-only; номер и OfferDigest — серверная истина под локами)', content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа — сохранённый outcome, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { description: 'Словари пака (валюта/источник) / канонический position_key / обязательный материал (поставщик, бренд, артикул, клиентская цена, наличие) / отрицательные значения / трассируемость (идентификатор записи, версия, время) — ДО SQL словами словаря', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Гейт прав ДО стражей: команда записи требует review или configuration', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { description: 'Тот же ключ с иным материалом — command_key_conflict', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/selection-snapshots:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - $ref: '#/components/parameters/WorkItemID'
+    post:
+      operationId: recordClientSelection
+      summary: 'Записать выбор клиента (Story 4-5, AC-13): снапшот пиннит ТОЧНЫЕ версии ВСЕХ ЧЕТЫРЁХ входов (ProfileDigest/PartRequestDigest/FitmentDigest/OfferDigest); количество 1..наличие — разбие́ние заказа и изменение количества НЕ выполняются (AC-11); устаревшее предложение/non-proven применимость — отказ ДО SQL; известная клиентская сумма = количество × записанная цена (единственная арифметика среза, AC-4); ABCP Order НЕ создаётся и поставщику НЕ отправляется (fence OQ-3/OQ-4 — контур 4-6); guard и дайджесты — серверная истина под локами'
+      x-staffy-principal-required: true
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecordClientSelectionRequest' }
+      responses:
+        '201': { description: 'Выбор записан (append-only снапшот с 4 пинами; SelectionDigest — серверная истина под локами)', content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '200': { description: Повтор идемпотентного ключа — сохранённый outcome, content: { application/json: { schema: { $ref: '#/components/schemas/WorkOutcome' } } } }
+        '400': { description: 'Применимость не подтверждена / предложение устарело (пины либо возраст) / количество вне границ 1..наличие — ДО SQL честными словами', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Гейт прав ДО стражей: команда записи требует review или configuration', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { description: 'Тот же ключ с иным материалом — command_key_conflict', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
   /v1/tenants/{tenant_id}/cases/{case_id}/human-requests:
     parameters:
       - $ref: '#/components/parameters/TenantID'
@@ -5467,6 +5515,7 @@ components:
         vehicle: { $ref: '#/components/schemas/VehiclePanelView', description: 'Секция «Идентификация автомобиля» (Story 4.2): read-time профиль по схеме пака; schema_defined=false — честное слово отсутствия схемы (без хардкода)' }
         part_request: { $ref: '#/components/schemas/PartRequestPanelView', description: 'Секция «Запрос детали» (Story 4.3): read-time запрос по схеме пака (режим/атрибуты/полнота/digest/границы); schema_defined=false — честное слово отсутствия схемы (без хардкода)' }
         fitment: { $ref: '#/components/schemas/FitmentPanelView', description: 'Секция «Применимость» (Story 4.4): read-time лестница состояний над append-only записями доказательств с пинами ProfileDigest/PartRequestDigest; schema_defined=false — честное слово отсутствия политики пака (без хардкода)' }
+        comparison: { $ref: '#/components/schemas/ComparisonPanelView', description: 'Секция «Предложения и сравнение» (Story 4-5): read-time сравнение над append-only записями предложений с пинами трёх входов и подтверждёнными критериями ранжира; schema_defined=false — честное слово отсутствия политики пака (без хардкода)' }
         assurance: { $ref: '#/components/schemas/AssuranceView' }
         bindings: { type: array, items: { $ref: '#/components/schemas/BindingCard' } }
         duplicates: { type: array, items: { $ref: '#/components/schemas/DuplicateCard' } }
@@ -6505,7 +6554,7 @@ components:
         expected_mode_version: { type: integer, minimum: 1, description: 'CAS-ожидание версии лестницы режимов (гонка режима — честный 409 mode_conflict)' }
         target_roles: { type: array, minItems: 1, items: { type: string, enum: [operator, supervision] }, description: 'Целевые роли запроса (непустой набор слов словаря без дублей — кого адресует просьба)' }
         ack_deadline: { type: string, enum: [ack_15m, ack_1h, ack_4h], description: 'Слово дедлайна подтверждения (утверждённая policy v0)' }
-        reason: { type: string, enum: [diagnostic_uncertainty, safety_critical, unresolved_contradiction, fitment_research], description: 'Слово границы (Story 4.3 — операторский продюсер по рекомендации панели «Запрос детали»; Story 4.4 — слово каталогического исследования по рекомендации панели «Применимость»; пусто = безусловная просьба клиента 2.13; явный client_request вводом НЕВОЗМОЖЕН — системная истина; словарь — зеркало миграции cases/00019 + cases/00021, append-only)' }
+        reason: { type: string, enum: [diagnostic_uncertainty, safety_critical, unresolved_contradiction, fitment_research, offers_research], description: 'Слово границы (Story 4.3 — операторский продюсер по рекомендации панели «Запрос детали»; Story 4.4 — слово каталогического исследования по рекомендации панели «Применимость»; Story 4.5 — слово запроса актуальных условий по рекомендации панели «Предложения и сравнение»; пусто = безусловная просьба клиента 2.13; явный client_request вводом НЕВОЗМОЖЕН — системная истина; словарь — зеркало миграции cases/00019 + cases/00021 + cases/00024, append-only)' }
     RecordFitmentEvidenceRequest:
       type: object
       required: [position_key, link_type, source_system, source_record_id, source_version, source_observed_at]
@@ -6531,6 +6580,167 @@ components:
         schema_defined: { type: boolean }
         note: { type: string }
         fitment: { $ref: '#/components/schemas/FitmentView' }
+    ComparisonPanelView:
+      type: object
+      required: [schema_defined, comparison, records, selections]
+      additionalProperties: false
+      description: 'Секция «Предложения и сравнение» (Story 4-5): read-time сравнение над append-only записями предложений + операторская секция записей (с закупочной ценой — внутренние данные) + записанные выборы клиента; schema_defined=false — честное слово отсутствия Comparison-политики пака (панель отсутствует, чтение НИКОГДА не падает; панель «Применимость» 4-4 работает как раньше)'
+      properties:
+        schema_defined: { type: boolean }
+        note: { type: string }
+        comparison: { $ref: '#/components/schemas/ComparisonView' }
+        records: { type: array, items: { $ref: '#/components/schemas/OfferView' }, description: 'Операторская секция: записанные предложения с закупочной ценой и словом внутренних данных (AC-2)' }
+        selections: { type: array, items: { $ref: '#/components/schemas/SelectionSnapshotView' }, description: 'Записанные выборы клиента — снапшоты с 4 пинами (AC-13)' }
+    ComparisonView:
+      type: object
+      required: [positions, price_authority_word, term_estimate_word, scope_word, voice_block]
+      additionalProperties: false
+      description: 'Сравнение кейса read-time (Story 4-5): позиции сгруппированы по типу связи и подтверждённой применимости (AC-5); лестница состояний {current, stale, unknown} (AC-9/AC-10/AC-12); слово власти цены (AC-3) и слово оценки срока (AC-8); голосовой блок телефона (AC-14); клиентский материал — закупочная цена структурно отсутствует (AC-2)'
+      properties:
+        positions: { type: array, items: { $ref: '#/components/schemas/ComparisonPositionView' } }
+        case_unknown_word: { type: string, description: 'Честное слово отсутствия предложений кейса (AC-12: старая цена не повторяется как действующая) + рекомендация offers_research' }
+        case_handoff_words: { type: array, items: { type: string, enum: [offers_research], description: 'Рекомендация задачи менеджеру — словарь причин 00024' } }
+        price_authority_word: { type: string, description: 'Цена по разрешению ABCP — рассчитана Owning System, НЕ моделью; скидка/наценка/итог системой не рассчитываются (AC-3)' }
+        term_estimate_word: { type: string, description: 'Оценка поставщика — не обещание магазина и не подтверждённый факт исполнения (AC-8)' }
+        scope_word: { type: string, description: 'Коммерческие условия принадлежат одному обращению — правил для других обращений не создаётся' }
+        voice_block: { $ref: '#/components/schemas/ComparisonVoiceBlock' }
+    ComparisonPositionView:
+      type: object
+      required: [position_key, link_type, link_type_word, fitment_status, fitment_status_word, status, status_word, words, variants, handoff_words]
+      additionalProperties: false
+      description: 'Одна позиция сравнения: группа по типу связи и подтверждённой применимости из вывода 4-4 (AC-5 — наличие предложения НЕ меняет статус применимости, AC-1); лестница условий {current, stale, unknown}; ранжированные варианты; вопрос без подтверждённого критерия (AC-7)'
+      properties:
+        position_key: { type: string, minLength: 1, maxLength: 128 }
+        link_type: { type: string, enum: [original, cross], description: 'Тип связи позиции — из доказательства 4-4 (пусто = записи нет)' }
+        link_type_word: { type: string, description: 'Слово группы: оригинал / аналог по cross-цепочке (AC-5)' }
+        fitment_status: { type: string, enum: [proven, ambiguous, conflicted, unknown, stale], description: 'Статус применимости — вывод 4-4, re-shown' }
+        fitment_status_word: { type: string, description: 'Честное слово статуса применимости 4-4' }
+        status: { type: string, enum: [current, stale, unknown], description: 'Состояние условий — read-time вывод, НЕ хранимое слово (зеркало словаря домена/SQL-CHECK cases/00022)' }
+        status_word: { type: string, description: 'Честное слово состояния условий' }
+        words: { type: array, items: { type: string }, description: 'Слова границ позиции (ограниченный набор, слово изменений и пр.)' }
+        question: { type: string, description: 'Короткий уточняющий вопрос без подтверждённого критерия: укажите приоритет выбора (AC-7)' }
+        variants: { type: array, items: { $ref: '#/components/schemas/ComparisonVariantView' } }
+        handoff_words: { type: array, items: { type: string, enum: [offers_research], description: 'Рекомендация задачи менеджеру — словарь 00024' } }
+    ComparisonVariantView:
+      type: object
+      required: [supplier_id, supplier_name, brand, article, offer_no, client_price, currency, quantity_available, term_word, rank, status, stale_words, change_words, offer_digest, source]
+      additionalProperties: false
+      description: 'Один ранжированный вариант — КЛИЕНТСКИЙ материал (закупочная цена структурно отсутствует — AC-2): бренд, клиентская цена, наличие, срок с словом оценки, объяснение соответствия приоритету (AC-6), OfferDigest — точная версия условий; ранг и слово ТОЛЬКО при подтверждённом критерии (AC-7)'
+      properties:
+        supplier_id: { type: string, minLength: 1, maxLength: 128 }
+        supplier_name: { type: string }
+        brand: { type: string }
+        article: { type: string }
+        offer_no: { type: integer, format: int64, description: 'Монотонный номер записи — суперсид НОВЫМ номером' }
+        client_price: { type: number, description: 'Записанная разрешённая цена ABCP (модель НЕ рассчитывает — AC-3)' }
+        currency: { type: string, enum: [RUB], description: 'Валюта — словарь Domain Policy пака (зеркало SQL-CHECK cases/00022)' }
+        quantity_available: { type: integer, description: 'Наличие у поставщика' }
+        term_days: { type: integer, description: 'Срок оценкой поставщика в днях (пусто = срок не указан — никогда не помечается быстрее прочих)' }
+        term_word: { type: string, description: 'Слово срока: оценка поставщика либо честное отсутствие' }
+        conditions: { type: string, description: 'Условия получения' }
+        rank: { type: integer, description: 'Ранг в детерминированном порядке (0 = без подтверждённого критерия — не помечается «лучшим»)' }
+        rank_word: { type: string, description: 'Объясняющее слово соответствия подтверждённому приоритету (AC-6: budget→цена/brands→бренд/term→срок)' }
+        status: { type: string, enum: [current, stale], description: 'Текучесть записи (устаревшая — материал с номером, НЕ действующие условия — AC-12)' }
+        stale_words: { type: array, items: { type: string }, description: 'Слова устаревания: возраст/профиль/запрос/применимость (AC-9/AC-10)' }
+        change_words: { type: array, items: { type: string }, description: 'Слово изменений условий между последовательными записями поставщика (AC-10)' }
+        shortfall_word: { type: string, description: 'Честное слово неполного наличия: N из M (AC-11)' }
+        offer_digest: { type: string, description: 'SHA-256 канонический — точная версия условий (пин контуров 4-6..4-9)' }
+        source: { $ref: '#/components/schemas/OfferSourceView' }
+    ComparisonVoiceBlock:
+      type: object
+      required: [key_differences, full_word]
+      additionalProperties: false
+      description: 'Короткое слово для телефона (AC-14): ключевые различия до 3 ПО подтверждённым критериям + рекомендуемый вариант ТОЛЬКО по подтверждённому критерию (AC-7 — «лучший» без основания не объявляется) + слово полного сравнения в разрешённом канале'
+      properties:
+        key_differences: { type: array, items: { type: string }, description: 'Ключевые различия по подтверждённым критериям (до 3)' }
+        recommended_word: { type: string, description: 'Рекомендуемый по подтверждённому приоритету вариант (пусто без критерия)' }
+        full_word: { type: string, description: 'Полное сравнение — в разрешённый текстовый либо защищённый канал' }
+    OfferSourceView:
+      type: object
+      required: [source_system, source_record_id, source_version, source_observed_at, received_at]
+      additionalProperties: false
+      description: 'Трассируемость записи предложения до ответа Owning System (дисциплина 2-7)'
+      properties:
+        source_system: { type: string, enum: [abcp_catalog, laximo_catalog], description: 'Источник — словарь пака (зеркало 4-4/SQL-CHECK cases/00022)' }
+        source_record_id: { type: string }
+        source_version: { type: string }
+        source_observed_at: { type: string, format: date-time }
+        received_at: { type: string, format: date-time }
+    OfferView:
+      type: object
+      required: [offer_no, position_key, supplier_id, supplier_name, brand, article, client_price, currency, quantity_available, term_word, source, offer_digest]
+      additionalProperties: false
+      description: 'Операторская секция: записанное предложение ЦЕЛИКОМ — С закупочной ценой и словом внутренних данных (AC-2: запись принадлежит, клиентскому материалу НЕ принадлежит); слово появляется только при существовании внутренних данных'
+      properties:
+        offer_no: { type: integer, format: int64 }
+        position_key: { type: string }
+        supplier_id: { type: string }
+        supplier_name: { type: string }
+        brand: { type: string }
+        article: { type: string }
+        client_price: { type: number }
+        purchase_price: { type: number, description: 'Опциональные внутренние данные магазина (пусто = не записано, НЕ ноль)' }
+        purchase_word: { type: string, description: 'Внутренние данные: клиенту не раскрывается (AC-2)' }
+        currency: { type: string, enum: [RUB] }
+        quantity_available: { type: integer }
+        term_days: { type: integer }
+        term_word: { type: string }
+        conditions: { type: string }
+        source: { $ref: '#/components/schemas/OfferSourceView' }
+        offer_digest: { type: string }
+    SelectionSnapshotView:
+      type: object
+      required: [snapshot_no, position_key, supplier_id, offer_no, quantity, unit_client_price, currency, known_client_sum, sum_boundary_word, order_boundary_word, profile_digest_pin, part_request_digest_pin, fitment_digest_pin, offer_digest_pin, selection_digest, created_at]
+      additionalProperties: false
+      description: 'Записанный выбор клиента (AC-13): снапшот с пинами ТОЧНЫХ версий ВСЕХ ЧЕТЫРЁХ входов; известная сумма = количество × записанная цена (единственная арифметика среза — AC-4, с словом границы); ABCP Order не создаётся и поставщику не отправляется (fence OQ-3/OQ-4 — контур 4-6)'
+      properties:
+        snapshot_no: { type: integer, format: int64, description: 'Монотонный номер снапшота per work item' }
+        position_key: { type: string }
+        supplier_id: { type: string }
+        offer_no: { type: integer, format: int64 }
+        quantity: { type: integer, minimum: 1 }
+        unit_client_price: { type: number }
+        currency: { type: string, enum: [RUB] }
+        known_client_sum: { type: number, description: 'Количество × записанная цена — БЕЗ доставки и сбора, НЕ окончательная' }
+        sum_boundary_word: { type: string }
+        order_boundary_word: { type: string }
+        profile_digest_pin: { type: string }
+        part_request_digest_pin: { type: string }
+        fitment_digest_pin: { type: string }
+        offer_digest_pin: { type: string }
+        selection_digest: { type: string, description: 'SHA-256 канонический снапшота (пин контуров 4-6..4-9)' }
+        created_at: { type: string, format: date-time }
+    RecordSupplierOfferRequest:
+      type: object
+      required: [position_key, supplier_id, supplier_name, brand, article, client_price, currency, quantity_available, source_system, source_record_id, source_version, source_observed_at]
+      additionalProperties: false
+      description: 'Предложение поставщика (Story 4-5, AC-2): материал записи — позиция (канонический артикул 4-3), поставщик (идентификатор, название), бренд/артикул, клиентская цена по разрешению ABCP (ЗАПИСЫВАЕТСЯ, не рассчитывается — AC-3), закупочная цена ОПЦИОНАЛЬНА (внутренние данные: NULL = честное «не видел/не записал», НЕ ноль; клиентскому материалу не принадлежит — AC-2), валюта/наличие/срок оценкой поставщика (term_kind supplier_estimate — не обещание, AC-8), условия получения, трассируемость 2-7; пины digest НЕ поля запроса — живые деривации app ДО записи; offer_no и OfferDigest — серверная истина под локами'
+      properties:
+        position_key: { type: string, minLength: 1, maxLength: 128, description: 'Канонический ключ позиции (NormalizePartNumber 4-3)' }
+        supplier_id: { type: string, minLength: 1, maxLength: 128 }
+        supplier_name: { type: string, minLength: 1, maxLength: 256 }
+        brand: { type: string, minLength: 1, maxLength: 128 }
+        article: { type: string, minLength: 1, maxLength: 128 }
+        client_price: { type: number, minimum: 0, description: 'Клиентская цена по разрешению ABCP — записанная, НЕ рассчитанная (AC-3)' }
+        purchase_price: { type: number, minimum: 0, description: 'Закупочная цена — опциональные внутренние данные (не раскрывается клиенту — AC-2)' }
+        currency: { type: string, enum: [RUB], description: 'Валюта — словарь Domain Policy пака (зеркало SQL-CHECK cases/00022)' }
+        quantity_available: { type: integer, minimum: 0 }
+        term_days: { type: integer, minimum: 0, description: 'Срок оценкой поставщика в днях (пусто = не указан)' }
+        conditions: { type: string, maxLength: 512 }
+        source_system: { type: string, enum: [abcp_catalog, laximo_catalog], description: 'Источник — словарь пака (зеркало 4-4)' }
+        source_record_id: { type: string, minLength: 1, maxLength: 128, description: 'Трассируемость до ответа Owning System (AC-15: без материала источника запись отказана)' }
+        source_version: { type: string, minLength: 1, maxLength: 64 }
+        source_observed_at: { type: string, format: date-time }
+    RecordClientSelectionRequest:
+      type: object
+      required: [position_key, supplier_id, offer_no, quantity]
+      additionalProperties: false
+      description: 'Выбор клиента (Story 4-5, AC-13): позиция + поставщик + номер выбранной ТЕКУЩЕЙ записи + количество (1..наличие — AC-11); пины, цены и сумма НЕ поля запроса — живые деривации app и стор под локами; ABCP Order не создаётся (fence OQ-3/OQ-4)'
+      properties:
+        position_key: { type: string, minLength: 1, maxLength: 128 }
+        supplier_id: { type: string, minLength: 1, maxLength: 128 }
+        offer_no: { type: integer, format: int64, minimum: 1, description: 'Номер выбранной текущей записи предложения' }
+        quantity: { type: integer, minimum: 1, description: 'Выбранное количество (разбие́ние заказа и изменение количества не выполняются — AC-11)' }
     FitmentView:
       type: object
       required: [positions, number_match_word, price_note, scope_word]

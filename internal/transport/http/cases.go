@@ -142,6 +142,17 @@ func (s *Server) BindCases(service casesAPI.Service) {
 			s.fitments = fitments
 			s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/fitment-evidences", s.recordFitmentEvidenceAPI)
 			s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/fitment-evidences", s.recordFitmentEvidenceForm)
+			if offers, ok := service.(casesAPI.OffersService); ok {
+				// The Story 4.5 surfaces: the manager's supplier offer and
+				// the client selection record commands — the machine JSON
+				// routes and the operator PRG forms of the case page (the
+				// same narrow interface type-assertion precedent).
+				s.offers = offers
+				s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/supplier-offers", s.recordSupplierOfferAPI)
+				s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/supplier-offers", s.recordSupplierOfferForm)
+				s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/selection-snapshots", s.recordClientSelectionAPI)
+				s.mux.HandleFunc("POST /app/tenants/{tenant_id}/cases/{case_id}/work-items/{work_item_id}/selection-snapshots", s.recordClientSelectionForm)
+			}
 		}
 		s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/human-requests", s.requestHumanAPI)
 		s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/cases/{case_id}/human-requests/assignment", s.assignHumanHandoffAPI)

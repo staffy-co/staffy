@@ -474,6 +474,12 @@ func (s *Postgres) ExecuteWorkCommand(ctx context.Context, p casesPort.WorkComma
 		// serialize the monotonic evidence number of the (work item,
 		// position, source) ladder with every work command of the item.
 		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID), workLockKey(tenantID, p.WorkItemID))
+	case "record_supplier_offer", "record_client_selection":
+		// The Story 4.5 append-only writes: the case + work item locks
+		// serialize the monotonic offer number of the (work item, position,
+		// supplier) ladder and the monotonic snapshot number of the work
+		// item with every work command of the item.
+		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID), workLockKey(tenantID, p.WorkItemID))
 	case "record_objection":
 		lockKeys = append(lockKeys, caseLockKey(tenantID, p.CaseID), workLockKey(tenantID, p.WorkItemID))
 	case "create_commitment", "record_commitment_decline":
@@ -617,6 +623,10 @@ func (s *Postgres) ExecuteWorkCommand(ctx context.Context, p casesPort.WorkComma
 		err = s.execReadOwningSystem(ctx, tx, tenantID, p, now)
 	case "record_fitment_evidence":
 		err = s.execRecordFitmentEvidence(ctx, tx, tenantID, p, now)
+	case "record_supplier_offer":
+		err = s.execRecordSupplierOffer(ctx, tx, tenantID, p, now)
+	case "record_client_selection":
+		err = s.execRecordClientSelection(ctx, tx, tenantID, p, now)
 	case "record_objection":
 		err = s.execRecordObjection(ctx, tx, tenantID, p, now)
 	case "create_commitment":
