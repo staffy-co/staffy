@@ -57,6 +57,22 @@ type ProposalOutcome struct {
 	PreviewDigest string   `json:"preview_digest,omitempty"`
 }
 
+// PrepareOrderProposalCommand is the operator's ONE-word ask of the Story
+// 4.6 order contour: build the order commitment proposal of the case. The
+// command carries NO material — no pins, no prices, no composition, no
+// typed input: the builder derives everything LIVE from the case view
+// (the recorded selections of 4-5 plus the current derivations), and any
+// material an operator would try to type is structurally absent (the
+// «the operator does not type digests» principle of 4-4/4-5 — the app
+// tests pin the probe).
+type PrepareOrderProposalCommand struct {
+	Actor      identityDomain.Principal
+	TenantID   id.UUID
+	CaseID     id.UUID
+	WorkItemID id.UUID
+	Now        time.Time
+}
+
 // NewPreviewVersionCommand is the edit of one existing preview: the
 // edited typed input and the edited supporting references. The pins
 // (definition, case, work item, target) are the preview's own identity —

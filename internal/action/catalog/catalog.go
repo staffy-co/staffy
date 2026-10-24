@@ -28,8 +28,8 @@ var definitions = []domain.ActionDefinition{
 		// never types it); the typed output is the receipt triple plus
 		// the derived state word. NO supplier-send field exists in
 		// either schema — structurally (the OQ-3 fence).
-		ID:      "create_abcp_customer_order",
-		Version: "1.0.0",
+		ID:      domain.OrderActionID,
+		Version: domain.OrderActionVersion,
 		Name:    "Создание клиентского заказа в ABCP",
 		Purpose: "Создание одного клиентского заказа в ABCP (без отправки поставщику) по точной версии состава после Confirmation клиента; заказ ожидает проверки менеджером.",
 		TypedInputSchema: []domain.FieldSchema{

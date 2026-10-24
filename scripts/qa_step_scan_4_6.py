@@ -49,6 +49,10 @@ for name in files:
     # зонды идут по коду среза, не по нарративу журнала.
     if name == 'DEVLOG.md':
         continue
+    # Сам скан-скрипт содержит паттерны mixed-зондов буквально (словарь
+    # зондов — это его код): самоскан смешанных слов ложно-положителен.
+    if name == 'scripts/qa_step_scan_4_6.py':
+        continue
     for match in cjk_range.finditer(text):
         failures.append(f'{name}:{text[:match.start()].count(chr(10)) + 1}: CJK-артефакт {match.group(0)}')
         break

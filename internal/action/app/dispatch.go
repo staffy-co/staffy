@@ -105,6 +105,24 @@ const dispatchCaseClosedReason = "case_closed"
 // dispatchCaseClosedText speaks the liveness fence honestly.
 const dispatchCaseClosedText = "Кейс/рабочий элемент завершён: queued intent гасится до отправки — требуется новое Preview и Confirmation контуром 3-5."
 
+// dispatchOrderVersionSourceMissingReason is the exact block reason word
+// of the nil OrderVersionSource port (story 4.6, AC-5): the composition
+// revalidation of an order operation fails CLOSED — no live source, no
+// dispatch (the FreshReads precedent; never an assumed «unchanged»).
+const dispatchOrderVersionSourceMissingReason = "order_version_source_missing"
+
+// dispatchOrderCompositionChangedReason is the exact block reason word of
+// the live OrderDigest divergence (story 4.6, AC-5): the composition
+// changed after the client's confirmation — the dispatch parks with the
+// exact word, the updated client confirmation is required (never a false
+// failed externally, FR-28).
+const dispatchOrderCompositionChangedReason = "order_composition_changed"
+
+// dispatchOrderDigestAlarmText is the integrity alarm of a pinned preview
+// whose typed input lost the order digest the schema demands (the mixed
+// rows never dispatch — the alarm skip, never a send).
+const dispatchOrderDigestAlarmText = "Пин версии заказа отсутствует в материале preview: целостность строки нарушена — ни lease, ни отправки (alarm)."
+
 // dispatchFreshReadsReason is the exact block reason word of the nil
 // owning-system reader (the fail-closed material gate, AG-4).
 const dispatchFreshReadsReason = "fresh_reads_unavailable"
@@ -353,6 +371,45 @@ func (s *Service) dispatchOneJob(ctx context.Context, scope tenancy.Context, com
 	}
 	if fence != "" {
 		return s.block(ctx, scope, command.Now, d, job, job.LastAttemptNo, fence, domain.DispatchFenceText(fence))
+	}
+	// FENCE 4.5 — the order composition revalidation (story 4.6, AC-5): an
+	// operation of a definition whose typed input schema pins the order
+	// digest revalidates the WHOLE composition LIVE before anything else
+	// moves — the port re-derives the ONE canonical OrderDigest from the
+	// live case view and the ladder compares it with the PIN of the
+	// preview material the client confirmed. A divergence parks the
+	// operation with the exact word (the updated client confirmation is
+	// required — any substantial change of ANY of the five inputs changes
+	// the digest); a NIL port fails CLOSED (the FreshReads precedent,
+	// AG-4). The step runs BEFORE the case liveness so a changed
+	// composition is spoken even over a case whose work items moved — the
+	// exact order of the spec ladder, pinned by the counter tests.
+	if definitionPinsOrderDigest(def) {
+		revalidatedPreview, err := s.operations.ReadPinnedPreviewVersion(ctx, scope, op.PreviewID, op.PreviewVersionNo)
+		if err != nil {
+			return err
+		}
+		pinned, ok := revalidatedPreview.TypedInput["order_digest"]
+		if !ok {
+			d.skip(op.OperationID, job.LastAttemptNo, dispatchOrderDigestAlarmText)
+			return nil
+		}
+		if s.orderVersions == nil {
+			return s.block(ctx, scope, command.Now, d, job, job.LastAttemptNo,
+				dispatchOrderVersionSourceMissingReason, domain.OrderVersionSourceMissingWord)
+		}
+		live, err := s.orderVersions.OrderCommitmentDigest(ctx, port.OrderVersionRequest{
+			Scope:      scope,
+			CaseID:     op.CaseID,
+			WorkItemID: op.WorkItemID,
+		})
+		if err != nil {
+			return err
+		}
+		if live != pinned {
+			return s.block(ctx, scope, command.Now, d, job, job.LastAttemptNo,
+				dispatchOrderCompositionChangedReason, domain.OrderCompositionChangedWord)
+		}
 	}
 	// FENCE 5 — the case/work_item liveness (the live read of the case
 	// api; a dead case or an unanchored work item kills the queued intent
@@ -974,7 +1031,7 @@ func dispatchAttemptViews(rows []port.DispatchAttemptRow) []api.DispatchAttemptV
 func actionReceiptViews(rows []port.ActionReceiptRow) []api.ActionReceiptView {
 	views := make([]api.ActionReceiptView, 0, len(rows))
 	for _, row := range rows {
-		views = append(views, api.ActionReceiptView{
+		view := api.ActionReceiptView{
 			ReceiptVersionNo:      row.ReceiptVersionNo,
 			Outcome:               row.Outcome,
 			OutcomeText:           receiptOutcomeText(row.Outcome),
@@ -990,7 +1047,39 @@ func actionReceiptViews(rows []port.ActionReceiptRow) []api.ActionReceiptView {
 			ExternalObjectVersion: row.References.ExternalObjectVersion,
 			Details:               row.Details,
 			CreatedAt:             row.CreatedAt,
-		})
+		}
+		// The Story 4.6 derived words of the committed order receipt: the
+		// state word pending_manager_verification (the derived READ-TIME
+		// projection of committed for the order action — the stored receipt
+		// stays three-worded), the manager assignment word (the delegated
+		// task mechanics belong to the contour 4-7), the client words
+		// (AC-14 — ONLY «создан в магазине и ожидает проверки менеджера»
+		// with the honest negations) and the 1C-unknown word (AC-13,
+		// OQ-4/OQ-19 — the ABCP Order creation is NEVER a declared 1C
+		// synchronization). The failed/unknown outcomes keep the honest
+		// words of 3-6 — unchanged.
+		if row.References.DefinitionID == domain.OrderActionID && row.Outcome == domain.ReceiptOutcomeCommitted {
+			view.OrderState = domain.OrderReceiptStatePendingManagerVerification
+			view.OrderStateWord = domain.OrderClientCreatedWord
+			view.OrderBoundaryWord = domain.OrderClientBoundaryWord
+			view.OrderOneCWord = domain.OrderOneCUnknownWord
+			view.OrderManagerWord = domain.OrderManagerAssignmentWord
+		}
+		views = append(views, view)
 	}
 	return views
+}
+
+// definitionPinsOrderDigest reports whether the definition's typed input
+// schema structurally pins the order digest (the required order_digest
+// field of the order action's schema — the structural address of the
+// composition revalidation, never a hardcoded ID list): every action whose
+// material pins an order version is revalidated at the execute time.
+func definitionPinsOrderDigest(def domain.ActionDefinition) bool {
+	for _, field := range def.TypedInputSchema {
+		if field.Name == "order_digest" && field.Required {
+			return true
+		}
+	}
+	return false
 }

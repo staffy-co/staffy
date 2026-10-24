@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -80,6 +81,63 @@ const OrderPositionGuardWord = "один заказ несёт от одной �
 // OrderNoSelectionWord is the builder's honest refusal word (the app layer
 // speaks it BEFORE any proposal): no recorded client selection — no order.
 const OrderNoSelectionWord = "нет подтверждённого выбора клиента: заказ строится из записанного выбора с точными версиями"
+
+// OrderFitmentNotProvenWord is the builder's honest refusal word of a
+// selected position whose live fitment derivation is not proven (the 4-5
+// selection guard already refused the RECORD; the builder re-derives LIVE —
+// the honest belt over braces).
+const OrderFitmentNotProvenWord = "применимость не подтверждена: заказ строится только из подтверждённых вариантов — выберите подтверждённый вариант либо передайте человеку"
+
+// OrderMixedInputVersionsWord is the builder's honest refusal word of the
+// selections pinned to DIFFERENT case-level input versions (a newer profile
+// or request version arrived after an older selection): the mixed versions
+// never silently ride into one order — the updated client selection is
+// required.
+const OrderMixedInputVersionsWord = "версии входов расходятся между выборами: требуется обновлённый выбор клиента по текущим версиям входов"
+
+// OrderMaterialOversizeWord is the builder's honest refusal word of the
+// canonical render exceeding the typed-input field bound: the material is
+// never silently truncated.
+const OrderMaterialOversizeWord = "материал заказа превышает предел поля предложения — сократите известные условия позиций"
+
+// OrderMixedCurrencyWord is the builder's honest refusal word of the
+// selections in DIFFERENT currencies: one order carries ONE currency word
+// of the pack dictionary — a mixed-currency composition never rides into
+// one order silently.
+const OrderMixedCurrencyWord = "валюты позиций расходятся: один заказ несёт одну валюту словаря пака — обновите выбор клиента"
+
+// OrderOfferUnresolvedWord is the builder's honest refusal word of a
+// selection whose pinned offer record does not resolve against the live
+// records of the case (the append-only truth): the material is never
+// invented — the integrity refusal, never a masked pass.
+const OrderOfferUnresolvedWord = "записанное предложение выбора не резолвится против живых записей кейса — целостность материала нарушена"
+
+// The action pin of the order contour (the first product entry of the
+// catalog, story 4.6): the receipt render and the composition revalidation
+// address THIS action BY NAME.
+const (
+	// OrderActionID is the catalog ID of the ABCP client order action.
+	OrderActionID = "create_abcp_customer_order"
+	// OrderActionVersion is the catalog version of the first slice.
+	OrderActionVersion = "1.0.0"
+)
+
+// The builder's sentinel errors (the word IS the message; the transport
+// maps them by name — the honest refusal BEFORE any proposal).
+var (
+	// ErrOrderNoSelection — no recorded selection, no order.
+	ErrOrderNoSelection = errors.New(OrderNoSelectionWord)
+	// ErrOrderFitmentNotProven — a selected position without the proven fitment.
+	ErrOrderFitmentNotProven = errors.New(OrderFitmentNotProvenWord)
+	// ErrOrderMixedInputVersions — selections pinned to different input versions.
+	ErrOrderMixedInputVersions = errors.New(OrderMixedInputVersionsWord)
+	// ErrOrderMaterialOversize — the canonical render exceeds the field bound.
+	ErrOrderMaterialOversize = errors.New(OrderMaterialOversizeWord)
+	// ErrOrderMixedCurrency — the selections carry different currency words.
+	ErrOrderMixedCurrency = errors.New(OrderMixedCurrencyWord)
+	// ErrOrderOfferUnresolved — a pinned offer record does not resolve.
+	ErrOrderOfferUnresolved = errors.New(OrderOfferUnresolvedWord)
+)
 
 // OrderReceiptStatePendingManagerVerification is the DERIVED read-time
 // state word of the committed outcome render (the stored receipt of 3-6

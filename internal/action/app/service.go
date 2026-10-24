@@ -95,6 +95,15 @@ type Service struct {
 	// network stays in the dispatch/reconciliation contours of 3-6/3-7,
 	// AG-4).
 	recoveries port.RecoveryRepository
+
+	// Story 4.6 (step-02): the order composition revalidation source — the
+	// consumer-owned port the dispatch ladder reads AFTER the confirmation
+	// fence and BEFORE the case liveness (AC-5: the live re-derivation of
+	// the ONE canonical OrderDigest; any substantial change of ANY of the
+	// five inputs blocks the dispatch with the exact word). A NIL source is
+	// the HONEST production boundary (the FreshReads precedent, AG-4): the
+	// order dispatch fails CLOSED — never an assumed «unchanged».
+	orderVersions port.OrderVersionSource
 }
 
 // New wires the service. The resolvers are the composition-root adapters
@@ -199,6 +208,18 @@ func (s *Service) WithReconcile(repository port.ReconciliationRepository, adapte
 // human is mandatory — and the recovery cases still get created).
 func (s *Service) WithRecovery(repository port.RecoveryRepository) *Service {
 	s.recoveries = repository
+	return s
+}
+
+// WithOrderVersions wires the order composition revalidation source of
+// story 4.6 (the fixture and the transport composition roots): the port
+// answers the LIVE OrderDigest derivation of one case. The source may stay
+// nil — the HONEST production state (AG-4: the in-process derivation is
+// wired by the roots that serve the order contour; a root that wires
+// nothing fails the order dispatch CLOSED with the exact word, the
+// FreshReads precedent).
+func (s *Service) WithOrderVersions(source port.OrderVersionSource) *Service {
+	s.orderVersions = source
 	return s
 }
 

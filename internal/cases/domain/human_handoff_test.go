@@ -52,16 +52,21 @@ func handoffEventOf(request HandoffRequest, eventNo int64, kind string) HandoffE
 }
 
 func TestHandoffDictionariesClosed(t *testing.T) {
-	// The Story 4.5 extension: the reason dictionary carries SIX words —
+	// The Story 4.6 extension: the reason dictionary carries SEVEN words —
 	// the unconditional client word of 2.13 plus the three operator
 	// boundary words of the part request classification (the SQL mirror
 	// is migrations/cases/00019, append-only by the 00018 precedent) plus
 	// the fitment research word of the applicability panel (the SQL mirror
 	// is migrations/cases/00021, append-only by the 00019 precedent) plus
 	// the offers research word of the comparison panel (the SQL mirror is
-	// migrations/cases/00024, append-only by the 00021 precedent).
-	if len(HandoffReasons) != 6 || HandoffReasons[0] != HandoffReasonClientRequest {
-		t.Fatalf("the reason dictionary carries the client word first plus the three Story 4.3 boundary words plus the Story 4.4 and 4.5 research words, got %v", HandoffReasons)
+	// migrations/cases/00024, append-only by the 00021 precedent) plus
+	// the order creation word of the order panel of the parked AG-4
+	// operation (the SQL mirror is migrations/cases/00025, append-only by
+	// the 00024 precedent — the manager creates the client order in the
+	// ABCP interface by the exact-version material, never an automatic
+	// supplier send).
+	if len(HandoffReasons) != 7 || HandoffReasons[0] != HandoffReasonClientRequest {
+		t.Fatalf("the reason dictionary carries the client word first plus the three Story 4.3 boundary words plus the Story 4.4, 4.5 and 4.6 task words, got %v", HandoffReasons)
 	}
 	for _, reason := range []string{HandoffReasonDiagnosticUncertainty, HandoffReasonSafetyCritical, HandoffReasonUnresolvedContradiction} {
 		if !HandoffReasonInDictionary(reason) {
@@ -76,6 +81,12 @@ func TestHandoffDictionariesClosed(t *testing.T) {
 	}
 	if HandoffReasonText(HandoffReasonOffersResearch) == "" {
 		t.Fatalf("the Story 4.5 research word %q must carry its honest text", HandoffReasonOffersResearch)
+	}
+	if !HandoffReasonInDictionary(HandoffReasonOrderCreation) {
+		t.Fatalf("the Story 4.6 order word %q must be in the reason dictionary (the 00025 mirror)", HandoffReasonOrderCreation)
+	}
+	if HandoffReasonText(HandoffReasonOrderCreation) == "" {
+		t.Fatalf("the Story 4.6 order word %q must carry its honest text", HandoffReasonOrderCreation)
 	}
 	if !HandoffReasonInDictionary(HandoffReasonFitmentResearch) {
 		t.Fatalf("the Story 4.4 research word %q must be in the reason dictionary (the 00021 mirror)", HandoffReasonFitmentResearch)

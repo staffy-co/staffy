@@ -410,6 +410,17 @@ func TestMain(m *testing.M) {
 	if _, err = adminPool.Exec(ctx, strings.Split(string(casesOffersReasonMigration), "-- +goose Down")[0]); err != nil {
 		panic(err)
 	}
+	// Story 4.6: the order creation reason word of the handoff dictionary
+	// (the seventh). The registration stays in this hard list (the 3.3
+	// lesson of 00017: a migration outside the list never applies and the
+	// whole contour tests a world that does not exist).
+	casesOrderReasonMigration, err := os.ReadFile("../../migrations/cases/00025_order_creation_reason.sql")
+	if err != nil {
+		panic(err)
+	}
+	if _, err = adminPool.Exec(ctx, strings.Split(string(casesOrderReasonMigration), "-- +goose Down")[0]); err != nil {
+		panic(err)
+	}
 	// Story 3.4: the FIRST migration of the action module. The
 	// registration in this hard list is load-bearing (the 3.3 lesson of
 	// 00017: a migration outside the list never applied its tables to
