@@ -59,7 +59,13 @@ func (f *casesFixture) fixtureVehicleFacts(caseID id.UUID) []casesDomain.Vehicle
 // inventions). The packs without the identification schema render the
 // honest absence word (the 2-2 unreadable-pin degradation mirror).
 func fixtureVehiclePanelOf(packVersion string, facts []casesDomain.VehicleFactInput) casesAPI.VehiclePanelView {
-	if packVersion != fixtureVehiclePackVersion {
+	// The additive manifest mirror: every pack from the identification
+	// pin (3.0.0) upward carries the schema — the 4.0.0/5.0.0/6.0.0
+	// worlds render the panel (the real auto-parts manifests keep it; the
+	// strict equality was a fixture simplification the order contour of
+	// 4.6 exposed: its builder reads the LIVE panel digests).
+	if packVersion != fixtureVehiclePackVersion && packVersion != fixturePartPackVersion &&
+		packVersion != fixtureFitmentPackVersion && packVersion != fixtureOffersPackVersion {
 		return casesAPI.VehiclePanelView{Note: casesAPI.VehicleSchemaNoteAbsent}
 	}
 	return casesAPI.VehiclePanelView{

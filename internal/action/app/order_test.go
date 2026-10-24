@@ -35,10 +35,28 @@ func orderTestPin(label string) string {
 }
 
 // orderCaseView builds the case view of ONE selected-and-proven position:
-// the comparison panel (the proven fitment with the original link type),
-// the offer records and ONE recorded selection snapshot with all four pins.
+// the vehicle and part request panels with the LIVE case-level digests,
+// the proven fitment with the LIVE FitmentDigest, the offer records (the
+// CURRENT record of the chosen supplier) and ONE recorded selection
+// snapshot pinned to the same versions.
 func orderCaseView() casesAPI.CaseView {
 	view := newPreviewLiveFixture().caseView
+	view.Vehicle = casesAPI.VehiclePanelView{
+		SchemaDefined: true,
+		Profile:       casesDomain.VehicleProfileView{ProfileDigest: orderTestPin("profile")},
+	}
+	view.PartRequest = casesAPI.PartPanelView{
+		SchemaDefined: true,
+		Part:          casesDomain.PartRequestView{PartRequestDigest: orderTestPin("partreq")},
+	}
+	view.Fitment = casesAPI.FitmentPanelView{
+		SchemaDefined: true,
+		Fitment: casesDomain.FitmentView{Positions: []casesDomain.FitmentPositionView{{
+			PositionKey:   "pos-1",
+			Status:        casesDomain.FitmentStatusProven,
+			FitmentDigest: orderTestPin("fitment"),
+		}}},
+	}
 	view.Comparison = casesAPI.ComparisonPanelView{
 		SchemaDefined: true,
 		Comparison: casesDomain.ComparisonView{Positions: []casesDomain.ComparisonPositionView{{
@@ -53,7 +71,9 @@ func orderCaseView() casesAPI.CaseView {
 			SupplierID:  "supplier-a",
 			Brand:       "Bosch",
 			Article:     "341167866712",
+			ClientPrice: 4200.50,
 			Currency:    "RUB",
+			OfferDigest: orderTestPin("offer"),
 		}},
 		Selections: []casesDomain.SelectionSnapshotView{{
 			SnapshotNo:           1,
@@ -168,29 +188,47 @@ func TestDeriveOrderMaterialMissingFitmentPositionRefuses(t *testing.T) {
 	}
 }
 
-// TestDeriveOrderMaterialMixedPinsRefuses — выборы с РАЗНЫМИ пинами
-// кейс-уровня (новая версия профиля после старого выбора) — честный отказ
+// TestDeriveOrderMaterialMixedPinsRefuses — выбор, запинненный на СТАРУЮ
+// версию входа (новая версия профиля после выбора) — честный отказ
 // смешанных версий.
 func TestDeriveOrderMaterialMixedPinsRefuses(t *testing.T) {
 	view := orderCaseView()
-	view.Comparison.Selections = append(view.Comparison.Selections, casesDomain.SelectionSnapshotView{
-		SnapshotNo:           2,
-		PositionKey:          "pos-2",
-		SupplierID:           "supplier-b",
-		OfferNo:              1,
-		Quantity:             1,
-		UnitClientPrice:      100,
-		Currency:             "RUB",
-		KnownClientSum:       100,
-		ProfileDigestPin:     orderTestPin("profilenew"),
-		PartRequestDigestPin: orderTestPin("partreq"),
-		FitmentDigestPin:     orderTestPin("fitment"),
-		OfferDigestPin:       orderTestPin("offer"),
-		SelectionDigest:      orderTestPin("select"),
-	})
+	view.Vehicle.Profile.ProfileDigest = orderTestPin("profilenew")
 	_, err := DeriveOrderCommitmentMaterial(view)
 	if !errors.Is(err, domain.ErrOrderMixedInputVersions) {
-		t.Fatalf("смешанные версии входов — отказ ErrOrderMixedInputVersions, получено: %v", err)
+		t.Fatalf("выбор под старой версией входа — отказ ErrOrderMixedInputVersions, получено: %v", err)
+	}
+}
+
+// TestDeriveOrderMaterialLivePriceChangesTheDigest — ТЕКУЩАЯ запись
+// предложения (новая цена перезаписью) меняет материал живьём: цена и
+// сумма читаются из текущей записи, дайджест позиции — текущий OfferDigest
+// (execute-time revalidation не слепа к изменению цены, AC-5).
+func TestDeriveOrderMaterialLivePriceChangesTheDigest(t *testing.T) {
+	view := orderCaseView()
+	base, err := DeriveOrderCommitmentMaterial(view)
+	if err != nil {
+		t.Fatalf("базовый материал обязан собираться: %v", err)
+	}
+	// The supplier re-records the offer: a NEW offer number with the new
+	// price — the CURRENT record of the pair moves on.
+	view.Comparison.Records = append(view.Comparison.Records, casesDomain.OfferView{
+		OfferNo: 4, PositionKey: "pos-1", SupplierID: "supplier-a",
+		Brand: "Bosch", Article: "341167866712",
+		ClientPrice: 4900, Currency: "RUB", OfferDigest: orderTestPin("offernew"),
+	})
+	changed, err := DeriveOrderCommitmentMaterial(view)
+	if err != nil {
+		t.Fatalf("переписанное предложение обязано собираться: %v", err)
+	}
+	if changed.Positions[0].UnitClientPrice != 4900 || changed.KnownClientSum != 9800 {
+		t.Fatalf("цена/сумма из ТЕКУЩЕЙ записи: цена %f, сумма %f", changed.Positions[0].UnitClientPrice, changed.KnownClientSum)
+	}
+	if changed.Positions[0].OfferNo != 4 || changed.Positions[0].OfferDigestPin != orderTestPin("offernew") {
+		t.Fatalf("позиция несёт текущую запись: №%d, дайджест %q", changed.Positions[0].OfferNo, changed.Positions[0].OfferDigestPin)
+	}
+	if domain.OrderDigestOf(changed) == domain.OrderDigestOf(base) {
+		t.Fatal("изменение цены обязано менять дайджест — revalidation не слепа")
 	}
 }
 
@@ -237,8 +275,8 @@ func TestDeriveOrderMaterialReselectionSupersedes(t *testing.T) {
 	reselection := view.Comparison.Selections[0]
 	reselection.SnapshotNo = 2
 	reselection.Quantity = 5
-	reselection.UnitClientPrice = 4000
-	reselection.KnownClientSum = 20000
+	reselection.UnitClientPrice = 4200.50
+	reselection.KnownClientSum = 21002.50
 	reselection.SelectionDigest = orderTestPin("selectnew")
 	view.Comparison.Selections = append(view.Comparison.Selections, reselection)
 	material, err := DeriveOrderCommitmentMaterial(view)
@@ -248,7 +286,7 @@ func TestDeriveOrderMaterialReselectionSupersedes(t *testing.T) {
 	if len(material.Positions) != 1 {
 		t.Fatalf("одна позиция после повторного выбора, получено %d", len(material.Positions))
 	}
-	if material.Positions[0].Quantity != 5 || material.KnownClientSum != 20000 {
+	if material.Positions[0].Quantity != 5 || material.KnownClientSum != 21002.50 {
 		t.Fatalf("последний снапшот побеждает: количество %d, сумма %f", material.Positions[0].Quantity, material.KnownClientSum)
 	}
 	if material.Positions[0].SelectionDigest != orderTestPin("selectnew") {

@@ -51,7 +51,14 @@ var definitions = []domain.ActionDefinition{
 			RiskClass:                domain.RiskCritical,
 			AutonomyClass:            domain.AutonomyAssisted,
 			AllowedConversationModes: []string{"sales"},
-			AllowedRoles:             []string{"operator"},
+			// AllowedRoles carries BOTH the operator word of the spec AND
+			// the owner: the pilot's acting operator-manager IS the store
+			// owner (the case surfaces — the selection, the order panel —
+			// ride the review|configuration scope the identity grant matrix
+			// gives to the owner, never to the bare operator role; the
+			// spec's «не-оператор 403» row stays honest: a review-scoped
+			// expert_qa member hits role_not_allowed).
+			AllowedRoles: []string{"operator", "owner"},
 			RequiredFacts: []domain.FactRequirement{
 				{MaterialField: "price", Freshness: "fresh"},
 				{MaterialField: "availability", Freshness: "fresh"},

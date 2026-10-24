@@ -1031,6 +1031,18 @@ func main() {
 			WithDispatch(dispatchRepo, dispatchAdapter).
 			WithReconcile(reconcileRepo, nil).
 			WithRecovery(recoveryRepo))
+	// The Story 4.6 wiring (the fixture world IS the test contour —
+	// production wires no order adapters, AG-4): the SECOND composition
+	// over the SAME live fixture fact sources with the FRESH in-memory
+	// repositories of the order contour, the synthetic order-serving
+	// mutation and reconciliation adapters (the
+	// command.prepare-client-order capability word), the LIVE order
+	// version source (the re-derivation over the REAL fixture case view)
+	// and the PRODUCT action dictionary (the first product entry — the
+	// admission walk runs at construction). The /fixture/order-world
+	// toggle routes every action surface to it while the flag is on.
+	orderWorld, orderDispatchAdapter, orderReconcileAdapter := newOrderWorld(cases, controls, entitlement, readiness)
+	actions.setOrderWorld(orderWorld)
 	server.BindActionPreviews(actions)
 	server.BindOrderProposals(actions)
 	server.BindAuthorization(actions)
@@ -1258,6 +1270,48 @@ func main() {
 	// words — "сверка подключается" later through this door). The
 	// repositories are SHARED — the worlds differ by the composition
 	// fact only; production never exposes the toggle.
+	// The Story 4.6 order-world toggle (the recovery-ag4 precedent): the
+	// composition root IS the world — the flag routes every action surface
+	// to the order composition (the honest production story stays on the
+	// default: the z32 family world).
+	root.HandleFunc("POST /fixture/order-world", func(w http.ResponseWriter, r *http.Request) {
+		r.ParseForm()
+		actions.setOrder(r.FormValue("enabled") == "1")
+		w.WriteHeader(http.StatusNoContent)
+	})
+	// The order dispatch outcome scripting of the order world adapters
+	// (the /fixture/action-dispatch-outcome precedent — the order contour
+	// owns its own adapter instances).
+	root.HandleFunc("POST /fixture/order-dispatch-outcome", func(w http.ResponseWriter, r *http.Request) {
+		r.ParseForm()
+		outcome := strings.TrimSpace(r.FormValue("outcome"))
+		if outcome == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		var failure error
+		if r.FormValue("failure") == "1" {
+			failure = errors.New("синтетический сбой вызова провайдера: возможная отправка — исход неизвестен")
+		}
+		switch r.FormValue("guarantee") {
+		case "0":
+			orderDispatchAdapter.ScriptGuarantee(false)
+		case "1":
+			orderDispatchAdapter.ScriptGuarantee(true)
+		}
+		orderDispatchAdapter.Script(outcome, strings.TrimSpace(r.FormValue("correlation")), failure)
+		w.WriteHeader(http.StatusNoContent)
+	})
+	root.HandleFunc("POST /fixture/order-dispatch-evidence", func(w http.ResponseWriter, r *http.Request) {
+		r.ParseForm()
+		orderDispatchAdapter.ScriptEvidence(strings.TrimSpace(r.FormValue("external_object_id")), strings.TrimSpace(r.FormValue("external_object_version")))
+		w.WriteHeader(http.StatusNoContent)
+	})
+	root.HandleFunc("POST /fixture/order-reconcile-outcome", func(w http.ResponseWriter, r *http.Request) {
+		r.ParseForm()
+		orderReconcileAdapter.Script(strings.TrimSpace(r.FormValue("verdict")), strings.TrimSpace(r.FormValue("correlation")), nil)
+		w.WriteHeader(http.StatusNoContent)
+	})
 	root.HandleFunc("POST /fixture/recovery-ag4", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
 		actions.setAG4(r.FormValue("enabled") == "1")

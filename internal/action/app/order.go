@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sort"
 	"strconv"
 	"unicode/utf8"
@@ -13,6 +12,7 @@ import (
 	"github.com/artemiosu/staffy/internal/action/domain"
 	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
 	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
+	"github.com/artemiosu/staffy/internal/platform/id"
 )
 
 // Story 4.6 — the Order Commitment builder. The operator NEVER composes
@@ -25,29 +25,44 @@ import (
 // digests» principle of 4-4/4-5.
 
 // orderPositionMaterial is ONE derived position candidate: the LATEST
-// selection snapshot of a position with its live panel material.
+// selection snapshot of a position with its CURRENT offer record (the
+// maximal offer number of the chosen supplier at the position — a
+// re-recorded price, availability or term changes the CURRENT record and
+// therefore the live composition, AC-5) and the live fitment answer.
 type orderPositionMaterial struct {
 	selection casesDomain.SelectionSnapshotView
 	linkType  string
-	fitmentOK bool
 	offer     *casesDomain.OfferView
 }
 
 // DeriveOrderCommitmentMaterial derives the canonical order commitment
-// material of one case view LIVE: the LATEST selection snapshot of every
-// selected position (a re-selection supersedes by the snapshot number),
-// the case-level input pins of the globally-latest selection (a divergence
-// between the selections' pins is the honest mixed-versions refusal), the
-// proven fitment of every selected position (a non-proven selection is the
-// honest refusal of the builder — the guard 4-5 refused the RECORD, this
-// belt re-derives LIVE), the offer record material of the chosen
-// (supplier, offer number) pins and the originality word of the fitment
-// link type. NO ABCP Order is created here and NOTHING is sent to any
-// supplier — this is the material of the proposal ONLY (the OQ-3 fence).
+// material of one case view LIVE: the case-level input pins read from the
+// LIVE panel derivations (the ProfileDigest of 4-2 and the
+// PartRequestDigest of 4-3 — a new confirmed attribute changes the pin),
+// the LATEST selection snapshot of every selected position (a
+// re-selection supersedes by the snapshot number), every latest
+// selection pinned to the CURRENT input versions (a selection over an
+// older profile/request version is the honest mixed-versions refusal —
+// the updated client selection is required), the proven fitment of every
+// selected position with its LIVE FitmentDigest (a new evidence record
+// changes the digest), the CURRENT offer record of the chosen supplier
+// (the maximal offer number — the re-recorded price, availability, term
+// or conditions change the OfferDigest and the sum arithmetic) and the
+// originality word of the fitment link type. NO ABCP Order is created
+// here and NOTHING is sent to any supplier — this is the material of the
+// proposal ONLY (the OQ-3 fence).
 func DeriveOrderCommitmentMaterial(view casesAPI.CaseView) (domain.OrderCommitmentMaterial, error) {
 	selections := view.Comparison.Selections
 	if len(selections) == 0 {
 		return domain.OrderCommitmentMaterial{}, domain.ErrOrderNoSelection
+	}
+	// The LIVE case-level input pins: the panel derivations of 4-2/4-3 (a
+	// new confirmed attribute changes the pin — the live truth, never the
+	// selection's stored copy).
+	profileDigest := view.Vehicle.Profile.ProfileDigest
+	partRequestDigest := view.PartRequest.Part.PartRequestDigest
+	if profileDigest == "" || partRequestDigest == "" {
+		return domain.OrderCommitmentMaterial{}, domain.ErrOrderMixedInputVersions
 	}
 	// The LATEST selection of every position key (the view order is the
 	// store order: by the work item, then the monotonic snapshot number —
@@ -57,21 +72,30 @@ func DeriveOrderCommitmentMaterial(view casesAPI.CaseView) (domain.OrderCommitme
 		latest[snapshot.PositionKey] = snapshot
 	}
 	// The comparison positions: the live fitment answer per position (the
-	// status word, the link type word, the digest).
+	// status word and the link type word).
 	comparisonPositions := map[string]casesDomain.ComparisonPositionView{}
 	for _, position := range view.Comparison.Comparison.Positions {
 		comparisonPositions[position.PositionKey] = position
 	}
-	// The offer records of the case: the append-only truth the selection
-	// pins address (the (position, supplier, offer_no) pin pair).
-	offers := map[string]casesDomain.OfferView{}
-	for _, record := range view.Comparison.Records {
-		offers[fmt.Sprintf("%s\x1f%s\x1f%d", record.PositionKey, record.SupplierID, record.OfferNo)] = record
+	// The live fitment digests per position (the 4-4 panel — the LIVE pin;
+	// a new evidence record changes it).
+	fitmentDigests := map[string]string{}
+	for _, position := range view.Fitment.Fitment.Positions {
+		fitmentDigests[position.PositionKey] = position.FitmentDigest
 	}
-	// The globally-latest selection carries the case-level input pins: any
-	// other latest selection pinned to a DIFFERENT profile/request version
-	// is the honest mixed-versions refusal (the newer version arrived after
-	// the older selection — the updated client selection is required).
+	// The CURRENT offer record of every (position, supplier) pair: the
+	// maximal offer number (a re-record supersedes — the current conditions
+	// of the chosen supplier; the pinned offer number of the selection
+	// addresses the supplier, the CURRENT record addresses the conditions).
+	currentOffers := map[string]casesDomain.OfferView{}
+	for _, record := range view.Comparison.Records {
+		key := record.PositionKey + "\x1f" + record.SupplierID
+		if existing, ok := currentOffers[key]; !ok || record.OfferNo > existing.OfferNo {
+			currentOffers[key] = record
+		}
+	}
+	// The globally-latest selection carries the currency word (the pack
+	// dictionary); the latest selections must agree.
 	globallyLatest := selections[len(selections)-1]
 	positionKeys := make([]string, 0, len(latest))
 	for key := range latest {
@@ -81,8 +105,10 @@ func DeriveOrderCommitmentMaterial(view casesAPI.CaseView) (domain.OrderCommitme
 	candidates := make([]orderPositionMaterial, 0, len(positionKeys))
 	for _, key := range positionKeys {
 		snapshot := latest[key]
-		if snapshot.ProfileDigestPin != globallyLatest.ProfileDigestPin ||
-			snapshot.PartRequestDigestPin != globallyLatest.PartRequestDigestPin {
+		// The selection must be pinned to the CURRENT input versions: an
+		// older profile/request version under the selection is the honest
+		// mixed-versions refusal (the updated client selection is required).
+		if snapshot.ProfileDigestPin != profileDigest || snapshot.PartRequestDigestPin != partRequestDigest {
 			return domain.OrderCommitmentMaterial{}, domain.ErrOrderMixedInputVersions
 		}
 		if snapshot.Currency != globallyLatest.Currency {
@@ -92,20 +118,23 @@ func DeriveOrderCommitmentMaterial(view casesAPI.CaseView) (domain.OrderCommitme
 		if !found || position.FitmentStatus != casesDomain.FitmentStatusProven {
 			return domain.OrderCommitmentMaterial{}, domain.ErrOrderFitmentNotProven
 		}
-		offerKey := fmt.Sprintf("%s\x1f%s\x1f%d", snapshot.PositionKey, snapshot.SupplierID, snapshot.OfferNo)
-		offer, found := offers[offerKey]
-		if !found {
+		liveFitmentDigest := fitmentDigests[key]
+		if liveFitmentDigest == "" {
+			return domain.OrderCommitmentMaterial{}, domain.ErrOrderFitmentNotProven
+		}
+		current := currentOffers[key+"\x1f"+snapshot.SupplierID]
+		if current.OfferNo < 1 {
 			return domain.OrderCommitmentMaterial{}, domain.ErrOrderOfferUnresolved
 		}
 		candidates = append(candidates, orderPositionMaterial{
 			selection: snapshot,
 			linkType:  position.LinkType,
-			fitmentOK: true,
-			offer:     &offer,
+			offer:     &current,
 		})
 	}
 	// The composition: one position per selected position key (sorted —
-	// the byte-stable order of the digest and the render alike).
+	// the byte-stable order of the digest and the render alike), the sum
+	// as the LIVE arithmetic of the quantities and the CURRENT prices.
 	positions := make([]domain.OrderPosition, 0, len(candidates))
 	knownSum := 0.0
 	for _, candidate := range candidates {
@@ -114,29 +143,37 @@ func DeriveOrderCommitmentMaterial(view casesAPI.CaseView) (domain.OrderCommitme
 			return domain.OrderCommitmentMaterial{}, domain.ErrOrderFitmentNotProven
 		}
 		conditions := ""
+		brand, article, currency := "", "", candidate.selection.Currency
+		unitPrice := candidate.selection.UnitClientPrice
+		offerDigest := candidate.selection.OfferDigestPin
 		if candidate.offer != nil {
 			conditions = candidate.offer.Conditions
+			brand = candidate.offer.Brand
+			article = candidate.offer.Article
+			currency = candidate.offer.Currency
+			unitPrice = candidate.offer.ClientPrice
+			offerDigest = candidate.offer.OfferDigest
 		}
 		positions = append(positions, domain.OrderPosition{
 			PositionKey:      candidate.selection.PositionKey,
 			SupplierID:       candidate.selection.SupplierID,
-			OfferNo:          candidate.selection.OfferNo,
-			Brand:            offerBrandOf(candidate.offer),
-			Article:          offerArticleOf(candidate.offer),
+			OfferNo:          candidate.offer.OfferNo,
+			Brand:            brand,
+			Article:          article,
 			Originality:      originality,
 			Quantity:         candidate.selection.Quantity,
-			UnitClientPrice:  candidate.selection.UnitClientPrice,
-			Currency:         candidate.selection.Currency,
+			UnitClientPrice:  unitPrice,
+			Currency:         currency,
 			Conditions:       conditions,
-			FitmentDigestPin: candidate.selection.FitmentDigestPin,
-			OfferDigestPin:   candidate.selection.OfferDigestPin,
+			FitmentDigestPin: fitmentDigestsOf(candidate, view),
+			OfferDigestPin:   offerDigest,
 			SelectionDigest:  candidate.selection.SelectionDigest,
 		})
-		knownSum += candidate.selection.KnownClientSum
+		knownSum += float64(candidate.selection.Quantity) * unitPrice
 	}
 	material := domain.OrderCommitmentMaterial{
-		ProfileDigestPin:     globallyLatest.ProfileDigestPin,
-		PartRequestDigestPin: globallyLatest.PartRequestDigestPin,
+		ProfileDigestPin:     profileDigest,
+		PartRequestDigestPin: partRequestDigest,
 		Positions:            positions,
 		KnownClientSum:       knownSum,
 		Currency:             globallyLatest.Currency,
@@ -145,6 +182,17 @@ func DeriveOrderCommitmentMaterial(view casesAPI.CaseView) (domain.OrderCommitme
 		return domain.OrderCommitmentMaterial{}, err
 	}
 	return material, nil
+}
+
+// fitmentDigestsOf resolves the LIVE fitment digest of the position of
+// the candidate (the 4-4 panel answer — the live pin of the proof).
+func fitmentDigestsOf(candidate orderPositionMaterial, view casesAPI.CaseView) string {
+	for _, position := range view.Fitment.Fitment.Positions {
+		if position.PositionKey == candidate.selection.PositionKey {
+			return position.FitmentDigest
+		}
+	}
+	return ""
 }
 
 // orderOriginalityOf maps the fitment link type word onto the order
@@ -158,22 +206,6 @@ func orderOriginalityOf(linkType string) string {
 		return domain.OrderOriginalityAnalog
 	}
 	return linkType
-}
-
-// offerBrandOf / offerArticleOf read the offer record material (an absent
-// record is the honest unresolved refusal — never an invented word).
-func offerBrandOf(offer *casesDomain.OfferView) string {
-	if offer == nil {
-		return ""
-	}
-	return offer.Brand
-}
-
-func offerArticleOf(offer *casesDomain.OfferView) string {
-	if offer == nil {
-		return ""
-	}
-	return offer.Article
 }
 
 // PrepareOrderProposalCommand is the operator's ONE-word ask: build the
@@ -226,16 +258,62 @@ func (s *Service) PrepareOrderProposal(ctx context.Context, command PrepareOrder
 	if utf8.RuneCountInString(render) > domain.MaxTypedInputValueRunes {
 		return api.ProposalOutcome{}, domain.ErrOrderMaterialOversize
 	}
-	// The submit through the EXISTING machine: the target of the order is
-	// the work item's part-search contour (the operator never chooses the
-	// target — the builder pins it), the owner epoch is the LIVE derivation
-	// of the view, the typed input is the derived material ONLY.
+	// The typed input of the derived material (the schema fields only).
 	typed := map[string]string{
 		"order_digest":     digest,
 		"order_material":   render,
 		"known_client_sum": strconv.FormatFloat(orderMaterial.KnownClientSum, 'f', 2, 64),
 		"currency":         orderMaterial.Currency,
 	}
+	// The thread discipline of the re-derivation (the AD-7 ladder of the
+	// machine 3-4): the FIRST build of the case's order thread rides the
+	// proposal submission; EVERY later re-derivation (the correction button
+	// — the client re-selected, the inputs moved) rides the EDIT ladder of
+	// the SAME thread: the new version supersedes the old atomically, the
+	// operator never types the material — the builder re-derives it LIVE
+	// both times (AC-16: the confirmation and the correction are DIFFERENT
+	// actions of the SAME machine).
+	scope, err := s.authorizeProposal(ctx, command.Actor, command.TenantID)
+	if err != nil {
+		return api.ProposalOutcome{}, err
+	}
+	versions, err := s.previews.ReadPreviewVersions(ctx, scope, command.CaseID)
+	if err != nil {
+		return api.ProposalOutcome{}, err
+	}
+	var threadPreviewID id.UUID
+	var currentVersion int64
+	for _, version := range versions {
+		if version.DefinitionID == domain.OrderActionID && version.VersionNo > currentVersion {
+			threadPreviewID, currentVersion = version.PreviewID, version.VersionNo
+		}
+	}
+	if threadPreviewID.Valid() {
+		edited, err := s.NewPreviewVersionFromEdit(ctx, api.NewPreviewVersionCommand{
+			Actor:      command.Actor,
+			TenantID:   command.TenantID,
+			CaseID:     command.CaseID,
+			PreviewID:  threadPreviewID,
+			TypedInput: typed,
+			Now:        command.Now,
+		})
+		if err != nil {
+			return api.ProposalOutcome{}, err
+		}
+		return api.ProposalOutcome{
+			Command:       "submit_proposal",
+			Verdict:       domain.VerdictValid,
+			AttemptNo:     1,
+			PreviewID:     edited.PreviewID,
+			VersionNo:     edited.VersionNo,
+			PreviewDigest: edited.PreviewDigest,
+		}, nil
+	}
+	// The FIRST build: the submit through the EXISTING machine — the
+	// target of the order is the work item's part-search contour (the
+	// operator never chooses the target — the builder pins it), the owner
+	// epoch is the LIVE derivation of the view, the typed input is the
+	// derived material ONLY.
 	return s.SubmitProposal(ctx, api.SubmitProposalCommand{
 		Actor:             command.Actor,
 		TenantID:          command.TenantID,

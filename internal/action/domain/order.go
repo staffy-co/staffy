@@ -139,6 +139,19 @@ var (
 	ErrOrderOfferUnresolved = errors.New(OrderOfferUnresolvedWord)
 )
 
+// IsOrderDerivationRefusal reports whether the error is one of the honest
+// derivation refusals of the LIVE order material (the revalidation fence
+// reads them as the CHANGED composition — the updated client confirmation
+// is required; never a transport failure of the drain).
+func IsOrderDerivationRefusal(err error) bool {
+	return errors.Is(err, ErrOrderNoSelection) ||
+		errors.Is(err, ErrOrderFitmentNotProven) ||
+		errors.Is(err, ErrOrderMixedInputVersions) ||
+		errors.Is(err, ErrOrderMixedCurrency) ||
+		errors.Is(err, ErrOrderOfferUnresolved) ||
+		errors.Is(err, ErrOrderMaterialOversize)
+}
+
 // OrderReceiptStatePendingManagerVerification is the DERIVED read-time
 // state word of the committed outcome render (the stored receipt of 3-6
 // stays three-worded {committed, failed, unknown} — this word is a

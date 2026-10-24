@@ -22,27 +22,36 @@ const listPath = `/v1/tenants/${tenantID}/action-definitions`;
 // 403 with the scope words BEFORE any catalog material, and the a11y
 // close walks the 320px single column, the ≥44×44 disclosure targets,
 // the keyboard toggle of the disclosures and the semantic headings.
-test('actions-catalog: the honest empty production state, the fixture cards with the full conditions, the pin read of the old version and the a11y at 320px', async ({ browser }) => {
+test('actions-catalog: the first product entry of the production state, the fixture cards with the full conditions, the pin read of the old version and the a11y at 320px', async ({ browser }) => {
   test.setTimeout(120_000);
   const page = await browser.newPage({ viewport: { width: 320, height: 800 } });
   const api = page.request;
   try {
-    // 1. The control branch of the production state: the binary
-    // dictionary is honestly empty — the page names the absence and
-    // explains the reason in words (the definitions appear only with
-    // published pack connectors — AG-4), no cards, no disclosures; the
-    // machine list answers the honest EMPTY ARRAY (never null).
+    // 1. The production state carries the FIRST product entry (Story 4.6):
+    // the binary dictionary is no longer honestly empty — the 4-1
+    // admission registry holds the capability-bearing declaration the
+    // entry resolves against (abcp-parts@1.1.0/command.prepare-client-order,
+    // Idempotent=true). The page renders ONE card — the client order
+    // action with the manager-check discipline; the machine list answers
+    // exactly one definition (never null).
     await page.goto(actionsPath);
     await expect(page.locator('h1')).toHaveText('Каталог действий');
-    await expect(page.locator('#action-empty-heading')).toHaveText('Определений пока нет');
-    await expect(page.locator('.next-note')).toContainText('Каталог действий пуст');
-    await expect(page.locator('.next-note')).toContainText('опубликованный Domain Pack');
-    await expect(page.locator('.next-note')).toContainText('честное состояние словаря, а не ошибка');
-    await expect(page.locator('.action-card')).toHaveCount(0);
-    await expect(page.locator('details')).toHaveCount(0);
+    await expect(page.locator('.action-card')).toHaveCount(1);
+    const orderCard = page.locator('.action-card').first();
+    await expect(orderCard).toContainText('Создание клиентского заказа в ABCP');
+    await expect(orderCard).toContainText('Идентификатор: create_abcp_customer_order · версия 1.0.0');
+    await expect(orderCard).toContainText('Риск: critical');
+    await expect(orderCard).toContainText('Владеющая система: erp');
+    await expect(orderCard).toContainText('Capability: abcp-parts@1.1.0/command.prepare-client-order');
+    await expect(orderCard).toContainText('Domain Pack: auto-parts@6.0.0');
+    await expect(orderCard).toContainText('Состояние: опубликовано (compile-time словарь, версия неизменяема)');
     const emptyList = await api.get(listPath);
     expect(emptyList.status()).toBe(200);
-    expect((await emptyList.json()).action_definitions).toEqual([]);
+    const production = (await emptyList.json()).action_definitions;
+    expect(production.map((d: any) => `${d.id}@${d.version}`)).toEqual(['create_abcp_customer_order@1.0.0']);
+    expect(production[0].delivery_contract.capability_class).toBe('provider_idempotent');
+    expect(production[0].conditions.confirmation).toBe('required');
+    expect(production[0].conditions.consumption_rule).toBe('single_use');
 
     // 2. The fixture dictionary of the vertical switches on (the
     // fixture-only toggle — production never exposes it; both contours

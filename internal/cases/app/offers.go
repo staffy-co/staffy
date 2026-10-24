@@ -239,22 +239,22 @@ func (s *Service) RecordSupplierOffer(ctx context.Context, command casesAPI.Reco
 	// pins the server-side monotonic number (the store derives it under
 	// the locks — the read surface re-derives the same bytes).
 	hash := requestHash(struct {
-		Case         string   `json:"case"`
-		WorkItem     string   `json:"work_item"`
-		PositionKey  string   `json:"position_key"`
-		SupplierID   string   `json:"supplier_id"`
-		Brand        string   `json:"brand"`
-		Article      string   `json:"article"`
-		ClientPrice  float64  `json:"client_price"`
-		Currency     string   `json:"currency"`
-		Quantity     int      `json:"quantity_available"`
-		TermDays     *int     `json:"term_days"`
-		SourceSystem string   `json:"source_system"`
-		RecordID     string   `json:"source_record_id"`
-		Version      string   `json:"source_version"`
-		ProfilePin   string   `json:"profile_digest_pin"`
-		RequestPin   string   `json:"part_request_digest_pin"`
-		FitmentPin   string   `json:"fitment_digest_pin"`
+		Case         string  `json:"case"`
+		WorkItem     string  `json:"work_item"`
+		PositionKey  string  `json:"position_key"`
+		SupplierID   string  `json:"supplier_id"`
+		Brand        string  `json:"brand"`
+		Article      string  `json:"article"`
+		ClientPrice  float64 `json:"client_price"`
+		Currency     string  `json:"currency"`
+		Quantity     int     `json:"quantity_available"`
+		TermDays     *int    `json:"term_days"`
+		SourceSystem string  `json:"source_system"`
+		RecordID     string  `json:"source_record_id"`
+		Version      string  `json:"source_version"`
+		ProfilePin   string  `json:"profile_digest_pin"`
+		RequestPin   string  `json:"part_request_digest_pin"`
+		FitmentPin   string  `json:"fitment_digest_pin"`
 	}{command.CaseID.String(), command.WorkItemID.String(), command.PositionKey, command.SupplierID,
 		command.Brand, command.Article, command.ClientPrice, command.Currency,
 		command.QuantityAvailable, command.TermDays, command.SourceSystem, command.SourceRecordID,
@@ -425,14 +425,14 @@ func (s *Service) RecordClientSelection(ctx context.Context, command casesAPI.Re
 	// dictionary words; the store re-runs it under the locks over the
 	// server truth).
 	selectionDraft := casesDomain.ClientSelectionDraft{
-		PositionKey:         command.PositionKey,
-		Offer:               supplierOfferDomainInputOf(*chosen),
-		Quantity:            command.Quantity,
-		FitmentStatus:       fitmentStatus,
-		FitmentDigest:       fitmentPin,
-		ProfileDigest:       profileDigest,
-		PartRequestDigest:   partRequestDigest,
-		Now:                 command.Now,
+		PositionKey:       command.PositionKey,
+		Offer:             supplierOfferDomainInputOf(*chosen),
+		Quantity:          command.Quantity,
+		FitmentStatus:     fitmentStatus,
+		FitmentDigest:     fitmentPin,
+		ProfileDigest:     profileDigest,
+		PartRequestDigest: partRequestDigest,
+		Now:               command.Now,
 	}
 	material, err := casesDomain.AssembleClientSelection(policy, selectionDraft)
 	if err != nil {
@@ -485,10 +485,10 @@ func (s *Service) RecordClientSelection(ctx context.Context, command casesAPI.Re
 	}
 	now := command.Now.UTC().Truncate(time.Microsecond)
 	outcome := casesAPI.WorkOutcome{
-		Command:            "record_client_selection",
-		SelectionSnapshotID: snapshotID,
+		Command:              "record_client_selection",
+		SelectionSnapshotID:  snapshotID,
 		SelectionPositionKey: command.PositionKey,
-		SelectionDigest:    material.SelectionDigest,
+		SelectionDigest:      material.SelectionDigest,
 	}
 	outcomeJSON, err := json.Marshal(outcome)
 	if err != nil {
@@ -689,6 +689,10 @@ func (s *Service) offersView(ctx context.Context, scope tenancy.Context, detail 
 			PartRequestDigestPin: snapshot.PartRequestDigestPin,
 			FitmentDigestPin:     snapshot.FitmentDigestPin,
 			OfferDigestPin:       snapshot.OfferDigestPin,
+			// The canonical SelectionDigest of the stored snapshot (the pin
+			// of the exact version of the choice — the order contour of 4.6
+			// carries it into the OrderDigest; the view must never drop it).
+			SelectionDigest: snapshot.SelectionDigest,
 		}
 		selectionViews = append(selectionViews, casesDomain.SelectionSnapshotViewOf(material, snapshot.SnapshotNo, snapshot.CreatedAt))
 	}

@@ -1467,8 +1467,17 @@
 <h2>Заказ клиента</h2>
 <p class="next-note">Заказ — действие через Action Gateway: строится билдером из записанного выбора с точными версиями всех пяти входов (профиль, запрос, применимость, предложение, выбор); оператор НЕ вводит состав заказа — кнопка пересобирает материал живьём; заказ сначала будет проверен менеджером и ещё не отправляется поставщику; отправка поставщику НЕ выполняется (fence OQ-3); подтверждение и исправление — РАЗНЫЕ действия.</p>
 {{if .View.Order.Buildable}}
-{{if .View.Order.PreviewPresent}}
 <section class="panel" aria-label="Заказ клиента" id="order">
+{{range .View.ActiveWIOptions}}
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/work-items/{{.Value}}/order-proposals" class="panel-form">
+<fieldset>
+<legend>Собрать заказ клиента из живого выбора (элемент {{.Value}})</legend>
+<p class="next-note">Билдер выводит материал живьём из записанного выбора: состав, пины и сумма руками НЕ вводятся.</p>
+<button type="submit">Собрать заказ из живого выбора</button>
+</fieldset>
+</form>
+{{end}}
+{{if .View.Order.PreviewPresent}}
 <details class="connector-connect" open><summary>Карточка подтверждения заказа — {{.View.Order.Preview.DefinitionPin}}, версия {{.View.Order.Preview.VersionNo}}</summary>
 <div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Состав заказа">
 <table class="datamap-table">

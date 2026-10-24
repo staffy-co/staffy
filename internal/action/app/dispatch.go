@@ -404,6 +404,16 @@ func (s *Service) dispatchOneJob(ctx context.Context, scope tenancy.Context, com
 			WorkItemID: op.WorkItemID,
 		})
 		if err != nil {
+			if domain.IsOrderDerivationRefusal(err) {
+				// The LIVE derivation refuses the current composition (no
+				// selection anymore, a non-proven position, mixed input
+				// versions, an unresolved offer): the composition the client
+				// confirmed is no longer derivable — the SAME honest block
+				// word of the changed composition (never a transport failure
+				// and never a masked pass).
+				return s.block(ctx, scope, command.Now, d, job, job.LastAttemptNo,
+					dispatchOrderCompositionChangedReason, domain.OrderCompositionChangedWord)
+			}
 			return err
 		}
 		if live != pinned {

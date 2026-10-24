@@ -98,9 +98,16 @@ func (s *Server) orderPanelOf(ctx context.Context, actor identityDomain.Principa
 		// renders the build note only (the decision-context precedent).
 		return prepareOrderPanel(view, api.PreviewView{}, api.AuthorizationView{}, tenant, caseID), nil
 	}
+	// The honest degradation family of the action reads: a scope refusal
+	// (403) AND the not-configured refusal of a composition without the
+	// preparation contour (the RuleError the worlds without the ports
+	// answer — the journeys' default world, the 3-1 pair) both render the
+	// ZERO panel — the page keeps the rest of the surface (the
+	// decision-context precedent); a genuine infrastructure error fails
+	// the page honestly.
 	previewView, err := s.actionPreviews.ReadPreviewView(ctx, actor, tenant, caseID)
 	if err != nil {
-		if errors.Is(err, actionDomain.ErrForbidden) {
+		if errors.Is(err, actionDomain.ErrForbidden) || isActionNotConfigured(err) {
 			return prepareOrderPanel(view, api.PreviewView{}, api.AuthorizationView{}, tenant, caseID), nil
 		}
 		return orderPanelView{}, err
@@ -109,7 +116,7 @@ func (s *Server) orderPanelOf(ctx context.Context, actor identityDomain.Principa
 	if s.authorization != nil {
 		authView, err = s.authorization.ReadAuthorizationView(ctx, actor, tenant, caseID, s.clock.Now().UTC())
 		if err != nil {
-			if errors.Is(err, actionDomain.ErrForbidden) {
+			if errors.Is(err, actionDomain.ErrForbidden) || isActionNotConfigured(err) {
 				authView = api.AuthorizationView{}
 			} else {
 				return orderPanelView{}, err
@@ -117,6 +124,15 @@ func (s *Server) orderPanelOf(ctx context.Context, actor identityDomain.Principa
 		}
 	}
 	return prepareOrderPanel(view, previewView, authView, tenant, caseID), nil
+}
+
+// isActionNotConfigured reports whether the error is the honest
+// not-configured refusal of an action world without the contour ports
+// (the RuleError family — the surface never pretends, the page keeps the
+// rest).
+func isActionNotConfigured(err error) bool {
+	var rule actionDomain.RuleError
+	return errors.As(err, &rule)
 }
 
 // prepareOrderPanel flattens the action answers into the panel rows: the
