@@ -4767,5 +4767,23 @@ next: step-05 — QA-саморевью и closure: свежий контекс�
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для пуша Dev-шагов)
 commit: TBD
 
+---
+date: 2026-10-24
+task: 222-dev-step-05
+role: main (Super Z, Dev-фаза)
+story: 4-5
+summary: Dev step-05 story 4-5 — QA-саморевью свежим контекстом по живому диффу (вердикт: Major-находок НЕТ) + closure (спека done, sprint-status done — Epic 4: 5/11) + коммит feat БЕЗ маркера для CI ×3 на CHECKPOINT 2
+done:
+- QA-скан scripts/qa_step05_4_5_scan.py по живому диффу main...HEAD (37 файлов, 8300 добавленных строк): секреты 0 (12 паттернов) / CJK 0 новых / mixed 0
+- Замороженные секции: каталог published-версий 1.0.0..5.0.0 стабилен ПО СОДЕРЖИМОМУ (нормализованная сверька удалённых/добавленных — переформатирование выравнивания без контентных правок; порядок List() — голова 6.0.0 с сохранением всех прежних элементов — вайтлист ядро story); словарь причин расширен РОВНО на +1 слово offers_research (2-13); observation/decision-context файлы НЕ тронуты (2-7/2-14); work.go диспетчер — ТОЛЬКО добавления case-строк (2-2); единственное касание замороженного контура — reason CHECK 5→6 по прецедентам 00019/00021 (спека)
+- SQL среза: РОВНО 3 миграции (00022 + 00023 новые append-only объекты + 00024 словарное расширение); гранты INSERT/SELECT только; REVOKE UPDATE/DELETE/TRUNCATE на местах; молчаливых исправлений НЕТ (guard-отказы словами, пустых Reason 0)
+- Честные границы структурны: закупочная цена НЕ в клиентском материале (ComparisonVariantView/PositionView/VoiceBlock/View — поля нет + wire-зонд TestOffersPurchasePriceBoundary); ранжир НЕ зависит от закупочной цены (compareVariants/ByCriterion/ByTie/compareTerms — PurchasePrice отсутствует + юнит-тест дайджеста: закупочная не меняет клиентскую версию условий); маркетинговые слова 0 (7 паттернов); import-graph offers-файлов: 0 сетевых / 0 action / 0 employee (предложение ≠ заказ — контур Epic 3 не активируется); словари-зеркала — контракт-тест TestOffersOpenAPIContractMirrorsDictionaries
+- Финальный регресс свежими прогонами: build/vet OK, unit ./... FAIL 0, интеграция ok 41s, journeys 47/47 (step-04), контракт-тесты ok
+- Closure: Spec Change Log запись Dev 01-05 (коммиты шагов: a8297bc/a3247cf/2a4dffc/a492553); спека ready-for-dev → done; sprint-status 4-5-актуальные-предложения-и-сравнение-вариантов → done — Epic 4: 5/11; коммит feat БЕЗ [skip ci] — голова триггерит CI ×3 (push + PR + merge — урок 2-14/ретро-2-1)
+next: CHECKPOINT 2 — PR через GitHub API (sha-pinned HEAD в теле) → CI ×3 зелёный поимённо (push/PR/merge) → sha-pinned merge в main → локальный main ff-only → DEVLOG 223-checkpoint-2 → пуш; после merge: SM-фаза story 4-6 (создание одного клиентского заказа в ABCP) по сигналу владельца; удаление слитой ветки 4-5 на GitHub — по поручению владельца
+владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для PR, проверки CI и merge)
+commit: TBD
+
+
 
 
