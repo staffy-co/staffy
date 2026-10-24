@@ -4800,7 +4800,18 @@ next: SM-фаза story 4-6 (создание одного клиентског�
 владельцу: ОТЗВАТЬ PAT подтверждённо после закрытия чата (retro-3-6/retro-2-6 — передавался открытым текстом многократно; токен этой сессии ЖИВ — использовался для пушей шагов, PR #46 и merge)
 commit: TBD
 
-
-
-
-
+---
+date: 2026-10-24
+task: 224-sm
+role: main (Super Z)
+story: 4-6
+summary: SM-фаза story 4-6 «Создание одного клиентского заказа в ABCP» — спека первого среза написана по сигналу владельца «продолжайте (токен)» (next из DEVLOG 223-checkpoint-2); ветка codex/story-4-6-abcp-client-order от main ad8467c
+done:
+- Протокол возобновления: живой git-зонд ДО правок (main ad8467c = origin RPO=0, дерево чистое, PAT /user 200 env-only); позиция верифицирована: 4-5 полностью закрыта (PR #46 merge 2ea9f33, CI ×3, Epic 4: 5/11), next = SM 4-6
+- Входы сверены живым чтением ДО письма: epics.md story 4.6 (16 AC-блоков FR-56/FR-57), PRD FR-56/FR-57, GATE-REGISTRY line 118 (fence OQ-3: supplier_form/send отсутствует; Staffy may create only the exact-version ABCP client/prepared order after customer Confirmation) + oq-5/ag-4 open, спеки 1-4/2-9/2-13/3-1/3-4/3-6/3-7/3-8/4-1/4-5, deferred-work чист (долги 3-x — задокументированные границы), живой код: abcp-parts@1.1.0 StatusCandidate AdapterImplemented=false с декларацией command.prepare-client-order (Idempotent=true, Reconciliation query_reconcilable OQ-3, ProbeAllowed false) — продуктовый каталог действий честно пуст (комментарий 3-1 устарел: декларация 4-1 резолвится), машины 3-4/3-5/3-6/3-7/3-8 целы, CasesView.Comparison.Selections 4-5 — источник живого материала заказа, HandoffReasons 6 слов, миграции 00002..00024, sprint-status 4-6 backlog
+- Ключевые решения: OrderDigest — ОДИН канонический дайджест над составом (пины кейс-уровня + per-позиция пины/материал + сумма + слово менеджерской проверки) — execute-time revalidation живой ре-деривацией одного значения (любое изменение входа меняет дайджест, AC-5); ПЕРВЫЙ продуктовый definition create_abcp_customer_order@1.0.0 (каталог перестаёт быть пустым; AdapterImplemented false блокирует ПРОИЗВОДСТВЕННЫЙ dispatch nil-адаптером, НЕ каталог); оператор НЕ сочиняет материал — app-билдер PrepareOrderProposal выводит живьём из CaseView (принцип 4-4/4-5); менеджерский забор — слово в материале + nil-адаптер + рекомендация order_creation (00025 reason 6→7); receipt-состояние pending_manager_verification — производное слово чтения (хранимая квитанция 3-6 не тронута); клиентские слова + 1С-unknown
+- Спека spec-4-6-abcp-client-order.md записана (97 строк формата 4-4/4-5: Intent/Boundaries/I-O матрица 19 рядов/Code Map/Tasks 01-05/Implementation Notes/Spec Change Log); скан scripts/qa_spec_scan_4_6.py CLEAN (секреты 0/CJK 0/mixed 0)
+- Ветка codex/story-4-6-abcp-client-order от main ad8467c; спека закоммичена [skip ci]; sprint-status НЕ тронут (4-6 backlog до «одобряю» — дисциплина 52-sm)
+next: CHECKPOINT 1 story 4-6 — явное одобрение владельца «одобряю»/«продолжайте» В ОТВЕТ на предъявление спеки (дисциплина 52-sm, прецеденты 53-sm/208/217): флип спека backlog → ready-for-dev + sprint-status 4-6-создание-одного-клиентского-заказа-в-abcp → ready-for-dev синхронно → Dev шаги 01-05 → CHECKPOINT 2; спека предъявлена владельцу отдельным ответом этой сессии сразу за этой записью
+владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — использовался для верификации и пуша ветки)
+commit: TBD
