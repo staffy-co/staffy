@@ -4963,3 +4963,18 @@ done:
 next: CHECKPOINT 1 story 4-7 — явное одобрение владельца «одобряю»/«продолжайте» В ОТВЕТ на предъявление спеки (дисциплина 52-sm, прецеденты 53-sm/207/216/226): флип спека backlog → ready-for-dev + sprint-status 4-7-decision-ready-проверка-заказа-менеджером → ready-for-dev синхронно → Dev шаги 01-05 → CHECKPOINT 2 (Epic 4: 7/11); спека предъявлена владельцу отдельным ответом этой сессии сразу за этой записью
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — использовался для верификации, пуша ветки 4-7 и DEVLOG)
 commit: TBD
+
+---
+date: 2026-10-25
+task: 234-checkpoint-1
+role: main (Super Z, сессия web-d497a728)
+story: 4-7
+summary: CHECKPOINT 1 story 4-7 — мандат «продолжайте (токен)» получен В ОТВЕТ на предъявление спеки 233-sm (дисциплина 52-sm, прецеденты 53-sm/207/216/226): спека backlog → ready-for-dev + sprint-status 4-7-decision-ready-проверка-заказа-менеджером → ready-for-dev синхронно; окружение восстановлено bootstrap (Go 1.27.1, PG 16.4:54329, build/vet/unit 30 пакетов зелёные); Dev-фаза 01-05 открыта
+done:
+- Протокол: живой git-зонд до правок (HEAD 11fe675 = origin RPO=0, дерево чистое — housekeeping 233-sm на голове); PAT верифицирован /user 200 env-only (artemiosu); фоновый bootstrap песочницы убит silently — повтор в foreground успешен (урок: не полагаться на nohup-фон в песочнице)
+- Флипы синхронно: spec-4-7-decision-ready-order-verification.md front-matter status ready-for-dev + sprint-status.yaml 4-7 ready-for-dev + last_updated 10-25-2026
+- Входы Dev-фазы уже сверены живым чтением в 233-sm (epics 16 AC-блоков, PRD FR-57/58, GATE-REGISTRY OQ-2/3/4/19/AG-4, машина 2-13, грант-матрица identity, FENCE 4.5 TypedInput-пин, миграции action 00001..00005)
+- Регресс входа: go build ./... OK, go vet ./... OK, unit 30 пакетов ok
+next: Dev step-01 story 4-7 — миграция migrations/action/00006_order_verifications.sql (2 append-only таблицы + RLS/CHECK-зеркала + TestMain-регистрация) + домен internal/action/domain/order_verification.go (типы/гварды поимённой матрицы/словари verify_4h+verify_1d и 5 причин/честные слова/DeriveOrderVerificationState + DeriveDecisionApplicability) + unit-тесты (гварды поимённо/деривации/байт-стабильность слов/зонды) + DEVLOG 235 + коммит [skip ci] + пуш
+владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для пушей шагов Dev-фазы)
+commit: TBD
