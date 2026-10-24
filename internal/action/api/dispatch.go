@@ -101,6 +101,16 @@ type ActionReceiptView struct {
 	ExternalObjectVersion string    `json:"external_object_version"`
 	Details               string    `json:"details"`
 	CreatedAt             time.Time `json:"created_at"`
+	// The Story 4.6 derived words of the ORDER action receipt (render-time
+	// ONLY — the stored receipt of 3-6 stays three-worded; these fields
+	// appear exclusively on the committed outcome of the order action and
+	// carry the manager-verification state, the assignment word, the client
+	// words and the honest 1C-unknown word — AC-8/AC-13/AC-14).
+	OrderState        string `json:"order_state,omitempty"`
+	OrderStateWord    string `json:"order_state_word,omitempty"`
+	OrderBoundaryWord string `json:"order_boundary_word,omitempty"`
+	OrderOneCWord     string `json:"order_one_c_word,omitempty"`
+	OrderManagerWord  string `json:"order_manager_word,omitempty"`
 }
 
 // DispatchService is the narrow execution-contour surface the transport

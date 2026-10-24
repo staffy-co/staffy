@@ -194,6 +194,13 @@ type actionsFixture struct {
 	// /fixture/recovery-ag4 toggle, production never exposes it).
 	ag4        *actionApp.Service
 	ag4Enabled bool
+	// The Story 4.6 order world: the composition over the PRODUCT action
+	// dictionary (the first product entry) with the order-serving synthetic
+	// adapters and the LIVE order version source — the /fixture/order-world
+	// toggle routes EVERY action surface to it while the flag is on (the
+	// AG-4 composition switch precedent).
+	order        *actionApp.Service
+	orderEnabled bool
 }
 
 // newActionsFixture constructs the contours and proves every fixture
@@ -293,6 +300,14 @@ func (f *actionsFixture) service() actionAPI.ActionCatalogService {
 // preparation ports — the vertical never fakes them).
 func (f *actionsFixture) previewService() actionAPI.PreviewService {
 	if f.mode == "preview" {
+		// The Story 4.6 order world takes the precedence while its toggle
+		// is on (the AG-4 composition switch precedent — the order world
+		// serves EVERY action surface of the fixture: the builder, the
+		// confirm/authorize chain and the drain all read the SAME fresh
+		// repositories of the order contour).
+		if f.orderEnabled && f.order != nil {
+			return f.order
+		}
 		if f.ag4Enabled && f.ag4 != nil {
 			return f.ag4
 		}

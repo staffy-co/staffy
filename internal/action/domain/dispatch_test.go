@@ -780,11 +780,14 @@ func TestDispatchHonestTextsPinned(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 // TestNoRawUnsaltedHashOverMaterial scans the non-test sources of the
-// action module and pins the SINGLE legacy raw SHA-256 — the 3-4 proposal
-// key (preview.go, out of this slice, the precedent of the 3-5 step-05
-// QA): no NEW raw unsalted hash over material exists (every digest of
-// this contour is keyed HMAC — the value probes above; a future raw hash
-// turns this red).
+// action module and pins the TWO raw SHA-256 sites of the honest present:
+// the legacy 3-4 proposal key (preview.go — out of the 3-5 slice, the
+// precedent of the 3-5 step-05 QA) and the 4-6 OrderDigest version pin
+// (order.go — the content-addressed version of the order composition, the
+// OfferDigestOf/SelectionDigestOf class of the cases domain 4-5: a version
+// pin, never a receipt/verification digest). Every RECEIPT digest of this
+// contour stays keyed HMAC (the value probes above); a future raw hash
+// outside these two named sites turns this red.
 func TestNoRawUnsaltedHashOverMaterial(t *testing.T) {
 	patterns := []string{"*.go", "../*.go", "../store/*.go", "../app/*.go", "../api/*.go", "../port/*.go"}
 	total := 0
@@ -809,7 +812,7 @@ func TestNoRawUnsaltedHashOverMaterial(t *testing.T) {
 			}
 		}
 	}
-	if total != 1 || files["preview.go"] != 1 {
-		t.Fatalf("единственный сырой SHA-256 модуля action — легаси DeriveProposalKey (preview.go, вне среза); найдено: %v", files)
+	if total != 2 || files["preview.go"] != 1 || files["order.go"] != 1 {
+		t.Fatalf("сырые SHA-256 модуля action — ровно два именинных сайта: легаси DeriveProposalKey (preview.go) и пин версии заказа OrderDigestOf (order.go, 4-6); найдено: %v", files)
 	}
 }

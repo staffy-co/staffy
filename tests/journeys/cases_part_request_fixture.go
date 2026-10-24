@@ -107,7 +107,12 @@ func (f *casesFixture) fixtureActivePartSearches(caseID id.UUID) int {
 // request schema render the honest absence word (the 2.2
 // unreadable-pin degradation mirror).
 func (f *casesFixture) fixturePartPanelOf(packVersion string, caseID id.UUID) casesAPI.PartPanelView {
-	if packVersion != fixturePartPackVersion {
+	// The additive manifest mirror: every pack from the part request pin
+	// (4.0.0) upward carries the schema — the 5.0.0/6.0.0 worlds render
+	// the panel (the real auto-parts manifests keep it; the order contour
+	// of 4.6 reads the LIVE PartRequestDigest).
+	if packVersion != fixturePartPackVersion && packVersion != fixtureFitmentPackVersion &&
+		packVersion != fixtureOffersPackVersion {
 		return casesAPI.PartPanelView{Note: casesAPI.PartSchemaNoteAbsent}
 	}
 	return casesAPI.PartPanelView{

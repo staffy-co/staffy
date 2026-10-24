@@ -277,7 +277,7 @@ func TestFitmentOpenAPIContractMirrorsDictionaries(t *testing.T) {
 		"enum: [proven, ambiguous, conflicted, unknown, stale]",
 		"enum: [original, cross]",
 		"enum: [abcp_catalog, laximo_catalog]",
-		"enum: [diagnostic_uncertainty, safety_critical, unresolved_contradiction, fitment_research, offers_research]",
+		"enum: [diagnostic_uncertainty, safety_critical, unresolved_contradiction, fitment_research, offers_research, order_creation]",
 		"enum: [fitment_research, unresolved_contradiction]",
 		"cases/00021",
 	} {

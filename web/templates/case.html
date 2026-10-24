@@ -1464,6 +1464,76 @@
 {{else}}
 <p class="next-note">{{.View.Offers.Note}}</p>
 {{end}}
+<h2>Заказ клиента</h2>
+<p class="next-note">Заказ — действие через Action Gateway: строится билдером из записанного выбора с точными версиями всех пяти входов (профиль, запрос, применимость, предложение, выбор); оператор НЕ вводит состав заказа — кнопка пересобирает материал живьём; заказ сначала будет проверен менеджером и ещё не отправляется поставщику; отправка поставщику НЕ выполняется (fence OQ-3); подтверждение и исправление — РАЗНЫЕ действия.</p>
+{{if .View.Order.Buildable}}
+<section class="panel" aria-label="Заказ клиента" id="order">
+{{range .View.ActiveWIOptions}}
+<form method="post" action="/app/tenants/{{$.TenantID}}/cases/{{$.View.CaseID}}/work-items/{{.Value}}/order-proposals" class="panel-form">
+<fieldset>
+<legend>Собрать заказ клиента из живого выбора (элемент {{.Value}})</legend>
+<p class="next-note">Билдер выводит материал живьём из записанного выбора: состав, пины и сумма руками НЕ вводятся.</p>
+<button type="submit">Собрать заказ из живого выбора</button>
+</fieldset>
+</form>
+{{end}}
+{{if .View.Order.PreviewPresent}}
+<details class="connector-connect" open><summary>Карточка подтверждения заказа — {{.View.Order.Preview.DefinitionPin}}, версия {{.View.Order.Preview.VersionNo}}</summary>
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Состав заказа">
+<table class="datamap-table">
+<caption>Позиции заказа: бренд/артикул, оригинальность, количество, цена, условия</caption>
+<thead><tr><th scope="col">Материал</th></tr></thead>
+<tbody>
+{{range .View.Order.Preview.MaterialLines}}<tr><td>{{.}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+<p>Итого: <strong>{{.View.Order.Preview.KnownClientSum}} {{.View.Order.Preview.Currency}}</strong> — {{.View.Order.Preview.SumBoundaryWord}}.</p>
+<p class="status" role="status"><strong>{{.View.Order.Preview.ManagerCheckWord}}</strong> — заказ назначается проверяющему менеджеру согласно утверждённой политике (задача проверки — контур 4-7).</p>
+<p>Пин точной версии заказа: <span class="digest-block">{{.View.Order.Preview.OrderDigest}}</span>. Состояние: {{.View.Order.Preview.TimelineText}}; готовность: {{.View.Order.Preview.ReadinessText}}{{if .View.Order.Preview.FreshnessReasonText}}; свежесть: {{.View.Order.Preview.FreshnessReasonText}}{{end}}.</p>
+<form method="post" action="{{.View.Order.Preview.ConfirmTarget}}" class="panel-form">
+<fieldset>
+<legend>Подтвердить заказ клиента (машина 3-4, step-up)</legend>
+<input type="hidden" name="preview_id" value="{{.View.Order.Preview.PreviewID}}">
+<input type="hidden" name="version_no" value="{{.View.Order.Preview.VersionNo}}">
+<label for="order-confirm-lifetime">Окно подтверждения, секунд (60..3600)</label>
+<input id="order-confirm-lifetime" name="lifetime_seconds" type="text" autocomplete="off" placeholder="600" required>
+<button type="submit">Подтвердить точную версию заказа</button>
+</fieldset>
+</form>
+<form method="post" action="{{.View.Order.Preview.RebuildTarget}}" class="panel-form">
+<fieldset>
+<legend>Исправить заказ (пересобрать из живого выбора — ДРУГОЕ действие)</legend>
+<p class="next-note">Исправление пересобирает материал заказа живьём из текущего выбора клиента: измените выбор на панели «Предложения и сравнение» и пересоберите. Состав руками НЕ вводится.</p>
+<button type="submit">Пересобрать заказ из живого выбора</button>
+</fieldset>
+</form>
+</details>
+</section>
+{{end}}
+{{if .View.Order.HasReceipts}}
+<section class="panel" aria-label="Квитанции заказа клиента" id="order-receipts">
+<h3>Квитанции заказа</h3>
+{{range .View.Order.Receipts}}
+<details class="connector-connect" open><summary>Квитанция №{{.ReceiptVersionNo}} — {{.OutcomeText}}{{if .ExternalObjectID}}; внешний ID <span class="digest-block">{{.ExternalObjectID}}</span> (версия {{.ExternalObjectVersion}}), время {{.CreatedAt}}{{end}}</summary>
+{{if .OrderState}}
+<p class="status" role="status">Состояние: <strong>{{.OrderState}}</strong> — {{.OrderStateWord}}. {{.OrderBoundaryWord}}.</p>
+<p class="alert" role="alert">{{.OrderOneCWord}}</p>
+<p class="status" role="status">{{.OrderManagerWord}}.</p>
+{{end}}
+</details>
+{{end}}
+</section>
+{{end}}
+{{if .View.Order.AG4Recommended}}
+<section class="panel" aria-label="Рекомендация задачи заказа" id="order-ag4">
+<p class="alert" role="alert">Диспетчеризация заказа заблокирована (AG-4: адаптер ABCP не реализован; nil-адаптер производства) — автоматическая отправка поставщику не выполняется; скрытая автоматизация интерфейса не используется.</p>
+<p class="status" role="status">Рекомендация: <strong>{{.View.Order.AG4Text}}</strong> — оператор создаёт запрос человека существующей формой со словом причины <span class="digest-block">{{.View.Order.AG4Word}}</span>.</p>
+</section>
+{{end}}
+{{else}}
+<p class="next-note">{{.View.Order.NoSelectionWord}}</p>
+{{end}}
 <h2>Диалоги канала</h2>
 <p role="status" aria-live="polite">{{if .View.HasConversations}}Диалогов: <strong>{{len .View.Conversations}}</strong>; каждый — продолжение одной channel session.{{else}}Диалогов нет.{{end}}</p>
 {{if .View.HasConversations}}

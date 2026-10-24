@@ -92,6 +92,14 @@ const (
 	// mirror 00024 admits it from this spec on; the automatic supplier
 	// request is never performed — OQ-5/AG-4).
 	HandoffReasonOffersResearch = "offers_research"
+	// HandoffReasonOrderCreation is the Story 4.6 order task word: the
+	// order panel of the parked AG-4 operation recommends the manager
+	// create the client order in the ABCP interface by the exact-version
+	// material — the decision-ready task of 2.14 (the SQL mirror 00025
+	// admits it from this spec on; the automatic dispatch is honestly
+	// blocked by the nil adapter — AG-4 — and the hidden interface
+	// automation is never a capability replacement).
+	HandoffReasonOrderCreation = "order_creation"
 )
 
 // HandoffReasons is the full dictionary (the +3 Story 4.3 words mirror
@@ -108,6 +116,9 @@ var HandoffReasons = []string{
 	// The Story 4.5 word — the sixth: the dictionary extension is the new
 	// spec version, the SQL mirror 00024 backstops the same list.
 	HandoffReasonOffersResearch,
+	// The Story 4.6 word — the seventh: the dictionary extension is the new
+	// spec version, the SQL mirror 00025 backstops the same list.
+	HandoffReasonOrderCreation,
 }
 
 // HandoffReasonTexts is the honest text of every reason word (the render
@@ -120,6 +131,7 @@ var HandoffReasonTexts = map[string]string{
 	HandoffReasonUnresolvedContradiction: "Неустранённое противоречие источников: Staffy не выбирает вероятный вариант — материал передан человеку.",
 	HandoffReasonFitmentResearch:         "Каталогическое исследование применимости: доказательства нет либо оно устарело — менеджеру задача исследовать каталог и записать результат.",
 	HandoffReasonOffersResearch:          "Запрос актуальных условий: предложений нет либо они устарели — менеджеру задача запросить условия у подключённых поставщиков и записать предложения.",
+	HandoffReasonOrderCreation:           "Создание клиентского заказа: адаптер ABCP не реализован (AG-4) — менеджер создаёт заказ в интерфейсе ABCP по точной версии материала; автоматическая отправка поставщику не выполняется",
 }
 
 // HandoffReasonText resolves the honest text of one reason word.

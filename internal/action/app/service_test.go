@@ -281,12 +281,14 @@ func TestInfrastructureFailurePropagatesHonestly(t *testing.T) {
 	}
 }
 
-// TestValidateBinaryCatalogPassesVacuouslyOnTheEmptyBinary — честная пустота
-// бинарного словаря проходит полный проход допуска vacuously (AG-4);
-// инъекционный fixture-словарь не подменяет предмет прохода.
-func TestValidateBinaryCatalogPassesVacuouslyOnTheEmptyBinary(t *testing.T) {
+// TestValidateBinaryCatalogWalksTheFirstProductEntry — бинарный словарь
+// несёт первый продуктовый энтри (4-6): полный проход допуска идёт по нему
+// НЕ-vacuously — guard целостности + резолверы unit-контура принимают
+// (живые резолверы — интеграционный тест первого энтри). Инъекционный
+// fixture-словарь не подменяет предмет прохода.
+func TestValidateBinaryCatalogWalksTheFirstProductEntry(t *testing.T) {
 	service := newTestService(scopeIdentity{member: true, scopes: map[identityDomain.Scope]bool{identityDomain.Integrations: true}}, fixtureDefinitions())
 	if err := service.ValidateBinaryCatalog(); err != nil {
-		t.Fatalf("честный пустой бинарный каталог обязан проходить vacuously, получено: %v", err)
+		t.Fatalf("проход допуска по первому продуктовому энтри обязан быть зелёным, получено: %v", err)
 	}
 }

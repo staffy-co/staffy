@@ -228,6 +228,20 @@ func (s *Service) ReconcileUnknownOperations(ctx context.Context, command Reconc
 	return *r.report, nil
 }
 
+// boundReconciliationWord bounds the live declaration word of the lease
+// row to the store contract (64 runes — the CHECK backstop of the
+// migration 00004): the full declaration sentence stays the catalog truth
+// of the connector (4-1), the lease carries the bounded provenance prefix
+// (the boundDetails precedent of the ledger details — the honest cut,
+// never a masked word).
+func boundReconciliationWord(word string) string {
+	runes := []rune(word)
+	if len(runes) > 64 {
+		return string(runes[:64])
+	}
+	return word
+}
+
 // reconcileOneTarget processes ONE pending target through the LIGHT
 // read-only fence ladder. The classification words answer FIRST (no
 // lease, no query — the honest structural words); the fresh path checks
@@ -356,7 +370,7 @@ func (s *Service) reconcileOneTarget(ctx context.Context, scope tenancy.Context,
 		Operation:              op,
 		DefinitionID:           op.DefinitionID,
 		DefinitionVersion:      op.DefinitionVersion,
-		ReconciliationWord:     declared.LiveWord,
+		ReconciliationWord:     boundReconciliationWord(declared.LiveWord),
 		LeaseToken:             leaseToken,
 		ExternalIDempotencyKey: target.ExternalIDempotencyKey,
 		RequestDigest:          target.RequestDigest,

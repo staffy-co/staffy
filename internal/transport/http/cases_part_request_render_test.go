@@ -259,9 +259,10 @@ func TestPartRequestOpenAPIContractMirrorsDictionaries(t *testing.T) {
 // existing request_human form: the three operator boundary words of Story
 // 4.3 plus the fitment research word of Story 4.4 (the 3→4 dictionary
 // extension, the 00021 SQL mirror) plus the offers research word of Story
-// 4.5 (the 4→5 extension, the 00024 SQL mirror) with their honest texts
-// and the empty unconditional choice (the client_request word is NEVER an
-// option — the system truth).
+// 4.5 (the 4→5 extension, the 00024 SQL mirror) plus the order creation
+// word of Story 4.6 (the 6→7 extension, the 00025 mirror) with their
+// honest texts and the empty unconditional choice (the client_request
+// word is NEVER an option — the system truth).
 func TestPartRequestFormReasonOptionsRender(t *testing.T) {
 	options := []workOption{}
 	for _, reason := range casesDomain.HandoffReasons {
@@ -270,19 +271,22 @@ func TestPartRequestFormReasonOptionsRender(t *testing.T) {
 		}
 		options = append(options, workOption{Value: reason, Text: casesDomain.HandoffReasonText(reason)})
 	}
-	if len(options) != 5 {
-		t.Fatalf("the five operator words (three Story 4.3 boundary words plus the Story 4.4 and 4.5 research words) expected, got %d", len(options))
+	if len(options) != 6 {
+		t.Fatalf("the six operator words (three Story 4.3 boundary words plus the Story 4.4, 4.5 and 4.6 task words) expected, got %d", len(options))
 	}
 	for _, option := range options {
 		if option.Text == "" {
 			t.Fatalf("the reason word %q must carry its honest text", option.Value)
 		}
 	}
-	joined := strings.Join([]string{options[0].Value, options[1].Value, options[2].Value, options[3].Value, options[4].Value}, ",")
+	joined := strings.Join([]string{options[0].Value, options[1].Value, options[2].Value, options[3].Value, options[4].Value, options[5].Value}, ",")
 	if strings.Contains(joined, casesDomain.HandoffReasonClientRequest) {
 		t.Fatal("the client_request word is never a form option — the system truth")
 	}
 	if !strings.Contains(joined, casesDomain.HandoffReasonFitmentResearch) {
 		t.Fatal("the Story 4.4 fitment research word must be a form option (the 00021 mirror)")
+	}
+	if !strings.Contains(joined, casesDomain.HandoffReasonOrderCreation) {
+		t.Fatal("the Story 4.6 order creation word must be a form option (the 00025 mirror)")
 	}
 }

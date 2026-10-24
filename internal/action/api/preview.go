@@ -57,6 +57,37 @@ type ProposalOutcome struct {
 	PreviewDigest string   `json:"preview_digest,omitempty"`
 }
 
+// PrepareOrderProposalCommand is the operator's ONE-word ask of the Story
+// 4.6 order contour: build the order commitment proposal of the case. The
+// command carries NO material — no pins, no prices, no composition, no
+// typed input: the builder derives everything LIVE from the case view
+// (the recorded selections of 4-5 plus the current derivations), and any
+// material an operator would try to type is structurally absent (the
+// «the operator does not type digests» principle of 4-4/4-5 — the app
+// tests pin the probe).
+type PrepareOrderProposalCommand struct {
+	Actor      identityDomain.Principal
+	TenantID   id.UUID
+	CaseID     id.UUID
+	WorkItemID id.UUID
+	Now        time.Time
+}
+
+// OrderProposalService is the narrow Story 4.6 order builder surface the
+// transport type-asserts over the preview service (the ActionCatalogService
+// precedent): the composite app Service implements it; a composition root
+// that binds the preview surface WITHOUT the builder answers the honest
+// 404 of the unwired surface.
+type OrderProposalService interface {
+	// PrepareOrderProposal builds the order commitment proposal of the
+	// case through the EXISTING machine 3-4: the LIVE material derivation
+	// (the recorded selections of 4-5 plus the current derivations), the
+	// guard, the canonical digest and render, and the submit with the
+	// typed input the definition pins. The command carries NO material —
+	// the anchors only (the operator never types the order composition).
+	PrepareOrderProposal(ctx context.Context, command PrepareOrderProposalCommand) (ProposalOutcome, error)
+}
+
 // NewPreviewVersionCommand is the edit of one existing preview: the
 // edited typed input and the edited supporting references. The pins
 // (definition, case, work item, target) are the preview's own identity —

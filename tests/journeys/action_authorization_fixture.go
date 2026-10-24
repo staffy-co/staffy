@@ -486,6 +486,12 @@ const authorizationNotConfiguredText = "Контур авторизации (п�
 // the world).
 func (f *actionsFixture) authorizationService() actionAPI.AuthorizationService {
 	if f.mode == "preview" {
+		// The Story 4.6 order world takes the precedence while its toggle
+		// is on (the previewService precedent — the confirm/authorize chain
+		// reads the SAME fresh repositories of the order contour).
+		if f.orderEnabled && f.order != nil {
+			return f.order
+		}
 		if f.ag4Enabled && f.ag4 != nil {
 			return f.ag4
 		}

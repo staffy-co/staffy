@@ -182,26 +182,75 @@ func TestActionCatalogMatrixRowsBySpec(t *testing.T) {
 	// resolvers — the control branch of the matrix walks the REAL binary.
 	production := actionApp.New(identity, packs, caps, actionCatalog.All())
 
-	// Row 1 — the production binary is honestly EMPTY (AG-4): the owner
-	// reads the product dictionary and receives the empty list — a
-	// state, not a defect, never an error.
-	t.Run("row-1 production binary: the honest empty list for the owner", func(t *testing.T) {
+	// Row 1 — the production binary carries its FIRST product entry
+	// (story 4.6, step-01): the owner reads the product dictionary and
+	// receives exactly one entry — create_abcp_customer_order@1.0.0. The
+	// catalog stopped being honestly empty because the 4-1 admission
+	// registry finally holds a capability-bearing declaration the entry
+	// resolves against (abcp-parts@1.1.0/command.prepare-client-order).
+	t.Run("row-1 production binary: the first product entry for the owner", func(t *testing.T) {
 		defs, err := production.List(ctx, owner, tenant)
 		if err != nil {
-			t.Fatalf("the empty catalog is a state, not an error, got %v", err)
+			t.Fatalf("the first product entry is a state, not an error, got %v", err)
 		}
-		if len(defs) != 0 {
-			t.Fatalf("the production binary carries no definitions today (AG-4), got %d", len(defs))
+		if len(defs) != 1 {
+			t.Fatalf("the production binary carries exactly one product entry (4-6), got %d", len(defs))
+		}
+		if defs[0].ID != "create_abcp_customer_order" || defs[0].Version != "1.0.0" {
+			t.Fatalf("the first product entry is create_abcp_customer_order@1.0.0, got %s@%s", defs[0].ID, defs[0].Version)
+		}
+		if defs[0].PackRef.PackID != "auto-parts" || defs[0].PackRef.PackVersion != "6.0.0" {
+			t.Fatalf("the first product entry pins auto-parts@6.0.0, got %s@%s", defs[0].PackRef.PackID, defs[0].PackRef.PackVersion)
+		}
+		if defs[0].RequiredCapability.ConnectorID != "abcp-parts" || defs[0].RequiredCapability.CapabilityID != "command.prepare-client-order" {
+			t.Fatalf("the first product entry pins abcp-parts@1.1.0/command.prepare-client-order")
 		}
 	})
 
-	// Row 2 — the admission pass over the production binary passes
-	// VACUOUSLY: CatalogIntegrity over the empty dictionary and the
-	// reference walk of zero entries — the first real entry can only
-	// appear through the full admission truth (the pass stays live).
-	t.Run("row-2 production binary: the admission pass is vacuously green", func(t *testing.T) {
+	// Row 2 — the admission pass over the production binary walks the
+	// FIRST product entry for real (no more vacuous green): the guard
+	// integrity plus the LIVE reference resolution — auto-parts@6.0.0 is
+	// published (packresolver) and abcp-parts@1.1.0/command.prepare-client-order
+	// resolves Complete with Idempotent=true (capabilityresolver), so the
+	// provider_idempotent class passes the delivery-word cross-check of
+	// AC-3 against the real connector catalog. The OQ-3 fence probe: no
+	// supplier-send field exists in either typed schema.
+	t.Run("row-2 production binary: the first entry passes the live admission", func(t *testing.T) {
 		if err := production.ValidateBinaryCatalog(); err != nil {
-			t.Fatalf("the honest empty catalog passes the admission pass vacuously, got %v", err)
+			t.Fatalf("the first product entry passes the full admission pass against the live catalogs, got %v", err)
+		}
+		facts, ok := caps.Capability("abcp-parts", "1.1.0", "command.prepare-client-order")
+		if !ok {
+			t.Fatal("abcp-parts@1.1.0/command.prepare-client-order resolves against the live connector catalog")
+		}
+		if !facts.Idempotent {
+			t.Fatal("the declaration carries Idempotent=true — the provider_idempotent class is admitted")
+		}
+		if strings.TrimSpace(facts.Reconciliation) == "" {
+			t.Fatal("the declaration carries the reconciliation word (OQ-3)")
+		}
+		if !packs.Get("auto-parts", "6.0.0") {
+			t.Fatal("auto-parts@6.0.0 is published in the live pack catalog")
+		}
+		def, found := actionCatalog.Get("create_abcp_customer_order", "1.0.0")
+		if !found {
+			t.Fatal("the first product entry pin resolves")
+		}
+		for _, schema := range []struct {
+			label  string
+			fields []actionDomain.FieldSchema
+		}{
+			{"typed_input_schema", def.TypedInputSchema},
+			{"typed_output_schema", def.TypedOutputSchema},
+		} {
+			for _, f := range schema.fields {
+				joined := strings.ToLower(f.Name + " " + f.Label + " " + f.Description)
+				for _, word := range []string{"supplier_form", "supplier_send", "send_to_supplier", "delivery_to_supplier", "ship_to_supplier"} {
+					if strings.Contains(joined, word) {
+						t.Fatalf("schema %s carries the supplier-send field %s — the OQ-3 fence is violated", schema.label, f.Name)
+					}
+				}
+			}
 		}
 	})
 

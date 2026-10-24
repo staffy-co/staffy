@@ -97,6 +97,7 @@ details summary { min-height: 44px; padding: .6rem; cursor: pointer; font-weight
 .connector-card{display:grid;border:1px solid var(--line);border-radius:.6rem;padding:1rem;gap:.3rem;overflow-wrap:anywhere}
 .connector-card>span{display:block}
 .connector-status{font-weight:800}
+.connector-connect summary,.panel .status{overflow-wrap:anywhere}
 .connector-connect form{margin-top:.5rem;max-width:40rem}
 .connector-connect label,.connector-connect input,.connector-connect select{min-width:0;max-width:100%}
 .connector-connect button{min-height:44px}
