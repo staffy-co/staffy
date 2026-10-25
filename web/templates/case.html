@@ -1895,7 +1895,7 @@
 <thead><tr><th scope="col">№</th><th scope="col">Интент</th><th scope="col">Признак</th><th scope="col">Исход поиска</th><th scope="col">Proof-пины</th><th scope="col">Раскрытие</th><th scope="col">Записано</th></tr></thead>
 <tbody>
 {{range .View.OrderServicing.Requests}}
-<tr><th scope="row">№{{.RequestNo}}</th><td>{{.Intent}} — {{.IntentShort}}</td><td>{{.KindShort}}: <span class="digest-block">{{.Value}}</span> ({{.KindSource}}); источники матча: {{.Sources}}</td><td>{{.Outcome}} — {{.OutcomeWord}}</td><td>{{.ProofState}}{{if .ProofMethod}}; метод: {{.ProofMethod}}{{end}}{{if .ProofIssued}}; выдано: {{.ProofIssued}}{{end}}{{if .ProofExpires}}; срок: {{.ProofExpires}}{{end}}</td><td>{{if .Disclosure}}allowed{{else}}—{{end}} — {{.DisclosureWord}}</td><td>{{.RecordedAt}}</td></tr>
+<tr><th scope="row">№{{.RequestNo}}</th><td>{{.Intent}} — {{.IntentShort}}</td><td>{{.KindShort}}: <span class="digest-block">{{.Value}}</span> ({{.KindSource}}); источники матча: {{.Sources}}</td><td>{{.Outcome}} — {{.OutcomeWord}}</td><td>{{.ProofState}}{{if .ProofMethod}}; метод: {{.ProofMethod}}{{end}}{{if .ProofIssued}}; выдано: {{.ProofIssued}}{{end}}{{if .ProofExpires}}; срок: {{.ProofExpires}}{{end}}</td><td>{{.Disclosure}} — {{.DisclosureWord}}</td><td>{{.RecordedAt}}</td></tr>
 {{end}}
 </tbody>
 </table>

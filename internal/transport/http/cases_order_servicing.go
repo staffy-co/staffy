@@ -176,8 +176,8 @@ func (s *Server) orderServicingPanelOf(ctx context.Context, actor identityDomain
 			OutcomeWord:    requestView.OutcomeWord,
 			ProofState:     requestView.Request.ProofState,
 			ProofMethod:    requestView.Request.ProofMethod,
-			ProofIssued:    formatTime(requestView.Request.ProofIssuedAt),
-			ProofExpires:   formatTime(requestView.Request.ProofExpiresAt),
+			ProofIssued:    orderServicingTime(requestView.Request.ProofIssuedAt),
+			ProofExpires:   orderServicingTime(requestView.Request.ProofExpiresAt),
 			Disclosure:     requestView.Request.Disclosure,
 			DisclosureWord: orderServicingDisclosureWords[requestView.Request.Disclosure],
 			RecordedAt:     formatTime(requestView.Request.RecordedAt),
@@ -208,6 +208,15 @@ func (s *Server) orderServicingPanelOf(ctx context.Context, actor identityDomain
 	}
 	panel.FormTarget = "/app/tenants/" + tenant.String() + "/cases/" + caseID.String() + "/order-servicing-requests"
 	return panel, nil
+}
+
+// orderServicingTime renders ONE proof-pin time (the zero time stays
+// empty — the honest absence, never the 01.01.0001 artifact).
+func orderServicingTime(value time.Time) string {
+	if value.IsZero() {
+		return ""
+	}
+	return formatTime(value)
 }
 
 // orderServicingSourcesWord renders the BY NAME source pins of the
