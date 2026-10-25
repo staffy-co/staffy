@@ -5409,4 +5409,4 @@ done:
 - Регресс: build/vet всего репо чисто; unit internal/action ok (app/domain); интеграция ×2 TZ зелёная живым PG (UTC 55.5s / Europe/Moscow 57.8s); git diff --check чисто
 next: Dev step-03 story 4-10 — панель «Обслуживание заказа» на странице кейса после «Статуса заказа» (id=order-servicing: форма записи intent-select 8 слов + kind-select 2 слов + значение + лента запросов с proof-пинами/исходом/клиентскими словами живой деривацией + CancelFeasibility словами + слова «Позвать человека»/«Вернуться в разговор» ссылки контуров 2-13/2-10) + JSON-маршрут записи (строгий decode, replay 200/первая 201) + PRG-форма origin-гейтом + OpenAPI-зеркала (1 путь order-servicing-requests, closed-shape, enum-зеркала, фенс-зонды supplier-send 0/уведомительные 0/ценовые 0) + wire-тесты (панель/гейт/контракт-зеркала); регресс ×2 TZ; DEVLOG 261 + коммит [skip ci] + пуш
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ)
-commit: TBD
+commit: a81d41f6272836c7da6d4eb9c8ca66c13edd36d0
