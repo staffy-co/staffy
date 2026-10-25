@@ -22,9 +22,9 @@ import (
 // R2 regressions assert what the HTTP boundary claims (the wire shape
 // follows the OpenAPI contract).
 type fakeProfile struct {
-	view      employeeAPI.ProfileView
-	viewErr   error
-	approveErr error
+	view         employeeAPI.ProfileView
+	viewErr      error
+	approveErr   error
 	thresholdErr error
 	approveCalls int
 }

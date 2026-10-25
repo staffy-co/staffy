@@ -492,6 +492,22 @@ func (s *Service) AuthorizeOperation(ctx context.Context, command api.AuthorizeO
 	if !ok {
 		return api.AuthorizationOutcome{}, domain.ErrNotFound
 	}
+	// THE STRUCTURAL GATE of story 4.8 (AC-9/AC-10: «новый дублирующий
+	// заказ не создаётся»): an OPEN order correction of the case refuses
+	// the authorization of the NEW create_abcp_customer_order BEFORE the
+	// reservation transaction — NOTHING is consumed (the replay
+	// idempotency above stays untouched: the ORIGINAL operation's replay
+	// answers honestly; the 3-4 superseded ladder below stays untouched:
+	// the gate precedes the rejection ladder and the consumption). The
+	// single_use consumption is per confirmation, never per case — the
+	// gate is the STRUCTURAL close of the duplicate-order hole. A NIL
+	// correction repository is the honest unwired contour — no
+	// corrections exist, the gate holds nothing.
+	if confirmation.DefinitionID == domain.OrderActionID && s.corrections != nil {
+		if open := s.openOrderCorrectionOfCase(ctx, scope, command.CaseID, command.Now); open != nil {
+			return api.AuthorizationOutcome{}, domain.ErrOrderCorrectionOpenGate
+		}
+	}
 	// The rejection ladder BY NAME (AC-1): superseded beats revoked beats
 	// expired beats exhausted — every rejection speaks the exact word,
 	// the consumption NEVER happens (the counter probes).

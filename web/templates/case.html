@@ -1509,6 +1509,7 @@
 </fieldset>
 </form>
 </details>
+{{if .View.Order.CorrectionPendingWord}}<p class="alert" role="alert">{{.View.Order.CorrectionPendingWord}} — новый заказ не создаётся: изменение существующего заказа выполняется вручную в контуре магазина.</p>{{end}}
 </section>
 {{end}}
 {{if .View.Order.HasReceipts}}
@@ -1539,10 +1540,15 @@
 {{if .View.VerificationApproved}}<p class="status" role="status" id="verification-approved">Проверка подтверждена. {{.View.OrderVerification.ManualContourWord}}</p>{{end}}
 {{if .View.VerificationBlocked}}<p class="status" role="status" id="verification-blocked">Продвижение заказа заблокировано. {{.View.OrderVerification.ManualContourWord}}</p>{{end}}
 {{if .View.VerificationReassigned}}<p class="status" role="status" id="verification-reassigned">Задача переназначена: новая эпоха назначения открыта.</p>{{end}}
+{{if .View.CorrectionOpened}}<p class="status" role="status" id="correction-opened">Коррекция открыта: заказ заблокирован от продвижения до исправления и новой проверки.</p>{{end}}
+{{if .View.CorrectionReread}}<p class="status" role="status" id="correction-reread">Перечит записан. {{.View.OrderCorrection.RereadWord}}</p>{{end}}
+{{if .View.CorrectionCeased}}<p class="status" role="status" id="correction-ceased">Коррекция прекращена без замены: заказ остаётся заблокированным от продвижения.</p>{{end}}
+{{if .View.CorrectionReassigned}}<p class="status" role="status" id="correction-reassigned">Коррекция переназначена: новая эпоха назначения открыта.</p>{{end}}
 {{if .View.OrderVerification.Wired}}
 <h2>Проверка заказа</h2>
 <section class="panel" aria-label="Проверка заказа" id="order-verification">
 <p class="next-note">Задача проверки — контур 4-7: решение применяется ТОЛЬКО к точной версии заказа (пин ниже); {{.View.OrderVerification.DeliveryWord}}.</p>
+{{if .View.OrderVerification.CorrectionPendingWord}}<p class="alert" role="alert">{{.View.OrderVerification.CorrectionPendingWord}} — новая задача проверки вернётся после исправления.</p>{{end}}
 <p class="alert" role="alert">{{.View.OrderVerification.FenceWord}}</p>
 {{range .View.OrderVerification.Cards}}
 <details class="connector-connect" open><summary>Задача №{{.VerificationNo}} — {{.StateText}}</summary>
@@ -1670,6 +1676,118 @@
 {{if .View.OrderVerification.LiveRefusalWord}}<p class="alert" role="alert">{{.View.OrderVerification.LiveRefusalWord}}</p>{{end}}
 {{end}}
 {{if .View.OrderVerification.PurchasingHidden}}<p class="next-note">{{.View.OrderVerification.PurchasingHiddenWord}}</p>{{end}}
+</section>
+{{end}}
+{{if .View.OrderCorrection.Wired}}
+<h2>Коррекция заказа</h2>
+<section class="panel" aria-label="Коррекция заказа" id="order-correction">
+<p class="next-note">Коррекция — контур 4-8: Correction Work Item над заблокированным решением проверки; {{.View.OrderCorrection.ManualContourWord}}; {{.View.OrderCorrection.NotStartedWord}}.</p>
+<p class="alert" role="alert">Открытая коррекция держит два структурных гейта: новая задача проверки не создаётся до закрытия коррекции; новый дублирующий заказ не создаётся — изменение существующего заказа выполняется вручную в контуре магазина.</p>
+{{range .View.OrderCorrection.Cards}}
+<details class="connector-connect" open><summary>Коррекция №{{.CorrectionNo}} — {{.StateText}}</summary>
+<p>Владелец: <span class="digest-block">{{.Owner}}</span>; дедлайн: {{.DeadlineText}} ({{.DeadlineAt}}); эпоха назначения: {{.AssignmentEpoch}}.</p>
+{{if .Overdue}}<p class="alert" role="alert">{{.OverdueWord}}</p>{{end}}
+<p>Техническая строка: {{.TechnicalLine}}.</p>
+{{if .BlockedPositions}}
+<p class="status" role="status">Заблокированные позиции (перенесены из решения проверки): {{range .BlockedPositions}}<span class="digest-block">{{.}}</span> {{end}}; причина: {{.BlockedReasonText}} (слово {{.BlockedReason}}).</p>
+{{end}}
+{{if eq .State "corrected"}}
+<p class="status" role="status">Исход: исправлен. Перечит: внешний объект <span class="digest-block">{{.ClosureExternalID}}</span>; пины новой подтверждённой версии: предложение <span class="digest-block">{{.ClosureProposalID}}</span>, версия {{.ClosureVersionNo}}, подтверждение <span class="digest-block">{{.ClosureConfirmID}}</span>. {{$.View.OrderCorrection.RereadWord}}</p>
+{{end}}
+{{if .CessationReason}}
+<p class="status" role="status">Исход: прекращена — {{.CessationReasonText}} (слово {{.CessationReason}}).{{if .CancellationWord}} {{.CancellationWord}}{{end}}</p>
+{{end}}
+{{if eq .State "pending_correction"}}
+<form method="post" action="{{.RereadTarget}}" class="panel-form">
+<fieldset>
+<legend>Записать перечит (исправление выполнено вручную в контуре магазина)</legend>
+<input type="hidden" name="expected_assignment" value="{{.AssignmentEpoch}}">
+<label for="reread-external-{{.CorrectionNo}}">Внешний идентификатор перечитанного заказа ABCP</label>
+<input id="reread-external-{{.CorrectionNo}}" name="external_object_id" type="text" autocomplete="off" required>
+<label for="reread-proposal-{{.CorrectionNo}}">Пин новой версии предложения (UUID)</label>
+<input id="reread-proposal-{{.CorrectionNo}}" name="proposal_id" type="text" autocomplete="off" required>
+<label for="reread-version-{{.CorrectionNo}}">Номер подтверждённой версии предложения</label>
+<input id="reread-version-{{.CorrectionNo}}" name="version_no" type="text" inputmode="numeric" autocomplete="off" required>
+<label for="reread-confirmation-{{.CorrectionNo}}">Пин нового подтверждения клиента (UUID)</label>
+<input id="reread-confirmation-{{.CorrectionNo}}" name="confirmation_id" type="text" autocomplete="off" required>
+<p class="next-note">{{$.View.OrderCorrection.NewConfirmationWord}}; {{$.View.OrderCorrection.RereadWord}}.</p>
+<button type="submit">Записать перечит</button>
+</fieldset>
+</form>
+<form method="post" action="{{.CeaseTarget}}" class="panel-form">
+<fieldset>
+<legend>Прекратить коррекцию (ДРУГОЕ действие — причина словом словаря)</legend>
+<input type="hidden" name="expected_assignment" value="{{.AssignmentEpoch}}">
+<label for="cease-reason-{{.CorrectionNo}}">Причина прекращения (слово словаря)</label>
+<select id="cease-reason-{{.CorrectionNo}}" name="reason" required>
+<option value="client_refused">Клиент отказался</option>
+<option value="not_needed">Не потребовалась</option>
+<option value="abandoned">Прекращена без исхода</option>
+</select>
+<p class="next-note">Отказ клиента не превращается в замену: замены без нового подтверждения не существует; отмена заказа — ручной контур менеджера (контур 4-10).</p>
+<button type="submit">Прекратить коррекцию</button>
+</fieldset>
+</form>
+{{end}}
+{{if or (eq .State "pending_correction") (eq .State "overdue")}}
+<form method="post" action="{{.ReassignTarget}}" class="panel-form">
+<fieldset>
+<legend>Переназначить коррекцию (явное решение владельца)</legend>
+<label for="correction-reassign-owner-{{.CorrectionNo}}">Новый владелец (UUID участника с review)</label>
+<input id="correction-reassign-owner-{{.CorrectionNo}}" name="owner" type="text" autocomplete="off" required>
+<label for="correction-reassign-deadline-{{.CorrectionNo}}">Слово дедлайна коррекции</label>
+<select id="correction-reassign-deadline-{{.CorrectionNo}}" name="deadline" required>
+<option value="correct_4h">Четыре часа</option>
+<option value="correct_1d">Сутки</option>
+</select>
+<button type="submit">Переназначить коррекцию</button>
+</fieldset>
+</form>
+{{end}}
+</details>
+{{end}}
+{{if not .View.OrderCorrection.Present}}
+<p class="next-note">Открытых коррекций нет: коррекция открывается по решению проверки «Нужна коррекция» — заблокированного решения нет, открывать нечего.</p>
+{{end}}
+<h3>Открыть коррекцию (по заблокированному решению проверки)</h3>
+<form method="post" action="{{.View.OrderCorrection.OpenTarget}}" class="panel-form">
+<fieldset>
+<legend>Открыть коррекцию заказа (якорь — операция с заблокированным решением)</legend>
+<label for="correct-open-operation">Якорь операции с заблокированным решением (UUID)</label>
+<input id="correct-open-operation" name="operation_id" type="text" autocomplete="off" required>
+<label for="correct-open-owner">Владелец коррекции (UUID участника с полномочием review)</label>
+<input id="correct-open-owner" name="owner" type="text" autocomplete="off" required>
+<label for="correct-open-deadline">Слово дедлайна коррекции</label>
+<select id="correct-open-deadline" name="deadline" required>
+<option value="correct_4h">Четыре часа</option>
+<option value="correct_1d">Сутки</option>
+</select>
+<p class="next-note">Позиции и причина переносятся из заблокированного решения проверки автоматически — исходные записи не переписываются; {{.View.OrderCorrection.ManualContourWord}}.</p>
+<button type="submit">Открыть коррекцию</button>
+</fieldset>
+</form>
+{{if .View.OrderCorrection.LivePresent}}
+<h3>Рекомендуемое объяснение клиенту</h3>
+<p class="next-note">{{.View.OrderCorrection.NotSentWord}}; {{.View.OrderCorrection.NewConfirmationWord}}; {{.View.OrderCorrection.ChannelWord}}.</p>
+{{if .View.OrderCorrection.DiffRows}}
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Явные различия коррекции">
+<table class="datamap-table">
+<caption>Различия прежний → текущий по позиции (артикул/оригинал-аналог/количество/цена/срок)</caption>
+<thead><tr><th scope="col">Позиция</th><th scope="col">Прежний (подтверждённая версия)</th><th scope="col">Текущий (живой состав)</th></tr></thead>
+<tbody>
+{{range .View.OrderCorrection.DiffRows}}
+<tr><th scope="row">{{.PositionKey}}</th><td>{{.PinnedLine}}</td><td>{{.LiveLine}}</td></tr>
+{{end}}
+</tbody>
+</table>
+</div>
+{{else}}
+<p class="next-note">Явных различий состава нет: живой состав совпадает с подтверждённой версией операции.</p>
+{{end}}
+<p class="next-note">{{.View.OrderCorrection.RebuildLinkText}}; живой дайджест состава: <span class="digest-block">{{.View.OrderCorrection.LiveDigest}}</span>; известная сумма: {{.View.OrderCorrection.LiveSumText}}.</p>
+{{else}}
+{{if .View.OrderCorrection.LiveRefusalWord}}<p class="alert" role="alert">{{.View.OrderCorrection.LiveRefusalWord}}</p>{{end}}
+{{end}}
 </section>
 {{end}}
 <h2>Диалоги канала</h2>

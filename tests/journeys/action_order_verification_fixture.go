@@ -25,10 +25,10 @@ import (
 // orderVerificationMemoryRepository is the in-memory implementation of
 // the verification repository contract (the dispatch memory precedent).
 type orderVerificationMemoryRepository struct {
-	mu        sync.Mutex
-	tasks     []actionDomain.OrderVerification
-	events    map[int64][]actionDomain.OrderVerificationEvent
-	nextNo    map[id.UUID]int64
+	mu     sync.Mutex
+	tasks  []actionDomain.OrderVerification
+	events map[int64][]actionDomain.OrderVerificationEvent
+	nextNo map[id.UUID]int64
 }
 
 func newOrderVerificationMemoryRepository() *orderVerificationMemoryRepository {

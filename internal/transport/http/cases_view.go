@@ -141,6 +141,17 @@ type caseDetailPageView struct {
 	// The Story 4.7 verification panel (the case-level section after the
 	// order — the Delegated Task over the committed receipt).
 	OrderVerification orderVerificationPanelView
+	// The Story 4.8 correction panel (the case-level section after the
+	// verification — the Correction Work Item over the blocked decision).
+	OrderCorrection orderCorrectionPanelView
+	// The Story 4.8 success flags of the PRG forms (the honest status
+	// words of the four commands — the reread word of the corrected
+	// closure and the cancellation recommendation word ride the panel
+	// constants).
+	CorrectionOpened     bool
+	CorrectionReread     bool
+	CorrectionCeased     bool
+	CorrectionReassigned bool
 	// The Story 4.7 success flags of the PRG forms (the honest status
 	// words of the five commands — the manual-contour word of the
 	// approved decision rides the panel constant).
@@ -933,6 +944,10 @@ func prepareCaseView(r *http.Request, view casesAPI.CaseView, facts casesAPI.Fac
 	out.VerificationApproved = r.URL.Query().Get("verification_approved") == "1"
 	out.VerificationBlocked = r.URL.Query().Get("verification_blocked") == "1"
 	out.VerificationReassigned = r.URL.Query().Get("verification_reassigned") == "1"
+	out.CorrectionOpened = r.URL.Query().Get("correction_opened") == "1"
+	out.CorrectionReread = r.URL.Query().Get("correction_reread") == "1"
+	out.CorrectionCeased = r.URL.Query().Get("correction_ceased") == "1"
+	out.CorrectionReassigned = r.URL.Query().Get("correction_reassigned") == "1"
 	// The Story 2.16 PRG success flag of the «Обещать обновление» form
 	// (the honest status line of the waiting section — the flag rides the
 	// URL, the error rides the flash cookie).

@@ -589,6 +589,14 @@ func (s *Server) caseDetailPage(w http.ResponseWriter, r *http.Request) {
 		s.casesPageProblem(w, r, err)
 		return
 	}
+	// The Story 4.8 correction panel: the same honest degradation (an
+	// unwired surface or a scope-forbidden member renders the zero panel —
+	// the page keeps the rest; every other failure fails the page honestly).
+	page.OrderCorrection, err = s.orderCorrectionPanelOf(r.Context(), actor, tenant, caseID, view)
+	if err != nil {
+		s.casesPageProblem(w, r, err)
+		return
+	}
 	s.render(w, "case", map[string]any{
 		"TenantID": tenant,
 		"View":     page,

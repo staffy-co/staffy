@@ -150,7 +150,7 @@ func (s *Server) recordSupplierOfferAPI(w http.ResponseWriter, r *http.Request) 
 		PositionKey: positionKey, SupplierID: supplierID, SupplierName: stringOrEmpty(input.SupplierName),
 		Brand: brand, Article: article, ClientPrice: *input.ClientPrice, PurchasePrice: input.PurchasePrice,
 		Currency: currency, QuantityAvailable: *input.QuantityAvailable, TermDays: input.TermDays,
-		Conditions: stringOrEmpty(input.Conditions),
+		Conditions:   stringOrEmpty(input.Conditions),
 		SourceSystem: sourceSystem, SourceRecordID: sourceRecordID, SourceVersion: sourceVersion,
 		SourceObservedAt: observedAt.UTC(),
 		IdempotencyKey:   key, Now: s.clock.Now().UTC(),
@@ -262,7 +262,7 @@ func (s *Server) recordSupplierOfferForm(w http.ResponseWriter, r *http.Request)
 		PositionKey: positionKey, SupplierID: supplierID, SupplierName: strings.TrimSpace(r.FormValue("supplier_name")),
 		Brand: brand, Article: article, ClientPrice: clientPrice, PurchasePrice: purchasePrice,
 		Currency: currency, QuantityAvailable: quantityAvailable, TermDays: termDays,
-		Conditions: strings.TrimSpace(r.FormValue("conditions")),
+		Conditions:   strings.TrimSpace(r.FormValue("conditions")),
 		SourceSystem: sourceSystem, SourceRecordID: sourceRecordID, SourceVersion: sourceVersion,
 		SourceObservedAt: observedAt.UTC(),
 		IdempotencyKey: formCommandKey("record-offer", actor.ID.String(), caseID.String(), workItemID.String(),
@@ -423,19 +423,19 @@ type offerPositionRow struct {
 
 // offersPanelView is the flattened Story 4.5 panel of the case page.
 type offersPanelView struct {
-	Present           bool
-	Note              string
-	CaseUnknownWord   string
-	CaseHandoffWords  []string
+	Present            bool
+	Note               string
+	CaseUnknownWord    string
+	CaseHandoffWords   []string
 	PriceAuthorityWord string
-	TermEstimateWord  string
-	ScopeWord         string
-	Positions         []offerPositionRow
-	VoiceDifferences  []string
-	VoiceRecommended  string
-	VoiceFullWord     string
-	Records           []casesDomain.OfferView
-	Selections        []casesDomain.SelectionSnapshotView
+	TermEstimateWord   string
+	ScopeWord          string
+	Positions          []offerPositionRow
+	VoiceDifferences   []string
+	VoiceRecommended   string
+	VoiceFullWord      string
+	Records            []casesDomain.OfferView
+	Selections         []casesDomain.SelectionSnapshotView
 }
 
 // prepareOffersPanel flattens the Story 4.5 comparison panel view of the
@@ -446,11 +446,11 @@ type offersPanelView struct {
 // in the operator record section.
 func prepareOffersPanel(view casesAPI.CaseView) offersPanelView {
 	panel := offersPanelView{
-		Note:              view.Comparison.Note,
-		Positions:         []offerPositionRow{},
-		CaseHandoffWords:  []string{},
-		Records:           view.Comparison.Records,
-		Selections:        view.Comparison.Selections,
+		Note:             view.Comparison.Note,
+		Positions:        []offerPositionRow{},
+		CaseHandoffWords: []string{},
+		Records:          view.Comparison.Records,
+		Selections:       view.Comparison.Selections,
 	}
 	if !view.Comparison.SchemaDefined {
 		return panel

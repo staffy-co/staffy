@@ -11,48 +11,48 @@ import (
 // dataClassView is one class row of the data map page, prepared for the
 // template with readable Russian statuses and dates.
 type dataClassView struct {
-	ID            string
-	Title         string
-	StatusText    string
-	StatusClass   string
-	MissingText   string
-	Entry         *mapEntryView
-	Policy        *policyView
-	HoldText      string
-	HoldClass     string
-	DeletionDue   string
-	MandatoryDue  string
-	TablesText    string
+	ID           string
+	Title        string
+	StatusText   string
+	StatusClass  string
+	MissingText  string
+	Entry        *mapEntryView
+	Policy       *policyView
+	HoldText     string
+	HoldClass    string
+	DeletionDue  string
+	MandatoryDue string
+	TablesText   string
 }
 
 type mapEntryView struct {
-	Version       int64
-	Purpose       string
-	LegalBasis    string
-	Controller    string
-	Processor     string
-	Recipients    string
-	SubProcessors string
-	Locations     string
-	AccessRoles   string
-	KnownCopies   string
-	PolicyRef     string
+	Version        int64
+	Purpose        string
+	LegalBasis     string
+	Controller     string
+	Processor      string
+	Recipients     string
+	SubProcessors  string
+	Locations      string
+	AccessRoles    string
+	KnownCopies    string
+	PolicyRef      string
 	DeletionMethod string
-	ExportMethod  string
-	PublishedAt   string
+	ExportMethod   string
+	PublishedAt    string
 }
 
 type policyView struct {
-	Version          int64
-	Purpose          string
-	LegalBasis       string
-	Source           string
-	TerminalEvent    string
-	TermsText        string
-	BackupText       string
-	HoldException    string
-	OwnerNote        string
-	PublishedAt      string
+	Version       int64
+	Purpose       string
+	LegalBasis    string
+	Source        string
+	TerminalEvent string
+	TermsText     string
+	BackupText    string
+	HoldException string
+	OwnerNote     string
+	PublishedAt   string
 }
 
 type receiptLineView struct {
@@ -65,13 +65,13 @@ type receiptLineView struct {
 }
 
 type holdEventView struct {
-	Event       string
-	EventText   string
-	Classes     string
-	Basis       string
-	Approver    string
-	ReviewText  string
-	CreatedAt   string
+	Event      string
+	EventText  string
+	Classes    string
+	Basis      string
+	Approver   string
+	ReviewText string
+	CreatedAt  string
 }
 
 type receiptDetailView struct {
@@ -161,11 +161,11 @@ func prepareDataMapViews(view privacyAPI.DataViewResult) []dataClassView {
 	out := make([]dataClassView, 0, len(view.Classes))
 	for _, class := range view.Classes {
 		item := dataClassView{
-			ID:          string(class.Spec.ID),
-			Title:       class.Spec.Title,
-			StatusText:  mapStatusText(class.Status),
-			TablesText:  strings.Join(class.Spec.Tables, ", "),
-			DeletionDue: formatDate(class.DeletionDueAt),
+			ID:           string(class.Spec.ID),
+			Title:        class.Spec.Title,
+			StatusText:   mapStatusText(class.Status),
+			TablesText:   strings.Join(class.Spec.Tables, ", "),
+			DeletionDue:  formatDate(class.DeletionDueAt),
 			MandatoryDue: formatDate(class.MandatoryDueAt),
 		}
 		switch class.Status {
@@ -304,13 +304,13 @@ func prepareReceiptDetail(receipt privacyDomain.Receipt) receiptDetailView {
 	}
 	for _, outcome := range receipt.Outcomes {
 		view := outcomeView{
-			Class:        string(outcome.Class),
-			ClassTitle:   titles[outcome.Class],
-			Outcome:      outcome.Outcome,
-			OutcomeText:  outcomeText(outcome.Outcome),
-			Count:        outcome.AffectedCount,
-			DueAt:        formatDate(outcome.DueAt),
-			Note:         outcome.Note,
+			Class:       string(outcome.Class),
+			ClassTitle:  titles[outcome.Class],
+			Outcome:     outcome.Outcome,
+			OutcomeText: outcomeText(outcome.Outcome),
+			Count:       outcome.AffectedCount,
+			DueAt:       formatDate(outcome.DueAt),
+			Note:        outcome.Note,
 		}
 		switch outcome.Outcome {
 		case privacyDomain.OutcomeDeleted:

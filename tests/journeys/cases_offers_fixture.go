@@ -204,14 +204,14 @@ func (f *casesFixture) fixtureClientSelectionRecord(command casesAPI.RecordClien
 		return casesAPI.WorkOutcome{}, casesDomain.WorkRuleError{Rule: "record_client_selection", Reason: casesDomain.OfferSelectionGuardStaleWord}
 	}
 	draft := casesDomain.ClientSelectionDraft{
-		PositionKey:         command.PositionKey,
-		Offer:               *chosen,
-		Quantity:            command.Quantity,
-		FitmentStatus:       fitmentStatus,
-		FitmentDigest:       fitmentPin,
-		ProfileDigest:       profilePin,
-		PartRequestDigest:   requestPin,
-		Now:                 command.Now,
+		PositionKey:       command.PositionKey,
+		Offer:             *chosen,
+		Quantity:          command.Quantity,
+		FitmentStatus:     fitmentStatus,
+		FitmentDigest:     fitmentPin,
+		ProfileDigest:     profilePin,
+		PartRequestDigest: requestPin,
+		Now:               command.Now,
 	}
 	material, err := casesDomain.AssembleClientSelection(fixtureComparisonPolicy(), draft)
 	if err != nil {

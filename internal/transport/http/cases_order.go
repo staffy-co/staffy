@@ -43,6 +43,10 @@ type orderPanelView struct {
 	AG4Recommended  bool
 	AG4Word         string
 	AG4Text         string
+	// The Story 4.8 surgical state word: an OPEN correction of the case
+	// holds the order panel's honest progression word (AC-2 — the new
+	// duplicate order never exists while the correction lives).
+	CorrectionPendingWord string
 }
 
 // orderPreviewCardView is the confirmation card of the CURRENT order
@@ -92,7 +96,29 @@ type orderReceiptRowView struct {
 // action surface renders the zero panel — the page keeps the rest; a
 // scope-forbidden member sees the panel without the action sections
 // (the build note only); every other failure fails the page honestly.
+// orderPanelOf reads the order panel and carries the Story 4.8 surgical
+// state word: an OPEN correction of the case holds the honest progression
+// word (AC-9 — the new duplicate order never exists while the correction
+// lives). The word rides EVERY degradation path (the wrapper owns it).
 func (s *Server) orderPanelOf(ctx context.Context, actor identityDomain.Principal, tenant, caseID id.UUID, view casesAPI.CaseView) (orderPanelView, error) {
+	panel, err := s.orderPanelOfBase(ctx, actor, tenant, caseID, view)
+	if err != nil {
+		return panel, err
+	}
+	if s.orderCorrections != nil {
+		if states, correctionErr := s.orderCorrections.ReadOrderCorrectionCaseView(ctx, actor, tenant, caseID, s.clock.Now().UTC()); correctionErr == nil {
+			for _, state := range states {
+				if state.Active() {
+					panel.CorrectionPendingWord = actionDomain.OrderCorrectionPendingWord
+					break
+				}
+			}
+		}
+	}
+	return panel, nil
+}
+
+func (s *Server) orderPanelOfBase(ctx context.Context, actor identityDomain.Principal, tenant, caseID id.UUID, view casesAPI.CaseView) (orderPanelView, error) {
 	if s.actionPreviews == nil {
 		// The honest degradation of the unwired action surface: the panel
 		// renders the build note only (the decision-context precedent).

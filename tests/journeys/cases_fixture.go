@@ -166,7 +166,7 @@ type casesFixture struct {
 	// fitmentEvidences is the Story 4.4 append-only in-memory storage of
 	// the manager's catalog research records (the monotonic numbers per
 	// (case, position, source) — the supersede is the NEW number).
-	fitmentEvidences   map[id.UUID][]casesDomain.FitmentEvidenceInput
+	fitmentEvidences map[id.UUID][]casesDomain.FitmentEvidenceInput
 	// supplierOffers is the Story 4.5 append-only in-memory storage of
 	// the manager's commercial conditions records (the offers world of
 	// the 6.0.0 pin).
@@ -177,11 +177,11 @@ type casesFixture struct {
 	selectionSnapshots map[id.UUID][]casesDomain.SelectionSnapshotView
 	// supplierOfferSeq and selectionSnapshotSeq keep the fixture ids
 	// unique (the deterministic id family of the fixture).
-	supplierOfferSeq    int
+	supplierOfferSeq     int
 	selectionSnapshotSeq int
-	fitmentEvidenceSeq int
-	handoffEvents      map[id.UUID][]casesDomain.HandoffEvent
-	handoffSeq         int
+	fitmentEvidenceSeq   int
+	handoffEvents        map[id.UUID][]casesDomain.HandoffEvent
+	handoffSeq           int
 
 	// The Story 2.14 summary material: the append-only AI summary rows
 	// per case (the staleness is the read-time derivation over the REAL
@@ -297,11 +297,11 @@ func newCasesFixture() *casesFixture {
 		degradations:        map[id.UUID][]casesDomain.RouteDegradationRecord{},
 		replyDeliveryEvents: map[id.UUID][]casesDomain.ReplyDeliveryEvent{},
 		// The Story 2.13 material:
-		handoffs:         map[id.UUID][]casesDomain.HandoffRequest{},
+		handoffs:           map[id.UUID][]casesDomain.HandoffRequest{},
 		fitmentEvidences:   map[id.UUID][]casesDomain.FitmentEvidenceInput{},
 		supplierOffers:     map[id.UUID][]casesDomain.SupplierOfferInput{},
 		selectionSnapshots: map[id.UUID][]casesDomain.SelectionSnapshotView{},
-		handoffEvents:    map[id.UUID][]casesDomain.HandoffEvent{},
+		handoffEvents:      map[id.UUID][]casesDomain.HandoffEvent{},
 		// The Story 2.14 material:
 		summaries: map[id.UUID][]casesDomain.RecordedSummary{},
 		// The Story 2.15 material:

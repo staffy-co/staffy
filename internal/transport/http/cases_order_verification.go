@@ -55,6 +55,10 @@ type orderVerificationPanelView struct {
 	PurchasingHidden     bool
 	PurchasingHiddenWord string
 	AssignTarget         string
+	// The Story 4.8 surgical state word: an OPEN correction of the case
+	// holds the verification panel's honest gate word (AC-2 — the new
+	// verification task never exists while the correction lives).
+	CorrectionPendingWord string
 }
 
 // orderVerificationCardView is one task card of the panel: the state word
@@ -159,6 +163,19 @@ func (s *Server) orderVerificationPanelOf(ctx context.Context, actor identityDom
 		return orderVerificationPanelView{}, err
 	}
 	panel.Wired = true
+	// The Story 4.8 surgical state word: an OPEN correction of the case
+	// holds the honest gate word of this panel (the assign form renders
+	// below — the open correction refuses the new task with the 409).
+	if s.orderCorrections != nil {
+		if states, correctionErr := s.orderCorrections.ReadOrderCorrectionCaseView(ctx, actor, tenant, caseID, s.clock.Now().UTC()); correctionErr == nil {
+			for _, state := range states {
+				if state.Active() {
+					panel.CorrectionPendingWord = actionDomain.OrderCorrectionPendingWord
+					break
+				}
+			}
+		}
+	}
 	// The purchasing visibility rides the LIVE Commercial scope of the
 	// actor (the live grant matrix — the 4-5 optional internal data).
 	panel.PurchasingHidden = true

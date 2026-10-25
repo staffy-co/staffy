@@ -495,6 +495,17 @@ func TestMain(m *testing.M) {
 	if _, err = adminPool.Exec(ctx, strings.Split(string(actionOrderVerificationMigration), "-- +goose Down")[0]); err != nil {
 		panic(err)
 	}
+	// Story 4.8: the SEVENTH migration of the action module — the order
+	// correction contour (the append-only Correction Work Item tables
+	// over the LAST CLOSED blocked decision of the 4.7 verification).
+	// The registration stays in this hard list (the 3.3 lesson).
+	actionOrderCorrectionMigration, err := os.ReadFile("../../migrations/action/00007_order_corrections.sql")
+	if err != nil {
+		panic(err)
+	}
+	if _, err = adminPool.Exec(ctx, strings.Split(string(actionOrderCorrectionMigration), "-- +goose Down")[0]); err != nil {
+		panic(err)
+	}
 	if _, err = adminPool.Exec(ctx, "alter role staffy_app login password 'staffy-runtime-test'"); err != nil {
 		panic(err)
 	}

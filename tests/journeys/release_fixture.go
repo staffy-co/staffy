@@ -32,7 +32,7 @@ func newReleaseFixture(employee *employeeFixture, connectors *connectorFixture) 
 	return &releaseFixture{mu: lock, employee: employee, connectors: connectors, raw: map[int64][]byte{}}
 }
 
-func (f *releaseFixture) lock()   { <-f.mu }
+func (f *releaseFixture) lock() { <-f.mu }
 
 // releaseScope is the fixture tenancy for the caller-authority facts read.
 func releaseScope() tenancy.Context {

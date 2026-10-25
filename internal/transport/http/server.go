@@ -40,6 +40,7 @@ type Server struct {
 	actionPreviews      actionAPI.PreviewService
 	orderProposals      actionAPI.OrderProposalService
 	orderVerifications  actionAPI.OrderVerificationService
+	orderCorrections    actionAPI.OrderCorrectionService
 	authorization       actionAPI.AuthorizationService
 	dispatch            actionAPI.DispatchService
 	reconcile           actionAPI.ReconcileService

@@ -30,21 +30,21 @@ import (
 
 // The fixture identities of the wire world.
 var (
-	verificationWireTenant  = id.MustParse("01994f64-6c00-7000-8000-000000000002")
-	verificationWireCase    = id.MustParse("01994f64-6c00-7000-8000-00000000aa01")
-	verificationWireWork    = id.MustParse("01994f64-6c00-7000-8000-00000000bb01")
-	verificationWireAssign  = id.MustParse("01994f64-6c00-7000-8000-00000000b201")
-	verificationWireBackup  = id.MustParse("01994f64-6c00-7000-8000-00000000b301")
-	verificationWireOper    = id.MustParse("01994f64-6c00-7000-8000-00000000ee01")
-	verificationWireDigest  = strings.Repeat("f1", 32)
+	verificationWireTenant = id.MustParse("01994f64-6c00-7000-8000-000000000002")
+	verificationWireCase   = id.MustParse("01994f64-6c00-7000-8000-00000000aa01")
+	verificationWireWork   = id.MustParse("01994f64-6c00-7000-8000-00000000bb01")
+	verificationWireAssign = id.MustParse("01994f64-6c00-7000-8000-00000000b201")
+	verificationWireBackup = id.MustParse("01994f64-6c00-7000-8000-00000000b301")
+	verificationWireOper   = id.MustParse("01994f64-6c00-7000-8000-00000000ee01")
+	verificationWireDigest = strings.Repeat("f1", 32)
 )
 
 // fakeVerificationSurface is the scriptable OrderVerificationService of
 // the wire tests: the read answers ride the fields, the commands answer
 // zero outcomes (the command ladder is pinned by the app tests).
 type fakeVerificationSurface struct {
-	views   []actionDomain.OrderVerificationStateView
-	material actionDomain.OrderCommitmentMaterial
+	views       []actionDomain.OrderVerificationStateView
+	material    actionDomain.OrderCommitmentMaterial
 	materialErr error
 }
 
@@ -140,7 +140,7 @@ func verificationWireTasks() []actionDomain.OrderVerificationStateView {
 	}
 	assigned := actionDomain.OrderVerificationEvent{
 		TenantID: verificationWireTenant, CaseID: verificationWireCase, VerificationNo: 1, EventNo: 1,
-		Kind: actionDomain.OrderVerificationEventAssigned,
+		Kind:     actionDomain.OrderVerificationEventAssigned,
 		Assignee: verificationWireAssign, BackupOwner: verificationWireBackup,
 		VerifyDeadline: actionDomain.Verify4h, DeadlineAt: time.Date(2026, 10, 25, 13, 0, 0, 0, time.UTC),
 		ActorID: testPrincipalID, CreatedAt: time.Date(2026, 10, 25, 9, 5, 0, 0, time.UTC),
@@ -150,7 +150,7 @@ func verificationWireTasks() []actionDomain.OrderVerificationStateView {
 	acknowledged.EventNo = 2
 	return []actionDomain.OrderVerificationStateView{{
 		Verification: task, LastEvent: &acknowledged,
-		State: actionDomain.OrderVerificationStateAcknowledged,
+		State:    actionDomain.OrderVerificationStateAcknowledged,
 		Assignee: verificationWireAssign, BackupOwner: verificationWireBackup,
 		VerifyDeadline: actionDomain.Verify4h, DeadlineAt: assigned.DeadlineAt, AssignmentEpoch: 1,
 	}}
@@ -348,7 +348,7 @@ func TestOrderVerificationPanelRendersOverdueAndDecision(t *testing.T) {
 	approved := views[0]
 	approved.State = actionDomain.OrderVerificationStateApproved
 	approved.LastEvent = &actionDomain.OrderVerificationEvent{
-		Kind: actionDomain.OrderVerificationEventApproved,
+		Kind:        actionDomain.OrderVerificationEventApproved,
 		OrderDigest: strings.Repeat("aa", 32), ReceiptVersionNo: 1,
 		ExternalOrderID: "ABCP-ORDER-42",
 		EvidenceAnchors: []string{"position:WF2B196K666AA"},

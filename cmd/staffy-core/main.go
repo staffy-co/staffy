@@ -225,11 +225,17 @@ func run(logger *slog.Logger) error {
 		// Task over the committed receipt of the order action (the anchor
 		// reads ride the authorization/dispatch repositories wired above;
 		// the decision fence rides the case material of the preparation).
-		WithOrderVerifications(actionStore.NewPostgres(pool))
+		WithOrderVerifications(actionStore.NewPostgres(pool)).
+		// The Story 4.8 correction contour: the Correction Work Item over
+		// the LAST CLOSED blocked verification decision (the anchor reads
+		// ride the verification/authorization repositories wired above;
+		// the reread fence rides the case material of the preparation).
+		WithOrderCorrections(actionStore.NewPostgres(pool))
 	transport.BindActionCatalog(actionService)
 	transport.BindActionPreviews(actionService)
 	transport.BindOrderProposals(actionService)
 	transport.BindOrderVerifications(actionService)
+	transport.BindOrderCorrections(actionService)
 	transport.BindAuthorization(actionService)
 	transport.BindDispatch(actionService)
 	transport.BindReconcile(actionService)
