@@ -5328,3 +5328,20 @@ done:
 next: CHECKPOINT 2 story 4-9 — PR (python-JSON, sha-pinned HEAD) → CI ×3 зелёный поимённо → живой GET сверки головы → sha-pinned merge в main → локальный main ff-only → DEVLOG 256-checkpoint-2 + пуш в main → УДАЛЕНИЕ СЛИТОЙ ВЕТКИ (правило владельца AGENTS.md: GitHub API DELETE после проверки ahead_by=0 / локально / prune рефов) → check-continuity
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ)
 commit: TBD
+
+---
+date: 2026-10-25
+task: 256-checkpoint-2
+role: main (Super Z, сессия web-d497a728)
+story: 4-9
+summary: CHECKPOINT 2 story 4-9 — PR #50 (python-JSON, sha-pinned e576dbd) → CI ×3 зелёный ПОИМЁННО → живой GET сверки головы → sha-pinned merge 04af4d0 → локальный main ff-only; ветка 4-9 УДАЛЕНА сразу после merge по правилу владельца (AGENTS.md); DEVLOG 256 + трекинг PR-скрипта запушены в main
+done:
+- PR #50 создан scripts/pr_story_4_9.py (python-JSON, тело sha-pin e576dbd — прецедент pr_story_4_8.py); ЧЕСТНАЯ корректировка по ходу: первая голова PR (605aab9, коммит PR-скрипта с [skip ci]) не стартовала PR-прогон — ветка сброшена на e576dbd force-push (разрешён вне main), тело PR пере-пиннено PATCH; PR-скрипт уходит в main после merge (прецедент 4-8: трекинг скрипта отдельным коммитом в main)
+- CI ×3 зелёный ПОИМЁННО: push #40195730168 (e576dbd — шаг-05 без маркера) / pull_request #40196587734 (PR #50, e576dbd) / push #40197509309 (merge-commit 04af4d0 на main)
+- Живой GET сверки: LOCAL HEAD = PR head = ветка-реф = e576dbdfbec9431627b5329757e6650c1be1ce99 (mergeable clean) → sha-pinned merge PUT /pulls/50/merge {sha e576dbd, method merge} → merge-commit 04af4d0467e35cae00d56adcacaaf0101fff3302
+- Локальный main ff-only до 04af4d0; DEVLOG 256 + трекинг PR-скрипта (scripts/pr_story_4_9.py) — этот коммит — запушены в main напрямую (инфраструктура scripts/docs, [skip ci])
+- ПРАВИЛО ВЛАДЕЛЬЦА (AGENTS.md «Слитая ветка — удаляется сразу после merge», 3cffb88): ветка codex/story-4-9-truthful-order-status удалена в трёх местах — GitHub API DELETE refs/heads (после compare main...branch ahead_by=0), локально git branch -d, stale remote-tracking рефы
+- Гигиена: токен env-only весь цикл (PR/merge/CI-зонды/пуши), в диффах 0; секрет-сканы шагов CLEAN
+next: следующая story по сигналу владельца «продолжайте» (по живому чтению epics.md — кандидат 4-10 контур отмены заказа, эпик 4: 9/11 закрытых); владелец отзывает PAT после закрытия чата
+владельцу: отозвать PAT сейчас (retro-3-6/retro-2-6; токен сессии ЖИВ — использовался для пушей шагов 01-05, PR #50, CI-зондов, merge, пуша DEVLOG/PR-скрипта в main и удаления ветки)
+commit: TBD
