@@ -131,3 +131,20 @@ func TestAllowedStagesMirrorTheGateRegistryStages(t *testing.T) {
 		t.Fatalf("зеркало стадий разошлось с GATE-REGISTRY «Traffic stages»:\nдействие: %v\nисточник: %v", got, want)
 	}
 }
+
+// TestProofStatesMirrorTheAssuranceDictionary pins the 4.10 proof-state
+// dictionary against the living 2-3 assurance dictionary (the BY NAME
+// mirror): the three level words ride EXACTLY (none, basic, verified —
+// additions and renames caught here) and the step_up word mirrors the
+// step-up window flag of the derivation. The action domain never
+// imports the cases package; this test imports BOTH sides and compares.
+func TestProofStatesMirrorTheAssuranceDictionary(t *testing.T) {
+	want := append(append([]string{}, casesDomain.AssuranceLevels...), "step_up")
+	if got := domain.ProofStates; !reflect.DeepEqual(got, want) {
+		t.Fatalf("зеркало proof-состояний разошлось со словарём 2-3 + step_up:\nдействие: %v\nисточник: %v", got, want)
+	}
+	// The disclosure gate rides the verified word of the SOURCE dictionary.
+	if domain.ProofStateAllowsDisclosure(casesDomain.AssuranceVerified) != true {
+		t.Fatal("слово verified источника обязано открывать раскрытие")
+	}
+}
