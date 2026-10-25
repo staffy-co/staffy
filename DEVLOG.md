@@ -5064,3 +5064,18 @@ done:
 next: CHECKPOINT 2 — PR через GitHub API (python-JSON сборка по прецеденту pr_story_4_6.py, sha-pinned HEAD в теле) → CI ×3 зелёный поимённо (push/PR/merge) → sha-pinned merge в main → локальный main ff-only → DEVLOG 240-checkpoint-2 → пуш; после merge: следующая story по сигналу владельца (4-8 коррекция подбора — SM-фаза); удаление слитых веток 4-5/4-6/4-7 на GitHub — по поручению владельца
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для пуша шага и CHECKPOINT 2)
 commit: TBD
+
+---
+date: 2026-10-25
+task: 240-checkpoint-2
+role: main (Super Z, сессия web-d497a728, Dev-фаза → closure)
+story: 4-7
+summary: CHECKPOINT 2 story 4-7 — «Decision-ready проверка заказа менеджером» слита в main: PR #48 (python-JSON сборка scripts/pr_story_4_7.py по прецеденту pr_story_4_6.py, sha-pinned head e214718 в теле) → CI ×3 зелёный поимённо (push #40150463135 / PR #40150508885 / merge #40151167565) → sha-pinned merge (живой GET сверки головы перед merge: head = e214718 = ожиданию, mergeable true) → merge-commit 7e64a6e → локальный main ff-only 40fb12f→7e64a6e; Epic 4: 7/11 — спека done, sprint-status done
+done:
+- PR #48 создан python-JSON сборкой (урок 4-4: bash-артефакты исключены; sha-pin головы в теле — merge верифицирован против живого GET); тело: контракт среза (append-only домен над операцией/квитанцией, Human Verification Receipt с материальными пинами, забор решения живой ре-деривацией тем же кодом лестницы 3-6, CAS assignment-эпоха, overdue без авто-одобрения структурно, Commercial-гейт закупочной, supplier-send 0 fence OQ-3, назначен ≠ доставлено ≠ принял) + шаги 01-05 поимённо с хешами + регресс + Epic 4: 7/11
+- CI ×3 зелёный ПОИМЁННО живыми зондами: push #40150463135 (запущен головой e214718 БЕЗ маркера — прецедент 4-6 204d84d), PR #40150508885 (созданием PR #48), merge #40151167565 (merge-commit 7e64a6e); каждый статус completed/success живой последовательностью поллингов
+- Merge sha-pinned: PUT /pulls/48/merge с {"sha":"e214718..."} — merge-commit 7e64a6e; ancestry верифицирован (e214718 — предок origin/main, merge-base --is-ancestor живым зондом); локальный main ff-only 40fb12f → 7e64a6e
+- Мандат владельца «продолжайте (токен)» в ответ на предъявление 233-sm исполнен ПОЛНОСТЬЮ: CHECKPOINT 1 (76231fb) → Dev шаги 01-05 (18fd6ac / 200d745 / b5ba76b / 0b60529 / e214718) → CHECKPOINT 2 (merge 7e64a6e); спека первого среза закрыта done; следующая story — по сигналу владельца
+- Гигиена: токен env-only весь чекпоинт (PR/merge/CI-зонды — URL-токен нигде не зафиксирован); scripts/pr_story_4_7.py в трекинге сессии — дерево чистое
+next: следующая story по сигналу владельца «продолжайте» (4-8 коррекция подбора до закупки — SM-фаза: спека первого среза по эпику и PRD); удаление слитых веток 4-5/4-6/4-7 на GitHub — по поручению владельца; владельцу: ОТЗВАТЬ PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — использовался для пушей шагов, PR #48, CI-зондов и merge)
+commit: TBD
