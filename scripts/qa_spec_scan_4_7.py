@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """qa_spec_scan_4_7.py — QA-скан спеки story 4-7 перед предъявлением:
 секреты / CJK-артефакты / смешанные слова / структурная полнота /
-front-matter / статус backlog / контекст-файлы существуют / fence-слова."""
+front-matter / статус (жизненный цикл: backlog → ready-for-dev → done) / контекст-файлы существуют / fence-слова."""
 import os
 import re
 import sys
@@ -77,8 +77,11 @@ else:
             print(f'FAIL front-matter: нет поля {field}')
             fail += 1
     m = re.search(r"status: '([^']+)'", block)
-    if not m or m.group(1) != 'backlog':
-        print(f"FAIL статус: ожидается backlog, найдено {m.group(1) if m else 'нет'}")
+    # Жизненный цикл спеки (замыкание 238-dev перевело статус в done —
+    # скан SM-фазы 233-sm писал ожидание backlog; допустимы все три живых
+    # состояния, чужое слово — отказ).
+    if not m or m.group(1) not in ('backlog', 'ready-for-dev', 'done'):
+        print(f"FAIL статус: ожидается backlog|ready-for-dev|done, найдено {m.group(1) if m else 'нет'}")
         fail += 1
     m = re.search(r"baseline_commit: '([0-9a-f]{40})'", block)
     if not m:

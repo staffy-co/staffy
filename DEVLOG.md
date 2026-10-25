@@ -5048,3 +5048,19 @@ done:
 next: Dev step-05 — QA-саморевью и closure по живому диффу ветки шагов 01-04 (замороженные секции 2-13/лестница 3-6/persist-квитанций НЕ тронуты name-only; SQL ровно 1 миграция 00006; supplier-send 0; закупочная только по Commercial-скоупу; маркетинг 0; import-graph чист; AD-10) + финальный регресс свежими прогонами + closure: Spec Change Log Dev 01-04 + QA, спека done, sprint-status done — Epic 4: 7/11; коммит feat БЕЗ маркера — CI ×3 на CHECKPOINT 2
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для пушей шагов Dev-фазы)
 commit: TBD
+
+---
+date: 2026-10-25
+task: 239-dev-step-05
+role: main (Super Z, Dev-фаза)
+story: 4-7
+summary: Dev step-05 story 4-7 — QA-саморевью и closure: qa_step05_4_7_scan.py CLEAN по живому диффу ветки (Major-находок НЕТ) + финальный регресс свежими прогонами + closure спеки/sprint-status done — Epic 4: 7/11; коммит feat БЕЗ маркера — голова триггерит CI ×3 на CHECKPOINT 2
+done:
+- scripts/qa_step05_4_7_scan.py (новой, по прецеденту qa_step05_4_6_scan.py): 28 файлов диффа ветки — секреты 0/CJK 0/mixed 0; замороженные машины чисты (лестница диспетчера 3-6 dispatch.go / машина handoffs 2-13 / persist-квитанций / термы владения 2-4 — НЕ в диффе name-only); SQL ровно 1 новая миграция 00006 append-only (RLS FORCE + REVOKE UPDATE/DELETE/TRUNCATE); supplier-send 0 (домен/api/транспорт без полей-маршрутов отправки; слова — только честные отрицания); закупочная ТОЛЬКО по Commercial-скоупу (PurchasingHidden=true по умолчанию + живой Authorize + единственное раскрытие); маркетинг 0 в домене; import-graph домена чист (только platform/id); AD-10 SAFE-пины (событие approved несёт дайджест/идентичность квитанции/внешний ID/якоря — позиции blocked = ПИНЫ ключей по AC-12, копий цен/рендеров нет); забор решения reuse лестницы пиннен живым юнит-тестом (DeriveOrderCommitmentMaterial + ErrOrderVerificationCompositionChanged); серверная истина актёра (гварды acknowledge/approve/block принимают command.Actor.ID против view.Assignee); 4 первичных ложных срабатывания зондов уточнены честно (REVOKE одной строкой; Positions — требуемый спекой материал blocked; слово не-assignee в доменных гвардах)
+- Скрипт qa_spec_scan_4_7.py: статус-ожидание честно расширено жизненным циклом backlog|ready-for-dev|done (скан SM-фазы писал backlog; замыкание перевело спеку в done — скан остаётся воспроизводимым на любом состоянии); qa_step01_scan_4_7.py НЕ тронут — точечный инструмент своей фазы (FAIL на выросшем диффе ожидаем: CLEAN зафиксирован в DEVLOG 235 на собственном срезе)
+- Финальный регресс свежими прогонами: build/vet OK; unit 33 пакета ok; интеграция ПОЛНЫЙ суит ×2 TZ=Europe/Moscow (46.4s/49.5s) зелёные; journeys ПОЛНЫЙ суит 49/49 (2.7m)
+- Closure: Spec Change Log — запись Dev 01-04 + QA closure (238-dev: шаги 18fd6ac/200d745/b5ba76b/0b60529 с материалом, честные находки-фиксы, QA-вердикт, регресс) + ретроспективная запись CHECKPOINT 1 (234-checkpoint-1 — по прецеденту 4-6 226-checkpoint-1: факт флипа 76231fb был записан DEVLOG-записью, Change Log записи не имел — закрыто при замыкании); спека ready-for-dev → done; sprint-status 4-7-decision-ready-проверка-заказа-менеджером → done — Epic 4: 7/11
+- Гигиена: секреты в диффе 0 (токен env-only, remote-URL чистый); токен нигде не зафиксирован
+next: CHECKPOINT 2 — PR через GitHub API (python-JSON сборка по прецеденту pr_story_4_6.py, sha-pinned HEAD в теле) → CI ×3 зелёный поимённо (push/PR/merge) → sha-pinned merge в main → локальный main ff-only → DEVLOG 240-checkpoint-2 → пуш; после merge: следующая story по сигналу владельца (4-8 коррекция подбора — SM-фаза); удаление слитых веток 4-5/4-6/4-7 на GitHub — по поручению владельца
+владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для пуша шага и CHECKPOINT 2)
+commit: TBD
