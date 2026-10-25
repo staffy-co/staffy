@@ -162,6 +162,12 @@ const OrderStatusDeadlineActualWord = "фактическое событие —
 // refusal (the guard word IS the message; the transport maps it).
 var ErrOrderSupplierFactLadder = errors.New(OrderStatusSentAfterFormedWord)
 
+// ErrOrderStatusNoOperation is the honest anchor refusal of the record
+// command and the projection assembly: the case carries NO order
+// operation of create_abcp_customer_order (the RLS blindness of a
+// foreign case answers the same word — the 404).
+var ErrOrderStatusNoOperation = errors.New("операция заказа не найдена: в этом кейсе нет операции create_abcp_customer_order")
+
 // ---------------------------------------------------------------------------
 // The dictionaries (compile-time; never a tenant configuration)
 // ---------------------------------------------------------------------------
