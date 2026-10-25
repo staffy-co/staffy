@@ -5492,4 +5492,4 @@ done:
 - Ветка codex/story-4-11-pilot-business-outcome от main 93f7e26: этот коммит (спека + скан + DEVLOG 265-sm) [skip ci]; sprint-status НЕ тронут (4-11 backlog до одобрения — дисциплина 52-sm)
 next: CHECKPOINT 1 — предъявление спеки владельцу финальным ответом сессии; ждать «продолжайте»/«одобряю» В ОТВЕТ на предъявление → флип backlog → ready-for-dev синхронно (спека + sprint-status) → Dev 01-05 → CHECKPOINT 2 (Epic 4: 11/11)
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ)
-commit: TBD
+commit: ff06e6d647533dc5e341f171983b806c49b15d67
