@@ -899,3 +899,14 @@ type OrderCorrectionRacedError struct {
 // Error renders the fixed refusal line (the current words ride the
 // fields of the problem contract).
 func (e OrderCorrectionRacedError) Error() string { return OrderCorrectionReassignedWord }
+
+// OrderCorrectionAssignGateError is the structural 409 refusal of the
+// new verification assignment while the correction is open (AC-2: the
+// order stays blocked from the progression until the fix and the NEW
+// verification — the new task is never created before the correction
+// closes). The word IS the panel word — the transport maps the 409 BY
+// NAME.
+type OrderCorrectionAssignGateError struct{}
+
+// Error renders the fixed gate line.
+func (e OrderCorrectionAssignGateError) Error() string { return OrderCorrectionAssignGateWord }

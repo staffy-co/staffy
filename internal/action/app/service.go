@@ -116,6 +116,19 @@ type Service struct {
 	// the cases module exists). A NIL repository is the HONEST unwired
 	// state (the preview precedent): every command refuses in words.
 	verifications port.OrderVerificationRepository
+
+	// Story 4.8 (step-02): the order correction contour — the Correction
+	// Work Item over the LAST CLOSED blocked decision of the verification.
+	// The repository owns the TWO locked appends (the creation with the
+	// opening opened event carrying the blocked material BY NAME; the
+	// lifecycle event with the CAS epoch re-validation); the anchor reads
+	// ride the EXISTING repositories (the operations, the dispatch
+	// receipts, the verifications) and the reread fence re-derives the
+	// LIVE composition through the SAME caseMaterial port the builder and
+	// the 4.7 fence read. A NIL repository is the HONEST unwired state
+	// (the preview precedent): every command refuses in words AND the
+	// structural gates hold nothing (no corrections exist).
+	corrections port.OrderCorrectionRepository
 }
 
 // New wires the service. The resolvers are the composition-root adapters
@@ -244,6 +257,19 @@ func (s *Service) WithOrderVersions(source port.OrderVersionSource) *Service {
 // precedent).
 func (s *Service) WithOrderVerifications(repository port.OrderVerificationRepository) *Service {
 	s.verifications = repository
+	return s
+}
+
+// WithOrderCorrections wires the order correction contour of story 4.8
+// (the fixture and the transport composition roots): the correction
+// repository. The anchor reads ride the WithOrderVerifications/
+// WithAuthorization wirings (the verifications, the operations and the
+// receipts); the reread fence rides the WithPreviews case material and
+// the WithAuthorization confirmations. A root that wires nothing keeps
+// the HONEST refusal of the unwired contour (the preview precedent) and
+// the structural gates hold nothing.
+func (s *Service) WithOrderCorrections(repository port.OrderCorrectionRepository) *Service {
+	s.corrections = repository
 	return s
 }
 

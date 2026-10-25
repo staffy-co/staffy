@@ -156,6 +156,27 @@ func (s *Service) AssignOrderVerification(ctx context.Context, command AssignOrd
 	if err != nil {
 		return OrderVerificationOutcome{}, err
 	}
+	// THE STRUCTURAL GATE of story 4.8 (AC-2: «заказ остаётся
+	// заблокированным от дальнейшего продвижения»): an OPEN order
+	// correction of the operation refuses the new verification task with
+	// the honest 409 — the check returns AFTER the correction closes
+	// (the new task is never created before the fix; the word is the
+	// panel word). A NIL correction repository is the honest unwired
+	// contour — no corrections exist, the gate holds nothing.
+	if s.corrections != nil {
+		corrections, gateErr := s.corrections.ReadOperationCorrections(ctx, scope, command.OperationID)
+		if gateErr == nil {
+			for _, correction := range corrections {
+				events, eventsErr := s.corrections.ReadCorrectionEvents(ctx, scope, correction.CaseID, correction.CorrectionNo)
+				if eventsErr != nil {
+					continue
+				}
+				if domain.DeriveOrderCorrectionState(correction, events, command.Now).Active() {
+					return OrderVerificationOutcome{}, domain.OrderCorrectionAssignGateError{}
+				}
+			}
+		}
+	}
 	// The assignee must be an ACTIVE member holding the review scope; the
 	// backup must be an active member (the LIVE truth of the identity —
 	// never a stored snapshot).
