@@ -5095,3 +5095,19 @@ done:
 next: CHECKPOINT 1 story 4-8 — явное одобрение владельца «одобряю»/«продолжайте» В ОТВЕТ на предъявление спеки (дисциплина 52-sm, прецеденты 53-sm/207/216/226/234): флип спека backlog → ready-for-dev + sprint-status 4-8-коррекция-подбора-до-закупки → ready-for-dev синхронно → Dev шаги 01-05 → CHECKPOINT 2 (Epic 4: 8/11); спека предъявлена владельцу отдельным финальным ответом этой сессии
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — использовался для верификации, ls-remote и пуша ветки 4-8)
 commit: TBD
+
+---
+date: 2026-10-25
+task: 242-checkpoint-1
+role: main (Super Z, сессия web-d497a728, возобновление после смерти контекста)
+story: 4-8
+summary: CHECKPOINT 1 story 4-8 — мандат «продолжайте (токен)» получен В ОТВЕТ на предъявление спеки 241-sm (дисциплина 52-sm, прецеденты 53-sm/207/216/226/234): спека backlog → ready-for-dev + sprint-status 4-8-коррекция-подбора-до-закупки → ready-for-dev синхронно; окружение восстановлено bootstrap foreground (Go 1.27.1, PG 16.4:54329, build/vet OK, unit 33 пакета ok); Dev-фаза 01-05 открыта
+done:
+- Протокол: живой git-зонд до правок (HEAD 7cb202a = origin ветки 4-8 RPO=0 живым ls-remote; main a5be51d не тронут; дерево чистое); PAT верифицирован /user 200 env-only (artemiosu); CONTINUITY.md прочитан по постоянному правилу
+- Контейнер сброшен 4-й раз (Go/PG исчезли) — bootstrap в foreground успешен (урок 234-checkpoint-1: фоновый режим в песочнице не выживает); WIP-дерево не тронуто
+- Флипы синхронно: spec-4-8-order-correction-before-purchase.md front-matter status ready-for-dev + sprint-status.yaml 4-8-коррекция-подбора-до-закупки ready-for-dev; qa_spec_scan_4_8.py на новом статусе CLEAN (fail=0 warn=0)
+- Входы Dev-фазы уже сверены живым чтением в 241-sm (эпик 16 AC-блоков FR-59, PRD FR-59 + проверяемые последствия, GATE-REGISTRY OQ-3/AG-4/OQ-1/OQ-2, машина 2-13, грант-матрица identity, EDIT-лестница NewPreviewVersionFromEdit, миграции action 00001..00006 — следующая 00007, journeys 49 — следующий z45)
+- Регресс входа: go build ./... OK, go vet ./... OK, unit 33 пакета ok (0 отказов)
+next: Dev step-01 story 4-8 — миграция migrations/action/00007_order_corrections.sql (2 append-only таблицы + RLS/CHECK-зеркала + TestMain-регистрация) + домен internal/action/domain/order_correction.go (типы/гварды поимённой матрицы/словари {correct_4h, correct_1d} + 3 причины/честные слова/DeriveOrderCorrectionState + DeriveOrderCorrectionDiff) + unit-тесты (гварды поимённо/деривации/байт-стабильность слов/зонды) + DEVLOG 243 + коммит [skip ci] + пуш
+владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для пушей шагов Dev-фазы)
+commit: TBD
