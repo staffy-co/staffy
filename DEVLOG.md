@@ -5444,4 +5444,4 @@ done:
 - Регресс ПОЛНЫЙ: build/vet чисто; unit всё ok; интеграция ×2 TZ зелёная (UTC 52.6s / Europe/Moscow 53.6s — матрица 772 в обоих); journeys 52/52 4.2m (z47 — новый 52-й); git diff --check чисто; секрет-зонды 0
 next: Dev step-05 story 4-10 — QA-саморевью и closure: свежий контекст по живому диффу ветки шагов 01-04 (замороженные машины 2-3/2-13/3-6/3-8/4-6..4-9 НЕ тронуты — name-only; SQL ровно 1 миграция 00009; supplier-send 0; уведомления 0; ценовые поля 0; import-graph домена только platform/id; AD-10 SAFE-пины; серверная истина актёра) + qa_step05_4_10_scan.py + финальный регресс свежими прогонами + closure: Spec Change Log CHECKPOINT 1 + Dev 01-05, спека done, sprint-status done — Epic 4: 10/11; коммит feat БЕЗ маркера — CI ×3 на CHECKPOINT 2
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ)
-commit: TBD
+commit: ac442af0e1a555ec554e5963e14b8c4a5b9d17fc
