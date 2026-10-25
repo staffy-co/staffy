@@ -5390,4 +5390,4 @@ done:
 - Регресс: build/vet всего репо чисто; unit internal/action 30 пакетов ok; интеграция ×2 TZ зелёная живым PG (UTC 54.5s / Europe/Moscow 57.5s — миграция применена TestMain, RLS/гранты/CHECK живые); git diff --check чисто
 next: Dev step-02 story 4-10 — порт OrderServicingRepository (append под advisory-lock + чтение запросов кейса + lookup внешних ID над квитанциями ∪ перечитами ∪ фактами) + AssuranceSource порт (живое чтение assurance 2-3, nil = честный отказ) + store order_servicing_store.go + app RecordOrderServicingRequest (rights gate Review → живой кейс → assurance → lookup BY KEY → гварды → replay BY KEY → append с proof-пинами) + OrderServicingView + api.OrderServicingService + unit (команды/идемпотентность/lookup три исхода/proof-пины поимённо); регресс ×2 TZ; DEVLOG 260 + коммит [skip ci] + пуш
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ)
-commit: TBD
+commit: 314997e6069238bcd25de4fffb36ae42e3d5840b
