@@ -518,6 +518,18 @@ func TestMain(m *testing.M) {
         if _, err = adminPool.Exec(ctx, strings.Split(string(actionOrderSupplierFactsMigration), "-- +goose Down")[0]); err != nil {
                 panic(err)
         }
+        // Story 4.10: the NINTH migration of the action module — the
+        // order servicing requests (the append-only recorded-event table
+        // of the repeat contact with the idempotency BY KEY of the full
+        // request key at the same trust state). The registration stays in
+        // this hard list (the 3.3 lesson).
+        actionOrderServicingRequestsMigration, err := os.ReadFile("../../migrations/action/00009_order_servicing_requests.sql")
+        if err != nil {
+                panic(err)
+        }
+        if _, err = adminPool.Exec(ctx, strings.Split(string(actionOrderServicingRequestsMigration), "-- +goose Down")[0]); err != nil {
+                panic(err)
+        }
         if _, err = adminPool.Exec(ctx, "alter role staffy_app login password 'staffy-runtime-test'"); err != nil {
                 panic(err)
         }

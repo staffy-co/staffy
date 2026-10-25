@@ -3769,6 +3769,26 @@ paths:
         '401': { $ref: '#/components/responses/Problem' }
         '403': { description: 'Полномочие review отсутствует', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
         '404': { description: 'Не-участник / кейс не найден / операции заказа в кейсе нет', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/order-servicing-requests:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+    post:
+      operationId: recordOrderServicingRequest
+      summary: 'Записать обращение по существующему заказу (Story 4.10): append-only запись ПОВТОРНОГО обращения — оператор с полномочием review фиксирует, что клиент спросил: интент (слово словаря 8 интентов) + типизированный признак, названный клиентом (abcp_client_order_id — номер заказа клиента в ABCP / supplier_order_id — номер заказа у поставщика; поиск по телефону/email НЕ существует — OQ-16) + значение; Identity Proof Gate: proof-пины {уровень, метод, время выдачи, срок} КОПИРУЮТСЯ из живого чтения assurance кейса обращения при записи (AC-4) — раскрытие (включая сам факт НАЛИЧИЯ заказа) только при живом verified; Caller ID/имя профиля/знание номера — НЕ доказательство (гейт читает только записи проверки 2-3); Order Lookup BY KEY над записанным материалом контура (квитанции диспетчера 4-6 ∪ перечиты 4-8 ∪ факты поставщика 4-9 — AG-4/OQ-18, чтение внешних систем НЕ подключено): исходы unique_match/not_found/ambiguous — перечисление заказов НЕ существует, not_found не раскрывает чужое (generic слово), ambiguous без перечня; идемпотентность UNIQUE полного ключа (tenant, case, actor, intent, identifier_kind, identifier_value, proof_state): повтор при том же доверии = сохранённый запрос с replay=true; изменившееся доверие (none→verified) = НОВАЯ запись (лестница доверия видна); FR-62: повторное обращение НЕ создаёт новую операцию заказа (resolved_operation_id ссылается на существующую); запрос фиксируется, но НЕ утверждает результат (AC-6); отмена/изменение НЕ исполняются (OQ-3 fence / AG-4 ручной контур)'
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrderServicingRequest' }
+      responses:
+        '201': { description: 'Обращение записано: append-only строка с proof-пинами и исходом поиска', content: { application/json: { schema: { type: object, required: [request], properties: { request: { $ref: '#/components/schemas/OrderServicingOutcome' } } } } } }
+        '200': { description: 'Идемпотентный повтор BY KEY при том же состоянии доверия: возвращён СОХРАНЁННЫЙ запрос (replay=true), второй строки нет', content: { application/json: { schema: { type: object, required: [request], properties: { request: { $ref: '#/components/schemas/OrderServicingOutcome' } } } } } }
+        '400': { description: 'Гварды поимённо: интент вне словаря 8 слов, тип признака вне словаря 2 слов (поиск по телефону/email не существует — OQ-16), пустое значение/свыше 200 символов', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Участник без полномочия review — 403 словом скоупа ДО материала', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { description: 'Не-участник / кейс обращения не найден (RLS-слепота)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
   /v1/tenants/{tenant_id}/cases/{case_id}/action-previews/{preview_id}/versions:
     parameters:
       - $ref: '#/components/parameters/TenantID'
@@ -8176,6 +8196,36 @@ components:
         replay: { type: boolean, description: 'Идемпотентный повтор BY KEY — возвращён сохранённый факт' }
         source: { type: string, enum: [system_receipt, manager_record], description: 'Источник факта BY NAME — человеческая квитанция НИКОГДА не отображается как системная (AC-5)' }
         source_word: { type: string, description: 'Честное слово источника (AG-4: чтение ABCP адаптером не подключено)' }
+    OrderServicingRequest:
+      type: object
+      additionalProperties: false
+      description: 'Тело записи обращения по заказу (Story 4.10): интент-слово словаря 8 интентов + тип признака, названного клиентом (2 слова) + значение. НИ ОДНОГО поля поиска по телефону/email (OQ-16 — сквозной профиль не строится), НИ ОДНОГО поля отмены/изменения (OQ-3 fence / AG-4 — запрос фиксируется, НЕ исполняется), НИ ОДНОГО поля адаптера внешних систем (AG-4/OQ-18 — lookup читает только записанный контуром материал).'
+      required: [intent, identifier_kind, identifier_value]
+      properties:
+        intent: { type: string, enum: [order_status, clarification, change, cancel, return, claim, dispute, human], description: 'Интент обращения — СЛОВО словаря (8 слов с границами каждого)' }
+        identifier_kind: { type: string, enum: [abcp_client_order_id, supplier_order_id], description: 'Тип признака — СЛОВО словаря: ABCP ID и supplier ID — РАЗНЫЕ типы внешних идентификаторов (AC-2)' }
+        identifier_value: { type: string, minLength: 1, maxLength: 200, description: 'Значение признака, названное клиентом' }
+    OrderServicingOutcome:
+      type: object
+      additionalProperties: false
+      description: 'Исход записи обращения (Story 4.10): сохранённая (или реплейнутая) append-only строка с proof-пинами (уровень/метод/время выдачи/срок — скопированы из живого чтения assurance при записи, AC-4), исходом поиска BY KEY и исходом раскрытия. Replay=true — идемпотентный повтор BY KEY при ТОМ ЖЕ состоянии доверия; изменившееся доверие = новая запись (лестница видна). Раскрытие = производная ЧТЕНИЯ: клиентские слова перечитываются живой проекцией 4-9 — НЕ сохраняются.'
+      required: [request_no, intent, identifier_kind, identifier_value, lookup_outcome, proof_state, disclosure, recorded_at, replay, recorded_word]
+      properties:
+        request_no: { type: integer, minimum: 1, description: 'Монотонный номер обращения лестницы кейса' }
+        intent: { type: string, enum: [order_status, clarification, change, cancel, return, claim, dispute, human] }
+        identifier_kind: { type: string, enum: [abcp_client_order_id, supplier_order_id] }
+        identifier_value: { type: string, minLength: 1, maxLength: 200 }
+        resolved_operation_id: { type: string, format: uuid, description: 'Якорь найденной операции (пусто при not_found/ambiguous — перечисление НЕ существует; FR-62: ссылается на существующую операцию, новая НЕ создаётся)' }
+        lookup_outcome: { type: string, enum: [unique_match, not_found, ambiguous], description: 'Исход поиска BY KEY над записанным материалом контура (AG-4/OQ-18)' }
+        proof_state: { type: string, enum: [none, basic, verified, step_up], description: 'Proof-состояние на момент записи — зеркало словаря 2-3 BY NAME + step_up окно' }
+        proof_method: { type: string, description: 'Метод последней passed записи проверки (пусто при none)' }
+        proof_issued_at: { type: string, format: date-time, description: 'Время выдачи живой проверки (AC-4: пины сохранены)' }
+        proof_expires_at: { type: string, format: date-time, description: 'Срок живой проверки (AC-4)' }
+        disclosure: { type: string, enum: [allowed, denied], description: 'Раскрытие: allowed только при verified (AC-1) — включая сам факт наличия заказа' }
+        actor_id: { type: string, format: uuid, description: 'Серверная истина актёра (оператор с review)' }
+        recorded_at: { type: string, format: date-time, description: 'Серверное время записи' }
+        replay: { type: boolean, description: 'Идемпотентный повтор BY KEY при том же доверии' }
+        recorded_word: { type: string, description: 'Честное слово записи: фиксирует запрос, но не утверждает результат (AC-6)' }
     OrderStatusView:
       type: object
       additionalProperties: false

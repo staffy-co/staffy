@@ -606,6 +606,16 @@ func (s *Server) caseDetailPage(w http.ResponseWriter, r *http.Request) {
                 s.casesPageProblem(w, r, err)
                 return
         }
+        // The Story 4.10 servicing panel: the same honest degradation (an
+        // unwired surface or a scope-forbidden member renders the zero panel —
+        // the page keeps the rest; every other failure fails the page
+        // honestly). The panel never fails on a case without recorded
+        // requests — the feed speaks the honest absence.
+        page.OrderServicing, err = s.orderServicingPanelOf(r.Context(), actor, tenant, caseID)
+        if err != nil {
+                s.casesPageProblem(w, r, err)
+                return
+        }
         s.render(w, "case", map[string]any{
                 "TenantID": tenant,
                 "View":     page,

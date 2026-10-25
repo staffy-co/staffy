@@ -42,6 +42,7 @@ type Server struct {
         orderVerifications  actionAPI.OrderVerificationService
         orderCorrections    actionAPI.OrderCorrectionService
         orderStatus         actionAPI.OrderStatusService
+        orderServicing      actionAPI.OrderServicingService
         authorization       actionAPI.AuthorizationService
         dispatch            actionAPI.DispatchService
         reconcile           actionAPI.ReconcileService

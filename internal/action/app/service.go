@@ -1,17 +1,17 @@
 package app
 
 import (
-        "context"
-        "errors"
-        "fmt"
+	"context"
+	"errors"
+	"fmt"
 
-        "github.com/artemiosu/staffy/internal/action/api"
-        actionCatalog "github.com/artemiosu/staffy/internal/action/catalog"
-        "github.com/artemiosu/staffy/internal/action/domain"
-        "github.com/artemiosu/staffy/internal/action/port"
-        identityAPI "github.com/artemiosu/staffy/internal/identity/api"
-        identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-        "github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/artemiosu/staffy/internal/action/api"
+	actionCatalog "github.com/artemiosu/staffy/internal/action/catalog"
+	"github.com/artemiosu/staffy/internal/action/domain"
+	"github.com/artemiosu/staffy/internal/action/port"
+	identityAPI "github.com/artemiosu/staffy/internal/identity/api"
+	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
+	"github.com/artemiosu/staffy/internal/platform/id"
 )
 
 // actionCatalogScopeText is the honest scope refusal of the catalog read:
@@ -37,110 +37,127 @@ var _ api.ActionCatalogService = (*Service)(nil)
 // an unwired 3-4 port is the HONEST refusal, never an assumed "ok"
 // (the ConnectionsFacts precedent).
 type Service struct {
-        identity identityAPI.MembershipService
-        packs    domain.PackRefResolver
-        caps     domain.CapabilityRefResolver
-        defs     []domain.ActionDefinition
+	identity identityAPI.MembershipService
+	packs    domain.PackRefResolver
+	caps     domain.CapabilityRefResolver
+	defs     []domain.ActionDefinition
 
-        // Story 3-4 (step-02): the preparation contour.
-        previews       port.PreviewRepository  // the append-only store (mandatory for the contour)
-        previewReader  port.OwningSystemReader // nil = the honest blocked_material (AG-4)
-        dryRunner      port.DryRunner          // nil = the honest refusal in words (AG-4)
-        previewControl port.ControlEffectiveReader
-        caseMaterial   port.CaseMaterialSource
-        members        port.MembersSource
-        entitlement    port.EntitlementSource
-        readiness      port.ReadinessSource
-        connectors     port.ConnectorFactsSource
-        routeFacts     port.RouteFactsSource
-        ids            api.IDGenerator
+	// Story 3-4 (step-02): the preparation contour.
+	previews       port.PreviewRepository  // the append-only store (mandatory for the contour)
+	previewReader  port.OwningSystemReader // nil = the honest blocked_material (AG-4)
+	dryRunner      port.DryRunner          // nil = the honest refusal in words (AG-4)
+	previewControl port.ControlEffectiveReader
+	caseMaterial   port.CaseMaterialSource
+	members        port.MembersSource
+	entitlement    port.EntitlementSource
+	readiness      port.ReadinessSource
+	connectors     port.ConnectorFactsSource
+	routeFacts     port.RouteFactsSource
+	ids            api.IDGenerator
 
-        // Story 3.5 (step-02): the confirmation→authorization contour. The two
-        // repositories of the consent and the operations share the SAME
-        // Postgres store of the module; the LIVE fact sources above are the
-        // ones the freshness/policy re-checks of the gateway read (the 3-4
-        // wiring — «3-5 читает тот же вывод»).
-        confirmations port.ConfirmationRepository
-        operations    port.OperationRepository
+	// Story 3.5 (step-02): the confirmation→authorization contour. The two
+	// repositories of the consent and the operations share the SAME
+	// Postgres store of the module; the LIVE fact sources above are the
+	// ones the freshness/policy re-checks of the gateway read (the 3-4
+	// wiring — «3-5 читает тот же вывод»).
+	confirmations port.ConfirmationRepository
+	operations    port.OperationRepository
 
-        // Story 3.6 (step-02): the execution contour — the dispatch worker.
-        // The dispatch repository owns the THREE adapter-free transactions
-        // (the write-ahead lease, the fenced verdict, the raced-guarded
-        // parking); the mutation adapter is the consumer-owned door to the
-        // provider world — nil is the HONEST production state (AG-4: no
-        // real providers exist, the drain refuses in words, the queue
-        // honestly stays pending). The adapter is called ONLY outside every
-        // store transaction (persist-before-emit, AD-6).
-        dispatches      port.DispatchRepository
-        dispatchAdapter port.MutationAdapter
+	// Story 3.6 (step-02): the execution contour — the dispatch worker.
+	// The dispatch repository owns the THREE adapter-free transactions
+	// (the write-ahead lease, the fenced verdict, the raced-guarded
+	// parking); the mutation adapter is the consumer-owned door to the
+	// provider world — nil is the HONEST production state (AG-4: no
+	// real providers exist, the drain refuses in words, the queue
+	// honestly stays pending). The adapter is called ONLY outside every
+	// store transaction (persist-before-emit, AD-6).
+	dispatches      port.DispatchRepository
+	dispatchAdapter port.MutationAdapter
 
-        // Story 3.7 (step-02): the reconciliation contour — the reconcile worker.
-        // The reconciliation repository owns the TWO adapter-free transactions
-        // (the write-ahead query lease, the fenced verdict with the terminal
-        // lock); the READ-ONLY query adapter is the consumer-owned door to the
-        // answer world — nil is the HONEST production state (AG-4: no real
-        // owning systems exist, the reconcile command refuses in words, the
-        // pending targets honestly stay). The adapter is called ONLY outside
-        // every store transaction (persist-before-emit, AD-6).
-        reconciliations  port.ReconciliationRepository
-        reconcileAdapter port.ReconciliationAdapter
+	// Story 3.7 (step-02): the reconciliation contour — the reconcile worker.
+	// The reconciliation repository owns the TWO adapter-free transactions
+	// (the write-ahead query lease, the fenced verdict with the terminal
+	// lock); the READ-ONLY query adapter is the consumer-owned door to the
+	// answer world — nil is the HONEST production state (AG-4: no real
+	// owning systems exist, the reconcile command refuses in words, the
+	// pending targets honestly stay). The adapter is called ONLY outside
+	// every store transaction (persist-before-emit, AD-6).
+	reconciliations  port.ReconciliationRepository
+	reconcileAdapter port.ReconciliationAdapter
 
-        // Story 3.8 (step-02): the recovery-case contour — the creation
-        // worker. The recovery repository owns the ONE creation transaction
-        // (the advisory lock resolves the creation race by the idempotent
-        // return) and the read-time fact reads; there is NO adapter at all —
-        // the contour is LOCAL (the assignment reads the LIVE ownership and
-        // coverage words through the caseMaterial/routeFacts ports wired since
-        // 3-4 — in-process module reads, never the provider world; the
-        // network stays in the dispatch/reconciliation contours of 3-6/3-7,
-        // AG-4).
-        recoveries port.RecoveryRepository
+	// Story 3.8 (step-02): the recovery-case contour — the creation
+	// worker. The recovery repository owns the ONE creation transaction
+	// (the advisory lock resolves the creation race by the idempotent
+	// return) and the read-time fact reads; there is NO adapter at all —
+	// the contour is LOCAL (the assignment reads the LIVE ownership and
+	// coverage words through the caseMaterial/routeFacts ports wired since
+	// 3-4 — in-process module reads, never the provider world; the
+	// network stays in the dispatch/reconciliation contours of 3-6/3-7,
+	// AG-4).
+	recoveries port.RecoveryRepository
 
-        // Story 4.6 (step-02): the order composition revalidation source — the
-        // consumer-owned port the dispatch ladder reads AFTER the confirmation
-        // fence and BEFORE the case liveness (AC-5: the live re-derivation of
-        // the ONE canonical OrderDigest; any substantial change of ANY of the
-        // five inputs blocks the dispatch with the exact word). A NIL source is
-        // the HONEST production boundary (the FreshReads precedent, AG-4): the
-        // order dispatch fails CLOSED — never an assumed «unchanged».
-        orderVersions port.OrderVersionSource
+	// Story 4.6 (step-02): the order composition revalidation source — the
+	// consumer-owned port the dispatch ladder reads AFTER the confirmation
+	// fence and BEFORE the case liveness (AC-5: the live re-derivation of
+	// the ONE canonical OrderDigest; any substantial change of ANY of the
+	// five inputs blocks the dispatch with the exact word). A NIL source is
+	// the HONEST production boundary (the FreshReads precedent, AG-4): the
+	// order dispatch fails CLOSED — never an assumed «unchanged».
+	orderVersions port.OrderVersionSource
 
-        // Story 4.7 (step-02): the manager order verification contour — the
-        // Delegated Task over the committed receipt of the order action. The
-        // repository owns the TWO locked appends (the creation with the
-        // opening assigned event; the lifecycle event with the CAS epoch
-        // re-validation); the anchor reads ride the EXISTING repositories
-        // (the operations, the dispatch receipts) and the decision fence
-        // re-derives the LIVE composition through the SAME caseMaterial port
-        // the builder reads (the consumer-owned reuse — NO write path into
-        // the cases module exists). A NIL repository is the HONEST unwired
-        // state (the preview precedent): every command refuses in words.
-        verifications port.OrderVerificationRepository
+	// Story 4.7 (step-02): the manager order verification contour — the
+	// Delegated Task over the committed receipt of the order action. The
+	// repository owns the TWO locked appends (the creation with the
+	// opening assigned event; the lifecycle event with the CAS epoch
+	// re-validation); the anchor reads ride the EXISTING repositories
+	// (the operations, the dispatch receipts) and the decision fence
+	// re-derives the LIVE composition through the SAME caseMaterial port
+	// the builder reads (the consumer-owned reuse — NO write path into
+	// the cases module exists). A NIL repository is the HONEST unwired
+	// state (the preview precedent): every command refuses in words.
+	verifications port.OrderVerificationRepository
 
-        // Story 4.8 (step-02): the order correction contour — the Correction
-        // Work Item over the LAST CLOSED blocked decision of the verification.
-        // The repository owns the TWO locked appends (the creation with the
-        // opening opened event carrying the blocked material BY NAME; the
-        // lifecycle event with the CAS epoch re-validation); the anchor reads
-        // ride the EXISTING repositories (the operations, the dispatch
-        // receipts, the verifications) and the reread fence re-derives the
-        // LIVE composition through the SAME caseMaterial port the builder and
-        // the 4.7 fence read. A NIL repository is the HONEST unwired state
-        // (the preview precedent): every command refuses in words AND the
-        // structural gates hold nothing (no corrections exist).
-        corrections port.OrderCorrectionRepository
+	// Story 4.8 (step-02): the order correction contour — the Correction
+	// Work Item over the LAST CLOSED blocked decision of the verification.
+	// The repository owns the TWO locked appends (the creation with the
+	// opening opened event carrying the blocked material BY NAME; the
+	// lifecycle event with the CAS epoch re-validation); the anchor reads
+	// ride the EXISTING repositories (the operations, the dispatch
+	// receipts, the verifications) and the reread fence re-derives the
+	// LIVE composition through the SAME caseMaterial port the builder and
+	// the 4.7 fence read. A NIL repository is the HONEST unwired state
+	// (the preview precedent): every command refuses in words AND the
+	// structural gates hold nothing (no corrections exist).
+	corrections port.OrderCorrectionRepository
 
-        // Story 4.9 (step-02): the order status contour — the Supplier Order
-        // Fact Receipt (the human {formed, sent} receipts over the LIVE
-        // order operation) and the Order Status Projection read. The
-        // repository owns the ONE locked idempotent append (the fact_no
-        // ladder with the UNIQUE full fact key — the replay BY KEY, AC-9);
-        // the projection reads ride the EXISTING repositories (the
-        // operations, the receipts, the verifications, the corrections) and
-        // the estimate material rides the SAME caseMaterial port. A NIL
-        // repository is the HONEST unwired state (the preview precedent):
-        // every command refuses in words.
-        orderFacts port.OrderSupplierFactRepository
+	// Story 4.9 (step-02): the order status contour — the Supplier Order
+	// Fact Receipt (the human {formed, sent} receipts over the LIVE
+	// order operation) and the Order Status Projection read. The
+	// repository owns the ONE locked idempotent append (the fact_no
+	// ladder with the UNIQUE full fact key — the replay BY KEY, AC-9);
+	// the projection reads ride the EXISTING repositories (the
+	// operations, the receipts, the verifications, the corrections) and
+	// the estimate material rides the SAME caseMaterial port. A NIL
+	// repository is the HONEST unwired state (the preview precedent):
+	// every command refuses in words.
+	orderFacts port.OrderSupplierFactRepository
+
+	// Story 4.10 (step-02): the order servicing contour — the Order
+	// Servicing Request (the recorded event of the repeat contact over
+	// the EXISTING order operation of the tenant) and the Order
+	// Servicing View read. The repository owns the ONE locked
+	// idempotent append (the request_no ladder with the UNIQUE full
+	// request key at the SAME trust state — the replay BY KEY; the
+	// changed trust state is a NEW row, the ladder stays visible); the
+	// lookup reads the RECORDED material of the contour (the receipts,
+	// the rereads, the facts — AG-4/OQ-18); the assurance rides the NEW
+	// narrow AssuranceSource port (the LIVE 2-3 derivation of the
+	// contact case — the composition-root adapter precedent of the
+	// caseMaterial). A NIL repository or a NIL assurance source is the
+	// HONEST unwired state (the preview precedent): every command
+	// refuses in words — never a masked «ok» proof pin.
+	orderServicing port.OrderServicingRepository
+	assurance      port.AssuranceSource
 }
 
 // New wires the service. The resolvers are the composition-root adapters
@@ -151,7 +168,7 @@ type Service struct {
 // slice — fixtures never live in the product binary). The slice is treated
 // as immutable from here on; every read returns a defensive copy.
 func New(identity identityAPI.MembershipService, packs port.PackRefResolver, caps port.CapabilityRefResolver, defs []domain.ActionDefinition) *Service {
-        return &Service{identity: identity, packs: packs, caps: caps, defs: defs}
+	return &Service{identity: identity, packs: packs, caps: caps, defs: defs}
 }
 
 // WithPreviews wires the whole preparation contour of story 3-4 in one
@@ -162,35 +179,35 @@ func New(identity identityAPI.MembershipService, packs port.PackRefResolver, cap
 // (nil reader = the blocked_material readiness word, nil runner = the
 // spoken unsupported refusal).
 func (s *Service) WithPreviews(repository port.PreviewRepository, control port.ControlEffectiveReader,
-        material port.CaseMaterialSource, memberFacts port.MembersSource,
-        admissions port.EntitlementSource, readinessFacts port.ReadinessSource,
-        connections port.ConnectorFactsSource, routes port.RouteFactsSource, ids api.IDGenerator) *Service {
-        s.previews = repository
-        s.previewControl = control
-        s.caseMaterial = material
-        s.members = memberFacts
-        s.entitlement = admissions
-        s.readiness = readinessFacts
-        s.connectors = connections
-        s.routeFacts = routes
-        s.ids = ids
-        return s
+	material port.CaseMaterialSource, memberFacts port.MembersSource,
+	admissions port.EntitlementSource, readinessFacts port.ReadinessSource,
+	connections port.ConnectorFactsSource, routes port.RouteFactsSource, ids api.IDGenerator) *Service {
+	s.previews = repository
+	s.previewControl = control
+	s.caseMaterial = material
+	s.members = memberFacts
+	s.entitlement = admissions
+	s.readiness = readinessFacts
+	s.connectors = connections
+	s.routeFacts = routes
+	s.ids = ids
+	return s
 }
 
 // WithPreviewReader wires the material reader of the snapshot (the test
 // contour wires the synthetic adapter; the production root wires NOTHING
 // — AG-4: no real providers exist, the readiness honestly blocks).
 func (s *Service) WithPreviewReader(reader port.OwningSystemReader) *Service {
-        s.previewReader = reader
-        return s
+	s.previewReader = reader
+	return s
 }
 
 // WithPreviewDryRunner wires the validation adapter (the test contour
 // only — AG-4: the production root wires nothing, the dry-run surface
 // honestly refuses in words).
 func (s *Service) WithPreviewDryRunner(runner port.DryRunner) *Service {
-        s.dryRunner = runner
-        return s
+	s.dryRunner = runner
+	return s
 }
 
 // WithAuthorization wires the confirmation→authorization contour of story
@@ -201,9 +218,9 @@ func (s *Service) WithPreviewDryRunner(runner port.DryRunner) *Service {
 // wiring — its absence is the HONEST fail-closed authorization refusal
 // (the production root wires nothing).
 func (s *Service) WithAuthorization(consents port.ConfirmationRepository, ops port.OperationRepository) *Service {
-        s.confirmations = consents
-        s.operations = ops
-        return s
+	s.confirmations = consents
+	s.operations = ops
+	return s
 }
 
 // WithDispatch wires the execution contour of story 3.6 (the fixture and
@@ -214,9 +231,9 @@ func (s *Service) WithAuthorization(consents port.ConfirmationRepository, ops po
 // test contour is importable ONLY by the composition roots, never by the
 // product binary — the import-graph probe of step-04).
 func (s *Service) WithDispatch(dispatches port.DispatchRepository, adapter port.MutationAdapter) *Service {
-        s.dispatches = dispatches
-        s.dispatchAdapter = adapter
-        return s
+	s.dispatches = dispatches
+	s.dispatchAdapter = adapter
+	return s
 }
 
 // WithReconcile wires the reconciliation contour of story 3.7 (the fixture
@@ -228,9 +245,9 @@ func (s *Service) WithDispatch(dispatches port.DispatchRepository, adapter port.
 // composition roots, never by the product binary — the import-graph probe
 // of step-04).
 func (s *Service) WithReconcile(repository port.ReconciliationRepository, adapter port.ReconciliationAdapter) *Service {
-        s.reconciliations = repository
-        s.reconcileAdapter = adapter
-        return s
+	s.reconciliations = repository
+	s.reconcileAdapter = adapter
+	return s
 }
 
 // WithRecovery wires the recovery-case contour of story 3.8 (the fixture
@@ -244,8 +261,8 @@ func (s *Service) WithReconcile(repository port.ReconciliationRepository, adapte
 // (AG-4: the unwired contour answers reconciliation_unavailable — the
 // human is mandatory — and the recovery cases still get created).
 func (s *Service) WithRecovery(repository port.RecoveryRepository) *Service {
-        s.recoveries = repository
-        return s
+	s.recoveries = repository
+	return s
 }
 
 // WithOrderVersions wires the order composition revalidation source of
@@ -256,8 +273,8 @@ func (s *Service) WithRecovery(repository port.RecoveryRepository) *Service {
 // nothing fails the order dispatch CLOSED with the exact word, the
 // FreshReads precedent).
 func (s *Service) WithOrderVersions(source port.OrderVersionSource) *Service {
-        s.orderVersions = source
-        return s
+	s.orderVersions = source
+	return s
 }
 
 // WithOrderVerifications wires the manager order verification contour of
@@ -268,8 +285,8 @@ func (s *Service) WithOrderVersions(source port.OrderVersionSource) *Service {
 // keeps the HONEST refusal of the unwired contour (the preview
 // precedent).
 func (s *Service) WithOrderVerifications(repository port.OrderVerificationRepository) *Service {
-        s.verifications = repository
-        return s
+	s.verifications = repository
+	return s
 }
 
 // WithOrderCorrections wires the order correction contour of story 4.8
@@ -281,8 +298,8 @@ func (s *Service) WithOrderVerifications(repository port.OrderVerificationReposi
 // the HONEST refusal of the unwired contour (the preview precedent) and
 // the structural gates hold nothing.
 func (s *Service) WithOrderCorrections(repository port.OrderCorrectionRepository) *Service {
-        s.corrections = repository
-        return s
+	s.corrections = repository
+	return s
 }
 
 // WithOrderSupplierFacts wires the order status contour of story 4.9
@@ -293,8 +310,25 @@ func (s *Service) WithOrderCorrections(repository port.OrderCorrectionRepository
 // WithPreviews case material. A root that wires nothing keeps the
 // HONEST refusal of the unwired contour (the preview precedent).
 func (s *Service) WithOrderSupplierFacts(repository port.OrderSupplierFactRepository) *Service {
-        s.orderFacts = repository
-        return s
+	s.orderFacts = repository
+	return s
+}
+
+// WithOrderServicing wires the order servicing contour of story 4.10
+// (the fixture and the transport composition roots): the servicing
+// request repository and the LIVE assurance source of the contact
+// case. The anchor/projection reads ride the WithAuthorization/
+// WithDispatch/WithOrderVerifications/WithOrderCorrections/
+// WithOrderSupplierFacts wirings; the estimate material rides the
+// WithPreviews case material; the Identity Proof Gate rides the
+// assurance source (the composition-root adapter over the cases API —
+// the CaseMaterialSource precedent). A root that wires nothing keeps
+// the HONEST refusal of the unwired contour (the preview precedent)
+// and the gate NEVER answers «ok» on a nil source.
+func (s *Service) WithOrderServicing(repository port.OrderServicingRepository, assurance port.AssuranceSource) *Service {
+	s.orderServicing = repository
+	s.assurance = assurance
+	return s
 }
 
 // authorize is the read gate, in the honest order:
@@ -310,58 +344,58 @@ func (s *Service) WithOrderSupplierFacts(repository port.OrderSupplierFactReposi
 // The member-with-integrations path is one Authorize call; only the
 // integrations-less member pays the second (configuration) call.
 func (s *Service) authorize(ctx context.Context, actor identityDomain.Principal, tenantID id.UUID) error {
-        if !actor.ID.Valid() || !tenantID.Valid() {
-                return domain.ErrNotFound
-        }
-        integrationsErr := s.identity.Authorize(ctx, actor, tenantID, identityDomain.Integrations)
-        if integrationsErr == nil {
-                return nil
-        }
-        if errors.Is(integrationsErr, identityDomain.ErrForbidden) {
-                // The member exists: configuration is the second honest way in.
-                configurationErr := s.identity.Authorize(ctx, actor, tenantID, identityDomain.Configuration)
-                if configurationErr == nil {
-                        return nil
-                }
-                if errors.Is(configurationErr, identityDomain.ErrForbidden) {
-                        return fmt.Errorf("%w: %s", domain.ErrForbidden, actionCatalogScopeText)
-                }
-                if errors.Is(configurationErr, identityDomain.ErrNotFound) {
-                        // The membership vanished between the two calls: the honest 404.
-                        return domain.ErrNotFound
-                }
-                return configurationErr
-        }
-        if errors.Is(integrationsErr, identityDomain.ErrNotFound) {
-                // A non-member of the tenant: the module's own 404 identity (the
-                // transport maps the action domain error, never the identity one).
-                return domain.ErrNotFound
-        }
-        return integrationsErr
+	if !actor.ID.Valid() || !tenantID.Valid() {
+		return domain.ErrNotFound
+	}
+	integrationsErr := s.identity.Authorize(ctx, actor, tenantID, identityDomain.Integrations)
+	if integrationsErr == nil {
+		return nil
+	}
+	if errors.Is(integrationsErr, identityDomain.ErrForbidden) {
+		// The member exists: configuration is the second honest way in.
+		configurationErr := s.identity.Authorize(ctx, actor, tenantID, identityDomain.Configuration)
+		if configurationErr == nil {
+			return nil
+		}
+		if errors.Is(configurationErr, identityDomain.ErrForbidden) {
+			return fmt.Errorf("%w: %s", domain.ErrForbidden, actionCatalogScopeText)
+		}
+		if errors.Is(configurationErr, identityDomain.ErrNotFound) {
+			// The membership vanished between the two calls: the honest 404.
+			return domain.ErrNotFound
+		}
+		return configurationErr
+	}
+	if errors.Is(integrationsErr, identityDomain.ErrNotFound) {
+		// A non-member of the tenant: the module's own 404 identity (the
+		// transport maps the action domain error, never the identity one).
+		return domain.ErrNotFound
+	}
+	return integrationsErr
 }
 
 // List serves the newest version of every definition of the injected
 // dictionary (the read gate FIRST; a defensive copy — the caller may
 // mutate the result, never the dictionary).
 func (s *Service) List(ctx context.Context, actor identityDomain.Principal, tenantID id.UUID) ([]domain.ActionDefinition, error) {
-        if err := s.authorize(ctx, actor, tenantID); err != nil {
-                return nil, err
-        }
-        return actionCatalog.ListFrom(s.defs), nil
+	if err := s.authorize(ctx, actor, tenantID); err != nil {
+		return nil, err
+	}
+	return actionCatalog.ListFrom(s.defs), nil
 }
 
 // Get pins one definition by id and exact version (AC-8). The read gate
 // runs FIRST; an unknown or unparseable pin is the honest ErrNotFound —
 // the pinned past stays resolvable, the invented future does not exist.
 func (s *Service) Get(ctx context.Context, actor identityDomain.Principal, tenantID id.UUID, definitionID, version string) (domain.ActionDefinition, error) {
-        if err := s.authorize(ctx, actor, tenantID); err != nil {
-                return domain.ActionDefinition{}, err
-        }
-        def, ok := actionCatalog.GetFrom(s.defs, definitionID, version)
-        if !ok {
-                return domain.ActionDefinition{}, domain.ErrNotFound
-        }
-        return def, nil
+	if err := s.authorize(ctx, actor, tenantID); err != nil {
+		return domain.ActionDefinition{}, err
+	}
+	def, ok := actionCatalog.GetFrom(s.defs, definitionID, version)
+	if !ok {
+		return domain.ActionDefinition{}, domain.ErrNotFound
+	}
+	return def, nil
 }
 
 // ValidateBinaryCatalog walks the PRODUCTION binary dictionary through the
@@ -374,14 +408,14 @@ func (s *Service) Get(ctx context.Context, actor identityDomain.Principal, tenan
 // truth. Nothing here touches the injected fixture dictionary — the
 // product binary is the subject.
 func (s *Service) ValidateBinaryCatalog() error {
-        defs := actionCatalog.All()
-        if err := domain.CatalogIntegrity(defs); err != nil {
-                return err
-        }
-        for _, d := range defs {
-                if err := domain.ValidateDefinitionRefs(d, s.packs, s.caps); err != nil {
-                        return err
-                }
-        }
-        return nil
+	defs := actionCatalog.All()
+	if err := domain.CatalogIntegrity(defs); err != nil {
+		return err
+	}
+	for _, d := range defs {
+		if err := domain.ValidateDefinitionRefs(d, s.packs, s.caps); err != nil {
+			return err
+		}
+	}
+	return nil
 }

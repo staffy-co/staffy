@@ -148,6 +148,14 @@ type caseDetailPageView struct {
         // correction — the Order Status Projection over the material of
         // the three machines plus the supplier facts).
         OrderStatus orderStatusPanelView
+        // The Story 4.10 servicing panel (the case-level section after the
+        // status — the Order Servicing Request feed over the repeat-contact
+        // material of the store contour with the LIVE derivations).
+        OrderServicing orderServicingPanelView
+        // The Story 4.10 success flags of the PRG form (the honest status
+        // words of the record command — the replay word rides the flag).
+        ServicingRequestRecorded bool
+        ServicingRequestReplay    bool
         // The Story 4.9 success flags of the PRG form (the honest status
         // words of the record commands — the replay word rides the flag).
         SupplierFactFormed bool
@@ -963,6 +971,11 @@ func prepareCaseView(r *http.Request, view casesAPI.CaseView, facts casesAPI.Fac
         out.SupplierFactFormed = r.URL.Query().Get("supplier_fact_formed") == "1"
         out.SupplierFactSent = r.URL.Query().Get("supplier_fact_sent") == "1"
         out.SupplierFactReplay = r.URL.Query().Get("supplier_fact_replay") == "1"
+        // The Story 4.10 PRG success flags of the record form (the honest
+        // status lines of the servicing request command — the replay flag
+        // speaks the idempotent repeat BY KEY at the same trust state).
+        out.ServicingRequestRecorded = r.URL.Query().Get("servicing_request_recorded") == "1"
+        out.ServicingRequestReplay = r.URL.Query().Get("servicing_request_replay") == "1"
         // The Story 2.16 PRG success flag of the «Обещать обновление» form
         // (the honest status line of the waiting section — the flag rides the
         // URL, the error rides the flash cookie).

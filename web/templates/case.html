@@ -1879,6 +1879,67 @@
 {{end}}
 </section>
 {{end}}
+{{if .View.OrderServicing.Wired}}
+<h2>Обслуживание заказа</h2>
+<section class="panel" aria-label="Обслуживание заказа" id="order-servicing">
+<p class="next-note">Обслуживание — контур 4-10: append-only запись повторного обращения по существующему заказу; запрос фиксируется, но не утверждает результат; раскрытие (включая сам факт наличия заказа) — только при живом уровне доверия verified кейса обращения (проверка личности — панель «Уровень доверия обращения» выше, контур 2-3); Caller ID, имя профиля чата и знание номера заказа — не доказательство (гейт читает только записи проверки личности).</p>
+{{if .View.ServicingRequestRecorded}}<p class="status" role="status">Обращение по заказу записано (append-only): запрос клиента сохранён, результат не утверждается.</p>{{end}}
+{{if .View.ServicingRequestReplay}}<p class="status" role="status">Повтор команды обращения при том же состоянии доверия: возвращён сохранённый запрос, второй строки нет; изменившееся доверие (после проверки личности) записывается НОВЫМ обращением — лестница доверия видна в истории.</p>{{end}}
+<p class="next-note">{{.View.OrderServicing.PhoneBoundary}}; {{.View.OrderServicing.ConnectorBoundary}}.</p>
+<p class="next-note">{{.View.OrderServicing.NoDelivery}}.</p>
+{{if .View.OrderServicing.Requests}}
+<h3>Записанные обращения</h3>
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Обращения по заказу">
+<table class="datamap-table">
+<caption>Обращения: интент, признак с типом и источником, исход поиска, proof-пины, раскрытие, время записи</caption>
+<thead><tr><th scope="col">№</th><th scope="col">Интент</th><th scope="col">Признак</th><th scope="col">Исход поиска</th><th scope="col">Proof-пины</th><th scope="col">Раскрытие</th><th scope="col">Записано</th></tr></thead>
+<tbody>
+{{range .View.OrderServicing.Requests}}
+<tr><th scope="row">№{{.RequestNo}}</th><td>{{.Intent}} — {{.IntentShort}}</td><td>{{.KindShort}}: <span class="digest-block">{{.Value}}</span> ({{.KindSource}}); источники матча: {{.Sources}}</td><td>{{.Outcome}} — {{.OutcomeWord}}</td><td>{{.ProofState}}{{if .ProofMethod}}; метод: {{.ProofMethod}}{{end}}{{if .ProofIssued}}; выдано: {{.ProofIssued}}{{end}}{{if .ProofExpires}}; срок: {{.ProofExpires}}{{end}}</td><td>{{.Disclosure}} — {{.DisclosureWord}}</td><td>{{.RecordedAt}}</td></tr>
+{{end}}
+</tbody>
+</table>
+</div>
+{{range .View.OrderServicing.Requests}}
+{{if .Cancel}}
+<h3>Отмена обращения №{{.RequestNo}}: четыре состояния</h3>
+<p class="status" role="status">1. {{.Cancel.RequestRecorded}}</p>
+<p class="status" role="status">2. {{.Cancel.PreparedAction}}</p>
+<p class="status" role="status">3. {{.Cancel.Confirmed}}</p>
+<p class="status" role="status">4. {{.Cancel.NotEditable}}</p>
+<p class="next-note">Состояние фактов поставщика: {{.Cancel.TouchWord}}. {{.Cancel.ManualContour}}</p>
+{{end}}
+{{if .ClientWords}}
+<h3>Клиентские слова обращения №{{.RequestNo}} (материал пересказа)</h3>
+{{range .ClientWords}}
+<p class="status" role="status">{{.}}</p>
+{{end}}
+{{end}}
+{{end}}
+{{else}}
+<p class="next-note">Обращений по заказу не записано: история начнётся первой записью формы ниже.</p>
+{{end}}
+<h3>Записать обращение по существующему заказу</h3>
+<form method="post" action="{{.View.OrderServicing.FormTarget}}" class="panel-form">
+<fieldset>
+<legend>Записать повторное обращение — фиксирует запрос клиента, НЕ исполняет его</legend>
+<label for="servicing-intent">Интент обращения (слово словаря)</label>
+<select id="servicing-intent" name="intent" required>
+{{range .View.OrderServicing.IntentOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}
+</select>
+<label for="servicing-kind">Тип признака, названного клиентом (слово словаря)</label>
+<select id="servicing-kind" name="identifier_kind" required>
+{{range .View.OrderServicing.KindOptions}}<option value="{{.Value}}">{{.Text}}</option>{{end}}
+</select>
+<label for="servicing-value">Значение признака (номер, названный клиентом)</label>
+<input id="servicing-value" name="identifier_value" type="text" autocomplete="off" required maxlength="200">
+<p class="next-note">Поиск по телефону или email не существует (OQ-16); поиск читает только записанный контуром материал (AG-4/OQ-18); отмена никогда не обещается и не исполняется этой формой (OQ-3/AG-4); запись доступна участнику с полномочием review.</p>
+<button type="submit">Записать обращение</button>
+</fieldset>
+</form>
+<p class="next-note"><a href="{{.View.OrderServicing.HumanLinkHref}}">{{.View.OrderServicing.HumanLinkWord}}</a> — контур 2-13 (запрос человека с якорем заказа); <a href="{{.View.OrderServicing.ReturnLinkHref}}">{{.View.OrderServicing.ReturnLinkWord}}</a> — контур 2-10.</p>
+</section>
+{{end}}
 <h2>Диалоги канала</h2>
 <p role="status" aria-live="polite">{{if .View.HasConversations}}Диалогов: <strong>{{len .View.Conversations}}</strong>; каждый — продолжение одной channel session.{{else}}Диалогов нет.{{end}}</p>
 {{if .View.HasConversations}}
