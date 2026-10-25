@@ -487,6 +487,10 @@ type OrderStatusDeadlineBlock struct {
 type OrderStatusProjection struct {
         Stages        []OrderStageEvidence
         CurrentStage  string
+        // OperationID is the anchor operation of the projection (the form
+        // target of the record commands — the LIVE order operation of the
+        // case; zero when the case carries no order).
+        OperationID   id.UUID
         SpecialState  string
         SpecialOwner  id.UUID
         SpecialDetail string
@@ -847,6 +851,9 @@ func DeriveOrderStatusProjection(m OrderStatusMaterial, now time.Time) OrderStat
                         projection.CurrentStage = stage.Stage
                 }
         }
+        // The anchor operation of the record form (zero when the case
+        // carries no order — the honest miss).
+        projection.OperationID = m.Operation.OperationID
 
         // The special state (AC-12): the open correction is spoken FIRST,
         // never hidden behind «в работе»; the blocked decision without an
