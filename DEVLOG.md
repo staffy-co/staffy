@@ -5374,4 +5374,4 @@ done:
 - Флипы синхронно: spec-4-10-safe-existing-order-servicing.md front-matter status ready-for-dev + sprint-status.yaml 4-10-безопасное-обслуживание-существующего-заказа ready-for-dev; qa_spec_scan_4_10.py на новом статусе CLEAN (fail=0 warn=0)
 next: Dev step-01 story 4-10 — миграция migrations/action/00009_order_servicing_requests.sql (1 append-only таблица запросов + UNIQUE полного ключа (tenant_id, case_id, actor_id, intent, identifier_kind, identifier_value, proof_state) + RLS/FORCE + гранты INSERT/SELECT + CHECK-зеркала + TestMain-регистрация) + домен internal/action/domain/order_servicing.go (словари 8 интентов/2 типов признаков/3 исходов/proof-состояний/исходов раскрытия + слова гейта/границ/отмены + DeriveServicingClientWords + DeriveCancelFeasibility + GuardOrderServicingRequest) + unit-тесты (деривации поимённо/четыре состояния отмены/зонды: supplier-send полей 0, уведомительных полей 0, ценовых полей 0) + DEVLOG 259 + коммит [skip ci] + пуш
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — использовался для верификации /user и пушей ветки)
-commit: TBD
+commit: c42f70666b5a31062ea64933d76ec3311f030035
