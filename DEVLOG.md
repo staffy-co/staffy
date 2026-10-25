@@ -5459,4 +5459,4 @@ done:
 - Closure: Spec Change Log — запись CHECKPOINT 1 (мандат «продолжайте (токен)» В ОТВЕТ на предъявление 257-sm) + запись Dev 01-05 (шаги с честными находками-фиксами: ячейка disclosure шаблона/нулевые proof-времена/PRG-флаг до goto); спека status done; sprint-status 4-10-безопасное-обслуживание-существующего-заказа: done — Epic 4: 10/11
 next: CHECKPOINT 2 story 4-10 — PR (python-JSON, sha-pinned голова) → CI ×3 зелёный ПОИМЁННО → живой GET сверки → sha-pinned merge → локальный main ff-only → DEVLOG 264-фиксации + PR-скрипт в main → удаление слитой ветки по правилу владельца (GitHub API DELETE + локально + prune) → предъявление владельцу
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — использовался для пушей всех шагов)
-commit: TBD
+commit: d4f62181e9cfe19b31490582d7227f32585a7c5a
