@@ -3929,7 +3929,7 @@ done:
 - Коммит чекпоинта (docs(story-3-9): CHECKPOINT 1) [skip ci] + эта запись головой [skip ci]; пуш сразу за коммитами (уроки 148/152 «незапушенное не существует»).
 
 next: Dev шаги 01-05 story 3-9 по Tasks & Acceptance: step-01 домен policy (recoverypolicy.go: словари 5+2 compile-time, атрибуты вида scope/eligibility/required_facts/authority/confirmation_required, DeriveRecoveryActionPolicy лестница per-вид {allowed/blocked/human_only + honest-слово}, bounded, unit-матрица поимённо) → step-02 app read-only (RecoveryCasePolicy живыми чтениями reused — кейс/факты/def/controls/AG-4, НИ ОДНОЙ записи счётчиками, reflect-зонд, НОВЫХ методов стора НЕТ) → step-03 транспорт/страница/OpenAPI (+GET policy 200/401/403/404 membership-до-материала + секция «Разрешённые действия» карточки + OpenAPI +1 путь/+3 схемы/зеркала 5+2 + контракт-тест + server.go роут + api DTO) → step-04 интеграционная матрица живой PG поверх мира 3-8 + journeys z37 → step-05 QA-саморевью и closure → CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge). Владельцу: отозвать PAT подтверждённо после сессии (retro-2-6, передачи открытым текстом).
-commit: TBD
+commit: a41fff0
 
 ---
 
@@ -3946,7 +3946,7 @@ done:
 - Регресс: go build/vet ok; unit ПОЛНЫЙ сьют 30 пакетов FAIL 0; gofmt touched чист; скан scripts/qa_step_scan_3_9.py (копия 3-8 по классу проверок — sm_spec_scan.py не пережил рецикл): 3 файла +1174 строк, secrets 0 / CJK 0 / ctrl 0 / hex 0 — VERDICT CLEAN.
 
 next: Dev step-02 story 3-9 — app read-only: internal/action/app/recovery.go surgical +RecoveryCasePolicy(scope, tenant, caseID) живыми чтениями reused (ReadRecoveryCase → ReadRecoveryOperationFacts → catalogDefinition → previewControl.EffectiveFor → AG-4 s.reconcileAdapter != nil), DeriveRecoveryCaseState над событиями кейса, вызов домена, сбор api-вида; НИ ОДНОЙ записи (счётчики фейк-репо на нуле на любом пути), reflect-зонд локальности, НОВЫХ методов стора НЕТ (порт только чтения reused); unit фейк-репо матрица.
-commit: TBD
+commit: a41fff0
 
 ---
 
@@ -3963,7 +3963,7 @@ done:
 - Регресс: build/vet ok; unit ПОЛНЫЙ сьют 30 пакетов FAIL 0; gofmt touched чист; скан: 3 файла +466 строк, 0/0/0/0 CLEAN.
 
 next: Dev step-03 story 3-9 — транспорт/страница/OpenAPI: api/recovery.go +RecoveryPolicyView/RecoveryActionView/RecoveryHumanOnlyDecisionView DTO + RecoveryService += RecoveryCasePolicy (read-only); transport recovery_cases.go +recoveryMachinePolicyAPI (GET /v1/tenants/{t}/recovery-cases/{id}/policy 200/401/403/404 membership-до-материала) + расширение карточки секцией «Разрешённые действия» (вид страницы); server.go BindRecovery +1 маршрут; шаблон recovery_cases.html секция (details атрибутов, human-блок отдельно, «требует отдельного явного подтверждения», a11y 320px reused каркас 3-8); OpenAPI +1 путь/+3 схемы/+зеркала 5+2 + контракт-тест (drift = красный); транспортные unit.
-commit: TBD
+commit: a41fff0
 
 ---
 
@@ -3985,7 +3985,7 @@ done:
 - Регресс: build/vet ok (все пакеты); unit ПОЛНЫЙ сьют 31 пакет FAIL 0 (включая contracts/openapi); gofmt touched чист; скан: 9 файлов +601 строк 0/0/0/0 CLEAN. Wiring: main.go БЕЗ изменений (контур локален — роут в BindRecovery reused binding), НОВЫХ строителей НЕТ.
 
 next: Dev step-04 story 3-9 — интеграционная матрица живой PG поверх мира 3-8 (tests/integration/action_recovery_policy_test.go: полный набор exhausted-кейса; пустая семантика; ошибка определения fail-closed; paused tenant/connector живьём — материальные blocked/read-only остаются; AG-4-мир setAG4World; идемпотентность вывода ×2 вызова; 404/403; RLS через 404; import-graph прод 0; словари-зеркала) + journeys z37 (секция словами, human-границы, подтверждение-слова, замороженные слова 3-8 байт-стабильны, a11y 320px/клавиатура/фокус).
-commit: TBD
+commit: a41fff0
 
 ---
 
@@ -4018,7 +4018,7 @@ done:
 - Батч-пуш ветки заголовком step-05 БЕЗ [skip ci] — CI ветки должен пройти зелёным (Go checks + PostgreSQL integration + Browser journeys на ubuntu-26.04 / node24 / go1.27.1 — та же связка, что локально).
 
 next: CHECKPOINT 2 story 3-9 — по сигналу владельца: PR из ветки codex/story-3-9-recovery-action-policy → CI ×3 зелёный поимённо (push/PR/merge) → sha-pinned merge в main → DEVLOG 179-checkpoint-2 → слитая ветка удалить по поручению; далее эпик-ретро Epic 3 либо следующий эпик по сигналу SM; владельцу: отозвать PAT подтверждённо после сессии (retro-2-6, ≥10 передач открытым текстом за эпик).
-commit: TBD
+commit: a41fff0
 
 ---
 
@@ -4036,7 +4036,7 @@ done:
 - Сессия исполнена по утверждённому владельцем плану (сводка-предшественница отставала на стадию — позиция восстановлена git > DEVLOG по playbook §4.1): ветки 3-6/3-7 подтверждены удалёнными живым ls-remote (на origin только main + ветка 3-9 — пункт плана уже был исполнен ранее); CI-предупреждения подтверждены закрытыми ранее (PR #38: ubuntu-26.04, checkout@v7, setup-go@v7, setup-node@v7, node 24.21.0); инструментальная среда нового контейнера восстановлена с нуля (Go 1.27.1 портативно, PostgreSQL 18.6 zonky embedded, chromium_headless_shell-1243).
 
 next: по сигналу владельца — эпик-ретро Epic 3 (9/9 историй, кандидаты: ретро-2-5 git ls-files ≥ 28 → актуализация порога под 42; retro-2-3 регистр слотов миров; урок lease-последовательности clock/reconcile z37) либо следующий эпик по сигналу SM (SM-фаза: входы epics.md следующего эпика + sprint-status). Владельцу: ОТЗВАТЬ PAT подтверждённо после сессии (retro-2-6 — передавался открытым текстом ≥3 раза в этих сессиях); слитая ветка 3-9 на GitHub — удаление по поручению.
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-23
@@ -4052,7 +4052,7 @@ done:
 - deferred-work.md: +9 записей honest-границ спек 3-1..3-9 (retro-3-1): планировщик drain/reconcile; webhook-приёмник поздних квитанций; многошаговые частичные эффекты AC-4; cancel/compensation исполнение AC-7/8; claim-режим recovery_case.created AC-3; recovery-обновления клиенту AC-9; eval-инфраструктура AC-12; tenant-конфигурация действий AC-4 каталога; recovery-scope сверки при paused — все с source_spec/evidence; регистр 49 → 58 записей, записи Epic 2 не удалялись (annotation-дисциплина retro-1-2).
 - Ключевые сверки ретро по живым данным: DEVLOG-записи Epic 3 = 56 (позиции 170–225 файла, нумерация 102-retro…179-checkpoint-2; union-мерджи сместили порядок — счёт по позициям граничных task-строк); PR-мерджи #32…#41 + #133-ложное-совпадение отсеяно; unit-функции 1000 / интеграция 208 / OpenAPI 142 на ed6c827 воспроизведены git ls-tree + git show; PolicyOutcome PascalCase подтверждён ОТКРЫТЫМ (json-тегов в доменной структуре нет) — рекомендация Epic 2 «механические первыми срезами Epic 3» НЕ исполнена, перенесена в Epic 4.
 next: Epic 4 «Эксперт по автозапчастям магазина Олега» — SM-фаза story 4-1 «Допуск каналов и систем пилота магазина Олега» по сигналу владельца (входы: epics.md §Epic 4, PRD, прецеденты action/control/cases, deferred-work — провайдерские адаптеры ABCP/Laximo становятся прицельными); вне среза владельцу: ОТЗВАТЬ PAT подтверждённо после закрытия чата (retro-3-6/retro-2-6 — передавался открытым текстом в этих сессиях многократно); открытые retro-3-2 (epic-валидация + CI ls-files ≥ 37) и retro-3-3 (регистр слотов) — кандидаты следующего инфра-цикла.
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-23
@@ -4067,7 +4067,7 @@ done:
 - Спека записана: _bmad-output/implementation-artifacts/spec-4-1-pilot-admission-registry.md (~95 строк формата 3-9: frontmatter context 10 входов, Intent Problem/Approach/Ядро честности, Always/Never, I/O матрица 18 Given-строк, Code Map 11 позиций, Tasks & Acceptance steps 01-05 с гейтами, Implementation Notes 7 позиций, Spec Change Log SM-запись). Honest-границы поимённо: реальные probes/адаптеры/credentials — будущие срезы по AG-4/OQ-11; runtime response_owner_epoch — домен cases 2-4 не дублируется; webhook-ингресс/измерение задержек/Human Inbox реализация/ABCP↔1С синхронизация — будущие срезы; машиночитаемый импорт канона GATE-REGISTRY — задокументированный долг (сверка 17 полей × 7 SM-фазой поимённо).
 - Ветка codex/story-4-1-pilot-admission-registry создана от main ecd8f2c (baseline_commit зафиксирован в спеке); sprint-status.yaml НЕ трогается (4-1 остаётся backlog до явного «одобряю» — флип backlog → ready-for-dev синхронно спеке на CHECKPOINT 1, прецедент 3-9 173-checkpoint-1).
 next: публикация ветки живым PAT из сессии (RPO=0 — уроки 148/152; публикация спеки в backlog НЕ закрывает чекпоинт) → CHECKPOINT 1 по явному «одобряю» владельца → Dev шаги 01-05 (домен pilot + gateDictionary +7 → каталог connector 3 версии → app/транспорт/страница/OpenAPI → матрица живой PG + journeys z38 → QA-саморевью и регресс) → CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge). Владельцу: ОТЗВАТЬ PAT подтверждённо после закрытия чата (retro-3-6/retro-2-6 — передавался открытым текстом в этих сессиях многократно); открытые retro-3-2 (epic-валидация + CI ls-files ≥ 37) и retro-3-3 (регистр слотов миров c2xx+) — кандидаты инфра-цикла, НЕ блокируют 4-1.
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-23
@@ -4082,7 +4082,7 @@ done:
 - Флип исполнен синхронно: спека 4-1 status backlog → ready-for-dev + запись CHECKPOINT 1 головой Spec Change Log; sprint-status ключ 4-1-допуск-каналов-и-систем-пилота-магазина-олега → ready-for-dev И epic-4 backlog → in-progress (переход эпика НЕ пропущен на чекпоинте первой истории — урок 3-1 be883ae «переход пропущен на CHECKPOINT 1, честно исправлен здесь» не повторяется; прецедент 2-1/90709bf); last_updated уже 10-23-2026. Дифф 3 файла (+2 строки лога спеки), замороженные секции не тронуты.
 - Коммит чекпоинта (docs(story-4-1): CHECKPOINT 1) [skip ci] + эта запись; пуш сразу за коммитом (уроки 148/152 «незапушенное не существует»), RPO=0 проверится живым ls-remote после пуша.
 next: Dev шаги 01-05 по Tasks & Acceptance спеки 4-1 (шаг-01 домен: gateDictionary +7 пилотных определений + словарь маршрутов 6 + матрица ABCP→1С + unit-матрица; шаг-02 каталог connector 3 версии деклараций + unit; шаг-03 app read-time деривация над тремя источниками reused + транспорт GET /v1/tenants/{t}/pilot/admission + страница «Пилот автозапчастей» + OpenAPI зеркала; шаг-04 интеграционная матрица живой PG + journeys z38; шаг-05 QA-саморевью и closure) → CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge). Владельцу: ОТЗВАТЬ PAT подтверждённо после закрытия чата (retro-3-6/retro-2-6 — передавался открытым текстом многократно).
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-23
@@ -4103,7 +4103,7 @@ done:
 - Инструментальная среда НОВОГО контейнера восстановлена по playbook §4.1: bootstrap.sh (Go 1.27.1 ~/.local/go, PG zonky порт 54329, playwright chromium_headless_shell-1243 доставлен npx install — контейнер имел 1200).
 - Регресс свежими прогонами: go build ok / go vet ok / unit ./... FAIL 0 / интеграция ×2 TZ (UTC 38.2с + Msk 34.7с) ok / journeys 42/42 1.9м / скан qa_step_scan_3_9.py origin/main: 7 файлов +2568 строк secrets 0 / cjk 0 / ctrl 0, hex 10 = фикстуры evidence-hash «aaaa…» (64) + baseline_commit SHA (40) — прецедент 3-9.
 next: step-02 — каталог connector: jivo-chat 1.1.0 (восемь capabilities AC-3 полной семантики), abcp-parts 1.1.0 (шесть read-only AC-7 + prepare-client-order ProbeAllowed false AC-8 + manager-only словарь), staffy-synthetic-telephony 1.2.0 (пять SIP query AC-6) + unit каталога (зеркальность словарю маршрутов, immutable-пины 1.0.0/1.1.0, ProbeAllowed только read-only, supplier-слова 0). Владельцу: отозвать PAT после закрытия чата.
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-23
@@ -4119,7 +4119,7 @@ done:
 - CapabilityRef-пины actions-словаря (3-5/3-4 словари, ConnectorVersion 1.1.0) НЕ тронуты — замороженные секции Epic 3: immutable-пин 1.1.0 резолвится через Get, действие продолжает пинить точный контракт своей версии.
 - Регресс свежими прогонами: build/vet ok / unit ./... FAIL 0 / интеграция ×2 TZ 38.1с+37.4с ok / journeys 42/42 1.9м / скан qa_step_scan_3_9.py HEAD: 7 файлов +863 строки 0/0/0/0 CLEAN.
 next: step-03 — app read-only + транспорт + страница + OpenAPI: app PilotAdmission живыми чтениями reused (манифесты → ConnectorFacts → gate-инстанцы), НИ ОДНОЙ записи (счётчики), reflect-зонд + GET /v1/tenants/{t}/pilot/admission (200/401/403/404, membership-404 ДО материала) + pilot.html (стадии/owners/fence/a11y 320px) + OpenAPI +1 путь/+4 схемы/зеркала + контракт-тест + server.go роут. Владельцу: отозвать PAT после закрытия чата.
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-23
@@ -4138,7 +4138,7 @@ done:
 - Тесты: app/pilot_test.go 7 тестов (единый pilotStore фейк = postgres-прецедент composition; счётчики: НИ ОДНОЙ записи ×3 вызова, все чтения живые; пин: 2.0.0 ✓ / чужой пак ✓ / 1.0.0 ниже минимума ✓; агрегация инстансов СОТРУДНИКОВ: AG-2/AG-4 PASS на втором сотруднике → human_fallback admitted; verified факт любого подключения держит при stale на другом; права review/member-без-скоупа/не-участник; идемпотентность JSON ×2; reflect-зонд: 4 порта пиннуты по числу методов — 4-1 НЕ добавила НИ ОДНОГО persistence-метода); transport/pilot_test.go 6 тестов (wire-shape контракт: ключи PilotAdmissionView/Report/RouteRow/MatrixRow, 6 маршрутов порядок, матрица 8; honest-слова: pack-missing + Jivo-адаптер + fence AC-9; 404/403 ladder + readiness_forbidden код; свободные query-поля 200; страница: стадии текстом, владелец OQ-1 (html-escape «+»→«&#43;» — DOM-текст journeys корректен), safe state OQ-3, fence, unknown-слово, skip-link, details, секреты 0).
 - Регресс свежими прогонами: build/vet ok / unit ./... FAIL 0 (вкл. contracts/openapi 27 тестов) / интеграция ×2 TZ 38.6с+39.6с ok / journeys 42/42 1.9м / скан qa_step_scan_3_9.py HEAD: 8 файлов +2736 строк 0/0/0/0 CLEAN.
 next: step-04 — интеграционная матрица живой PG поверх миров 1-13/1-14 (pack-pin fail-closed; адаптер-нереализован candidate; synthetic verified при открытых гейтах → blocked поимённо; expired evidence → только затронутый маршрут; PASS-инстансы существующим контуром → admitted путь; 404/403; RLS через 404; import-graph прод 0; словари-зеркала) + journeys z38. Владельцу: отозвать PAT после закрытия чата.
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-23
@@ -4154,7 +4154,7 @@ done:
 - Fixture-расширение (surgical): profileMemberIDs += backupMemberID 00000000000c (второй активный член — прецедент прод-миров readiness backup; двух-рольные PASS-гейты AG-2/AG-4 требуют различных принципалов; аддитивно — существующие journey используют только owner).
 - Регресс свежими прогонами: build/vet ok / unit ./... FAIL 0 / интеграция ×2 TZ 35.6с+39.1с ok (с новой миграцией в TestMain) / journeys 43/43 2.0м (42+1 новый) / скан qa_step_scan_3_9.py HEAD: 2 файла +677 строк 0/0/0/0 CLEAN.
 next: step-05 — QA-саморевью и регресс: свежий контекст по диффу шагов 01-04 (нулевые записи; read-only; fail-closed; идемпотентность вывода; словари-зеркала; supplier-слова 0; mixed/CJK; import-graph; замороженные слова — правило 162) + финальный регресс + коммит feat БЕЗ маркера пропуска (голова триггерит CI — урок 2-14/ретро-2-1). Владельцу: отозвать PAT после закрытия чата.
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-23
@@ -4169,7 +4169,7 @@ done:
 - Closure: Spec Change Log += Dev шаги 01-05 запись (голова лога после CHECKPOINT 1); спека status ready-for-dev → done; sprint-status 4-1-допуск-каналов-и-систем-пилота-магазина-олега → done — Epic 4: 1/11.
 - Коммит feat (docs+closure) БЕЗ маркера [skip ci] — голова ветки триггерит CI ×3 на CHECKPOINT 2 (урок 2-14/ретро-2-1: CI-запуск на голове).
 next: CHECKPOINT 2 по сигналу владельца — PR (титул «Story 4-1 Pilot Admission Registry — Epic 4: 1/11», пин слияния в теле) + CI ×3 зелёный поимённо + sha-pinned merge; ветка остаётся на GitHub до поручения об удалении (прецедент MERGED-зонд). Владельцу: ОТЗВАТЬ PAT после закрытия чата (retro-3-6/retro-2-6 — передавался открытым текстом многократно).
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-23
@@ -4186,7 +4186,7 @@ done:
 - Merge run на main #39874935192 (head 7f91503) — зелёный. CI ×3 зелёный поимённо — прецедент соблюдён.
 - Story 4-1 полностью закрыта: спека done (Spec Change Log: 181-sm / 182-checkpoint-1 / Dev 01-05), sprint-status done; Epic 4: 1/11 (осталось 4-2..4-11 + ретро). Ветка codex/story-4-1-pilot-admission-registry остаётся на GitHub (удаление — по поручению владельца, прецедент MERGED-зонд merge-base перед удалением).
 next: по сигналу владельца — SM-фаза story 4-2 «Структурированная идентификация автомобиля и защищённая передача данных» (входы: epics.md §Epic 4, PRD, каталог abcp-parts 1.1.0 декларации AC-7 — query.identify-vehicle готов) либо удаление слитой ветки по поручению. Владельцу: ОТЗВАТЬ PAT подтверждённо после закрытия чата (retro-3-6/retro-2-6 — передавался открытым текстом многократно).
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-23
@@ -4202,7 +4202,7 @@ done:
 - Спека записана: _bmad-output/implementation-artifacts/spec-4-2-vehicle-identification-vin.md (~140 строк формата 4-1: frontmatter context 9 входов, Intent Problem/Approach/Ядро честности, Always/Never, I/O матрица 18 Given-строк, Code Map 14 позиций, Tasks & Acceptance steps 01-05 с гейтами, Implementation Notes 10 позиций, Spec Change Log SM-запись).
 - Ветка codex/story-4-2-vehicle-identification-vin создана от main 038d4c0 (baseline_commit зафиксирован в спеке); sprint-status.yaml НЕ трогается (4-2 остаётся backlog до явного «одобряю» — флип backlog → ready-for-dev синхронно спеке на CHECKPOINT 1, прецедент 4-1 182-checkpoint-1).
 next: ветка ОПУБЛИКОВАНА живым push этой сессии (51ce33a, RPO=0 живым ls-remote — уроки 148/152 «незапушенное не существует» исполнены) → CHECKPOINT 1 по явному «одобряю» владельца (спека ждёт; дисциплина 52-sm) → Dev шаги 01-05 (домен vehicle + пак 3.0.0 + порт → миграция 00018 + подтверждение app → поверхности + OpenAPI → матрица живой PG мир c2xx + journeys z39 → QA-саморевью и closure) → CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge). Владельцу: ОТЗВАТЬ PAT подтверждённо после закрытия чата (retro-3-6/retro-2-6 — передавался открытым текстом многократно; токен этой сессии ЖИВ — отозвать по закрытии); открытые retro-3-2/retro-3-3 (регистр слотов c2xx+ учтён в спеке) — кандидаты инфра-цикла, НЕ блокируют 4-2.
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-23
@@ -4217,7 +4217,7 @@ done:
 - Флип исполнен синхронно: спека 4-2 status backlog → ready-for-dev + запись CHECKPOINT 1 головой Spec Change Log; sprint-status ключ 4-2-структурированная-идентификация-автомобиля-и-защищённая-пере → ready-for-dev; epic-4 БЕЗ изменений (in-progress с 182-checkpoint-1 — урок 3-1 be883ae о НЕпропуске перехода эпика неприменим к повторному флипу: эпик уже активен); last_updated уже 10-23-2026. Дифф 3 файла (спека + sprint-status + DEVLOG), замороженные секции не тронуты.
 - Коммит чекпоинта (docs(story-4-2): CHECKPOINT 1) с маркером пропуска CI + эта запись; пуш сразу за коммитом (уроки 148/152 «незапушенное не существует»), RPO=0 проверится живым ls-remote после пуша.
 next: Dev шаги 01-05 по Tasks & Acceptance спеки 4-2 (шаг-01 домен: cases/domain/vehicle.go нормализация флагами без молчаливых исправлений + ISO 3779 + readback-словарь трёх рядов + MaskedVIN + DeriveVehicleProfile read-time + пак auto-parts@3.0.0 через PackTaxonomy +1 метод порта + unit; шаг-02 миграция cases/00018 use_kind 3→4 append-only honest-Down + подтверждение confirmer=client app-слой; шаг-03 поверхности: панель «Идентификация автомобиля» карточки работы + публичный блок подтверждения существующим продолжением 2-10 + OpenAPI словари-зеркала use-kind 4/материал-ключи 6; шаг-04 интеграционная матрица живой PG мир c2xx + journeys z39; шаг-05 QA-саморевью и closure) → CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge). Владельцу: ОТЗВАТЬ PAT подтверждённо после закрытия чата (retro-3-6/retro-2-6 — передавался открытым текстом многократно; токен этой сессии ЖИВ и используется для пуша этого чекпоинта).
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-23
@@ -4236,7 +4236,7 @@ done:
 - internal/cases/domain/vehicle_test.go (новый, 19 тестов): VIN-матрица поимённо (Raw/Normalized/идемпотентность; валидный check-digit 1; mismatch WF0XX… X≠4 со словом; длина 15 ≠ 17 + Applicable false; I/O/Q 4 позиции без замены; кириллическая А детект {0, А, A} БЕЗ замены + слово; словари-пины поимённо 22/10/12; блоки 4-4-4-4-1 с рядами латиница/цифра/кириллица; фокус только спорного + «остальные приняты»; маска WF0…4567/AB1→A…1/пусто→«…»), профиль (полнота по альтернативам vin | make+model+year; подтверждённые НЕ в MissingKeys; confirmed+digest 64 hex+client+EXACT версия+StaleWord пуст; новая версия → conflicting+stale слово v1+агрегат+digest изменился; conflicting двух источников AC-7 Staffy не выбирает; JSON ×2 байт-стабильно; порядок атрибутов = порядок схемы; вне-словарные факты игнорируются; зонд источник-схемы), зонд AC-1 hardcoded-ключи: TestVehicleMaterialKeysNeverHardcodedInCases читает исходники пакета домена — literals vehicle.* 0 (схема = материал пака через порт), GuardVehicleClientConfirmation 4 отказа.
 - Регресс свежими прогонами: build ok / vet ok / unit ./... FAIL 0 (живой grep — расхождений с пинами 2.0.0 нет: пилотный минимум 2.0.0 4-1 НЕ тронут, admission независим от новой версии) / интеграция ×2 TZ UTC 39.2с + Msk 38.1с ok (миры не задеты) / journeys 43/43 2.0м (npm ci + playwright install chromium_headless_shell-1243 подняты в новом контейнере) / скан qa_step_scan_3_9.py HEAD: 6 файлов +1203 строк secrets 0 / cjk 0 / ctrl 0 / hex 0 CLEAN.
 next: step-02 — миграция cases/00018 (use_kind CHECK 3→4 append-only honest-Down по прецеденту employee/00013) + SubmitVehicleConfirmation (bind EXACT версий + use одной транзакцией; лимит → consumed; потребление считают ВСЕ сайты: store lookup + app + fixture) + активация confirmer client (surgical-комментарий work.go). Владельцу: отозвать PAT после закрытия чата.
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-23
@@ -4255,7 +4255,7 @@ done:
 - Актуализация пинов (прецедент 8→14 из 4-1): continuation_test TestContinuationDictionariesAreClosed 3→4 + inDictionary vehicle_confirmation_submitted; +TestContinuationUseConsumptionWords (потребляют: correction + vehicle confirmation; НЕ потребляют: human/return; вне-словарное supplier_form — fail-closed false). Транспортный wire-фейк continuationCases += vehicleConfirm поле + метод (type-assert узкого интерфейса — без метода маршруты 404, поймано живым прогоном). cases_view.go continuationUseKindText += «подтверждение автомобиля клиентом». journeys fixture counting 3 сайта → ContinuationUseConsumesLimit (z39 подготовлен).
 - Регресс свежими прогонами: build/vet ok / unit ./... FAIL 0 / интеграция ×2 TZ UTC 39.4с ok (миграция 00018 в TestMain-цепочке применяется чисто — drop+re-apply) / скан qa_step_scan_3_9.py: 11 файлов CLEAN.
 next: step-03 — поверхности: панель «Идентификация автомобиля» карточки работы (VehicleProfile app read-time + api DTO + cases_view + case.html: атрибуты/версии/подтверждения/readback-details/MissingKeys/ProfileDigest/выпуск ссылки существующей формой) + публичный блок подтверждения на форме продолжения (полный VIN + readback словами + кнопки; POST /continue/{token}/confirm-vehicle PRG) + OpenAPI зеркала (use-kind 4, материал-ключи 6, VehicleProfileView схемы) + контракт-тест + зонд полного VIN только на двух поверхностях. Владельцу: отозвать PAT после закрытия чата.
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-23
@@ -4278,7 +4278,7 @@ done:
 - Тесты: cases_continuation_test.go +6 wire-тестов (vehicleSurface фейк: confirmed vin JH4KA7561PC008269 + unverified make Ford v2 + digest): публичный блок (полный VIN/«латиница Джульетта»/«цифра четыре»/«Подтверждаю»/confirm-URL/«подтверждено (client, версия v1)»/«без подтверждения»/no-store/no-referrer), confirm-wire (303 ?confirmed=1; пары submitted[0]=(dd11,1), submitted[1]=(dd10,2) — точные версии), dead-link (NotUsableText → 303 на GET), панель оператора (рендер шаблона: полный VIN + маска JH4…8269 + digest 64 + MissingKeys «vehicle.trim, vehicle.engine» + «контрольная цифра (позиция 9) совпала» + «Подтверждает: client (версия v1»), absence-слово (рендер без схемы: «Схема идентификации пака не определена», БЕЗ профиль-материала), зонд AC-9 TestContinuationVehicleVINNeverLeaksOffTheTwoSurfaces (valid страница несёт VIN; unknown-token generic refusal НЕ несёт — фейк дополнен ветвлением по токену). cases_continuation_fixture.go (journeys): +SubmitVehicleConfirmation фикстурный метод (локи/lookup/state valid/гейты случаев+versions/GuardVehicleClientConfirmation/подтверждения confirmer=client note=link/use row материал-парой первичного факта) — БЕЗ метода маршруты не биндились (type-assert узкого интерфейса — journeys 404 «page not found» пойманы живым прогоном, причина найдена по сырой 404-странице).
 - Регресс свежими прогонами: build/vet ok / unit ./... FAIL 0 (вкл. contracts 29) / интеграция ×2 TZ UTC 38.7с + Msk 40.7с ok / journeys 43/43 1.9м / скан qa_step_scan_3_9.py: CLEAN (hex 2 = фикстуры digest 64 прецедент).
 next: step-04 — интеграционная матрица живой PG мир c2xx (слоты retro-3-3): пин 3.0.0 + факты идентификации + выпуск ссылки → публичная форма (полный VIN + readback живьём) → подтверждение живьём (confirmer=client + use + consumed повтор) → новая версия факта → stale-слово живьём → conflicting → RLS-слепота 404 → миграция 00018 применяется; journeys z39 (панель/форма/a11y 320px/замороженные слова — правило 161). Владельцу: отозвать PAT после закрытия чата.
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-23
@@ -4292,7 +4292,7 @@ done:
 - Самотесты быстрые (WATCHDOG_INTERVAL=2): healthy (echo-loop 4т) → done code=0 за 4с, ноль страйков; stale (sleep 300 — ноль вывода, ноль CPU) → «no progress 1x/2x» → STALE kill, статус 124.
 - Реальный прогон: journeys 44/44 (2.0м) через стража label=journeys stale=5 — exit 0, страж не вмешался (здоровый прогон живость подтверждает).
 next: страж доступен для всех будущих длинных прогонов (интеграция ×2 TZ, journeys, CI-ожидание); фоновый режим: nohup + опрос /tmp/watchdog-<label>.status.
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-23
@@ -4308,7 +4308,7 @@ done:
 - z39 zzzzz…39z-vehicle-identification.spec.ts (~210 строк, viewport 320px): ingest vehicle-сессии → classify «идентификация автомобиля» → 4 факта штатной формой → панель (полный VIN/«без подтверждения»/missing 6/достаточный набор/ProfileDigest/маска JH4…8269 + details readback «Джульетта»/«четыре» поимённо — innerText таблицы склеен, пины по строкам + details «проверки пройдены … контрольная цифра совпала») → выпуск ссылки существующей формой (вопрос «Подтвердите автомобиль», цель fact_correction) → публичная форма (полный VIN FR-55 + readback словами + атрибуты со статусами + 4 чекбокса confirm=factID:versionNo + value-пин первой пары) → «Подтверждаю» → 303 ?confirmed=1 + notice «Автомобиль подтверждён … точным версиям» → повтор URL = consumed терминальная → карточка: use-слово «подтверждение автомобиля клиентом» + «Подтверждает: client (версия v1» + missing только trim/engine (AC-2) → новая версия make → «конфликт значений — Staffy не выбирает вариант» + «подтверждение относилось к прежней версии (v1)» + агрегат → a11y: публичная форма overflow 0; секция #vehicle локальна (scrollWidth-clientWidth ≤ 0); страница кейса имеет предсуществующий overflow 7px БЕЗ панели (bisect: скрытие #vehicle не меняет) — зонд честно секционен, не stránичный; details клавиатурой Enter; секреты 0.
 - Регресс свежими прогонами: build/vet ok / unit ./... FAIL 0 / интеграция ×2 TZ UTC 35.5с + Msk 39.4с ok (матрица в сьюте, миграция 00018 в TestMain-цепочке) / journeys 44/44 2.0м через run-with-watchdog.sh (инфра 194 — по пути) / скан qa_step_scan_3_9.py: 10 файлов +1500 строк CLEAN.
 next: step-05 — QA-саморевью свежим контекстом по диффу шагов 01-04 (read-time профиль без таблиц; молчаливых исправлений VIN нет ни в одном пути; маска во всех логах/метриках/проблемах — зонд двух поверхностей; подтверждение ≠ заказ; словари-зеркала; замороженные секции 1-4/2-2/2-10/1-10 не тронуты; mixed/CJK-скан) + финальный регресс свежими прогонами + closure (Spec Change Log Dev 01-05, спека ready-for-dev → done, sprint-status done — Epic 4: 2/11) + коммит feat БЕЗ маркера пропуска (голова триггерит CI — урок 2-14/ретро-2-1). Владельцу: отозвать PAT после закрытия чата.
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-23
@@ -4324,7 +4324,7 @@ done:
 - Closure: Spec Change Log += Dev шаги 01-05 запись (голова лога после CHECKPOINT 1); спека status ready-for-dev → done; sprint-status 4-2-структурированная-идентификация-автомобиля-и-защищённая-пере → done — Epic 4: 2/11.
 - Коммит feat (docs+closure) БЕЗ маркера пропуска — голова ветки триггерит CI ×3 на CHECKPOINT 2 (урок 2-14/ретро-2-1: CI-запуск на голове).
 next: CHECKPOINT 2 по мандату «продолжайте» (прецедент 188): пуш ветки → PR (титул «Story 4-2 Vehicle Identification VIN — Epic 4: 2/11», пин слияния head SHA в теле) → CI ×3 зелёный поимённо (push/PR/merge) → sha-pinned merge в main → локальный main ff-only → DEVLOG checkpoint-2 [skip ci] → пуш main; ветка остаётся на GitHub до поручения об удалении (прецедент MERGED-зонд). Владельцу: ОТЗВАТЬ PAT подтверждённо после закрытия чата (retro-3-6/retro-2-6 — передавался открытым текстом многократно; токен сессии ЖИВ и используется для пуша/PR/merge).
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-23
@@ -4340,7 +4340,7 @@ done:
 - Sha-pinned merge исполнен: 033e6f7 → merge-commit 3451b6c70c970b22b6f2c4c434dfeead594029a6 в main; локальный main ff-only синхронен (038d4c0 → 3451b6c, 10 коммитов).
 - Story 4-2 полностью закрыта: спека done (Spec Change Log: 189-sm / 190-checkpoint-1 / Dev 01-05 191-196), sprint-status done; Epic 4: 2/11 (осталось 4-3..4-11 + ретро). Ветка codex/story-4-2-vehicle-identification-vin остаётся на GitHub (удаление — по поручению владельца, прецедент MERGED-зонд merge-base перед удалением).
 next: по сигналу владельца — SM-фаза story 4-3 «Классификация запроса детали и граница диагностики» (входы: epics.md §Epic 4 story 4.3, спеки 4-1/4-2 — идентификация готова, канон фактов 2-2) либо удаление слитой ветки 4-2 по поручению. Владельцу: ОТЗВАТЬ PAT подтверждённо после закрытия чата (retro-3-6/retro-2-6 — передавался открытым текстом многократно; токен этой сессии ЖИВ — использовался для пуша/PR/merge, отозвать по закрытии).
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-23
@@ -4356,7 +4356,7 @@ done:
 - Скан-гигиена: scripts/sm_spec_scan.py — 0 CJK / 0 mixed / 0 секретов, CLEAN (один mixed-артефакт «симptom» пойман сканом и исправлен до коммита).
 - Ветка codex/story-4-3-part-request-classification от main b4c31c2; sprint-status НЕ трогался (4-3 backlog до «одобряю» — дисциплина 52-sm, флип на CHECKPOINT 1).
 next: CHECKPOINT 1 story 4-3 — явное одобрение владельца «одобряю» (+ свежий токен при необходимости): флип спека backlog → ready-for-dev + sprint-status 4-3 → ready-for-dev синхронно + запись Spec Change Log → публикация → Dev шаги 01-05 (пак 4.0.0 + домен part → миграция 00019 + причины handoff → поверхности + OpenAPI → матрица c2xx + journeys z40 → QA/closure) → CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge — Epic 4: 3/11). Владельцу: ОТЗВАТЬ PAT подтверждённо после закрытия чата (retro-3-6/retro-2-6 — передавался открытым текстом многократно; токен этой сессии ЖИВ — использовался для верификации/пуша SM-фазы).
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-23
@@ -4371,7 +4371,7 @@ done:
 - Флип исполнен синхронно: спека 4-3 status backlog → ready-for-dev + запись CHECKPOINT 1 головой Spec Change Log; sprint-status ключ 4-3-классификация-запроса-детали-и-граница-диагностики → ready-for-dev; epic-4 БЕЗ изменений (in-progress с 182-checkpoint-1 — урок 3-1 be883ae о НЕпропуске перехода эпика неприменим к повторному флипу: эпик уже активен); last_updated уже 10-23-2026. Дифф 3 файла (спека + sprint-status + DEVLOG), замороженные секции не тронуты.
 - Коммит чекпоинта (docs(story-4-3): CHECKPOINT 1) с маркером пропуска CI + эта запись; пуш сразу за коммитом (уроки 148/152 «незапушенное не существует»), RPO=0 верифицирован живым ls-remote после пуша; токен нигде не зафиксирован (remote-URL чистый, дифф-скан github_pat 0).
 next: Dev шаги 01-05 по Tasks & Acceptance спеки 4-3 по сигналу владельца «продолжайте» (шаг-01 пак auto-parts@4.0.0 + порт +PackPartRequestSchema + домен part (NormalizePartNumber флагами / DerivePartRequestMode / DerivePartRequest) + unit-матрица; шаг-02 миграция cases/00019 reason CHECK 1→4 append-only honest-Down + словарь причин handoff +3 + contract-пины; шаг-03 поверхности панель «Запрос детали» + OpenAPI словари-зеркала + wire-тесты; шаг-04 интеграционная матрица живой PG мир c2xx + journeys z40; шаг-05 QA-саморевью и closure) → CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge — Epic 4: 3/11). Владельцу: ОТЗВАТЬ PAT подтверждённо после закрытия чата (retro-3-6/retro-2-6 — передавался открытым текстом многократно; токен этой сессии ЖИВ и используется для пуша этого чекпоинта).
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-23
@@ -4388,7 +4388,7 @@ done:
 - Регресс свежими прогонами: go build/vet ok (bootstrap + повторно), unit полный сьют ok -count=1 (part-домен -v: 12/12 PASS), интеграция ×2 TZ зелёная (UTC 35.4s / Europe/Moscow 39.7s, -tags=integration -count=1), скан-гигиена scripts/qa_step_scan_4_3.py CLEAN (секреты 0 / CJK 0 / mixed 0 по добавленным строкам WIP-диффа).
 - Коммит feat(story-4-3): step-01 с маркером [skip ci] (прецедент 4-2: промежуточные шаги не дёргают CI, голова step-05 — без маркера); пуш сразу за коммитом (уроки 148/152).
 next: step-02 — миграция migrations/cases/00019_part_request_handoff_reasons.sql (human_handoffs.reason CHECK 1→4 слова append-only honest-Down, ЕДИНСТВЕННЫЙ SQL среза, прецедент 00018 use_kind) + домен human_handoff.go HandoffReasons +3 слова (diagnostic_uncertainty/safety_critical/unresolved_contradiction) с текстами + расширение словаря в существующем пути создания handoff + актуализация пинов (contract-тест reason enum); регресс полным контуром (00019 применяется живым integration-суитом).
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-23
@@ -4406,7 +4406,7 @@ done:
 - Регресс свежими прогонами: gofmt среза чист, build/vet ok, unit ВСЕ 33 ok -count=1, интеграция ×2 TZ зелёная (UTC 42.1s / Europe/Moscow 40.5s, -tags=integration -count=1; TestHandoff* -v: оба зонда PASS живьём), скан qa_step_scan_4_3.py CLEAN (секреты 0 / CJK 0 / mixed 0).
 - Коммит feat(story-4-3): step-02 с маркером [skip ci] (прецедент 4-2); пуш сразу за коммитом.
 next: step-03 — поверхности: панель «Запрос детали» страницы кейса после панели идентификации 4-2 (пин 2-16 байт-в-байт — проверять живым прогоном; режим/основание/атрибуты с версиями и статусами/MissingKeys-вопросы/проверки номера флагами текстом/границы role=alert/ConfidenceWord/digest/SeveralPartsWord; honest-деградация без схемы — чтение НИКОГДА не падает) + app service +PartRequest(scope, caseID) read-only + транспорт DTO + OpenAPI словари-зеркала (reason 4 / mode 4 / part.* ~10 / preference 3) + контракт-тест + wire-тесты (зонд «границы НЕ только цветом»); регресс полным контуром.
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-23
@@ -4428,7 +4428,7 @@ done:
 - Регресс свежими прогонами: gofmt среза чист, build/vet ok, unit ВСЕ 33 ok -count=1 (вкл. обновлённый контракт 2.13 и все vehicle wire-тесты 4-2 — вставка байт-точная), интеграция ×2 TZ зелёная (UTC 35.8s / Europe/Moscow 38.5s), скан qa_step_scan_4_3.py CLEAN.
 - Коммит feat(story-4-3): step-03 с маркером [skip ci]; пуш сразу за коммитом.
 next: step-04 — интеграционная матрица живой PG (мир c2xx-семейства, seed/зонды без коллизий с 4-2 по регистру retro-3-3): пин 4.0.0 → материал режимов ×4 живьём → нормализация номера флагами → MissingKeys-вопрос → подтверждение → digest → новая версия → stale-слово живьём → conflicting → границы (диагностика/safety/противоречие) → handoff со словом 00019 живьём (через форму/API reason) → RLS-слепота foreign scope → 00019 применяется живым суитом + journeys z40 (проверочные диалоги AC-12: просторечное название / ошибочный OEM / несколько деталей через split / симптом / safety / исправление + a11y 320px + зонд секретов); регресс полным контуром.
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-23
@@ -4445,7 +4445,7 @@ done:
 - Регресс свежими прогонами: gofmt среза чист (легаси fixture-пробелы не переформатированы), build/vet ok, unit ВСЕ 33 ok -count=1, интеграция ×2 TZ зелёная (UTC 38.6s / Europe/Moscow 41.8s; TestPartRequest* -v PASS), journeys ПОЛНЫЙ набор 45/45 за 2.2м (z40 7.4с), скан qa_step_scan_4_3.py CLEAN (секреты 0 / CJK 0 / mixed 0).
 - Коммит feat(story-4-3): step-04 с маркером [skip ci]; пуш сразу за коммитом.
 next: step-05 — QA-саморевью и closure по живому диффу ветки шагов 01-04 (замороженные секции 2-2/2-6/2-13/1-4 не тронуты — name-only; молчаливых исправлений НЕТ ни в одном пути — флаги номера/режим/уверенность; симптом не становится каталогическим заказом; MissingKeys только не-confirmed; 0 CREATE TABLE в 00019; import-graph 0 action/employee в part.go; словари-зеркала контракт-тестом; CJK/mixed/секрет-скан) + финальный регресс свежими прогонами + closure (Spec Change Log Dev 01-05, спека ready-for-dev → done, sprint-status 4-3 done — Epic 4: 3/11) + коммит feat БЕЗ маркера пропуска — голова триггерит CI ×3 на CHECKPOINT 2 (урок 2-14/ретро-2-1).
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-23
@@ -4460,7 +4460,7 @@ done:
 - Closure: Spec Change Log — запись Dev 01-05 головой (шаги поимённо с коммитами 1014c01/4d076b5/e44a550/3dfd13b + QA-вердикт + честные расширения + регресс); спека 4-3 status ready-for-dev → done; sprint-status ключ 4-3-классификация-запроса-детали-и-граница-диагностики → done — Epic 4: 3/11.
 - Коммит feat(story-4-3): step-05 БЕЗ маркера пропуска — голова ветки триггерит CI ×3 на CHECKPOINT 2 (урок 2-14/ретро-2-1, прецеденты 4-1/4-2); пуш сразу за коммитом.
 next: CHECKPOINT 2 story 4-3 — PR из ветки codex/story-4-3-part-request-classification (sha-пин головы в теле PR) → ожидание CI ×3 зелёного поимённо (push/PR/merge) → sha-pinned merge в main → локальный main ff-only → DEVLOG 205-checkpoint-2 [skip ci] + пуш → RPO=0 живым ls-remote → worklog; владельцу: ОТЗВАТЬ PAT подтверждённо после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — использовался для пушей шагов).
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-23
@@ -4476,7 +4476,7 @@ done:
 - Closure-состояние исполнено в step-05 до merge: спека 4-3 done, sprint-status 4-3 done, Spec Change Log Dev 01-05 головой.
 next: SM-фаза story 4-4 (Part Applicability Proof — каталогический контур) по сигналу владельца; удаление слитой ветки 4-3 — по поручению владельца.
 владельцу: ОТЗВАТЬ PAT подтверждённо после закрытия чата (retro-3-6/retro-2-6 — передавался открытым текстом многократно; токен этой сессии ЖИВ — использовался для пушей шагов, PR и merge).
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-24
@@ -4493,7 +4493,7 @@ done:
 - Скан-гигиена: scripts/sm_spec_scan_4_4.py (песочница, не в репо) — секреты 0 / CJK 0 / смешанные слова 0, CLEAN; стилевые артефакты драфта (двойные апострофы вне YAML-контекста, «not-найдено», гибридные дескрипторы тестов) вычищены до коммита.
 - Ветка codex/story-4-4-fitment-evidence от main 3db3ac8; sprint-status НЕ трогался (4-4 backlog до «одобряю» — дисциплина 52-sm, флип на CHECKPOINT 1 по прецеденту 199-checkpoint-1).
 next: CHECKPOINT 1 story 4-4 — явное одобрение владельца «одобряю» (+ свежий токен при необходимости): флип спека backlog → ready-for-dev + sprint-status 4-4 → ready-for-dev синхронно + запись Spec Change Log → публикация → Dev шаги 01-05 (step-01 пак 5.0.0 + порт + домен fit; step-02 миграции 00020/00021 + словарь причин + стор + команда записи; step-03 поверхности панель «Применимость»/форма + OpenAPI; step-04 интеграционная матрица миры 745/746 + journeys z41; step-05 QA-саморевью и closure) → CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge — Epic 4: 4/11). Владельцу: ОТЗВАТЬ PAT подтверждённо после закрытия чата (retro-3-6/retro-2-6 — передавался открытым текстом многократно; токен этой сессии ЖИВ — использовался для верификации/пуша SM-фазы).
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-24
@@ -4509,7 +4509,7 @@ done:
 - Гигиена: спека и sprint-status НЕ тронуты (4-4 backlog до «одобряю»/«продолжайте» в ответ на предъявление — дисциплина 52-sm); дифф этой записи = только DEVLOG.md; скан значения токена в диффе 0 (маска github_pat_*** только в контексте уже закоммиченных записей)
 - Коммит DEVLOG 207-sm [skip ci] на ветке codex/story-4-4-fitment-evidence, пуш env-only штатным helper; RPO=0 верифицирован живым ls-remote после пуша
 next: CHECKPOINT 1 story 4-4 — одобрение в ОТВЕТ на предъявление этой сессии: при «одобряю»/«продолжайте» в ответ на него — флип спека backlog → ready-for-dev + sprint-status 4-4 → ready-for-dev синхронно + запись Spec Change Log головой (прецедент 199-checkpoint-1) → публикация → Dev шаги 01-05 (step-01 пак 5.0.0 + порт + домен fit; step-02 миграции 00020/00021 + словарь причин + стор + команда записи; step-03 поверхности панель «Применимость»/форма + OpenAPI; step-04 интеграционная матрица миры 745/746 + journeys z41; step-05 QA-саморевью и closure) → CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge — Epic 4: 4/11); при правках/возражениях — переработка спеки SM-ролью. Владельцу: ОТЗВАТЬ PAT после закрытия чата (retro-3-6/retro-2-6; токен этой сессии ЖИВ — использовался для верификации/пуша DEVLOG-записи).
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-24
@@ -4524,7 +4524,7 @@ done:
 - Флип синхронно в 3 файлах: спека 4-4 status backlog → ready-for-dev + запись CHECKPOINT 1 (208-checkpoint-1) головой Spec Change Log; sprint-status ключ 4-4-каталогическое-доказательство-применимости → ready-for-dev (epic-4 БЕЗ изменений — in-progress с 4-1, урок 3-1 неприменим к повторному флипу); DEVLOG 208-checkpoint-1 — эта запись
 - Гигиена: дифф ровно 3 файла (спека + sprint-status + DEVLOG), замороженные секции не тронуты, скан значения токена в диффе 0
 next: Dev шаги 01-05 спеки 4-4 (step-01 пак auto-parts@5.0.0 + порт +PackFitmentSchema + домен fitment.go + unit; step-02 миграции 00020/00021 + словарь причин +1 слово fitment_research + стор + команда записи; step-03 поверхности панель «Применимость»/PRG-форма + OpenAPI зеркала; step-04 интеграционная матрица миры 745/746 + journeys z41; step-05 QA-саморевью и closure) → CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge — Epic 4: 4/11). Владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для пушей чекпоинта и Dev-шагов).
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-24
@@ -4542,7 +4542,7 @@ done:
 - Регресс свежими прогонами: gofmt среза чист (легаси-долг pilot/profile НЕ тронут — вне среза), build ok, vet ok, unit ВСЕ 30 пакетов ok -count=1, интеграция ×2 TZ живым PG (UTC 39.8s / Europe/Moscow 37.9s), зонды: hardcoded (артикулы/узлы) 0 в прод-файлах, секреты в диффе 0
 - Уроки шага: интеграционный прогон ОБЯЗАН source scripts/env.sh (STAFFY_TEST_DATABASE_URL живого PG 54329) — без env TestMain уходит в testcontainers/rootless-Docker панику; python-патчи surgical правок + Write для новых файлов — табы не пострадали
 next: step-02 — миграции 00020/00021 + словарь причин +1 слово fitment_research (публичные константы human_handoff.go — переключение fitment.go, прецедент 4d076b5) + стор-порт InsertFitmentEvidence/ReadFitmentEvidencesOfCase под локами + команда записи RecordFitmentEvidence (guard → пины живыми деривациями ДО записи → insert) + пины словаря; регресс полным контуром (миграции применяются живым суитом).
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-24
@@ -4565,7 +4565,7 @@ done:
 - Регресс свежими прогонами: gofmt среза чист, build ok, vet ok, unit ВСЕ 33 пакета ok -count=1 (вкл. privacy периметр и transport), интеграция ×2 TZ живым PG (UTC 40.7s / Europe/Moscow 41.1s — миграции 00020/00021 применились живым суитом), секреты в диффе 0
 - Уроки шага: (1) TestPerimeterIntegrity — живой страж: новая таблица обязана быть заявлена классом периметра СРАЗУ (спека это предвидела — Implementation Notes ретенция); (2) словарное расширение ломает пины форм ДАЖЕ когда рендер динамический — пины обязаны расширяться синхронно со словарём; (3) стор-guard политики требует порт-тип в WorkCommandParams (политика едет с командой — стор не знает паков)
 next: step-03 — поверхности: панель «Применимость» страницы кейса после панели «Запрос детали» (байт-точная вставка — wire-тесты 4-2/4-3 зелёные; статусы текстом role=alert, цепочки, источники details, границы НЕ цветом) + PRG-форма записи + JSON POST маршрут /v1/.../fitment-evidences + reason-select уже расширен + OpenAPI зеркала (fitment status 5/link_type 2/source 2/reason 3→4 операторских) + контракт-тест + wire-тесты; регресс полным контуром.
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-24
@@ -4585,7 +4585,7 @@ done:
 - Регресс свежими прогонами: gofmt среза чист, build ok, vet ok, unit ВСЕ 33 пакета ok -count=1, интеграция ×2 TZ живым PG (UTC 41.1s / Europe/Moscow 33.8s), секреты в диффе 0
 - Уроки шага: (1) $.TenantID живёт на верхнем уровне данных страницы (НЕ .View) — wire-тест поймал; (2) контракт-пины расширяются синхронно с enum (drift = красный работает в обе стороны); (3) имя пакета httptransport (не http)
 next: step-04 — интеграционная матрица живой PG (миры 745/746: пин-цепочка 2.0.0→3.0.0→4.0.0→5.0.0 живым релизным контуром; запись живым POST original→proven/cross-цепочка/не-найдено/conflicting/ambiguous/guard-отказы; новая версия part-факта → stale живьём; возраст TTL → stale clock-фикстурой; RLS-слепота) + journeys z41 (менеджерский сценарий живым транспортом 320px: рекомендация → задача → запись формой → proven → правка запроса → stale + a11y + зонд секретов) + регресс полным контуром.
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-24
@@ -4600,7 +4600,7 @@ done:
 - Регресс свежими прогонами: gofmt среза чист, build ok, vet ok (integration-тег тоже), unit ВСЕ 33 пакета ok -count=1, интеграция ×2 TZ живым PG (UTC 41.9s / Europe/Moscow 35.4s), journeys ПОЛНЫЙ набор 46/46 за 2.2м (z41 6.2с; правило 161 — 45 соседних зелёные)
 - Уроки шага: (1) nil []string → jsonb NULL violates array CHECK — стор обязан маршалить пустой массив «[]» (матрица поймала живьём); (2) world clock сервиса = releaseClock (2026-10-08), НЕ casesClock — age-ряды считаются от него; (3) JS template literal: python-вставка '\\?' для TS-двойного бэкслаша RegExp — '?confirmed' с одним = квантификатор; (4) playwright-прогон из tests/journeys (аргумент = имя файла, НЕ путь от корня); chromium-1243 переустановлен (сброс контейнера, урок bootstrap §6); (5) fixture-панель пинит пак по session prefix — новый префикс = новый мир, существующие journeys не затронуты
 next: step-05 — QA-саморевью и closure по живому диффу ветки шагов 01-04 (замороженные секции 2-2/2-7/2-13/2-14/1-4 НЕ тронуты — name-only; 2 SQL: 00020 новый append-only объект + 00021 словарное расширение; молчаливых исправлений НЕТ ни в одном пути — guard/лестница/пины; unknown НЕ становится «неприменимо»; позиции вне proven НЕ предлагаются; import-graph 0 сетевых/0 action/employee в fitment.go; словари-зеркала контракт-тестом; CJK/mixed/секрет-скан) + финальный регресс свежими прогонами + closure (Spec Change Log Dev 01-05, спека ready-for-dev → done, sprint-status 4-4 done — Epic 4: 4/11) + коммит feat БЕЗ маркера пропуска — голова триггерит CI ×3 на CHECKPOINT 2 (урок 2-14/ретро-2-1).
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-24
@@ -4616,7 +4616,7 @@ done:
 - Closure: Spec Change Log — запись Dev 01-05 головой (шаги поимённо с коммитами 0b2a1df/f3f35f0/0358ae9/a14c376 + QA-вердикт + регресс + честная очистка); спека 4-4 status ready-for-dev → done; sprint-status ключ 4-4-каталогическое-доказательство-применимости → done — Epic 4: 4/11
 - Коммит feat(story-4-4): step-05 БЕЗ маркера пропуска — голова ветки триггерит CI ×3 на CHECKPOINT 2 (урок 2-14/ретро-2-1, прецеденты 4-1/4-2/4-3); пуш сразу за коммитом
 next: CHECKPOINT 2 story 4-4 — PR из ветки codex/story-4-4-fitment-evidence (sha-пин головы в теле PR) → ожидание CI ×3 зелёного поимённо (push/PR/merge) → sha-pinned merge в main → локальный main ff-only → DEVLOG 214-checkpoint-2 [skip ci] + пуш → RPO=0 живым ls-remote → worklog; владельцу: ОТЗВАТЬ PAT подтверждённо после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — использовался для пушей шагов).
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-24
@@ -4632,7 +4632,7 @@ done:
 - Closure-состояние исполнено в step-05 до merge: спека 4-4 done, sprint-status 4-4 done, Spec Change Log Dev 01-05 головой; честная очистка test-results + .gitignore.
 next: SM-фаза story 4-5 (актуальные предложения и сравнение вариантов) по сигналу владельца «продолжайте»; удаление слитой ветки 4-4 на GitHub — по поручению владельца.
 владельцу: ОТЗВАТЬ PAT подтверждённо после закрытия чата (retro-3-6/retro-2-6 — передавался открытым текстом многократно; токен этой сессии ЖИВ — использовался для пушей шагов, PR #45 и merge).
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-24
@@ -4650,7 +4650,7 @@ done:
 - Скан-гигиена: scripts/qa_spec_scan_4_5.py (песочница, не в репо) — секреты 0 / CJK 0 / смешанные слова 0, CLEAN
 - Ветка codex/story-4-5-offers-comparison от main 86a45d0; sprint-status НЕ трогался (4-5 backlog до «одобряю» — дисциплина 52-sm, флип на CHECKPOINT 1 по прецеденту 208-checkpoint-1)
 next: CHECKPOINT 1 story 4-5 — явное одобрение владельца «одобряю»/«продолжайте» В ОТВЕТ на предъявление спеки (дисциплина 52-sm, прецеденты 53-sm/7730312): флип спека backlog → ready-for-dev + sprint-status 4-5-актуальные-предложения-и-сравнение-вариантов → ready-for-dev синхронно → Dev шаги 01-05 → CHECKPOINT 2; спека предъявлена владельцу отдельным ответом этой сессии сразу за этой записью; владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-24
@@ -4666,7 +4666,7 @@ done:
 - Гигиена: спека и sprint-status НЕ тронуты (4-5 backlog), дифф сессии — только DEVLOG.md этой записью; токен в диффе 0 (маска github_pat_*** только в тексте записей как литерал дисциплины)
 next: ответ владельца на повторное предъявление: «одобряю»/«продолжайте» В ОТВЕТ → CHECKPOINT 1 (флип спека backlog → ready-for-dev + sprint-status → ready-for-dev синхронно, прецедент 208-checkpoint-1) → Dev шаги 01-05 → CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge — Epic 4: 5/11); правки/возражения → переработка спеки SM-ролью
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — использовался для верификации /user и ls-remote)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-24
@@ -4680,7 +4680,7 @@ done:
 - Флип исполнен синхронно в 3 файлах: spec-4-5-offers-and-comparison.md status 'backlog' → 'ready-for-dev' + запись 217-checkpoint-1 головой Spec Change Log (формат 208-прецедента); sprint-status.yaml 4-5-актуальные-предложения-и-сравнение-вариантов backlog → ready-for-dev; DEVLOG этой записью; epic-4 остаётся in-progress (активен с 4-1); замороженные секции не тронуты
 next: Dev шаги 01-05 по Tasks & Acceptance спеки 4-5 (step-01 пак auto-parts@6.0.0 ComparisonPolicy + порт +PackComparisonSchema + домен offers.go + offers_test.go; step-02 миграции 00022/00023/00024 + HandoffReasons +1 offers_research + стор insert/read ×2 + команды записи RecordSupplierOffer/RecordClientSelection; step-03 панель «Предложения и сравнение» + PRG-формы ×2 + JSON API ×2 + reason-select 4→5 + OpenAPI зеркала + контракт-тест + wire-тесты; step-04 интеграционная матрица миры 755/756 + journeys z42; step-05 QA-саморевью и closure — Epic 4: 5/11) → CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge); окружение поднять bootstrap (контейнер сброшен — go не найден зондом сессии)
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для пуша чекпоинта и Dev-шагов)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-24
@@ -4699,7 +4699,7 @@ done:
 - Регресс: build OK, vet OK, unit ./... FAIL 0 (part_test-зонд поймал литерал ключа в комментарии offers.go — переформулирован без литерала, живой страж 4-3), интеграция ×2 TZ (UTC + Europe/Moscow) ok 41s, скан scripts/qa_step_scan_4_5_step01.py CLEAN (секреты 0/CJK 0/mixed 0; md — только добавленные строки диффа, легаси-цитаты DEVLOG честно исключены по прецеденту 4-4)
 next: step-02 — миграции 00022_supplier_offers (append-only, UNIQUE, CHECK-зеркала, RLS, гранты, command_records +46-е слово record_supplier_offer, TestMain) + 00023_selection_snapshots (+47-е слово record_client_selection, TestMain) + 00024_offers_research_reason (reason CHECK 5→6 honest-Down) + HandoffReasons +1 offers_research с текстами + стор-порт insert/read ×2 под локами + команды записи RecordSupplierOffer/RecordClientSelection (guard → пины живыми деривациями ДО SQL → insert; идемпотентность ключом)
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для пуша Dev-шагов)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-24
@@ -4723,7 +4723,7 @@ done:
 - Регресс: build/vet OK, unit ./... FAIL 0, интеграция ×2 TZ ok 41s (миграции 00022/00023/00024 применились живым суитом — SQL валиден), контракт-тесты ok, скан CLEAN (секреты 0/CJK 0/mixed 0)
 next: step-03 — панель «Предложения и сравнение» после панели «Применимость» (байт-точная вставка; статусы текстом role=alert, группы по связи и применимости, закупочная цена операторской секцией, voice-блок, границы role=alert) + PRG-формы записи предложения и выбора + JSON API маршруты ×2 + reason-select 4→5 на существующей форме request_human (БЕЗ новых клиентских поверхностей) + OpenAPI зеркала (пути + ComparisonView семейство closed-shapes + enum-зеркала status 3/currency 1/term kind 1/rank criteria 3/tie break 4) + контракт-тест + wire-тесты; сервер +4 маршрута; регресс полным контуром
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для пуша Dev-шагов)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-24
@@ -4746,7 +4746,7 @@ done:
 - Регресс: build/vet OK, unit ./... FAIL 0, интеграция ok 42s, контракт-тесты ok, скан CLEAN
 next: step-04 — интеграционная матрица живой PG (миры 755/756): пин-цепочка до 6.0.0 живым релизным контуром; запись предложений живым POST (два поставщика; оригинал+аналог; изменение цены новой записью → слово изменений; TTL clock-фикстурой → stale; неполное количество → shortfall; guard-отказы живьём); запись выбора живым POST (снапшот с 4 пинами; отказы: устаревшее/non-proven/сверх наличия); RLS-слепота; мир 756 деградация 5.0.0 (панель сравнения отсутствует со словом, панель применимости работает); journeys z42 (менеджерский живой сценарий + a11y 320px + зонд секретов); регресс полным контуром
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для пуша Dev-шагов)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-24
@@ -4765,7 +4765,7 @@ done:
 - Регресс: unit ./... FAIL 0, интеграция ×2 TZ ok 43s, journeys 47/47 2.4м (46 соседей зелёные — замороженные слова стабильны), скан CLEAN (секреты 0/CJK 0/mixed 0)
 next: step-05 — QA-саморевью и closure: свежий контекст по живому диффу ветки шагов 01-04 (замороженные секции 2-2/2-7/2-13/2-14/1-4 НЕ тронуты — name-only; 3 SQL среза: 00022 + 00023 новые append-only объекты + 00024 словарное расширение; молчаливых исправлений НЕТ ни в одном пути; закупочная цена НЕ в клиентском материале — зонд; ранжир НЕ зависит от закупочной цены — зонд; маркетинговые слова 0 — зонд; import-graph 0 сетевых/0 action/0 employee в offers-файлах; словари-зеркала контракт-тестом; CJK/mixed/секрет-скан) + финальный регресс свежими прогонами + closure (Spec Change Log Dev 01-05, спека ready-for-dev → done, sprint-status 4-5 done — Epic 4: 5/11) + коммит feat БЕЗ маркера — голова триггерит CI ×3 на CHECKPOINT 2 (урок 2-14/ретро-2-1)
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для пуша Dev-шагов)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-24
@@ -4782,7 +4782,7 @@ done:
 - Closure: Spec Change Log запись Dev 01-05 (коммиты шагов: a8297bc/a3247cf/2a4dffc/a492553); спека ready-for-dev → done; sprint-status 4-5-актуальные-предложения-и-сравнение-вариантов → done — Epic 4: 5/11; коммит feat БЕЗ [skip ci] — голова триггерит CI ×3 (push + PR + merge — урок 2-14/ретро-2-1)
 next: CHECKPOINT 2 — PR через GitHub API (sha-pinned HEAD в теле) → CI ×3 зелёный поимённо (push/PR/merge) → sha-pinned merge в main → локальный main ff-only → DEVLOG 223-checkpoint-2 → пуш; после merge: SM-фаза story 4-6 (создание одного клиентского заказа в ABCP) по сигналу владельца; удаление слитой ветки 4-5 на GitHub — по поручению владельца
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для PR, проверки CI и merge)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-24
@@ -4798,7 +4798,7 @@ done:
 - Closure-состояние исполнено в step-05 до merge: спека 4-5 done, sprint-status 4-5 done, Spec Change Log Dev 01-05 головой
 next: SM-фаза story 4-6 (создание одного клиентского заказа в ABCP) по сигналу владельца «продолжайте»; удаление слитой ветки codex/story-4-5-offers-comparison на GitHub — по поручению владельца
 владельцу: ОТЗВАТЬ PAT подтверждённо после закрытия чата (retro-3-6/retro-2-6 — передавался открытым текстом многократно; токен этой сессии ЖИВ — использовался для пушей шагов, PR #46 и merge)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-24
@@ -4814,7 +4814,7 @@ done:
 - Ветка codex/story-4-6-abcp-client-order от main ad8467c; спека закоммичена [skip ci]; sprint-status НЕ тронут (4-6 backlog до «одобряю» — дисциплина 52-sm)
 next: CHECKPOINT 1 story 4-6 — явное одобрение владельца «одобряю»/«продолжайте» В ОТВЕТ на предъявление спеки (дисциплина 52-sm, прецеденты 53-sm/208/217): флип спека backlog → ready-for-dev + sprint-status 4-6-создание-одного-клиентского-заказа-в-abcp → ready-for-dev синхронно → Dev шаги 01-05 → CHECKPOINT 2; спека предъявлена владельцу отдельным ответом этой сессии сразу за этой записью
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — использовался для верификации и пуша ветки)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-24
@@ -4830,7 +4830,7 @@ done:
 - Гигиена: спека/sprint-status НЕ тронуты (4-6 backlog), дифф сессии только DEVLOG.md, токен в диффе 0 (env-only)
 next: ответ владельца на повторное предъявление: «одобряю»/«продолжайте» → CHECKPOINT 1 (флип спека+sprint-status → ready-for-dev синхронно, прецеденты 208/217-checkpoint-1) → Dev шаги 01-05 с инкрементальными коммитами/пушами → CHECKPOINT 2 (Epic 4: 6/11); правки/возражения → переработка спеки SM-ролью
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — использовался для верификации /user, ls-remote и пуша DEVLOG 225-sm)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-25
@@ -4845,7 +4845,7 @@ done:
 - Гигиена: дифф ровно 3 файла (спека/спринт/DEVLOG), токен в диффе 0
 next: Dev шаги 01-05 по Tasks & Acceptance спеки 4-6 (step-01 definition create_abcp_customer_order@1.0.0 + домен order.go + admission-тест; step-02 билдер + порт OrderVersionSource + шаг лестницы + receipt-рендер + 00025 reason 6→7; step-03 панель «Заказ клиента» + OpenAPI зеркала; step-04 eval-матрица + journeys z43; step-05 QA-саморевью и closure) → CHECKPOINT 2 (PR + CI ×3 + sha-pinned merge — Epic 4: 6/11)
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для пуша чекпоинта и Dev-шагов)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-25
@@ -4861,7 +4861,7 @@ done:
 - Регресс: build/vet/unit 33 пакета зелёные; интеграция ×2 + TZ=Europe/Moscow зелёная; qa_step_scan_4_6.py CLEAN (секреты 0/CJK 0/mixed 0/supplier-send 0/маркетинг 0)
 next: Dev step-02 — билдер PrepareOrderProposal (живой CaseView → материал + OrderDigest → SubmitProposal) + порт OrderVersionSource + шаг лестницы диспетчера ПОСЛЕ confirmation-fence + receipt-рендер слов + миграция 00025 reason 6→7 + HandoffReasons +1 order_creation
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для пушей шагов)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-25
@@ -4880,7 +4880,7 @@ done:
 - Регресс: build/vet/unit 33 пакета зелёные; интеграция ×2 (TZ=Europe/Moscow) зелёная; qa_step_scan_4_6.py CLEAN (секреты 0/CJK 0/mixed 0/supplier-send 0/маркетинг 0)
 next: Dev step-03 — панель «Заказ клиента» (карточка подтверждения с РАЗНЫМИ кнопками подтверждения/исправления + панель квитанции + рекомендация order_creation на parked AG-4) + reason-select 6 + OpenAPI зеркала + контракт-тест + wire-тесты
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для пушей шагов)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-25
@@ -4898,7 +4898,7 @@ done:
 - Регресс: build/vet/unit 33 пакета зелёные; интеграция ×2 TZ зелёная; скан CLEAN (секреты 0/CJK 0/mixed 0/supplier-send 0/маркетинг 0)
 next: Dev step-04 — интеграционная eval-матрица AC-15 живым PG (tests/integration/cases_order_test.go: полная цепочка выбор→предложение→preview→подтверждение→авторизация→синтетический dispatch→receipt committed + pending_manager_verification + клиентские слова + 1С-unknown; eval-набор поимённо) + journeys z43
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для пушей шагов)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-25
@@ -4913,7 +4913,7 @@ done:
 - Регресс: build/vet/unit 33 пакета; интеграция ×2 TZ (45s/39s); journeys ПОЛНЫЙ суит 48/48 (3.2m — включая обновлённый actions-catalog и z43); qa_step_scan_4_6.py CLEAN
 next: Dev step-05 — QA-саморевью по живому диффу шагов 01-04 (замороженные секции/лестница 3-6/поля отправки 0/оператор не вводит пины/маркетинг 0/import-graph) + финальный регресс свежими прогонами + closure (Spec Change Log Dev 01-04, спека done, sprint-status done — Epic 4: 6/11) + коммит feat БЕЗ маркера — CI ×3 на CHECKPOINT 2
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для пушей шагов)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-25
@@ -4930,7 +4930,7 @@ done:
 - Closure: Spec Change Log запись Dev 01-04 + QA (коммиты шагов: b265aa8/0956e63/76fa7ed/5f70283); спека ready-for-dev → done; sprint-status 4-6-создание-одного-клиентского-заказа-в-abcp → done — Epic 4: 6/11; коммит feat БЕЗ [skip ci] — голова триггерит CI ×3 (push + PR + merge — урок 2-14/ретро-2-1)
 next: CHECKPOINT 2 — PR через GitHub API (sha-pinned HEAD в теле) → CI ×3 зелёный поимённо (push/PR/merge) → sha-pinned merge в main → локальный main ff-only → DEVLOG 232-checkpoint-2 → пуш; после merge: следующая story по сигналу владельца; удаление слитых веток 4-5/4-6 на GitHub — по поручению владельца
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для PR, проверки CI и merge)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-25
@@ -4946,7 +4946,7 @@ done:
 - Closure-состояние исполнено в step-05 до merge: спека 4-6 done, sprint-status 4-6 done, Spec Change Log Dev 01-04 + QA головой
 - Токен нигде не зафиксирован: env-only STAFFY_GH_TOKEN ре-экспорт в команде каждого auth-шага, remote-URL чистый, дифф-сканы 0
 next: следующая story по сигналу владельца «продолжайте» (спека 4-7 decision-ready проверка заказа менеджером — SM-фаза); удаление слитых веток 4-5/4-6 на GitHub — по поручению владельца; владельцу: ОТЗВАТЬ PAT подтверждённо после закрытия чата (retro-3-6/retro-2-6 — передавался открытым текстом многократно; токен этой сессии ЖИВ — использовался для пушей шагов, PR #47, проверки CI и merge)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-25
@@ -4962,7 +4962,7 @@ done:
 - Ветка codex/story-4-7-manager-order-verification от main 40fb12f; спека закоммичена c2d549a [skip ci], пуш успешен, RPO=0 живым ls-remote; sprint-status НЕ тронут (4-7 backlog до одобрения — дисциплина 52-sm)
 next: CHECKPOINT 1 story 4-7 — явное одобрение владельца «одобряю»/«продолжайте» В ОТВЕТ на предъявление спеки (дисциплина 52-sm, прецеденты 53-sm/207/216/226): флип спека backlog → ready-for-dev + sprint-status 4-7-decision-ready-проверка-заказа-менеджером → ready-for-dev синхронно → Dev шаги 01-05 → CHECKPOINT 2 (Epic 4: 7/11); спека предъявлена владельцу отдельным ответом этой сессии сразу за этой записью
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — использовался для верификации, пуша ветки 4-7 и DEVLOG)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-25
@@ -4977,7 +4977,7 @@ done:
 - Регресс входа: go build ./... OK, go vet ./... OK, unit 30 пакетов ok
 next: Dev step-01 story 4-7 — миграция migrations/action/00006_order_verifications.sql (2 append-only таблицы + RLS/CHECK-зеркала + TestMain-регистрация) + домен internal/action/domain/order_verification.go (типы/гварды поимённой матрицы/словари verify_4h+verify_1d и 5 причин/честные слова/DeriveOrderVerificationState + DeriveDecisionApplicability) + unit-тесты (гварды поимённо/деривации/байт-стабильность слов/зонды) + DEVLOG 235 + коммит [skip ci] + пуш
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для пушей шагов Dev-фазы)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-25
@@ -4993,7 +4993,7 @@ done:
 - Регресс: build/vet OK, unit 30 пакетов ok (0 отказов), интеграционный смоук живым PG (миграция применяется чисто, TestActionDispatch/Recovery зелёные); qa_step01_scan_4_7.py CLEAN (fail=0 warn=1 — сам скан-скрипт в диффе, прецедент трекинга)
 next: Dev step-02 — app-сервис задачи internal/action/app/order_verification.go (5 команд assign/acknowledge/approve/block/reassign с забором решения живой ре-деривацией DeriveOrderCommitmentMaterial кодом лестницы 4.5 и CAS assignment-эпохи под локами) + порт чтения + store order_verification_store.go + unit-тесты команд/забора/CAS-гонок таблицей + регресс ×2 TZ
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для пушей шагов Dev-фазы)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-25
@@ -5012,7 +5012,7 @@ done:
 - Регресс: build/vet OK, unit 30 пакетов ok, интеграция ПОЛНЫЙ суит ×2 TZ=Europe/Moscow (48.0s/43.1s) зелёные
 next: Dev step-03 — экран «Проверка заказа» на странице кейса (карточка/контекст живыми панелями/техническая строка/две разные формы решения/Commercial-гейт закупочной цены/слова ручного контура и fence-честности) + 5 маршрутов JSON+PRG + OpenAPI-зеркала + wire-тесты
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для пушей шагов Dev-фазы)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-25
@@ -5031,7 +5031,7 @@ done:
 - Регресс: build/vet OK, unit 30 пакетов ok (транспорт полный зелёный), интеграция ×2 TZ=Europe/Moscow (44.8s/42.6s)
 next: Dev step-04 — интеграционная eval-матрица AC-15 поимённо живым PG (tests/integration/cases_order_verification_test.go над orderWorld: полная цепочка assign→acknowledge→approve с Human Verification Receipt пинами BY NAME + недоставленное уведомление/отсутствие acknowledgement/истёкший deadline/одновременное решение двух менеджеров CAS/stale Order/ошибочная позиция/попытка автоматической отправки зонд 0 + RLS-слепота + replay) + journeys z44 «order-verification» (320px менеджерский путь + a11y + секреты) + полный регресс
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для пушей шагов Dev-фазы)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-25
@@ -5047,7 +5047,7 @@ done:
 - Регресс ПОЛНЫЙ: build/vet OK; unit 33 пакета ok; интеграция ПОЛНЫЙ суит ×2 TZ=Europe/Moscow (42.9s/42.7s) зелёные; journeys ПОЛНЫЙ суит 49/49 (z44 — новый 49-й, 2.6m); gofmt моей правкой; секреты в диффе 0 (единственный матч github_pat_ — сам зонд спеки, не утечка)
 next: Dev step-05 — QA-саморевью и closure по живому диффу ветки шагов 01-04 (замороженные секции 2-13/лестница 3-6/persist-квитанций НЕ тронуты name-only; SQL ровно 1 миграция 00006; supplier-send 0; закупочная только по Commercial-скоупу; маркетинг 0; import-graph чист; AD-10) + финальный регресс свежими прогонами + closure: Spec Change Log Dev 01-04 + QA, спека done, sprint-status done — Epic 4: 7/11; коммит feat БЕЗ маркера — CI ×3 на CHECKPOINT 2
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для пушей шагов Dev-фазы)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-25
@@ -5063,7 +5063,7 @@ done:
 - Гигиена: секреты в диффе 0 (токен env-only, remote-URL чистый); токен нигде не зафиксирован
 next: CHECKPOINT 2 — PR через GitHub API (python-JSON сборка по прецеденту pr_story_4_6.py, sha-pinned HEAD в теле) → CI ×3 зелёный поимённо (push/PR/merge) → sha-pinned merge в main → локальный main ff-only → DEVLOG 240-checkpoint-2 → пуш; после merge: следующая story по сигналу владельца (4-8 коррекция подбора — SM-фаза); удаление слитых веток 4-5/4-6/4-7 на GitHub — по поручению владельца
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для пуша шага и CHECKPOINT 2)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-25
@@ -5078,7 +5078,7 @@ done:
 - Мандат владельца «продолжайте (токен)» в ответ на предъявление 233-sm исполнен ПОЛНОСТЬЮ: CHECKPOINT 1 (76231fb) → Dev шаги 01-05 (18fd6ac / 200d745 / b5ba76b / 0b60529 / e214718) → CHECKPOINT 2 (merge 7e64a6e); спека первого среза закрыта done; следующая story — по сигналу владельца
 - Гигиена: токен env-only весь чекпоинт (PR/merge/CI-зонды — URL-токен нигде не зафиксирован); scripts/pr_story_4_7.py в трекинге сессии — дерево чистое
 next: следующая story по сигналу владельца «продолжайте» (4-8 коррекция подбора до закупки — SM-фаза: спека первого среза по эпику и PRD); удаление слитых веток 4-5/4-6/4-7 на GitHub — по поручению владельца; владельцу: ОТЗВАТЬ PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — использовался для пушей шагов, PR #48, CI-зондов и merge)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-25
@@ -5094,7 +5094,7 @@ done:
 - Ветка codex/story-4-8-order-correction-before-purchase от main a5be51d; спека+скан закоммичены 44687d1 [skip ci]; sprint-status НЕ тронут (4-8 backlog до одобрения — дисциплина 52-sm)
 next: CHECKPOINT 1 story 4-8 — явное одобрение владельца «одобряю»/«продолжайте» В ОТВЕТ на предъявление спеки (дисциплина 52-sm, прецеденты 53-sm/207/216/226/234): флип спека backlog → ready-for-dev + sprint-status 4-8-коррекция-подбора-до-закупки → ready-for-dev синхронно → Dev шаги 01-05 → CHECKPOINT 2 (Epic 4: 8/11); спека предъявлена владельцу отдельным финальным ответом этой сессии
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — использовался для верификации, ls-remote и пуша ветки 4-8)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-25
@@ -5110,7 +5110,7 @@ done:
 - Регресс входа: go build ./... OK, go vet ./... OK, unit 33 пакета ok (0 отказов)
 next: Dev step-01 story 4-8 — миграция migrations/action/00007_order_corrections.sql (2 append-only таблицы + RLS/CHECK-зеркала + TestMain-регистрация) + домен internal/action/domain/order_correction.go (типы/гварды поимённой матрицы/словари {correct_4h, correct_1d} + 3 причины/честные слова/DeriveOrderCorrectionState + DeriveOrderCorrectionDiff) + unit-тесты (гварды поимённо/деривации/байт-стабильность слов/зонды) + DEVLOG 243 + коммит [skip ci] + пуш
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для пушей шагов Dev-фазы)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-25
@@ -5126,7 +5126,7 @@ done:
 - Регресс: build/vet OK, unit 33 пакета ok (0 отказов), интеграционный смоук живым PG (миграция применяется чисто над живой схемой, TestActionDispatch/Recovery зелёные 7.1s); qa_spec_scan_4_8 CLEAN; секрет-скан диффа: 0 матчей
 next: Dev step-02 — app-сервис internal/action/app/order_correction.go (4 команды open/reassign/reread/cease с CAS-эпохой под advisory-lock и переносом материала blocked-события SQL-истиной одной транзакцией; reread-валидации: версия последняя ∧ подтверждена ∧ живая DeriveOrderCommitmentMaterial == дайджесту версии) + store order_correction_store.go (лестница correction_no/CAS) + ДВА структурных гейта (assign 4-7 → 409 словом; авторизация 3-5 → отказ ДО транзакции) + unit команд/гейтов порядком живых счётчиков + регресс ×2 TZ
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для пушей шагов Dev-фазы)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-25
@@ -5145,7 +5145,7 @@ done:
 - Регресс: build/vet OK; unit 33 пакета ok; интеграция ПОЛНЫЙ суит ×2 TZ=Europe/Moscow (47.9s/48.2s) зелёные; gofmt всей правкой (order_verification_test.go — ТОЛЬКО выравнивание, whitespace-ignored дифф 0 строк, контент 4-7 не тронут)
 next: Dev step-03 — транспорт internal/transport/http/cases_order_correction.go (панель «Коррекция заказа» на странице кейса: карточка/дифф прежний→текущий по позиции/рекомендуемое объяснение/три разные формы) + слова pending_correction на панелях 4-6/4-7 + 4 маршрута JSON+PRG + OpenAPI-зеркала + wire-тесты (панель/кнопки/дифф текстом/контракт-зеркала с фенс-зондом полей)
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для пушей шагов Dev-фазы)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-25
@@ -5164,7 +5164,7 @@ done:
 - Регресс: build/vet OK; unit 33 пакета ok (транспорт весь зелёный); интеграция ПОЛНЫЙ суит ×2 TZ=Europe/Moscow (47.3s/49.2s) зелёные
 next: Dev step-04 — интеграционная eval-матрица AC-15 поимённо tests/integration/cases_order_correction_test.go живым PG (полная цепочка blocked → open → пересборка + подтверждение → reread → corrected → новая задача проверки + все AC-ряды) + journeys z45 «order-correction» (менеджерский путь 320px) + регресс ПОЛНЫЙ
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для пушей шагов Dev-фазы)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-25
@@ -5180,7 +5180,7 @@ done:
 - Регресс ПОЛНЫЙ: build/vet OK; unit 33 пакета ok; интеграция ПОЛНЫЙ суит ×2 TZ=Europe/Moscow (54.1s/55.0s) зелёные; journeys ПОЛНЫЙ суит 50/50 (z45 — новый 50-й, 2.9m); секреты в диффе 0 (единственный матч github_pat_ — сам зонд спеки)
 next: Dev step-05 — QA-саморевью и closure по живому диффу ветки шагов 01-04 (замороженные машины 2-13/3-6/persist/термы 2-4/команды 2-15 НЕ тронуты name-only; SQL ровно 1 миграция 00007 append-only + one-closure partial UNIQUE; supplier-send/change 0; закупочная только по Commercial-скоупу; маркетинг 0; import-graph чист; AD-10 SAFE-пины; гейты не задели лестницу 3-6 живыми зондами) + финальный регресс свежими прогонами + closure: Spec Change Log Dev 01-04 + QA, спека done, sprint-status done — Epic 4: 8/11; коммит feat БЕЗ маркера — CI ×3 на CHECKPOINT 2
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для пушей шагов Dev-фазы)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-25
@@ -5195,7 +5195,7 @@ done:
 - Гигиена: секреты в диффе 0 (токен env-only, remote-URL чистый); токен нигде не зафиксирован
 next: CHECKPOINT 2 — PR через GitHub API (python-JSON сборка по прецеденту pr_story_4_7.py, sha-pinned HEAD в теле) → CI ×3 зелёный поимённо (push/PR/merge) → sha-pinned merge в main → локальный main ff-only → DEVLOG 248-checkpoint-2 → пуш; после merge: следующая story по сигналу владельца (4-9); удаление слитых веток 4-5..4-8 на GitHub — по поручению владельца
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для пуша шага и CHECKPOINT 2)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-25
@@ -5210,7 +5210,7 @@ done:
 - Мандат владельца «продолжайте (токен)» исполнен ПОЛНОСТЬЮ: CHECKPOINT 1 (9bafabb) → Dev шаги 01-05 (7c887a9 / 5bb1b75 / e329950 / cafb677 / 8561d4e) → CHECKPOINT 2 (merge 9220f04); спека первого среза закрыта done; Epic 4: 8/11; следующая story — по сигналу владельца
 - Гигиена: токен env-only весь чекпоинт (PR/merge/CI-зонды — URL-токен нигде не зафиксирован); scripts/pr_story_4_8.py в трекинге сессии — дерево чистое
 next: следующая story по сигналу владельца «продолжайте» (4-9 — по эпику: контур отмены заказа 4-10 близок, живое чтение epics.md решит); удаление слитых веток 4-5..4-8 на GitHub — по поручению владельца; владельцу: ОТЗВАТЬ PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — использовался для пушей шагов, PR #49, CI-зондов и merge)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-25
@@ -5228,7 +5228,7 @@ done:
 - Ветка codex/story-4-9-truthful-order-status от main 3cffb88; sprint-status НЕ тронут (4-9 backlog до одобрения — дисциплина 52-sm)
 next: CHECKPOINT 1 story 4-9 — явное одобрение владельца «одобряю»/«продолжайте» В ОТВЕТ на предъявление спеки (дисциплина 52-sm, прецеденты 53-sm/207/216/226/234/242): флип спека backlog → ready-for-dev + sprint-status 4-9-правдивый-статус-abcp-1с-и-поставщика → ready-for-dev синхронно → Dev шаги 01-05 → CHECKPOINT 2 (Epic 4: 9/11); спека предъявлена владельцу финальным ответом сессии
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — использовался для верификации, очистки веток, ls-remote, пуша правила AGENTS.md и ветки 4-9)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-25
@@ -5242,7 +5242,7 @@ done:
 - Флипы синхронно: spec-4-9-truthful-order-status.md front-matter status ready-for-dev + sprint-status.yaml 4-9-правдивый-статус-abcp-1с-и-поставщика ready-for-dev; qa_spec_scan_4_9.py на новом статусе CLEAN (fail=0 warn=0)
 next: Dev step-01 story 4-9 — миграция migrations/action/00008_order_supplier_facts.sql (1 append-only таблица фактов + UNIQUE полного ключа (tenant, case, operation_id, kind, supplier_order_id) + RLS/FORCE + гранты INSERT/SELECT + CHECK-зеркала + TestMain-регистрация) + домен internal/action/domain/order_status.go (словари 5 стадий/видов {formed, sent}/источников {system_receipt, manager_record}/слов границ-свежести-срока + DeriveOrderStatusProjection + DeriveOrderStatusTimeline + гварды GuardOrderSupplierFact) + unit-тесты (деривации поимённо/тасование событий AC-9/зонды: supplier-send полей 0, уведомительных полей 0, ценовых полей 0) + DEVLOG 251 + коммит [skip ci] + пуш
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-25
@@ -5258,7 +5258,7 @@ done:
 - Регресс: build/vet OK; unit 33 пакета ok (новые domain-тесты зелёные)
 next: Dev step-02 story 4-9 — app-сервис internal/action/app/order_status.go: RecordOrderSupplierFormed + RecordOrderSupplierSent (rights gate Review → живая операция живым чтением → GuardOrderSupplierFact → идемпотентный replay BY KEY → append одной транзакцией; серверная истина актёра) + OrderStatusView (сборка материала существующими port-чтениями: операции/квитанции/verification/correction/facts → DeriveOrderStatusProjection → SAFE-вью) + port OrderSupplierFactRepository + store-реализация + unit (команды/идемпотентность/гонки/гварды поимённо) + api-интерфейс + регресс ×2 TZ; DEVLOG 252 + коммит [skip ci] + пуш
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-25
@@ -5277,7 +5277,7 @@ done:
 - Регресс: build/vet OK; unit 30 пакетов ok; интеграция ×2 TZ=Europe/Moscow (56.0s/46.2s) — миграция 00008 зарегистрирована в TestMain шагом-01, live PG применяет
 next: Dev step-03 story 4-9 — панель «Статус заказа» internal/transport/http/cases_order_status.go на странице кейса после «Коррекции заказа» (id="order-status": текущий этап словом/по системам раздельно/источники BY NAME/лента/три слова срока/слова уведомлений и оспаривания/клиентские слова; a11y 320px, различимость без цвета) + форма записи факта (вид-select {сформирован, отправлен} + supplier order ID + время факта) + 2 маршрута JSON (строгий decode) + /app/... PRG-формы (origin-гейт) + OpenAPI-зеркала (2 пути + OrderStatusView closed-shape + enum-зеркала) + wire-тесты cases_order_status_render_test.go + регресс ×2 TZ; DEVLOG 253 + коммит [skip ci] + пуш
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-25
@@ -5296,7 +5296,7 @@ done:
 - Регресс: build/vet OK; unit 30 пакетов ok; интеграция ×2 TZ=Europe/Moscow (46.9s/46.8s)
 next: Dev step-04 story 4-9 — tests/integration/cases_order_status_test.go живым PG (мир над продуктовым каталогом 4-6 + полная цепочка): eval-матрица AC-15 ПОИМЁННО (задержка ABCP→1С 1С unknown OQ-4; ручная отправка formed/sent → стадии + manager_record, ДО записи стадия не подтверждается; события не по порядку — тот же результат AC-9; повтор webhook = идемпотентный replay BY KEY; конфликт систем — оба раздельно AC-8; устаревший статус — свежесть AC-10; отсутствие supplier receipt — стадии не достигнуты AC-4; смешение этапов блокирует маршрут — NEVER supplier_sent структурный зонд; RLS-слепота; supplier-send зонд 0) + journeys z46 order-status (менеджерский путь 320px: заказ → проверка → панель по стадиям/системам → запись формирования → запись отправки → стадии подтверждаются → лента → a11y) + сид мира + полный регресс; DEVLOG 254 + коммит [skip ci] + пуш
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-25
@@ -5313,7 +5313,7 @@ done:
 - Регресс ПОЛНЫЙ: build/vet OK; unit 30 пакетов ok; интеграция ×2 TZ=Europe/Moscow (58.0s/51.4s); journeys 51/51 (3.9m) — z46 новый 51-й
 next: Dev step-05 story 4-9 — QA-саморевью свежим контекстом по живому диффу ветки шагов 01-04 (замороженные машины 2-7/2-13/3-6/persist/термы 2-4/команды 2-15 name-only; SQL ровно 1 миграция 00008 append-only; supplier-send 0; уведомления 0; ценовые поля 0; панели 4-6..4-8 не правлены; import-graph; AD-10 SAFE-пины) + финальный регресс свежими прогонами + closure: Spec Change Log Dev 01-04 + QA, спека done, sprint-status done — Epic 4: 9/11; коммит feat БЕЗ маркера (CI ×3 на CHECKPOINT 2)
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-25
@@ -5327,7 +5327,7 @@ done:
 - Closure: Spec Change Log спеки — CHECKPOINT 1 + Dev step-01..04 + QA-запись step-05; спека 4-9 status done; sprint-status 4-9-правдивый-статус-abcp-1с-и-поставщика done — Epic 4: 9/11
 next: CHECKPOINT 2 story 4-9 — PR (python-JSON, sha-pinned HEAD) → CI ×3 зелёный поимённо → живой GET сверки головы → sha-pinned merge в main → локальный main ff-only → DEVLOG 256-checkpoint-2 + пуш в main → УДАЛЕНИЕ СЛИТОЙ ВЕТКИ (правило владельца AGENTS.md: GitHub API DELETE после проверки ahead_by=0 / локально / prune рефов) → check-continuity
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ)
-commit: TBD
+commit: a41fff0
 
 ---
 date: 2026-10-25
@@ -5344,4 +5344,4 @@ done:
 - Гигиена: токен env-only весь цикл (PR/merge/CI-зонды/пуши), в диффах 0; секрет-сканы шагов CLEAN
 next: следующая story по сигналу владельца «продолжайте» (по живому чтению epics.md — кандидат 4-10 контур отмены заказа, эпик 4: 9/11 закрытых); владелец отзывает PAT после закрытия чата
 владельцу: отозвать PAT сейчас (retro-3-6/retro-2-6; токен сессии ЖИВ — использовался для пушей шагов 01-05, PR #50, CI-зондов, merge, пуша DEVLOG/PR-скрипта в main и удаления ветки)
-commit: TBD
+commit: a41fff0
