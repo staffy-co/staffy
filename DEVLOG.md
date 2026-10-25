@@ -5314,3 +5314,17 @@ done:
 next: Dev step-05 story 4-9 — QA-саморевью свежим контекстом по живому диффу ветки шагов 01-04 (замороженные машины 2-7/2-13/3-6/persist/термы 2-4/команды 2-15 name-only; SQL ровно 1 миграция 00008 append-only; supplier-send 0; уведомления 0; ценовые поля 0; панели 4-6..4-8 не правлены; import-graph; AD-10 SAFE-пины) + финальный регресс свежими прогонами + closure: Spec Change Log Dev 01-04 + QA, спека done, sprint-status done — Epic 4: 9/11; коммит feat БЕЗ маркера (CI ×3 на CHECKPOINT 2)
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ)
 commit: TBD
+
+---
+date: 2026-10-25
+task: 255-dev-step-05
+role: main (Super Z, сессия web-d497a728)
+story: 4-9
+summary: Dev step-05 story 4-9 — QA-саморевью сканом qa_step05_4_9_scan.py CLEAN по живому диффу ветки + финальный регресс свежими прогонами + closure: спека done, sprint-status done — Epic 4: 9/11; коммит feat БЕЗ маркера (CI ×3 на CHECKPOINT 2)
+done:
+- scripts/qa_step05_4_9_scan.py (адаптация прецедента 4-8, зонды 10): секреты/CJK/mixed 0 по 27 файлам диффа; замороженные машины 2-7/2-13/3-6/persist/термы 2-4/команды 2-15 И ПАНЕЛИ 4-6..4-8 (cases_order.go/cases_order_verification.go/cases_order_correction.go + их render-тесты) НЕ тронуты — name-only; SQL ровно 1 миграция 00008 append-only (FORCE RLS + REVOKE + UNIQUE полного ключа + CHECK-зеркало {formed, sent}); supplier-send/уведомительные/ценовые поля 0 в домене/api/app/транспорте (fence OQ-3/OQ-1/OQ-2/Commercial); маркетинг 0; import-graph домена только platform/id (ZERO записей AC-2 структурно); AD-10 SAFE-пины факта (без цен/составов/рендеров); идемпотентность BY KEY (реплей ДО гварда + store-duplicate → перечитка + UNIQUE бэкстоп) + лестница sent-after-formed; read-time сборка существующими портами + reuse DeriveOrderCommitmentMaterial оценки; серверная истина актёра (command.Actor.ID); живые пины тестов (реплей/гонка/лестница/тасование AC-9 DeepEqual) — CLEAN fail=0 warn=0 с первого прогона
+- Финальный регресс свежими прогонами: build/vet OK; unit 30 пакетов ok; интеграция ×2 TZ=Europe/Moscow (59.3s/56.6s); journeys 51/51 (4.0m, z46 — 51-й)
+- Closure: Spec Change Log спеки — CHECKPOINT 1 + Dev step-01..04 + QA-запись step-05; спека 4-9 status done; sprint-status 4-9-правдивый-статус-abcp-1с-и-поставщика done — Epic 4: 9/11
+next: CHECKPOINT 2 story 4-9 — PR (python-JSON, sha-pinned HEAD) → CI ×3 зелёный поимённо → живой GET сверки головы → sha-pinned merge в main → локальный main ff-only → DEVLOG 256-checkpoint-2 + пуш в main → УДАЛЕНИЕ СЛИТОЙ ВЕТКИ (правило владельца AGENTS.md: GitHub API DELETE после проверки ahead_by=0 / локально / prune рефов) → check-continuity
+владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ)
+commit: TBD
