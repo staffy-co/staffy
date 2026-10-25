@@ -146,14 +146,32 @@ func (s *Service) orderBlockedAnchor(ctx context.Context, scope tenancy.Context,
 	if err != nil {
 		return domain.Operation{}, port.ActionReceiptRow{}, domain.OrderVerification{}, domain.OrderVerificationEvent{}, err
 	}
+	// The LADDER filter: every correction of the operation addresses its
+	// blocked decision BY the verification number pin — a closed
+	// correction CONSUMED its decision (the history is the truth); the
+	// NEW correction opens only by a NEWER blocked decision (the ladder
+	// of the repeated correction, never a second correction of one
+	// decision).
+	corrections, err := s.corrections.ReadOperationCorrections(ctx, scope, operationID)
+	if err != nil {
+		return domain.Operation{}, port.ActionReceiptRow{}, domain.OrderVerification{}, domain.OrderVerificationEvent{}, err
+	}
+	addressed := int64(0)
+	for _, correction := range corrections {
+		if correction.VerificationNo > addressed {
+			addressed = correction.VerificationNo
+		}
+	}
 	// The LAST CLOSED blocked decision: the latest verification task of
-	// the operation whose derived state is blocked (the ladder order —
-	// the maximal verification number wins; the correction addresses the
-	// CURRENT blocked decision, a newer decision closed the older task
-	// by the ladder).
+	// the operation whose derived state is blocked AND whose number is
+	// NEWER than every addressed decision (the ladder order — the
+	// maximal verification number wins).
 	var blockedTask *domain.OrderVerification
 	var blockedEvent *domain.OrderVerificationEvent
 	for i := range tasks {
+		if tasks[i].VerificationNo <= addressed {
+			continue
+		}
 		events, err := s.verifications.ReadVerificationEvents(ctx, scope, tasks[i].CaseID, tasks[i].VerificationNo)
 		if err != nil {
 			return domain.Operation{}, port.ActionReceiptRow{}, domain.OrderVerification{}, domain.OrderVerificationEvent{}, err
@@ -194,6 +212,22 @@ func (s *Service) OpenOrderCorrection(ctx context.Context, command OpenOrderCorr
 	scope, err := s.authorizeOrderCorrection(ctx, command.Actor, command.TenantID)
 	if err != nil {
 		return OrderCorrectionOutcome{}, err
+	}
+	// The honest 409 of the OPEN correction FIRST (the I/O matrix order):
+	// an open correction of the operation refuses the repeated open with
+	// the CURRENT lifecycle words — the second competing correction is
+	// never created (the anchor ladder of the closed corrections never
+	// reaches this path).
+	if corrections, correctionsErr := s.corrections.ReadOperationCorrections(ctx, scope, command.OperationID); correctionsErr == nil {
+		for _, correction := range corrections {
+			events, eventsErr := s.corrections.ReadCorrectionEvents(ctx, scope, correction.CaseID, correction.CorrectionNo)
+			if eventsErr != nil {
+				continue
+			}
+			if domain.DeriveOrderCorrectionState(correction, events, command.Now).Active() {
+				return OrderCorrectionOutcome{}, s.orderCorrectionActiveConflict(ctx, scope, command.OperationID, command.Now)
+			}
+		}
 	}
 	// The LIVE anchor read: the committed operation WITH the LAST CLOSED
 	// blocked decision (the SQL-truth carry of the blocked material).

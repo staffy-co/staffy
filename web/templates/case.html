@@ -1509,6 +1509,7 @@
 </fieldset>
 </form>
 </details>
+{{if .View.Order.CorrectionPendingWord}}<p class="alert" role="alert">{{.View.Order.CorrectionPendingWord}} — новый заказ не создаётся: изменение существующего заказа выполняется вручную в контуре магазина.</p>{{end}}
 </section>
 {{end}}
 {{if .View.Order.HasReceipts}}
@@ -1543,7 +1544,6 @@
 {{if .View.CorrectionReread}}<p class="status" role="status" id="correction-reread">Перечит записан. {{.View.OrderCorrection.RereadWord}}</p>{{end}}
 {{if .View.CorrectionCeased}}<p class="status" role="status" id="correction-ceased">Коррекция прекращена без замены: заказ остаётся заблокированным от продвижения.</p>{{end}}
 {{if .View.CorrectionReassigned}}<p class="status" role="status" id="correction-reassigned">Коррекция переназначена: новая эпоха назначения открыта.</p>{{end}}
-{{if .View.Order.CorrectionPendingWord}}<p class="alert" role="alert">{{.View.Order.CorrectionPendingWord}} — новый заказ не создаётся: изменение существующего заказа выполняется вручную в контуре магазина.</p>{{end}}
 {{if .View.OrderVerification.Wired}}
 <h2>Проверка заказа</h2>
 <section class="panel" aria-label="Проверка заказа" id="order-verification">
@@ -1681,7 +1681,7 @@
 {{if .View.OrderCorrection.Wired}}
 <h2>Коррекция заказа</h2>
 <section class="panel" aria-label="Коррекция заказа" id="order-correction">
-<p class="next-note">Коррекция — контур 4-8: Correction Work Item над заблокированным решением проверки; {{.View.OrderCorrection.ManualContourWord}}.</p>
+<p class="next-note">Коррекция — контур 4-8: Correction Work Item над заблокированным решением проверки; {{.View.OrderCorrection.ManualContourWord}}; {{.View.OrderCorrection.NotStartedWord}}.</p>
 <p class="alert" role="alert">Открытая коррекция держит два структурных гейта: новая задача проверки не создаётся до закрытия коррекции; новый дублирующий заказ не создаётся — изменение существующего заказа выполняется вручную в контуре магазина.</p>
 {{range .View.OrderCorrection.Cards}}
 <details class="connector-connect" open><summary>Коррекция №{{.CorrectionNo}} — {{.StateText}}</summary>
@@ -1749,6 +1749,23 @@
 {{if not .View.OrderCorrection.Present}}
 <p class="next-note">Открытых коррекций нет: коррекция открывается по решению проверки «Нужна коррекция» — заблокированного решения нет, открывать нечего.</p>
 {{end}}
+<h3>Открыть коррекцию (по заблокированному решению проверки)</h3>
+<form method="post" action="{{.View.OrderCorrection.OpenTarget}}" class="panel-form">
+<fieldset>
+<legend>Открыть коррекцию заказа (якорь — операция с заблокированным решением)</legend>
+<label for="correct-open-operation">Якорь операции с заблокированным решением (UUID)</label>
+<input id="correct-open-operation" name="operation_id" type="text" autocomplete="off" required>
+<label for="correct-open-owner">Владелец коррекции (UUID участника с полномочием review)</label>
+<input id="correct-open-owner" name="owner" type="text" autocomplete="off" required>
+<label for="correct-open-deadline">Слово дедлайна коррекции</label>
+<select id="correct-open-deadline" name="deadline" required>
+<option value="correct_4h">Четыре часа</option>
+<option value="correct_1d">Сутки</option>
+</select>
+<p class="next-note">Позиции и причина переносятся из заблокированного решения проверки автоматически — исходные записи не переписываются; {{.View.OrderCorrection.ManualContourWord}}.</p>
+<button type="submit">Открыть коррекцию</button>
+</fieldset>
+</form>
 {{if .View.OrderCorrection.LivePresent}}
 <h3>Рекомендуемое объяснение клиенту</h3>
 <p class="next-note">{{.View.OrderCorrection.NotSentWord}}; {{.View.OrderCorrection.NewConfirmationWord}}; {{.View.OrderCorrection.ChannelWord}}.</p>

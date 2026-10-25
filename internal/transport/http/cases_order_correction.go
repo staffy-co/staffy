@@ -54,6 +54,7 @@ type orderCorrectionPanelView struct {
 	NotSentWord          string
 	ChannelWord          string
 	PendingWord          string
+	NotStartedWord       string
 	PurchasingHiddenWord string
 	OpenTarget           string
 }
@@ -120,6 +121,7 @@ func (s *Server) orderCorrectionPanelOf(ctx context.Context, actor identityDomai
 		NotSentWord:          actionDomain.OrderCorrectionNotSentWord,
 		ChannelWord:          actionDomain.OrderCorrectionChannelWord,
 		PendingWord:          actionDomain.OrderCorrectionPendingWord,
+		NotStartedWord:       actionDomain.OrderCorrectionNotStartedWord,
 		PurchasingHiddenWord: actionDomain.OrderCorrectionPurchasingHiddenWord,
 		RebuildLinkText:      "пересборка заказа — панель «Заказ клиента» (якорь #order): новая версия предложения строится существующей EDIT-лестницей над пересобранными входами",
 		OpenTarget:           "/app/tenants/" + tenant.String() + "/cases/" + caseID.String() + "/order-corrections",

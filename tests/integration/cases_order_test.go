@@ -136,7 +136,8 @@ func (w *casesWorld) buildOrderService(adapter actionPort.MutationAdapter, reade
 		WithDispatch(actionStore.NewPostgres(runtimePool), adapter).
 		WithReconcile(actionStore.NewPostgres(runtimePool), reconcile).
 		WithRecovery(actionStore.NewPostgres(runtimePool)).
-		WithOrderVerifications(actionStore.NewPostgres(runtimePool))
+		WithOrderVerifications(actionStore.NewPostgres(runtimePool)).
+		WithOrderCorrections(actionStore.NewPostgres(runtimePool))
 	if reader != nil {
 		service = service.WithPreviewReader(reader)
 	}
