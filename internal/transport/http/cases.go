@@ -581,6 +581,14 @@ func (s *Server) caseDetailPage(w http.ResponseWriter, r *http.Request) {
 		s.casesPageProblem(w, r, err)
 		return
 	}
+	// The Story 4.7 verification panel: the same honest degradation (an
+	// unwired surface or a scope-forbidden member renders the zero panel —
+	// the page keeps the rest; every other failure fails the page).
+	page.OrderVerification, err = s.orderVerificationPanelOf(r.Context(), actor, tenant, caseID, view)
+	if err != nil {
+		s.casesPageProblem(w, r, err)
+		return
+	}
 	s.render(w, "case", map[string]any{
 		"TenantID": tenant,
 		"View":     page,

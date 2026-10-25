@@ -104,6 +104,18 @@ type Service struct {
 	// the HONEST production boundary (the FreshReads precedent, AG-4): the
 	// order dispatch fails CLOSED — never an assumed «unchanged».
 	orderVersions port.OrderVersionSource
+
+	// Story 4.7 (step-02): the manager order verification contour — the
+	// Delegated Task over the committed receipt of the order action. The
+	// repository owns the TWO locked appends (the creation with the
+	// opening assigned event; the lifecycle event with the CAS epoch
+	// re-validation); the anchor reads ride the EXISTING repositories
+	// (the operations, the dispatch receipts) and the decision fence
+	// re-derives the LIVE composition through the SAME caseMaterial port
+	// the builder reads (the consumer-owned reuse — NO write path into
+	// the cases module exists). A NIL repository is the HONEST unwired
+	// state (the preview precedent): every command refuses in words.
+	verifications port.OrderVerificationRepository
 }
 
 // New wires the service. The resolvers are the composition-root adapters
@@ -220,6 +232,18 @@ func (s *Service) WithRecovery(repository port.RecoveryRepository) *Service {
 // FreshReads precedent).
 func (s *Service) WithOrderVersions(source port.OrderVersionSource) *Service {
 	s.orderVersions = source
+	return s
+}
+
+// WithOrderVerifications wires the manager order verification contour of
+// story 4.7 (the fixture and the transport composition roots): the
+// verification repository. The anchor reads ride the WithAuthorization/
+// WithDispatch wirings (the operations and the receipts); the decision
+// fence rides the WithPreviews case material. A root that wires nothing
+// keeps the HONEST refusal of the unwired contour (the preview
+// precedent).
+func (s *Service) WithOrderVerifications(repository port.OrderVerificationRepository) *Service {
+	s.verifications = repository
 	return s
 }
 

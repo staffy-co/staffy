@@ -3521,6 +3521,122 @@ paths:
         '403': { description: 'Policy-гейт заблокировал валидную попытку (blocked_reason — точное слово)', content: { application/json: { schema: { type: object, required: [proposal], properties: { proposal: { $ref: '#/components/schemas/ProposalOutcome' } } } } } }
         '404': { description: 'Не-участник / кейс, work item или определение заказа не найдены — ДО материала', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
         '409': { description: 'Заказ не строится из текущего материала: нет подтверждённого выбора / применимость не подтверждена / версии входов расходятся / предложение не резолвится — честные слова ДО какого-либо предложения', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/order-verifications:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+    post:
+      operationId: assignOrderVerification
+      summary: 'Назначить задачу проверки заказа (Story 4.7): Delegated Task над committed-квитанцией create_abcp_customer_order (якорь — операция/квитанция, НЕ turn_ref; владение кейсом НЕ передаётся — термы 2-4 не тронуты); актёр — участник с полномочием review (живая грант-матрица identity), assignee — участник с review, backup — участник; дедлайн словом словаря {verify_4h, verify_1d}; назначение ≠ принятие (AC-1): открытое событие assigned несёт assignee/backup_owner/дедлайн и эпоху event_no=1 — CAS-токен всех последующих команд; одна активная задача на операцию (повтор — 409 с текущим словом состояния); решение решённой задачи — НОВАЯ задача verification_no+1 (лестница AC-14); НИ ОДНОГО поля материала задачи не вводится — пины квитанции читаются живьём; supplier-send полей/маршрутов НЕТ (зонд OQ-3 = 0)'
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrderVerificationAssignRequest' }
+      responses:
+        '201': { description: 'Задача создана: строка + событие assigned одной транзакцией (исход несёт слово границы «назначен ≠ доставлено ≠ принял» — внешнего канала доставки нет)', content: { application/json: { schema: { type: object, required: [verification], properties: { verification: { $ref: '#/components/schemas/OrderVerificationOutcome' } } } } } }
+        '400': { description: 'Гварды поимённо: пустые UUID якорей/участников, чужое слово дедлайна', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Участник без полномочия review — 403 словом скоупа ДО материала', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { description: 'Не-участник / кейс не найден', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '409': { description: 'Нет подтверждённой квитанции заказа (операция не committed / нет внешнего ID) — задача строится над созданным заказом; либо задача уже активна — дождитесь решения либо переназначьте', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/order-verifications/{verification_no}/acknowledgements:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - name: verification_no
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    post:
+      operationId: acknowledgeOrderVerification
+      summary: 'Принять задачу проверки (Story 4.7): явное действие НАЗНАЧЕННОГО менеджера (actor=assignee — серверная истина; назначение или уведомление не считается принятием, AC-1/AC-2); CAS ожидаемой эпохи назначения (event_no последнего assigned) — параллельное переназначение/решение отказывает честным словом с ТЕКУЩИМ состоянием; просроченный раунд отказывает — путь: переназначение владельцем'
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrderVerificationEpochRequest' }
+      responses:
+        '200': { description: 'Событие acknowledged записано: менеджер подтвердил владение проверкой', content: { application/json: { schema: { type: object, required: [verification], properties: { verification: { $ref: '#/components/schemas/OrderVerificationOutcome' } } } } } }
+        '400': { description: 'Нулевая эпоха CAS / не-assignee актёр — слова истины', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Полномочие review отсутствует', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { description: 'Не-участник / кейс или задача не найдены', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '409': { description: 'Состояние не «назначен» / просрочено (путь — переназначение) / эпоха устарела (задача переназначена)', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/order-verifications/{verification_no}/approvals:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - name: verification_no
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    post:
+      operationId: approveOrderVerification
+      summary: 'Подтвердить проверку — Human Verification Receipt (Story 4.7): ЗАБОР РЕШЕНИЯ живой ре-деривацией DeriveOrderCommitmentMaterial над свежим CaseView ТЕМ ЖЕ кодом лестницы 4.5 (reuse функции, НЕ новый шаг dispatch): ожидаемый дайджест команды == пин операции (typed input order_digest) == живой дайджест — иначе отказ BY NAME «состав заказа изменился» + ЯВНЫЕ различия полей на экране + повторная полная проверка (AC-9); событие approved несёт материальные пины: order_digest 64-hex точной версии, идентичность квитанции, внешний ABCP Order ID, Work Items/evidence-якоря; исход НЕСЁТ ОБЯЗАТЕЛЬНОЕ слово ручного контура: формирование и отправка поставщику — ручное действие менеджера, Staffy не отправляет автоматически, статус читается отдельно из ABCP/1С (AC-10/AC-11)'
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrderVerificationApproveRequest' }
+      responses:
+        '200': { description: 'Решение зафиксировано: Human Verification Receipt с пинами точной версии + слово ручного контура', content: { application/json: { schema: { type: object, required: [verification], properties: { verification: { $ref: '#/components/schemas/OrderVerificationOutcome' } } } } } }
+        '400': { description: 'Не-hex пин дайджеста / нулевая эпоха / не-assignee', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Полномочие review отсутствует', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { description: 'Не-участник / кейс или задача не найдены', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '409': { description: 'Менеджер ещё не принял задачу / состав заказа изменился — решение неприменимо к этой версии / задача переназначена', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/order-verifications/{verification_no}/blocks:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - name: verification_no
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    post:
+      operationId: blockOrderVerification
+      summary: 'Нужна коррекция (Story 4.7): ДРУГОЕ действие (AC-16) — затронутые позиции (⊆ состава ОПЕРАЦИИ, проверка против пиннутого каноничного рендера) + причина СЛОВОМ словаря из 5 {wrong_part, wrong_vehicle, price_changed, availability_changed, confirmation_issue} — менеджер не вводит свободный текст; продвижение заказа заблокировано, запущена коррекция СЛОВОМ «контур 4-8» (сам контур — вне среза), исходные доказательства не меняются (AC-12)'
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrderVerificationBlockRequest' }
+      responses:
+        '200': { description: 'Событие blocked записано: позиции/причина/пины + слово запуска коррекции', content: { application/json: { schema: { type: object, required: [verification], properties: { verification: { $ref: '#/components/schemas/OrderVerificationOutcome' } } } } } }
+        '400': { description: 'Позиции вне состава / дубль / свободная причина / не-assignee', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Полномочие review отсутствует', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { description: 'Не-участник / кейс или задача не найдены', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '409': { description: 'Менеджер ещё не принял задачу / задача переназначена', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/order-verifications/{verification_no}/reassignments:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - name: verification_no
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    post:
+      operationId: reassignOrderVerification
+      summary: 'Переназначить задачу проверки (Story 4.7): явное решение владельца с review (fallback просрочки — АВТОМАТИЧЕСКОГО backup-переключателя/воркеров НЕТ, AG-4/AD-14); НОВОЕ событие assigned открывает НОВУЮ эпоху — прежние попытки по старой эпохе отказывают словом «задача переназначена»; история не переписывается; закрытая решением задача отказывает — новая задача строится назначением (лестница AC-14)'
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrderVerificationReassignRequest' }
+      responses:
+        '200': { description: 'Новый раунд назначен: новая эпоха, прежняя история не изменена', content: { application/json: { schema: { type: object, required: [verification], properties: { verification: { $ref: '#/components/schemas/OrderVerificationOutcome' } } } } } }
+        '400': { description: 'Пустые UUID участников / чужое слово дедлайна', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Полномочие review отсутствует', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { description: 'Не-участник / кейс или задача не найдены', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '409': { description: 'Задача закрыта решением — новая задача строится назначением', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
   /v1/tenants/{tenant_id}/cases/{case_id}/action-previews/{preview_id}/versions:
     parameters:
       - $ref: '#/components/parameters/TenantID'
@@ -7798,6 +7914,66 @@ components:
         order_material: { type: string, maxLength: 2000, description: 'Канонический рендер состава: позиции с брендом/артикулом, оригинал/аналог, количеством, клиентской ценой и известными условиями; итого; ОБЯЗАТЕЛЬНОЕ слово «заказ сначала будет проверен менеджером и ещё не отправляется поставщику» (AC-1)' }
         known_client_sum: { type: string, description: 'Известная клиентская сумма арифметики выбора 4-5 (без доставки и сбора — окончательная стоимость не рассчитана)' }
         currency: { type: string, enum: [RUB], description: 'Валюта — слово словаря пака auto-parts@6.0.0' }
+    OrderVerificationAssignRequest:
+      type: object
+      additionalProperties: false
+      description: 'Тело назначения задачи проверки (Story 4.7): якоря и материалы раунда ТОЛЬКО — work_item_id/operation_id (якорь committed-операции), assignee/backup_owner (UUID участников; assignee обязан иметь полномочие review — живая грант-матрица), deadline словом словаря {verify_4h, verify_1d}; НИ ОДНОГО поля материала задачи (пины квитанции читаются живьём) и НИ ОДНОГО поля отправки поставщику (зонд OQ-3 = 0); свободное поле = 400 строгим decode ДО сервиса'
+      required: [work_item_id, operation_id, assignee, backup_owner, deadline]
+      properties:
+        work_item_id: { type: string, format: uuid, description: 'Якорь рабочего элемента кейса' }
+        operation_id: { type: string, format: uuid, description: 'Якорь committed-операции create_abcp_customer_order (задача строится над созданным заказом)' }
+        assignee: { type: string, format: uuid, description: 'Назначаемый менеджер (участник с полномочием review — назначение ≠ принятие)' }
+        backup_owner: { type: string, format: uuid, description: 'Резервный участник раунда (виден на карточке просрочки)' }
+        deadline: { type: string, enum: [verify_4h, verify_1d], description: 'Слово дедлайна проверки словаря утверждённой policy с честным текстом и окном (4ч/24ч)' }
+    OrderVerificationEpochRequest:
+      type: object
+      additionalProperties: false
+      description: 'Тело принятия задачи (Story 4.7): ожидаемая эпоха назначения (CAS) — event_no последнего события assigned, которое видел менеджер; параллельное переназначение/решение отказывает честным словом с текущим состоянием'
+      required: [expected_assignment]
+      properties:
+        expected_assignment: { type: integer, minimum: 1, description: 'Ожидаемая эпоха назначения (CAS)' }
+    OrderVerificationApproveRequest:
+      type: object
+      additionalProperties: false
+      description: 'Тело подтверждения проверки (Story 4.7): ожидаемая эпоха назначения (CAS) + пин точной версии заказа (64-hex) — ЗАБОР РЕШЕНИЯ сверяет ожидание с пином операции и живой ре-деривацией тем же кодом лестницы 4.5; решение применяется ТОЛЬКО к той же материальной версии'
+      required: [expected_assignment, expected_order_digest]
+      properties:
+        expected_assignment: { type: integer, minimum: 1, description: 'Ожидаемая эпоха назначения (CAS)' }
+        expected_order_digest: { type: string, minLength: 64, maxLength: 64, description: 'Пин подтверждаемой версии заказа (64-hex): живой дайджест == пин операции == ожидание, иначе отказ BY NAME словом состава' }
+    OrderVerificationBlockRequest:
+      type: object
+      additionalProperties: false
+      description: 'Тело решения «Нужна коррекция» (Story 4.7): затронутые позиции (ключи позиций состава ОПЕРАЦИИ — чужая позиция отказывает словом) + причина СЛОВОМ словаря из 5 слов — свободный текст не существует'
+      required: [expected_assignment, positions, reason]
+      properties:
+        expected_assignment: { type: integer, minimum: 1, description: 'Ожидаемая эпоха назначения (CAS)' }
+        positions:
+          type: array
+          minItems: 1
+          maxItems: 8
+          items: { type: string, minLength: 1 }
+          description: 'Ключи затронутых позиций (⊆ состава подтверждённого заказа)'
+        reason: { type: string, enum: [wrong_part, wrong_vehicle, price_changed, availability_changed, confirmation_issue], description: 'Слово причины коррекции словаря из 5 слов' }
+    OrderVerificationReassignRequest:
+      type: object
+      additionalProperties: false
+      description: 'Тело переназначения (Story 4.7): новый раунд — assignee (review), backup, слово дедлайна; новое событие assigned открывает новую эпоху, история не переписывается'
+      required: [assignee, backup_owner, deadline]
+      properties:
+        assignee: { type: string, format: uuid, description: 'Новый менеджер (участник с полномочием review)' }
+        backup_owner: { type: string, format: uuid, description: 'Резервный участник нового раунда' }
+        deadline: { type: string, enum: [verify_4h, verify_1d], description: 'Слово дедлайна нового раунда' }
+    OrderVerificationOutcome:
+      type: object
+      additionalProperties: false
+      description: 'Исход команды задачи проверки (Story 4.7): производные слова момента — состояние read-time деривации (assigned/acknowledged/approved/blocked/overdue — overdue НЕ является автоматическим одобрением структурно: вида события нет), слово границы для назначения («назначен ≠ доставлено ≠ принял»), ОБЯЗАТЕЛЬНОЕ слово ручного контура для approved (формирование и отправка поставщику — ручное действие менеджера; Staffy не отправляет автоматически), слово запуска коррекции для blocked (контур 4-8); пин решения при approved'
+      required: [verification_no, state, state_text]
+      properties:
+        verification_no: { type: integer, minimum: 1 }
+        state: { type: string, enum: [assigned, acknowledged, approved, blocked, overdue] }
+        state_text: { type: string }
+        boundary_text: { type: string, description: 'Слово границы исхода (доставка/ручной контур/коррекция)' }
+        decision_digest: { type: string, minLength: 64, maxLength: 64, description: 'Пин версии решения (Human Verification Receipt)' }
     NewPreviewVersionRequest:
       type: object
       additionalProperties: false

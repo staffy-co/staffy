@@ -131,7 +131,11 @@ func newOrderWorld(casesWorld *casesFixture, controls *controlsFixture, entitlem
 		WithReconcile(reconcileRepo, reconcileAdapter).
 		WithRecovery(recoveryRepo).
 		WithPreviewReader(owningsystem.New()).
-		WithOrderVersions(orderVersionSource{cases: casesWorld})
+		WithOrderVersions(orderVersionSource{cases: casesWorld}).
+		// The Story 4.7 verification contour: the Delegated Task over the
+		// committed receipt (the in-memory repository of the journeys
+		// world — the same ladder/CAS semantics as the store).
+		WithOrderVerifications(newOrderVerificationMemoryRepository())
 	return service, dispatchAdapter, reconcileAdapter
 }
 

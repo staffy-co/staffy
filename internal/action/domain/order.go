@@ -407,3 +407,26 @@ func orderPinHex(value string) bool {
 	}
 	return true
 }
+
+// OrderMaterialPositionKeys parses the position keys of the canonical
+// render (the byte-stable «позиция <key>: …» lines of
+// OrderMaterialCanonicalText — the frozen 4.6 format). The block-decision
+// composition check of the verification contour (4.7) reads the keys of
+// the composition the OPERATION pinned: an affected position outside the
+// pinned composition is the honest guard refusal, never a silent clip.
+// The parse is deterministic over the canonical format ONLY — the empty
+// list of a non-render input (the caller refuses by its own words).
+func OrderMaterialPositionKeys(render string) []string {
+	keys := []string{}
+	for _, line := range strings.Split(render, "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "позиция ") {
+			continue
+		}
+		rest := strings.TrimPrefix(line, "позиция ")
+		if idx := strings.Index(rest, ":"); idx > 0 {
+			keys = append(keys, rest[:idx])
+		}
+	}
+	return keys
+}
