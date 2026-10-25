@@ -56,6 +56,7 @@ staffy — ИИ-сотрудник для малого бизнеса (Go + Post
 - main — только через PR (реальный, через GitHub API). Локальный мерж без PR — с честным сообщением `merge: story N-N into main (local merge, no PR)`; ЗАПРЕЩЕНО имитировать «Merge pull request #N» спуфом автора
 - Прямой push в main — только для инфраструктуры (scripts/, docs/, .gitignore, hooks) и только зелёным состоянием
 - Ветки: `codex/story-<N>-<slug>`; conventional commits; force-push в main запрещён; `--no-verify` запрещён (`.githooks/` сканирует секреты)
+- **Слитая ветка — удаляется сразу после merge** (правило владельца, 2026-10-25): как только PR story слит в main, удаляй её ветку в трёх местах: (1) на GitHub `DELETE /repos/{owner}/{repo}/git/refs/heads/<branch>` (проверив сначала compare main...branch: `ahead_by=0`), (2) локально `git branch -d <branch>`, (3) stale remote-tracking рефы `git update-ref -d refs/remotes/origin/<branch>`. Репозиторий держит только `main` + активные (неслитые) ветки. «Удаление слитой ветки — по поручению» в DEVLOG устарело: теперь это штатный ритуал merge
 
 ### Окружение (поднимает scripts/bootstrap.sh)
 - Go (пинн в скрипте; живёт в `~/.local/go/bin` — вне системного PATH)
