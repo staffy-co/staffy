@@ -5361,3 +5361,17 @@ done:
 next: CHECKPOINT 1 story 4-10 — предъявление спеки владельцу финальным ответом сессии; явное одобрение «одобряю»/«продолжайте» В ОТВЕТ на предъявление (дисциплина 52-sm, прецеденты 53-sm/207/216/226/234/242/250): флип спека+sprint-status 4-10-безопасное-обслуживание-существующего-заказа → ready-for-dev синхронно → Dev шаги 01-05 → CHECKPOINT 2 (Epic 4: 10/11)
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — использовался для верификации /user, bootstrap-зонда и пуша ветки 4-10)
 commit: 0f0acb363882de4994f29fa27eaa193e9feeca19
+
+---
+date: 2026-10-25
+task: 258-checkpoint-1
+role: main (Super Z, сессия web-d497a728, возобновление после смерти контекста)
+story: 4-10
+summary: CHECKPOINT 1 story 4-10 — мандат «продолжайте (токен)» получен В ОТВЕТ на предъявление спеки 257-sm (дисциплина 52-sm, прецеденты 53-sm/207/216/226/234/242/250): спека backlog → ready-for-dev + sprint-status 4-10-безопасное-обслуживание-существующего-заказа → ready-for-dev синхронно; окружение восстановлено bootstrap (Go 1.27.1, PG 16.4:54329) после 7-го сброса контейнера; Dev-фаза 01-05 открыта
+done:
+- Протокол возобновления: живой git-зонд ДО правок (HEAD df0bfe7 = origin ветки 4-10 RPO=0; main 58bc88b не тронут; дерево чистое; на GitHub ТОЛЬКО main + ветка 4-10 — правило гигиены веток действует, удалять нечего); PAT верифицирован /user 200 env-only; session-start прочитан (next: CHECKPOINT 1 4-10 по сигналу — сигнал получен); CONTINUITY.md прочитан; check-continuity OK (fail=0 warn=0)
+- Окружение: контейнер сброшен 7-й раз (go/PG исчезли) — bootstrap успешен (foreground, идемпотентно); Go 1.27.1, PG 16.4:54329 живые
+- Флипы синхронно: spec-4-10-safe-existing-order-servicing.md front-matter status ready-for-dev + sprint-status.yaml 4-10-безопасное-обслуживание-существующего-заказа ready-for-dev; qa_spec_scan_4_10.py на новом статусе CLEAN (fail=0 warn=0)
+next: Dev step-01 story 4-10 — миграция migrations/action/00009_order_servicing_requests.sql (1 append-only таблица запросов + UNIQUE полного ключа (tenant_id, case_id, actor_id, intent, identifier_kind, identifier_value, proof_state) + RLS/FORCE + гранты INSERT/SELECT + CHECK-зеркала + TestMain-регистрация) + домен internal/action/domain/order_servicing.go (словари 8 интентов/2 типов признаков/3 исходов/proof-состояний/исходов раскрытия + слова гейта/границ/отмены + DeriveServicingClientWords + DeriveCancelFeasibility + GuardOrderServicingRequest) + unit-тесты (деривации поимённо/четыре состояния отмены/зонды: supplier-send полей 0, уведомительных полей 0, ценовых полей 0) + DEVLOG 259 + коммит [skip ci] + пуш
+владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — использовался для верификации /user и пушей ветки)
+commit: TBD
