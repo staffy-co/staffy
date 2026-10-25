@@ -1046,6 +1046,7 @@ func main() {
 	server.BindActionPreviews(actions)
 	server.BindOrderProposals(actions)
 	server.BindOrderVerifications(actions)
+	server.BindOrderCorrections(actions)
 	server.BindAuthorization(actions)
 	server.BindDispatch(actions)
 	server.BindReconcile(actions)

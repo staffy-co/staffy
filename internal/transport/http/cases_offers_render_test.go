@@ -47,7 +47,7 @@ func offersPanelSurface() casesAPI.ComparisonPanelView {
 		Rank: 2, RankWord: casesDomain.OfferRankBudgetWord, Status: casesDomain.OfferStatusCurrent,
 		StaleWords: []string{}, ChangeWords: []string{},
 		ShortfallWord: "у этого поставщика меньше запрошенного: 4 из 6",
-		OfferDigest: "c1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+		OfferDigest:   "c1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
 		Source: casesDomain.OfferSourceView{
 			SourceSystem: casesDomain.OfferSourceAbcpCatalog, SourceRecordID: "rec-2", SourceVersion: "v2026.10",
 			SourceObservedAt: observed, ReceivedAt: now,
@@ -57,8 +57,8 @@ func offersPanelSurface() casesAPI.ComparisonPanelView {
 		PositionKey: "WF2B196K666AA", LinkType: casesDomain.FitmentLinkOriginal, LinkTypeWord: "оригинал",
 		FitmentStatus: casesDomain.FitmentStatusProven, FitmentStatusWord: casesDomain.FitmentProvenWord,
 		Status: casesDomain.OfferStatusCurrent, StatusWord: casesDomain.OfferCurrentWord,
-		Words:     []string{},
-		Variants:  []casesDomain.ComparisonVariantView{first, second},
+		Words:    []string{},
+		Variants: []casesDomain.ComparisonVariantView{first, second},
 	}
 	return casesAPI.ComparisonPanelView{
 		SchemaDefined: true,
@@ -89,7 +89,7 @@ func offersPanelSurface() casesAPI.ComparisonPanelView {
 				OfferNo: 1, PositionKey: "WF2B196K666AA", SupplierID: "SUP-1", SupplierName: "Поставщик один",
 				Brand: "Bosch", Article: "WF2B196K666AA", ClientPrice: 4850, PurchasePrice: &purchase,
 				PurchaseWord: casesDomain.OfferPurchaseInternalWord,
-				Currency: casesDomain.OfferCurrencyRUB, QuantityAvailable: 4, TermDays: &term,
+				Currency:     casesDomain.OfferCurrencyRUB, QuantityAvailable: 4, TermDays: &term,
 				TermWord: casesDomain.OfferTermEstimateWord, Conditions: "самовывоз со склада",
 				Source: casesDomain.OfferSourceView{
 					SourceSystem: casesDomain.OfferSourceAbcpCatalog, SourceRecordID: "rec-2", SourceVersion: "v2026.10",
@@ -102,9 +102,9 @@ func offersPanelSurface() casesAPI.ComparisonPanelView {
 			{
 				SnapshotNo: 1, PositionKey: "WF2B196K666AA", SupplierID: "SUP-2", OfferNo: 1,
 				Quantity: 2, UnitClientPrice: 4200, Currency: casesDomain.OfferCurrencyRUB, KnownClientSum: 8400,
-				SumBoundaryWord:   casesDomain.OfferSumBoundaryWord,
-				OrderBoundaryWord: casesDomain.OfferOrderBoundaryWord,
-				ProfileDigestPin:  "v111111111111111111111111111111111111111111111111111111111111111v",
+				SumBoundaryWord:      casesDomain.OfferSumBoundaryWord,
+				OrderBoundaryWord:    casesDomain.OfferOrderBoundaryWord,
+				ProfileDigestPin:     "v111111111111111111111111111111111111111111111111111111111111111v",
 				PartRequestDigestPin: "p111111111111111111111111111111111111111111111111111111111111111p",
 				FitmentDigestPin:     "f111111111111111111111111111111111111111111111111111111111111111f",
 				OfferDigestPin:       "b1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",

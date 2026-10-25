@@ -135,7 +135,11 @@ func newOrderWorld(casesWorld *casesFixture, controls *controlsFixture, entitlem
 		// The Story 4.7 verification contour: the Delegated Task over the
 		// committed receipt (the in-memory repository of the journeys
 		// world — the same ladder/CAS semantics as the store).
-		WithOrderVerifications(newOrderVerificationMemoryRepository())
+		WithOrderVerifications(newOrderVerificationMemoryRepository()).
+		// The Story 4.8 correction contour: the Correction Work Item over
+		// the LAST CLOSED blocked decision (the in-memory repository of
+		// the journeys world — the same ladder/CAS semantics as the store).
+		WithOrderCorrections(newOrderCorrectionMemoryRepository())
 	return service, dispatchAdapter, reconcileAdapter
 }
 

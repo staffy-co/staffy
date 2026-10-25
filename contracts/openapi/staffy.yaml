@@ -3637,6 +3637,98 @@ paths:
         '403': { description: 'Полномочие review отсутствует', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
         '404': { description: 'Не-участник / кейс или задача не найдены', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
         '409': { description: 'Задача закрыта решением — новая задача строится назначением', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/order-corrections:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+    post:
+      operationId: openOrderCorrection
+      summary: 'Открыть коррекцию заказа (Story 4.8): Correction Work Item над ПОСЛЕДНИМ закрытым blocked-решением проверки 4-7 той же committed-операции create_abcp_customer_order — позиции и причина переносятся из blocked-события ПОИМЁННО SQL-истиной одной транзакцией (исходные записи не переписываются); актёр — участник с полномочием review, owner — участник с review, дедлайн словом словаря {correct_4h, correct_1d}; открытие НЕ передаёт владение кейсом (термы 2-4 не тронуты) и НЕ является началом работы; ОДНА открытая коррекция на операцию (повтор — 409); повторная коррекция после закрытия по НОВОМУ blocked-решению — лестница correction_no+1; открытая коррекция держит ДВА структурных гейта продвижения: assign новой задачи проверки 4-7 → 409 «проверка вернётся после исправления», авторизация НОВОГО create_abcp_customer_order → отказ ДО транзакции «новый заказ не создаётся» (AC-2/AC-9); НИ ОДНОГО поля blocked-материала не вводится — перенос читает сервис живьём; supplier-send полей/маршрутов НЕТ, change-действий каталога НЕТ (OQ-3/AG-4)'
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrderCorrectionOpenRequest' }
+      responses:
+        '201': { description: 'Коррекция создана: строка + событие opened с перенесёнными позициями/причиной одной транзакцией (исход несёт слово границы «назначение ≠ начало работы»)', content: { application/json: { schema: { type: object, required: [correction], properties: { correction: { $ref: '#/components/schemas/OrderCorrectionOutcome' } } } } } }
+        '400': { description: 'Гварды поимённо: пустой UUID owner/операции, чужое слово дедлайна', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Участник без полномочия review — 403 словом скоупа ДО материала', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { description: 'Не-участник / кейс не найден', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '409': { description: 'Нет заблокированного решения проверки (якорь BY NAME) / коррекция уже открыта — дождитесь исхода либо переназначьте', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/order-corrections/{correction_no}/rereads:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - name: correction_no
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    post:
+      operationId: recordOrderCorrectionReread
+      summary: 'Записать перечит — закрыть коррекцию исходом corrected (Story 4.8): актёр = owner (серверная истина), CAS-эпоха ожидания; перечит — СЛОВА менеджера (AG-4: Staffy не читает ABCP), валидации ДО записи: триплет {proposal, version, confirmation} резолвится живьём по потоку подтверждений 3-4 ∧ подтверждение подтверждено (superseded → отказ BY NAME AC-15) ∧ живая деривация DeriveOrderCommitmentMaterial == дайджесту подтверждённой версии тем же кодом лестницы 4.5 (иначе отказ «состав изменился» + ЯВНЫЕ различия — скрытое ухудшение запрещено структурно, AC-13); событие reread несёт SAFE-пин сет: внешний ID перечитанного заказа + триплет; после закрытия заказ возвращается pending_manager_verification НОВОЙ задачей проверки по решению владельца (лестница verification_no, прежняя проверка не переиспользуется AC-12)'
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrderCorrectionRereadRequest' }
+      responses:
+        '200': { description: 'Перечит записан: коррекция закрыта исходом corrected + слово перечита (AG-4)', content: { application/json: { schema: { type: object, required: [correction], properties: { correction: { $ref: '#/components/schemas/OrderCorrectionOutcome' } } } } } }
+        '400': { description: 'Гварды поимённо: пустой внешний ID/пины, нулевая эпоха, не-owner актёр', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Полномочие review отсутствует', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { description: 'Не-участник / кейс или коррекция не найдены', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '409': { description: 'Состояние не «коррекция открыта» / просрочено (путь — переназначение) / эпоха устарела / подтверждение устарело (superseded) / состав изменился после подтверждения', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/order-corrections/{correction_no}/cessations:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - name: correction_no
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    post:
+      operationId: ceaseOrderCorrection
+      summary: 'Прекратить коррекцию — закрыть исходом ceased (Story 4.8): ДРУГОЕ действие (AC-16); актёр = owner, CAS-эпоха; причина СЛОВОМ словаря из 3 {client_refused, not_needed, abandoned} — менеджер не вводит свободный текст; отказ клиента НЕ превращается в замену — замены без нового подтверждения не существует (структурно: путь замены = reread); client_refused несёт слово-рекомендацию «отмена заказа — ручной контур менеджера (контур 4-10)» AC-11; заказ остаётся заблокированным от продвижения (blocked-решение 4-7 живо)'
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrderCorrectionCeaseRequest' }
+      responses:
+        '200': { description: 'Коррекция прекращена: событие ceased с причиной словом + слово-рекомендация при client_refused', content: { application/json: { schema: { type: object, required: [correction], properties: { correction: { $ref: '#/components/schemas/OrderCorrectionOutcome' } } } } } }
+        '400': { description: 'Чужое слово причины / нулевая эпоха / не-owner актёр', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Полномочие review отсутствует', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { description: 'Не-участник / кейс или коррекция не найдены', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '409': { description: 'Состояние не «коррекция открыта» / просрочено / эпоха устарела', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/order-corrections/{correction_no}/reassignments:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+      - name: correction_no
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    post:
+      operationId: reassignOrderCorrection
+      summary: 'Переназначить коррекцию (Story 4.8): явное решение владельца с review (fallback просрочки — АВТОМАТИЧЕСКОГО переключателя/воркеров НЕТ, AG-4/AD-14); НОВОЕ событие reassigned открывает НОВУЮ эпоху — прежние reread/cease по старой эпохе отказывают словом «коррекция переназначена»; история не переписывается; закрытая коррекция отказывает — новая коррекция строится по новому заблокированному решению (лестница повторной коррекции)'
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrderCorrectionReassignRequest' }
+      responses:
+        '200': { description: 'Новый раунд назначен: новая эпоха, прежняя история не изменена', content: { application/json: { schema: { type: object, required: [correction], properties: { correction: { $ref: '#/components/schemas/OrderCorrectionOutcome' } } } } } }
+        '400': { description: 'Пустой UUID owner / чужое слово дедлайна', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Полномочие review отсутствует', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { description: 'Не-участник / кейс или коррекция не найдены', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '409': { description: 'Коррекция закрыта — новая строится по новому заблокированному решению', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
   /v1/tenants/{tenant_id}/cases/{case_id}/action-previews/{preview_id}/versions:
     parameters:
       - $ref: '#/components/parameters/TenantID'
@@ -7974,6 +8066,53 @@ components:
         state_text: { type: string }
         boundary_text: { type: string, description: 'Слово границы исхода (доставка/ручной контур/коррекция)' }
         decision_digest: { type: string, minLength: 64, maxLength: 64, description: 'Пин версии решения (Human Verification Receipt)' }
+    OrderCorrectionOpenRequest:
+      type: object
+      additionalProperties: false
+      description: 'Тело открытия коррекции (Story 4.8): якорь committed-операции с ПОСЛЕДНИМ закрытым blocked-решением проверки, владелец с review и слово дедлайна. НИ ОДНОГО поля blocked-материала — позиции/причина переносятся из blocked-события SQL-истиной одной транзакцией.'
+      required: [operation_id, owner, deadline]
+      properties:
+        operation_id: { type: string, format: uuid, description: 'UUID committed-операции create_abcp_customer_order с заблокированным решением проверки' }
+        owner: { type: string, format: uuid, description: 'UUID участника с полномочием review — владелец коррекции' }
+        deadline: { type: string, enum: [correct_4h, correct_1d], description: 'Слово дедлайна коррекции утверждённой policy' }
+    OrderCorrectionRereadRequest:
+      type: object
+      additionalProperties: false
+      description: 'Тело записи перечита (Story 4.8): внешний идентификатор перечитанного заказа ABCP (слова менеджера — AG-4: Staffy не читает ABCP), пины НОВОГО подтверждения клиента и CAS-эпоха ожидания. Прежнее Confirmation не переносится — superseded BY NAME (AC-15).'
+      required: [expected_assignment, external_object_id, proposal_id, version_no, confirmation_id]
+      properties:
+        expected_assignment: { type: integer, minimum: 1, description: 'CAS-эпоха назначения (event_no последнего opened/reassigned раунда)' }
+        external_object_id: { type: string, minLength: 1, maxLength: 200, description: 'Внешний идентификатор перечитанного заказа ABCP' }
+        proposal_id: { type: string, format: uuid, description: 'Пин новой версии предложения (preview)' }
+        version_no: { type: integer, minimum: 1, description: 'Номер подтверждённой версии предложения' }
+        confirmation_id: { type: string, format: uuid, description: 'Пин нового подтверждения клиента' }
+    OrderCorrectionCeaseRequest:
+      type: object
+      additionalProperties: false
+      description: 'Тело прекращения коррекции (Story 4.8): причина словом словаря из 3 и CAS-эпоха ожидания. Отказ клиента НЕ превращается в замену (AC-11).'
+      required: [expected_assignment, reason]
+      properties:
+        expected_assignment: { type: integer, minimum: 1, description: 'CAS-эпоха назначения (event_no последнего opened/reassigned раунда)' }
+        reason: { type: string, enum: [client_refused, not_needed, abandoned], description: 'Слово причины прекращения словаря' }
+    OrderCorrectionReassignRequest:
+      type: object
+      additionalProperties: false
+      description: 'Тело переназначения коррекции (Story 4.8): новый владелец с review и слово дедлайна. НОВОЕ событие reassigned открывает НОВУЮ эпоху.'
+      required: [owner, deadline]
+      properties:
+        owner: { type: string, format: uuid, description: 'UUID участника с полномочием review — новый владелец коррекции' }
+        deadline: { type: string, enum: [correct_4h, correct_1d], description: 'Слово дедлайна нового раунда' }
+    OrderCorrectionOutcome:
+      type: object
+      additionalProperties: false
+      description: 'Исход команды коррекции (Story 4.8): производные слова момента — состояние read-time деривации (pending_correction/overdue/corrected/ceased — overdue НЕ является автоматическим закрытием структурно: вида события нет), слово границы для открытия («назначение ≠ начало работы»), ОБЯЗАТЕЛЬНОЕ слово перечита для corrected (слова менеджера, Staffy не читает ABCP — AG-4), слово-рекомендация отмены для ceased client_refused (контур 4-10); исход закрытия при наличии события закрытия'
+      required: [correction_no, state, state_text]
+      properties:
+        correction_no: { type: integer, minimum: 1 }
+        state: { type: string, enum: [pending_correction, overdue, corrected, ceased] }
+        state_text: { type: string }
+        boundary_text: { type: string, description: 'Слово границы исхода (начало работы/перечит/отмена)' }
+        outcome: { type: string, enum: [corrected, ceased], description: 'Исход закрытия (производное слова вида события закрытия)' }
     NewPreviewVersionRequest:
       type: object
       additionalProperties: false
