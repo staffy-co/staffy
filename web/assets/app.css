@@ -101,6 +101,7 @@ details summary { min-height: 44px; padding: .6rem; cursor: pointer; font-weight
 .connector-connect form{margin-top:.5rem;max-width:40rem}
 .connector-connect label,.connector-connect input,.connector-connect select{min-width:0;max-width:100%}
 .connector-connect button{min-height:44px}
+.panel-form input,.panel-form select,.panel-form textarea{min-width:0;max-width:100%}
 .connection-list .employee-card{display:grid;gap:.3rem}
 .connection-list .employee-card>span{display:block}
 .connection-status{overflow-wrap:anywhere}

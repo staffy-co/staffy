@@ -1790,6 +1790,95 @@
 {{end}}
 </section>
 {{end}}
+{{if .View.OrderStatus.Wired}}
+<h2>Статус заказа</h2>
+<section class="panel" aria-label="Статус заказа" id="order-status">
+<p class="next-note">Статус — контур 4-9: правдивая проекция жизненного цикла заказа над записанным материалом трёх машин (операция 4-6 / проверка 4-7 / коррекция 4-8) и записями фактов поставщика; расчётное представление не становится новым источником истины — проекция перечитывается при каждом открытии панели.</p>
+{{if .View.OrderStatus.Special}}<p class="alert" role="alert">{{.View.OrderStatus.Special}}{{if .View.OrderStatus.SpecialDet}} — {{.View.OrderStatus.SpecialDet}}{{end}}{{if .View.OrderStatus.SpecialOwn}} (владелец: <span class="digest-block">{{.View.OrderStatus.SpecialOwn}}</span>){{end}}</p>{{end}}
+<p role="status" aria-live="polite">Текущий подтверждённый этап: <strong>{{if .View.OrderStatus.Current}}{{.View.OrderStatus.Current}} — {{.View.OrderStatus.CurrentTxt}}{{else}}не подтверждён ни один этап{{end}}</strong>. Следующий шаг: {{.View.OrderStatus.Next}}.</p>
+{{if .View.SupplierFactFormed}}<p class="status" role="status">Факт формирования записан менеджером — человеческая квитанция контура магазина.</p>{{end}}
+{{if .View.SupplierFactSent}}<p class="status" role="status">Факт отправки записан менеджером — стадия «отправлен» подтверждается честным агрегатом записей.</p>{{end}}
+{{if .View.SupplierFactReplay}}<p class="status" role="status">Повтор команды факта: ответ идемпотентен — возвращён сохранённый факт, второй строки нет.</p>{{end}}
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Стадии заказа">
+<table class="datamap-table">
+<caption>Пять стадий жизненного цикла: подтверждённость, время, источник, внешний идентификатор</caption>
+<thead><tr><th scope="col">Стадия</th><th scope="col">Состояние</th><th scope="col">Слово</th><th scope="col">Время</th><th scope="col">Источник</th><th scope="col">Внешний ID</th></tr></thead>
+<tbody>
+{{range .View.OrderStatus.Stages}}
+<tr><th scope="row">{{.Stage}}</th><td>{{if .Confirmed}}подтверждено{{else}}не подтверждено{{end}}</td><td>{{.Word}}{{if .Detail}} ({{.Detail}}){{end}}{{if .OwnerID}}; владелец: <span class="digest-block">{{.OwnerID}}</span>{{end}}</td><td>{{if .TimeText}}{{.TimeText}}{{else}}—{{end}}</td><td>{{if .Source}}{{.Source}} ({{.SourceText}}){{else}}—{{end}}</td><td>{{if .ExternalID}}<span class="digest-block">{{.ExternalID}}</span>{{else}}—{{end}}</td></tr>
+{{end}}
+</tbody>
+</table>
+</div>
+<h3>По системам раздельно</h3>
+{{range .View.OrderStatus.Systems}}
+<details class="connector-connect"><summary>{{.Title}}</summary>
+<p class="status" role="status">{{.Word}}{{if .DivergentIDs}} — внешние идентификаторы расходятся: показаны оба значения раздельно, благоприятная версия не выбирается.{{end}}</p>
+{{if .Facts}}
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Факты системы">
+<table class="datamap-table">
+<caption>Факты: вид, внешний ID, два времени (названное и серверное), источник</caption>
+<thead><tr><th scope="col">Вид</th><th scope="col">Внешний ID</th><th scope="col">Время события</th><th scope="col">Время записи</th><th scope="col">Источник</th></tr></thead>
+<tbody>
+{{range .Facts}}
+<tr><th scope="row">{{.KindText}}</th><td><span class="digest-block">{{.ExternalID}}</span></td><td>{{.HappenedText}}</td><td>{{.RecordedText}}</td><td>{{.Source}} ({{.SourceText}})</td></tr>
+{{end}}
+</tbody>
+</table>
+</div>
+{{end}}
+</details>
+{{end}}
+<h3>Лента переходов</h3>
+{{if .View.OrderStatus.Timeline}}
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Лента переходов статуса">
+<table class="datamap-table">
+<caption>Переходы по времени: событие, источник BY NAME, внешний идентификатор</caption>
+<thead><tr><th scope="col">Время</th><th scope="col">Событие</th><th scope="col">Слово</th><th scope="col">Источник</th><th scope="col">Внешний ID</th></tr></thead>
+<tbody>
+{{range .View.OrderStatus.Timeline}}
+<tr><td>{{.AtText}}</td><td><span class="digest-block">{{.Kind}}</span></td><td>{{.Word}}</td><td>{{.Source}} ({{.SourceText}})</td><td>{{if .ExternalID}}<span class="digest-block">{{.ExternalID}}</span>{{else}}—{{end}}</td></tr>
+{{end}}
+</tbody>
+</table>
+</div>
+{{else}}
+<p class="next-note">Переходов нет: материал пуст — история начинает записываться первым событием.</p>
+{{end}}
+<h3>Сроки</h3>
+<p class="status" role="status">1. {{.View.OrderStatus.DeadlineEst}}.</p>
+<p class="status" role="status">2. {{.View.OrderStatus.DeadlineConf}}.</p>
+<p class="status" role="status">3. {{.View.OrderStatus.DeadlineAct}}.</p>
+<h3>Свежесть</h3>
+<p class="next-note">Последний подтверждённый факт: {{if .View.OrderStatus.FreshnessLast}}{{.View.OrderStatus.FreshnessLast}}{{else}}записей нет{{end}}; {{.View.OrderStatus.FreshnessWord}}; {{.View.OrderStatus.NoScheduleWord}}.</p>
+<p class="next-note">{{.View.OrderStatus.Notification}}</p>
+<p class="next-note">{{.View.OrderStatus.Dispute}}; {{.View.OrderStatus.Cancellation}}.</p>
+{{if .View.OrderStatus.HasOrder}}
+<h3>Записать факт поставщика (человеческая квитанция)</h3>
+<form method="post" action="{{.View.OrderStatus.FactFormTarget}}" class="panel-form">
+<fieldset>
+<legend>Записать факт формирования/отправки — запись менеджера о том, что УЖЕ произошло в ABCP</legend>
+<input type="hidden" name="operation_id" value="{{.View.OrderStatus.OperationID}}">
+<label for="supplier-fact-kind">Вид факта (слово словаря)</label>
+<select id="supplier-fact-kind" name="kind" required>
+<option value="formed">Сформирован у поставщика</option>
+<option value="sent">Отправлен поставщику</option>
+</select>
+<label for="supplier-fact-order">Номер заказа поставщика (внешний идентификатор, названный менеджером)</label>
+<input id="supplier-fact-order" name="supplier_order_id" type="text" autocomplete="off" required>
+<label for="supplier-fact-time">Время факта (фактическое время события — называется менеджером)</label>
+<input id="supplier-fact-time" name="happened_at" type="datetime-local" required>
+<p class="next-note">{{.View.OrderStatus.FormNoteWord}}; отправление записывается после записи формирования того же заказа поставщику — дисциплина истории; Staffy ничего не отправляет и не формирует сам (OQ-3).</p>
+<button type="submit">Записать факт</button>
+</fieldset>
+</form>
+{{end}}
+<h3>Клиентские слова (материал пересказа)</h3>
+{{range .View.OrderStatus.ClientWords}}
+<p class="status" role="status">{{.}}</p>
+{{end}}
+</section>
+{{end}}
 <h2>Диалоги канала</h2>
 <p role="status" aria-live="polite">{{if .View.HasConversations}}Диалогов: <strong>{{len .View.Conversations}}</strong>; каждый — продолжение одной channel session.{{else}}Диалогов нет.{{end}}</p>
 {{if .View.HasConversations}}

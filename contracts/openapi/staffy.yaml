@@ -3729,6 +3729,46 @@ paths:
         '403': { description: 'Полномочие review отсутствует', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
         '404': { description: 'Не-участник / кейс или коррекция не найдены', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
         '409': { description: 'Коррекция закрыта — новая строится по новому заблокированному решению', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/order-supplier-facts/formed:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+    post:
+      operationId: recordOrderSupplierFormed
+      summary: 'Записать факт формирования у поставщика (Story 4.9): ЧЕЛОВЕЧЕСКАЯ квитанция контура магазина — менеджер сформировал заказ в ABCP вручную и записывает, что УЖЕ произошло: номер заказа поставщика + названное время события (happened_at, RFC3339; серверное recorded_at пишется append-ом — два времени никогда не смешиваются, прецедент 2-7); якорь — живая операция create_abcp_customer_order кейса (гварда против «обхода проверки» НЕТ — правда записывается какая есть, панель показывает оба факта); идемпотентность UNIQUE полного ключа (tenant, case, operation, kind, supplier_order_id): повтор команды = сохранённый факт с replay=true, второй строки НЕТ (AC-9); формирование ДРУГОГО номера = второй факт (несколько поставщиков поимённо); supplier-send полей/действий НЕТ — факт ТОЛЬКО записывает реальность (fence OQ-3); актёр — участник с полномочием review'
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrderSupplierFactRequest' }
+      responses:
+        '201': { description: 'Факт записан: append-only строка с двумя временами и источником manager_record (человеческая квитанция — AG-4)', content: { application/json: { schema: { type: object, required: [fact], properties: { fact: { $ref: '#/components/schemas/OrderSupplierFactOutcome' } } } } } }
+        '200': { description: 'Идемпотентный повтор BY KEY: возвращён СОХРАНЁННЫЙ факт (replay=true), второй строки нет', content: { application/json: { schema: { type: object, required: [fact], properties: { fact: { $ref: '#/components/schemas/OrderSupplierFactOutcome' } } } } } }
+        '400': { description: 'Гварды поимённо: пустой номер заказа поставщика/свыше 200 символов, нулевое время события, не-UUID операции', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Участник без полномочия review — 403 словом скоупа ДО материала', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { description: 'Не-участник / кейс не найден / операции заказа в кейсе нет', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  /v1/tenants/{tenant_id}/cases/{case_id}/order-supplier-facts/sent:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - $ref: '#/components/parameters/CaseID'
+    post:
+      operationId: recordOrderSupplierSent
+      summary: 'Записать факт отправки поставщику (Story 4.9): ЧЕЛОВЕЧЕСКАЯ квитанция — менеджер отправил заказ вручную и записывает, что УЖЕ произошло; ЛЕСТНИЦА ЗАПИСИ: отправление записывается ТОЛЬКО после записи формирования ТОГО ЖЕ номера заказа поставщику (дисциплина полной истории — отказ словом BY NAME, времена называются фактическими); стадия supplier_sent подтверждается честным агрегатом «ВСЕ записанные формирования покрыты отправками» — частичная отправка поимёнными словами, стадия НЕ подтверждается (ложное утверждение об отправке невозможно структурно, AC-15); идемпотентность BY KEY как у формирования (AC-9); supplier-send полей/действий НЕТ (fence OQ-3); актёр — участник с полномочием review'
+      x-staffy-principal-required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrderSupplierFactRequest' }
+      responses:
+        '201': { description: 'Факт записан: append-only строка с двумя временами и источником manager_record', content: { application/json: { schema: { type: object, required: [fact], properties: { fact: { $ref: '#/components/schemas/OrderSupplierFactOutcome' } } } } } }
+        '200': { description: 'Идемпотентный повтор BY KEY: возвращён СОХРАНЁННЫЙ факт (replay=true)', content: { application/json: { schema: { type: object, required: [fact], properties: { fact: { $ref: '#/components/schemas/OrderSupplierFactOutcome' } } } } } }
+        '400': { description: 'Гварды поимённо: лестница sent-after-formed не пройдена (сначала запишите формирование того же номера), пустой номер/нулевое время/не-UUID', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Полномочие review отсутствует', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { description: 'Не-участник / кейс не найден / операции заказа в кейсе нет', content: { application/json: { schema: { $ref: '#/components/schemas/Problem' } } } }
   /v1/tenants/{tenant_id}/cases/{case_id}/action-previews/{preview_id}/versions:
     parameters:
       - $ref: '#/components/parameters/TenantID'
@@ -8113,6 +8153,117 @@ components:
         state_text: { type: string }
         boundary_text: { type: string, description: 'Слово границы исхода (начало работы/перечит/отмена)' }
         outcome: { type: string, enum: [corrected, ceased], description: 'Исход закрытия (производное слова вида события закрытия)' }
+    OrderSupplierFactRequest:
+      type: object
+      additionalProperties: false
+      description: 'Тело записи факта поставщика (Story 4.9): якорь живой операции заказа, номер заказа поставщика и названное время события. НИ ОДНОГО поля отправки — факт ТОЛЬКО записывает человеческую реальность (fence OQ-3); время записи recorded_at ставит сервер — два времени никогда не смешиваются (прецедент 2-7).'
+      required: [operation_id, supplier_order_id, happened_at]
+      properties:
+        operation_id: { type: string, format: uuid, description: 'UUID живой операции create_abcp_customer_order кейса (якорь факта)' }
+        supplier_order_id: { type: string, minLength: 1, maxLength: 200, description: 'Номер заказа поставщика — внешний идентификатор, названный менеджером' }
+        happened_at: { type: string, format: date-time, description: 'Названное менеджером фактическое время события (RFC3339)' }
+    OrderSupplierFactOutcome:
+      type: object
+      additionalProperties: false
+      description: 'Исход записи факта поставщика (Story 4.9): сохранённая (или реплейнутая) append-only строка с ДВУМЯ временами и источником manager_record BY NAME — человеческая квитанция контура магазина (AG-4). Replay=true — идемпотентный повтор BY KEY: возвращён сохранённый факт, второй строки нет (AC-9).'
+      required: [kind, supplier_order_id, happened_at, recorded_at, fact_no, replay, source, source_word]
+      properties:
+        kind: { type: string, enum: [formed, sent], description: 'Вид факта — СЛОВО словаря (запись менеджера, никогда команда)' }
+        supplier_order_id: { type: string, minLength: 1, maxLength: 200 }
+        happened_at: { type: string, format: date-time, description: 'Названное время события (слова менеджера)' }
+        recorded_at: { type: string, format: date-time, description: 'Серверное время записи (никогда не смешивается с happened_at)' }
+        fact_no: { type: integer, minimum: 1, description: 'Монотонный номер факта лестницы кейса' }
+        replay: { type: boolean, description: 'Идемпотентный повтор BY KEY — возвращён сохранённый факт' }
+        source: { type: string, enum: [system_receipt, manager_record], description: 'Источник факта BY NAME — человеческая квитанция НИКОГДА не отображается как системная (AC-5)' }
+        source_word: { type: string, description: 'Честное слово источника (AG-4: чтение ABCP адаптером не подключено)' }
+    OrderStatusView:
+      type: object
+      additionalProperties: false
+      description: 'Order Status Projection (Story 4.9) — чистая read-time деривация над append-only материалом трёх машин (операция+квитанция 4-6 / события проверки 4-7 / события коррекции 4-8) и фактами поставщика: ZERO записей (расчётное представление не становится новым источником истины — AC-2). Пять стадий с evidence-пинами (время/источник BY NAME/внешний ID/owner), спецсостояние коррекции НЕ скрыто (AC-12), per-system раздельность (ABCP/1С unknown OQ-4/поставщик — AC-2), расхождение внешних ID — оба раздельно (AC-8), свежесть без поллинга (AC-10), три слова срока (AC-11), лента переходов упорядоченным fold (AC-9).'
+      required: [stages, systems, timeline, current_stage]
+      properties:
+        operation_id: { type: string, format: uuid, description: 'Якорь проекции — живая операция заказа кейса (пусто, когда заказа нет)' }
+        current_stage: { type: string, enum: ['', client_order_created, pending_manager_verification, manager_verified, supplier_formed, supplier_sent], description: 'Высшая подтверждённая стадия (пустая строка — ни одна не подтверждена)' }
+        stages:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [stage, confirmed, word]
+            properties:
+              stage: { type: string, enum: [client_order_created, pending_manager_verification, manager_verified, supplier_formed, supplier_sent] }
+              confirmed: { type: boolean }
+              word: { type: string, description: 'Честное слово стадии (отсутствие произносится — AC-4)' }
+              time: { type: string, format: date-time, description: 'Время подтверждения (пусто — не подтверждено)' }
+              source: { type: string, enum: [system_receipt, manager_record], description: 'Источник факта BY NAME (AC-5)' }
+              external_id: { type: string, description: 'Внешний идентификатор evidence' }
+              owner_id: { type: string, format: uuid, description: 'Владелец открытого раунда (проверка/коррекция)' }
+              detail: { type: string, description: 'Поимённый материал (частичная отправка — AC-15)' }
+        special_state: { type: string, description: 'Спецсостояние (открытая коррекция / blocked-без-коррекции) — никогда не скрыто за «в работе» (AC-12)' }
+        special_owner: { type: string, format: uuid }
+        special_detail: { type: string }
+        systems:
+          type: array
+          description: 'Per-system раздельность (AC-2): ABCP (квитанция диспетчера ИЛИ ручной контур ИЛИ перечит — источник BY NAME), 1С (unknown — OQ-4), поставщик (факты поимённо или «не записано»)'
+          items:
+            type: object
+            additionalProperties: false
+            required: [system, word]
+            properties:
+              system: { type: string, enum: [abcp, one_c, supplier] }
+              word: { type: string }
+              divergent_ids: { type: boolean, description: 'Внешние ID расходятся: оба показаны раздельно — благоприятная версия не выбирается (AC-8)' }
+              facts:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: false
+                  required: [kind, source]
+                  properties:
+                    kind: { type: string, description: 'Вид факта (receipt_committed / correction_reread / formed / sent)' }
+                    external_id: { type: string }
+                    happened_at: { type: string, format: date-time }
+                    recorded_at: { type: string, format: date-time }
+                    source: { type: string, enum: [system_receipt, manager_record] }
+                    actor_id: { type: string, format: uuid }
+        freshness:
+          type: object
+          additionalProperties: false
+          required: [word, no_schedule_word]
+          properties:
+            last_confirmed_at: { type: string, format: date-time, description: 'Время последнего подтверждённого факта (AC-10)' }
+            word: { type: string, description: 'Живая деривация при открытии; внешние чтения не подключены (AG-4)' }
+            no_schedule_word: { type: string, description: 'Расписания нет (AD-14) — устаревшее значение не выдаётся за текущее' }
+        timeline:
+          type: array
+          description: 'Лента переходов упорядоченным fold по монотонным якорям (AC-9): старое событие не откатывает новое'
+          items:
+            type: object
+            additionalProperties: false
+            required: [at, machine, kind, word, source]
+            properties:
+              at: { type: string, format: date-time }
+              machine: { type: string, enum: [order, verification, correction, supplier_fact] }
+              kind: { type: string, description: 'Слово вида события машины (receipt_committed / verification_assigned / … / supplier_fact_sent)' }
+              word: { type: string }
+              source: { type: string, enum: [system_receipt, manager_record] }
+              external_id: { type: string }
+        deadline:
+          type: object
+          additionalProperties: false
+          required: [estimate_word, confirmed_word, actual_word]
+          description: 'Три РАЗДЕЛЬНЫХ слова срока (AC-11): оценка не превращается в гарантию'
+          properties:
+            estimate_word: { type: string, description: 'Оценка срока предложения (материал 4-6)' }
+            confirmed_word: { type: string, description: 'Подтверждённая дата — не существует: подтверждения поставщиком нет' }
+            actual_word: { type: string, description: 'Фактическое событие — запись отправки с временем' }
+            actual_at: { type: string, format: date-time }
+            actual_recorded: { type: boolean }
+        notification_word: { type: string, description: 'Уведомления не отправляются (OQ-1/OQ-2) — панель единственная поверхность' }
+        dispute_word: { type: string, description: 'Оспаривание: история не переписывается (AC-14), проверка источников — человек (2-13)' }
+        cancellation_word: { type: string, description: 'Отмена заказа — слово-граница контура 4-10' }
+        next_step: { type: string, description: 'Честный следующий шаг текущего состояния' }
+        client_words: { type: array, items: { type: string }, description: 'Клиентские слова — материал пересказа (AC-16)' }
     NewPreviewVersionRequest:
       type: object
       additionalProperties: false

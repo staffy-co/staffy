@@ -21,23 +21,23 @@ package main
 // the composition root IS the world).
 
 import (
-	"context"
+        "context"
 
-	actionAPI "github.com/artemiosu/staffy/internal/action/api"
-	actionApp "github.com/artemiosu/staffy/internal/action/app"
-	actionCatalog "github.com/artemiosu/staffy/internal/action/catalog"
-	actionDomain "github.com/artemiosu/staffy/internal/action/domain"
-	actionPort "github.com/artemiosu/staffy/internal/action/port"
-	"github.com/artemiosu/staffy/internal/adapters/actiondispatcher"
-	"github.com/artemiosu/staffy/internal/adapters/capabilityresolver"
-	"github.com/artemiosu/staffy/internal/adapters/owningsystem"
-	"github.com/artemiosu/staffy/internal/adapters/packresolver"
-	"github.com/artemiosu/staffy/internal/adapters/reconciliationsyn"
-	connectorAPI "github.com/artemiosu/staffy/internal/connector/api"
-	connectorDomain "github.com/artemiosu/staffy/internal/connector/domain"
-	domain "github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
-	"github.com/artemiosu/staffy/internal/platform/tenancy"
+        actionAPI "github.com/artemiosu/staffy/internal/action/api"
+        actionApp "github.com/artemiosu/staffy/internal/action/app"
+        actionCatalog "github.com/artemiosu/staffy/internal/action/catalog"
+        actionDomain "github.com/artemiosu/staffy/internal/action/domain"
+        actionPort "github.com/artemiosu/staffy/internal/action/port"
+        "github.com/artemiosu/staffy/internal/adapters/actiondispatcher"
+        "github.com/artemiosu/staffy/internal/adapters/capabilityresolver"
+        "github.com/artemiosu/staffy/internal/adapters/owningsystem"
+        "github.com/artemiosu/staffy/internal/adapters/packresolver"
+        "github.com/artemiosu/staffy/internal/adapters/reconciliationsyn"
+        connectorAPI "github.com/artemiosu/staffy/internal/connector/api"
+        connectorDomain "github.com/artemiosu/staffy/internal/connector/domain"
+        domain "github.com/artemiosu/staffy/internal/identity/domain"
+        "github.com/artemiosu/staffy/internal/platform/id"
+        "github.com/artemiosu/staffy/internal/platform/tenancy"
 )
 
 // orderConnectorFacts is the ConnectorFactsSource of the order world: the
@@ -53,15 +53,15 @@ type orderConnectorFacts struct{}
 var _ actionPort.ConnectorFactsSource = orderConnectorFacts{}
 
 func (orderConnectorFacts) ConnectionsFacts(_ context.Context, _ tenancy.Context) ([]connectorAPI.ConnectionFacts, error) {
-	return []connectorAPI.ConnectionFacts{{
-		ConnectionID:    orderConnectionID,
-		ConnectorID:     "abcp-parts",
-		ContractVersion: "1.1.0",
-		Capabilities: []connectorDomain.CapabilityReport{{
-			CapabilityDeclaration: connectorDomain.CapabilityDeclaration{ID: "command.prepare-client-order"},
-			State:                 connectorDomain.CapStateVerified,
-		}},
-	}}, nil
+        return []connectorAPI.ConnectionFacts{{
+                ConnectionID:    orderConnectionID,
+                ConnectorID:     "abcp-parts",
+                ContractVersion: "1.1.0",
+                Capabilities: []connectorDomain.CapabilityReport{{
+                        CapabilityDeclaration: connectorDomain.CapabilityDeclaration{ID: "command.prepare-client-order"},
+                        State:                 connectorDomain.CapStateVerified,
+                }},
+        }}, nil
 }
 
 // orderConnectionID is the deterministic connection identity of the order
@@ -73,29 +73,29 @@ var orderConnectionID = id.MustParse("01994f64-6c00-7000-8000-00000000c641")
 // DeriveOrderCommitmentMaterial the builder used — the honest
 // revalidation of the dispatch ladder, AC-5).
 type orderVersionSource struct {
-	cases *casesFixture
+        cases *casesFixture
 }
 
 // The structural pin: the fixture satisfies the consumer-owned port.
 var _ actionPort.OrderVersionSource = orderVersionSource{}
 
 func (s orderVersionSource) OrderCommitmentDigest(ctx context.Context, request actionPort.OrderVersionRequest) (string, error) {
-	view, err := s.cases.CaseView(ctx, principalOfTheWorld(), request.Scope.TenantID(), request.CaseID)
-	if err != nil {
-		return "", err
-	}
-	material, err := actionApp.DeriveOrderCommitmentMaterial(view)
-	if err != nil {
-		return "", err
-	}
-	return actionDomain.OrderDigestOf(material), nil
+        view, err := s.cases.CaseView(ctx, principalOfTheWorld(), request.Scope.TenantID(), request.CaseID)
+        if err != nil {
+                return "", err
+        }
+        material, err := actionApp.DeriveOrderCommitmentMaterial(view)
+        if err != nil {
+                return "", err
+        }
+        return actionDomain.OrderDigestOf(material), nil
 }
 
 // principalOfTheWorld renders the acting fixture principal of the order
 // reads (the step-up owner — the caller-authority port precedent: the app
 // layer has ALREADY verified the actor's rights when it reads).
 func principalOfTheWorld() domain.Principal {
-	return domain.Principal{ID: principalID, StepUpVerified: true}
+        return domain.Principal{ID: principalID, StepUpVerified: true}
 }
 
 // newOrderWorld wires the Story 4.6 order composition: the PRODUCT action
@@ -105,42 +105,48 @@ func principalOfTheWorld() domain.Principal {
 // FRESH in-memory repositories of the order contour, the synthetic
 // order-serving adapters and the LIVE order version source.
 func newOrderWorld(casesWorld *casesFixture, controls *controlsFixture, entitlement *entitlementFixture, readiness *readinessFixture) (*actionApp.Service, *actiondispatcher.Synthetic, *reconciliationsyn.Synthetic) {
-	packs, caps := packresolver.New(), capabilityresolver.New()
-	defs := append(actionCatalog.All(), fixturePreviewDefinitions()...)
-	// The admission walk at construction (the fixture discipline: a
-	// dishonest dictionary panics the server).
-	if err := actionDomain.CatalogIntegrity(defs); err != nil {
-		panic("the order world dictionary must pass the guard: " + err.Error())
-	}
-	for _, def := range defs {
-		if err := actionDomain.ValidateDefinitionRefs(def, packs, caps); err != nil {
-			panic("the order world dictionary must resolve against the live catalogs: " + err.Error())
-		}
-	}
-	previews := newPreviewMemoryRepository()
-	authorizations := newAuthorizationMemoryRepository(previews)
-	dispatchRepo, dispatchAdapter := newDispatchMemoryRepository(authorizations), actiondispatcher.NewServing("command.prepare-client-order")
-	reconcileRepo, reconcileAdapter := newReconcileMemoryRepository(authorizations, dispatchRepo), reconciliationsyn.NewServing("command.prepare-client-order")
-	recoveryRepo := newRecoveryMemoryRepository(authorizations, dispatchRepo, reconcileRepo, previews)
-	service := actionApp.New(previewMembership{}, packs, caps, defs).
-		WithPreviews(previews, previewControlRoute{controls: controls},
-			previewCasesMaterial{cases: casesWorld}, previewMembership{}, entitlement,
-			readiness, orderConnectorFacts{}, previewRouteFacts{entitlement: entitlement}, previewIDsPool).
-		WithAuthorization(authorizations, authorizations).
-		WithDispatch(dispatchRepo, dispatchAdapter).
-		WithReconcile(reconcileRepo, reconcileAdapter).
-		WithRecovery(recoveryRepo).
-		WithPreviewReader(owningsystem.New()).
-		WithOrderVersions(orderVersionSource{cases: casesWorld}).
-		// The Story 4.7 verification contour: the Delegated Task over the
-		// committed receipt (the in-memory repository of the journeys
-		// world — the same ladder/CAS semantics as the store).
-		WithOrderVerifications(newOrderVerificationMemoryRepository()).
-		// The Story 4.8 correction contour: the Correction Work Item over
-		// the LAST CLOSED blocked decision (the in-memory repository of
-		// the journeys world — the same ladder/CAS semantics as the store).
-		WithOrderCorrections(newOrderCorrectionMemoryRepository())
-	return service, dispatchAdapter, reconcileAdapter
+        packs, caps := packresolver.New(), capabilityresolver.New()
+        defs := append(actionCatalog.All(), fixturePreviewDefinitions()...)
+        // The admission walk at construction (the fixture discipline: a
+        // dishonest dictionary panics the server).
+        if err := actionDomain.CatalogIntegrity(defs); err != nil {
+                panic("the order world dictionary must pass the guard: " + err.Error())
+        }
+        for _, def := range defs {
+                if err := actionDomain.ValidateDefinitionRefs(def, packs, caps); err != nil {
+                        panic("the order world dictionary must resolve against the live catalogs: " + err.Error())
+                }
+        }
+        previews := newPreviewMemoryRepository()
+        authorizations := newAuthorizationMemoryRepository(previews)
+        dispatchRepo, dispatchAdapter := newDispatchMemoryRepository(authorizations), actiondispatcher.NewServing("command.prepare-client-order")
+        reconcileRepo, reconcileAdapter := newReconcileMemoryRepository(authorizations, dispatchRepo), reconciliationsyn.NewServing("command.prepare-client-order")
+        recoveryRepo := newRecoveryMemoryRepository(authorizations, dispatchRepo, reconcileRepo, previews)
+        service := actionApp.New(previewMembership{}, packs, caps, defs).
+                WithPreviews(previews, previewControlRoute{controls: controls},
+                        previewCasesMaterial{cases: casesWorld}, previewMembership{}, entitlement,
+                        readiness, orderConnectorFacts{}, previewRouteFacts{entitlement: entitlement}, previewIDsPool).
+                WithAuthorization(authorizations, authorizations).
+                WithDispatch(dispatchRepo, dispatchAdapter).
+                WithReconcile(reconcileRepo, reconcileAdapter).
+                WithRecovery(recoveryRepo).
+                WithPreviewReader(owningsystem.New()).
+                WithOrderVersions(orderVersionSource{cases: casesWorld}).
+                // The Story 4.7 verification contour: the Delegated Task over the
+                // committed receipt (the in-memory repository of the journeys
+                // world — the same ladder/CAS semantics as the store).
+                WithOrderVerifications(newOrderVerificationMemoryRepository()).
+                // The Story 4.8 correction contour: the Correction Work Item over
+                // the LAST CLOSED blocked decision (the in-memory repository of
+                // the journeys world — the same ladder/CAS semantics as the store).
+                WithOrderCorrections(newOrderCorrectionMemoryRepository()).
+                // The Story 4.9 status contour: the Supplier Order Fact Receipt
+                // (the human {formed, sent} receipts over the LIVE order
+                // operation) and the Order Status Projection read (the
+                // in-memory repository of the journeys world — the same fact_no
+                // ladder and the UNIQUE full fact key as the store).
+                WithOrderSupplierFacts(newOrderSupplierFactMemoryRepository())
+        return service, dispatchAdapter, reconcileAdapter
 }
 
 // The compile-time proof the actions fixture serves the narrow order
@@ -152,13 +158,13 @@ var _ actionAPI.OrderProposalService = (*actionsFixture)(nil)
 // order world while its toggle is on — the AG-4 routing precedent); the
 // contours without the builder answer the honest not-configured refusal.
 func (f *actionsFixture) PrepareOrderProposal(ctx context.Context, command actionAPI.PrepareOrderProposalCommand) (actionAPI.ProposalOutcome, error) {
-	f.mu.Lock()
-	service := f.orderService()
-	f.mu.Unlock()
-	if service == nil {
-		return actionAPI.ProposalOutcome{}, actionDomain.RuleError{Rule: "prepare_order_proposal", Reason: notConfiguredText}
-	}
-	return service.PrepareOrderProposal(ctx, command)
+        f.mu.Lock()
+        service := f.orderService()
+        f.mu.Unlock()
+        if service == nil {
+                return actionAPI.ProposalOutcome{}, actionDomain.RuleError{Rule: "prepare_order_proposal", Reason: notConfiguredText}
+        }
+        return service.PrepareOrderProposal(ctx, command)
 }
 
 // orderService picks the order world: the Story 4.6 composition when its
@@ -166,25 +172,25 @@ func (f *actionsFixture) PrepareOrderProposal(ctx context.Context, command actio
 // not-configured refusal (the builder lives ONLY in the order world —
 // the z32 dictionary carries no order definition).
 func (f *actionsFixture) orderService() *actionApp.Service {
-	if f.orderEnabled && f.order != nil {
-		return f.order
-	}
-	return nil
+        if f.orderEnabled && f.order != nil {
+                return f.order
+        }
+        return nil
 }
 
 // setOrderWorld wires the Story 4.6 order composition (the main assembly
 // hands over the fully-wired order service).
 func (f *actionsFixture) setOrderWorld(service *actionApp.Service) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.order = service
+        f.mu.Lock()
+        defer f.mu.Unlock()
+        f.order = service
 }
 
 // setOrder switches the served composition (the /fixture/order-world
 // toggle — the /fixture/recovery-ag4 precedent): the order world serves
 // EVERY action surface of the fixture while the flag is on.
 func (f *actionsFixture) setOrder(enabled bool) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.orderEnabled = enabled
+        f.mu.Lock()
+        defer f.mu.Unlock()
+        f.orderEnabled = enabled
 }
