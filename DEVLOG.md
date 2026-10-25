@@ -5229,3 +5229,17 @@ done:
 next: CHECKPOINT 1 story 4-9 — явное одобрение владельца «одобряю»/«продолжайте» В ОТВЕТ на предъявление спеки (дисциплина 52-sm, прецеденты 53-sm/207/216/226/234/242): флип спека backlog → ready-for-dev + sprint-status 4-9-правдивый-статус-abcp-1с-и-поставщика → ready-for-dev синхронно → Dev шаги 01-05 → CHECKPOINT 2 (Epic 4: 9/11); спека предъявлена владельцу финальным ответом сессии
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — использовался для верификации, очистки веток, ls-remote, пуша правила AGENTS.md и ветки 4-9)
 commit: TBD
+
+---
+date: 2026-10-25
+task: 250-checkpoint-1
+role: main (Super Z, сессия web-d497a728, возобновление после смерти контекста)
+story: 4-9
+summary: CHECKPOINT 1 story 4-9 — мандат «продолжайте (токен)» получен В ОТВЕТ на предъявление спеки 249-sm (дисциплина 52-sm, прецеденты 53-sm/207/216/226/234/242): спека backlog → ready-for-dev + sprint-status 4-9-правдивый-статус-abcp-1с-и-поставщика → ready-for-dev синхронно; окружение восстановлено bootstrap (Go 1.27.1, PG 16.4:54329) после 5-го сброса контейнера; Dev-фаза 01-05 открыта
+done:
+- Протокол возобновления: живой git-зонд ДО правок (HEAD 8e427ec = origin ветки 4-9 RPO=0 живым ls-remote с env-токеном через credential-helper; main 3cffb88 не тронут; дерево чистое; на GitHub только main + ветка 4-9 — гигиена 249-sm действует); PAT верифицирован /user 200 env-only (artemiosu); session-start прочитан; CONTINUITY.md прочитан по постоянному правилу
+- Окружение: контейнер сброшен 5-й раз (go/PG исчезли) — bootstrap успешен (уроки 234/242 выдержаны: foreground, идемпотентно); Go 1.27.1, PG 16.4:54329 живые
+- Флипы синхронно: spec-4-9-truthful-order-status.md front-matter status ready-for-dev + sprint-status.yaml 4-9-правдивый-статус-abcp-1с-и-поставщика ready-for-dev; qa_spec_scan_4_9.py на новом статусе CLEAN (fail=0 warn=0)
+next: Dev step-01 story 4-9 — миграция migrations/action/00008_order_supplier_facts.sql (1 append-only таблица фактов + UNIQUE полного ключа (tenant, case, operation_id, kind, supplier_order_id) + RLS/FORCE + гранты INSERT/SELECT + CHECK-зеркала + TestMain-регистрация) + домен internal/action/domain/order_status.go (словари 5 стадий/видов {formed, sent}/источников {system_receipt, manager_record}/слов границ-свежести-срока + DeriveOrderStatusProjection + DeriveOrderStatusTimeline + гварды GuardOrderSupplierFact) + unit-тесты (деривации поимённо/тасование событий AC-9/зонды: supplier-send полей 0, уведомительных полей 0, ценовых полей 0) + DEVLOG 251 + коммит [skip ci] + пуш
+владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ)
+commit: TBD
