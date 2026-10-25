@@ -367,13 +367,15 @@ type OrderServicingRequest struct {
 }
 
 // OrderLookupCandidate is ONE operation of the lookup BY KEY: the
-// operation anchor and the SOURCE pins of the match (BY NAME — the
-// receipt of the dispatch machine 4-6 and/or the reread of the manager
-// 4-8 for the ABCP kind; the human facts 4-9 for the supplier kind).
-// The candidate carries NO price material, NO send material and NO
+// operation anchor with its case (the view material assembly of the
+// disclosure) and the SOURCE pins of the match (BY NAME — the receipt
+// of the dispatch machine 4-6 and/or the reread of the manager 4-8 for
+// the ABCP kind; the human facts 4-9 for the supplier kind). The
+// candidate carries NO price material, NO send material and NO
 // notification material — the identifier match only.
 type OrderLookupCandidate struct {
 	OperationID id.UUID
+	CaseID      id.UUID
 	Sources     []string
 }
 
@@ -467,22 +469,29 @@ type CancelFeasibilityView struct {
 // stored status): the DENIED request answers the gate word with the
 // LIVE allowed methods and the fallback words of 2-3 — the lookup
 // outcome NEVER rides the denied words (the very existence of the
-// order is not disclosed, AC-1); the ALLOWED request answers the LIVE
-// client words of the 4-9 projection of the resolved operation (the
-// confirmed stages, the freshness, the next step, the three deadline
-// words, the boundaries) plus the intent boundary word. The projection
-// is the LIVE read of the panel (nil when the resolved operation is
-// not readable anymore — the honest empty retell of the anchor word
-// only). The words are the RETELL MATERIAL — nothing is sent to the
-// client by the machine (OQ-1/OQ-2).
+// order is not disclosed, AC-1); the ALLOWED request of a unique match
+// answers the LIVE client words of the 4-9 projection of the resolved
+// operation (the confirmed stages, the freshness, the next step, the
+// three deadline words, the boundaries) plus the intent boundary word;
+// the ALLOWED request of not_found/ambiguous answers the GENERIC
+// outcome word (safe by construction — never a disclosure of another
+// client's orders) plus the intent boundary word. The projection is
+// the LIVE read of the panel (nil when the resolved operation is
+// not readable anymore — the honest anchor-less retell). The words are
+// the RETELL MATERIAL — nothing is sent to the client by the machine
+// (OQ-1/OQ-2).
 func DeriveServicingClientWords(r OrderServicingRequest, projection *OrderStatusProjection, allowedMethods []string, fallbackWords []string) []string {
 	if !ProofStateAllowsDisclosure(r.ProofState) {
 		words := []string{ServicingGateWord(allowedMethods)}
 		return append(words, fallbackWords...)
 	}
 	words := []string{}
-	if projection != nil {
-		words = append(words, projection.ClientWords...)
+	if r.LookupOutcome == LookupOutcomeUnique {
+		if projection != nil {
+			words = append(words, projection.ClientWords...)
+		}
+	} else if outcomeWord, ok := LookupOutcomeWords[r.LookupOutcome]; ok {
+		words = append(words, outcomeWord)
 	}
 	if intentWord, ok := ServicingIntentWords[r.Intent]; ok {
 		words = append(words, intentWord)
@@ -514,4 +523,50 @@ func GuardOrderServicingRequest(intent, identifierKind, identifierValue string) 
 			ServicingIdentifierMinLen, ServicingIdentifierMaxLen)}
 	}
 	return nil
+}
+
+// ---------------------------------------------------------------------------
+// The view (the read-time panel material — the words re-derive live)
+// ---------------------------------------------------------------------------
+
+// OrderServicingRequestView is ONE request of the panel feed: the
+// recorded row (the append-only history — the proof pins stay as they
+// were recorded, AC-4) with the LIVE-derived render words (the client
+// words re-derive over the live projection of the resolved operation —
+// never a stored status; the cancel feasibility re-derives over the
+// live supplier facts). The short words of the form dictionaries ride
+// along (the readable labels of the operator surface).
+type OrderServicingRequestView struct {
+	Request         OrderServicingRequest
+	IntentShortWord string
+	KindShortWord   string
+	KindSourceWord  string
+	OutcomeWord     string
+	// ClientWords is the LIVE retell material of the request (the gate
+	// word + the fallback words of a denied request — WITHOUT the
+	// lookup outcome; the live projection words + the intent boundary
+	// word of an allowed unique match; the generic outcome word + the
+	// intent word of an allowed miss).
+	ClientWords []string
+	// Cancel is the LIVE four-state view of the cancel intent (nil for
+	// the other intents — the derivation rides the cancel ask only).
+	Cancel *CancelFeasibilityView
+	// Sources is the BY NAME source pin list of the resolved operation
+	// match (empty when not_found/ambiguous — the enumeration does not
+	// exist; the sources of the unique match ride the panel).
+	Sources []string
+}
+
+// OrderServicingView is the WHOLE panel view of the case servicing
+// contour: the recorded requests (the append-only feed ordered by the
+// request ladder) with the LIVE derivations, and the honest boundary
+// words of the contour (the OQ-16 phone-search refusal, the AG-4/OQ-18
+// connector boundary, the OQ-1/OQ-2 no-delivery word and the AC-6
+// recorded-word). The view writes NOTHING — the read is pure.
+type OrderServicingView struct {
+	Requests              []OrderServicingRequestView
+	PhoneBoundaryWord     string
+	ConnectorBoundaryWord string
+	NoDeliveryWord        string
+	RequestRecordedWord   string
 }
