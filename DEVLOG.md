@@ -5460,3 +5460,20 @@ done:
 next: CHECKPOINT 2 story 4-10 — PR (python-JSON, sha-pinned голова) → CI ×3 зелёный ПОИМЁННО → живой GET сверки → sha-pinned merge → локальный main ff-only → DEVLOG 264-фиксации + PR-скрипт в main → удаление слитой ветки по правилу владельца (GitHub API DELETE + локально + prune) → предъявление владельцу
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — использовался для пушей всех шагов)
 commit: d4f62181e9cfe19b31490582d7227f32585a7c5a
+
+---
+date: 2026-10-25
+task: 264-checkpoint-2
+role: main (Super Z, сессия web-d497a728, возобновление после смерти контекста)
+story: 4-10
+summary: CHECKPOINT 2 story 4-10 — PR #51 (python-JSON, sha-pinned d4f6218) → CI ×3 зелёный ПОИМЁННО → живой GET сверки головы → sha-pinned merge a8bf4ee → локальный main ff-only; ветка 4-10 УДАЛЕНА сразу после merge по правилу владельца (AGENTS.md); DEVLOG 264 + трекинг PR-скрипта запушены в main
+done:
+- Возобновление после смерти контекста по протоколу (сводка диалога — НЕ истина): session-start прочитан; ЧЕСТНАЯ сверка живыми зондами: предшественница успела СОЗДАТЬ PR #51 (python-JSON scripts/pr_story_4_10.py, тело sha-pin d4f6218) и слить его НЕ успела; CI ×2 уже зелёный; преемница перепроверила всё живыми GET (PR state/head/mergeable, ветки-рефы, прогоны поимённо) ДО продолжения
+- CI ×3 зелёный ПОИМЁННО: push #40227048087 (d4f6218 — Dev step-05 feat без маркера, 19:39) / pull_request #40227108834 (PR #51, d4f6218, 19:40) / push #40228774169 (merge-commit a8bf4ee на main, 20:01→20:10)
+- Живой GET сверки: LOCAL HEAD = PR head = ветка-реф = d4f62181e9cfe19b31490582d7227f32585a7c5a (mergeable clean, 13 коммитов, 31 файл, +8078/−2388, sha-pin в теле подтверждён) → sha-pinned merge PUT /pulls/51/merge {sha d4f6218, method merge} → merge-commit a8bf4ee7757de5dab25b80d62fbffd00951ddbc8
+- Локальный main ff-only 58bc88b → a8bf4ee; фиксация DEVLOG 263 (07d3888 [skip ci]) перенесена в main cherry-pick 6316375 — патч-идентично (git cherry эквивалент), поэтому локальное удаление ветки оправдано -D; DEVLOG 264 + трекинг PR-скрипта (scripts/pr_story_4_10.py) — этот коммит — в main напрямую (инфраструктура scripts/docs, [skip ci])
+- ПРАВИЛО ВЛАДЕЛЬЦА (AGENTS.md «Слитая ветка — удаляется сразу после merge», 3cffb88): ветка codex/story-4-10-safe-existing-order-servicing удалена в трёх местах — GitHub API DELETE refs/heads (после compare main...branch ahead_by=0), локально git branch -D (фиксация уже в main патч-идентичным cherry-pick 6316375), stale remote-tracking рефа update-ref -d
+- Гигиена: токен env-only весь цикл (CI-зонды/GET/merge/пуши/удаление ветки), в диффах 0; секрет-сканы шагов CLEAN; на GitHub после ритуала — только main
+next: следующая story по сигналу владельца «продолжайте» — по живому чтению epics.md кандидат 4-11 «Сквозной бизнес-результат пилота автозапчастей» (последняя в Epic 4, 10/11 закрыто): SM-фаза первой (спека первого среза + CHECKPOINT 1); владелец отзывает PAT после закрытия чата
+владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — использовался для CI-зондов, живых GET, merge PR #51, пуша DEVLOG/PR-скрипта в main и удаления ветки)
+commit: TBD
