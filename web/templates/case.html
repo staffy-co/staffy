@@ -1539,7 +1539,7 @@
 {{if .View.VerificationApproved}}<p class="status" role="status" id="verification-approved">Проверка подтверждена. {{.View.OrderVerification.ManualContourWord}}</p>{{end}}
 {{if .View.VerificationBlocked}}<p class="status" role="status" id="verification-blocked">Продвижение заказа заблокировано. {{.View.OrderVerification.ManualContourWord}}</p>{{end}}
 {{if .View.VerificationReassigned}}<p class="status" role="status" id="verification-reassigned">Задача переназначена: новая эпоха назначения открыта.</p>{{end}}
-{{if .View.OrderVerification.Present}}
+{{if .View.OrderVerification.Wired}}
 <h2>Проверка заказа</h2>
 <section class="panel" aria-label="Проверка заказа" id="order-verification">
 <p class="next-note">Задача проверки — контур 4-7: решение применяется ТОЛЬКО к точной версии заказа (пин ниже); {{.View.OrderVerification.DeliveryWord}}.</p>
@@ -1614,6 +1614,28 @@
 </form>
 {{end}}
 </details>
+{{end}}
+{{if .View.OrderVerification.Wired}}
+<h3>Назначить задачу проверки (явное решение владельца)</h3>
+<form method="post" action="{{.View.OrderVerification.AssignTarget}}" class="panel-form">
+<fieldset>
+<legend>Назначить проверяющего менеджера (committed-заказ — якорь задачи)</legend>
+<label for="verify-assign-work">Якорь рабочего элемента (UUID)</label>
+<input id="verify-assign-work" name="work_item_id" type="text" autocomplete="off" required>
+<label for="verify-assign-operation">Якорь committed-операции заказа (UUID)</label>
+<input id="verify-assign-operation" name="operation_id" type="text" autocomplete="off" required>
+<label for="verify-assign-assignee">Менеджер (UUID участника с полномочием review)</label>
+<input id="verify-assign-assignee" name="assignee" type="text" autocomplete="off" required>
+<label for="verify-assign-backup">Резервный участник (UUID)</label>
+<input id="verify-assign-backup" name="backup_owner" type="text" autocomplete="off" required>
+<label for="verify-assign-deadline">Слово дедлайна проверки</label>
+<select id="verify-assign-deadline" name="deadline" required>
+<option value="verify_4h">Четыре часа</option>
+<option value="verify_1d">Сутки</option>
+</select>
+<button type="submit">Назначить задачу проверки</button>
+</fieldset>
+</form>
 {{end}}
 {{if .View.OrderVerification.LivePresent}}
 <h3>Контекст проверки (живые панели)</h3>

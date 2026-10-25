@@ -33,6 +33,11 @@ import (
 
 // orderVerificationPanelView is the flattened panel of the case page.
 type orderVerificationPanelView struct {
+	// Wired reports the LIVE contour: the verification surface is bound
+	// and readable — the section renders its honest boundary words and
+	// the assignment affordance even before the first task exists (the
+	// contour words are the interface truth, AC-13).
+	Wired                bool
 	Present              bool
 	Cards                []orderVerificationCardView
 	LivePresent          bool
@@ -153,6 +158,7 @@ func (s *Server) orderVerificationPanelOf(ctx context.Context, actor identityDom
 		}
 		return orderVerificationPanelView{}, err
 	}
+	panel.Wired = true
 	// The purchasing visibility rides the LIVE Commercial scope of the
 	// actor (the live grant matrix — the 4-5 optional internal data).
 	panel.PurchasingHidden = true

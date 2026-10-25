@@ -96,6 +96,9 @@ func readOrderVerifications(ctx context.Context, tx pgx.Tx, tenantID id.UUID, wh
 
 // readOrderVerificationEvents reads the append-only events of one task
 // ordered by the monotonic event number (the state derivation input).
+// The per-kind material columns are NULL for the kinds that carry other
+// material — the scan goes through the pointer intermediates (the honest
+// zero of an absent material, never a scan error).
 func readOrderVerificationEvents(ctx context.Context, tx pgx.Tx, tenantID, caseID id.UUID, verificationNo int64) ([]actionDomain.OrderVerificationEvent, error) {
 	rows, err := tx.Query(ctx, `select tenant_id, case_id, verification_no, event_no, kind,
                 assignee, backup_owner, verify_deadline, deadline_at,
@@ -111,16 +114,43 @@ func readOrderVerificationEvents(ctx context.Context, tx pgx.Tx, tenantID, caseI
 	events := []actionDomain.OrderVerificationEvent{}
 	for rows.Next() {
 		var event actionDomain.OrderVerificationEvent
+		var assignee, backupOwner, verifyDeadline, orderDigest, externalOrderID, reason *string
+		var receiptVersionNo *int64
+		var deadlineAt, createdAt *time.Time
 		var evidenceAnchors, positions []byte
-		var deadlineAt, createdAt time.Time
 		if err := rows.Scan(&event.TenantID, &event.CaseID, &event.VerificationNo, &event.EventNo, &event.Kind,
-			&event.Assignee, &event.BackupOwner, &event.VerifyDeadline, &deadlineAt,
-			&event.OrderDigest, &event.ReceiptVersionNo, &event.ExternalOrderID, &evidenceAnchors,
-			&positions, &event.Reason, &event.ActorID, &createdAt); err != nil {
+			&assignee, &backupOwner, &verifyDeadline, &deadlineAt,
+			&orderDigest, &receiptVersionNo, &externalOrderID, &evidenceAnchors,
+			&positions, &reason, &event.ActorID, &createdAt); err != nil {
 			return nil, err
 		}
-		event.DeadlineAt = deadlineAt
-		event.CreatedAt = createdAt
+		if assignee != nil {
+			event.Assignee = id.UUID(*assignee)
+		}
+		if backupOwner != nil {
+			event.BackupOwner = id.UUID(*backupOwner)
+		}
+		if verifyDeadline != nil {
+			event.VerifyDeadline = *verifyDeadline
+		}
+		if deadlineAt != nil {
+			event.DeadlineAt = *deadlineAt
+		}
+		if orderDigest != nil {
+			event.OrderDigest = *orderDigest
+		}
+		if receiptVersionNo != nil {
+			event.ReceiptVersionNo = *receiptVersionNo
+		}
+		if externalOrderID != nil {
+			event.ExternalOrderID = *externalOrderID
+		}
+		if reason != nil {
+			event.Reason = *reason
+		}
+		if createdAt != nil {
+			event.CreatedAt = *createdAt
+		}
 		if evidenceAnchors != nil {
 			decoded, err := decodeStringArray(evidenceAnchors)
 			if err != nil {
