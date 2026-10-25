@@ -5181,3 +5181,18 @@ done:
 next: Dev step-05 — QA-саморевью и closure по живому диффу ветки шагов 01-04 (замороженные машины 2-13/3-6/persist/термы 2-4/команды 2-15 НЕ тронуты name-only; SQL ровно 1 миграция 00007 append-only + one-closure partial UNIQUE; supplier-send/change 0; закупочная только по Commercial-скоупу; маркетинг 0; import-graph чист; AD-10 SAFE-пины; гейты не задели лестницу 3-6 живыми зондами) + финальный регресс свежими прогонами + closure: Spec Change Log Dev 01-04 + QA, спека done, sprint-status done — Epic 4: 8/11; коммит feat БЕЗ маркера — CI ×3 на CHECKPOINT 2
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для пушей шагов Dev-фазы)
 commit: TBD
+
+---
+date: 2026-10-25
+task: 247-dev-step-05
+role: main (Super Z, Dev-фаза)
+story: 4-8
+summary: Dev step-05 story 4-8 — QA-саморевью и closure: qa_step05_4_8_scan.py CLEAN по живому диффу ветки (Major-находок НЕТ) + финальный регресс свежими прогонами + closure спеки/sprint-status done — Epic 4: 8/11; коммит feat БЕЗ маркера — голова триггерит CI ×3 на CHECKPOINT 2
+done:
+- scripts/qa_step05_4_8_scan.py (новой, по прецеденту qa_step05_4_7_scan.py): 56 изменений диффа ветки — секреты 0/CJK 0/mixed 0; замороженные машины чисты (лестница диспетчера 3-6 dispatch.go / машина handoffs 2-13 / persist-квитанций / термы владения 2-4 / КОМАНДЫ ОПЕРАТОРСКОЙ КОРРЕКЦИИ 2-15 — другой контур, различие именами, name-only); SQL ровно 1 новая миграция 00007 append-only (RLS FORCE + REVOKE UPDATE/DELETE/TRUNCATE + one-closure partial UNIQUE — структурный бэкстоп); supplier-send + change-действия 0 (домен/api/app/транспорт без полей-маршрутов отправки и изменения; слова — только честные отрицания; fence OQ-3/AG-4); закупочная — Commercial-слово скрытия (панель коррекции НЕ вводит своего раскрытия); маркетинг 0 в домене; import-graph домена чист (только platform/id); AD-10 SAFE-пины (OrderCorrectionEvent: reread несёт внешний ID + триплет пинов, копий цен/составов/рендеров НЕТ); ДВА гейта пиннены (гейт авторизации ДО лестницы отказов BY ORDER живым поиском позиций; гейт assign в 4-7 команде — единственная хирургическая правка order_verification.go); забор состава живой ре-деривацией тем же кодом лестницы (DeriveOrderCommitmentMaterial/OrderDigestOf/ErrOrderCorrectionCompositionChanged — reuse); серверная истина актёра (гварды reread/cease с command.Actor.ID); гейты пиннены юнит-счётчиками (reserveCalls 0 / consumed 0 / задача №2 только после закрытия)
+- Финальный регресс свежими прогонами: build/vet OK; unit 33 пакета ok; интеграция ПОЛНЫЙ суит ×2 TZ=Europe/Moscow (55.2s/51.5s) зелёные; journeys ПОЛНЫЙ суит 50/50 (2.9m)
+- Closure: Spec Change Log — запись Dev 01-04 поимённо с хешами (7c887a9/5bb1b75/e329950/cafb677) + ретроспективная запись CHECKPOINT 1 (242-checkpoint-1 — флип готовности по мандату владельца; по прецеденту 4-6/4-7) + QA closure-запись; спека ready-for-dev → done; sprint-status 4-8-коррекция-подбора-до-закупки → done — Epic 4: 8/11
+- Гигиена: секреты в диффе 0 (токен env-only, remote-URL чистый); токен нигде не зафиксирован
+next: CHECKPOINT 2 — PR через GitHub API (python-JSON сборка по прецеденту pr_story_4_7.py, sha-pinned HEAD в теле) → CI ×3 зелёный поимённо (push/PR/merge) → sha-pinned merge в main → локальный main ff-only → DEVLOG 248-checkpoint-2 → пуш; после merge: следующая story по сигналу владельца (4-9); удаление слитых веток 4-5..4-8 на GitHub — по поручению владельца
+владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — используется для пуша шага и CHECKPOINT 2)
+commit: TBD
