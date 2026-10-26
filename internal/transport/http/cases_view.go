@@ -152,6 +152,11 @@ type caseDetailPageView struct {
         // status — the Order Servicing Request feed over the repeat-contact
         // material of the store contour with the LIVE derivations).
         OrderServicing orderServicingPanelView
+        // The Story 4.11 outcome panel (the case-level section after the
+        // servicing — the read-time derivation of the ten-stage inquiry
+        // funnel with the attribution, the outcome chain and the honest
+        // unknown pins of the terminal stages).
+        PilotOutcome PilotOutcomePanelView
         // The Story 4.10 success flags of the PRG form (the honest status
         // words of the record command — the replay word rides the flag).
         ServicingRequestRecorded bool

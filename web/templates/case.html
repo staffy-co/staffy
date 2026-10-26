@@ -1940,6 +1940,26 @@
 <p class="next-note"><a href="{{.View.OrderServicing.HumanLinkHref}}">{{.View.OrderServicing.HumanLinkWord}}</a> — контур 2-13 (запрос человека с якорем заказа); <a href="{{.View.OrderServicing.ReturnLinkHref}}">{{.View.OrderServicing.ReturnLinkWord}}</a> — контур 2-10.</p>
 </section>
 {{end}}
+{{if .View.PilotOutcome.Wired}}
+<h2>Исход обращения</h2>
+<section class="panel" aria-label="Исход обращения" id="case-outcome">
+<p class="next-note">Исход обращения — контур 4-11: сквозной результат пилота автозапчастей как чистая read-time деривация над записанным материалом контуров (кейс 2-1, идентификация 4-2, применимость 4-4, заказ 4-6..4-9). Исход — живая деривация, никогда не хранимое слово: поздний факт перечитывается, история не переписывается; терминальные стадии — unknown_pending всегда (владеющие источники вне контура).</p>
+<p class="next-note">{{.View.PilotOutcome.AttributionWord}}; кампания: {{.View.PilotOutcome.CampaignWord}}; реферер: {{.View.PilotOutcome.ReferrerWord}}.</p>
+<h3>Цепочка исхода</h3>
+{{range .View.PilotOutcome.ChainWords}}<p class="status" role="status">{{.}}</p>{{end}}
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Стадии исхода обращения">
+<table class="datamap-table">
+<caption>Десять стадий воронки обращения: состояние словом, доказательство, время, источник, пин неизвестности</caption>
+<thead><tr><th scope="col">Стадия</th><th scope="col">Состояние</th><th scope="col">Доказательство</th><th scope="col">Время</th><th scope="col">Источник</th><th scope="col">Пин неизвестности</th></tr></thead>
+<tbody>
+{{range .View.PilotOutcome.Stages}}
+<tr><th scope="row">{{.StageWord}} ({{.Stage}})</th><td>{{.StateWord}}</td><td>{{.Evidence}}</td><td>{{if .TimeText}}{{.TimeText}}{{else}}—{{end}}</td><td>{{if .SourceWord}}{{.SourceWord}}{{else}}—{{end}}</td><td>{{if .PinWord}}{{.PinWord}}{{else}}—{{end}}</td></tr>
+{{end}}
+</tbody>
+</table>
+</div>
+</section>
+{{end}}
 <h2>Диалоги канала</h2>
 <p role="status" aria-live="polite">{{if .View.HasConversations}}Диалогов: <strong>{{len .View.Conversations}}</strong>; каждый — продолжение одной channel session.{{else}}Диалогов нет.{{end}}</p>
 {{if .View.HasConversations}}

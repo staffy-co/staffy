@@ -158,6 +158,20 @@ type Service struct {
 	// refuses in words — never a masked «ok» proof pin.
 	orderServicing port.OrderServicingRepository
 	assurance      port.AssuranceSource
+
+	// Story 4.11 (step-02): the pilot outcome contour — the READ-ONLY
+	// derivation of the case outcome panel and the pilot report page.
+	// The case surface (the listing, the case view with the timeline
+	// attribution events and the vehicle/part/fitment panels, the facts
+	// view) rides the NEW narrow PilotCaseSource port (the cases api
+	// Service satisfies it structurally — the composition-root adapter
+	// by the CaseMaterialSource/AssuranceSource precedent); the order
+	// machine material rides the EXISTING stores wired since 3-5..4-9
+	// (the OrderStatusView read pattern) and the recovery counter rides
+	// the WithRecovery wiring. A NIL port is the HONEST unwired state
+	// (the preview precedent): every read refuses in words — the zero
+	// panel/page, never an invented material.
+	pilotCases port.PilotCaseSource
 }
 
 // New wires the service. The resolvers are the composition-root adapters
@@ -328,6 +342,20 @@ func (s *Service) WithOrderSupplierFacts(repository port.OrderSupplierFactReposi
 func (s *Service) WithOrderServicing(repository port.OrderServicingRepository, assurance port.AssuranceSource) *Service {
 	s.orderServicing = repository
 	s.assurance = assurance
+	return s
+}
+
+// WithPilotOutcome wires the pilot outcome contour of story 4.11 (the
+// fixture and the transport composition roots): the pilot case source —
+// the narrow read surface of the cases module (the listing, the case
+// view, the facts view). The order machine material of the assembly
+// rides the WithAuthorization/WithDispatch/WithOrderVerifications/
+// WithOrderCorrections/WithOrderSupplierFacts wirings and the recovery
+// counter rides the WithRecovery wiring. A root that wires nothing
+// keeps the HONEST refusal of the unwired contour (the preview
+// precedent) — the zero panel/page, never an invented material.
+func (s *Service) WithPilotOutcome(pilotCases port.PilotCaseSource) *Service {
+	s.pilotCases = pilotCases
 	return s
 }
 

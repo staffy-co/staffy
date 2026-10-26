@@ -1,0 +1,80 @@
+{{define "pilot-outcome"}}
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Отчёт пилота · Staffy</title><link rel="stylesheet" href="/assets/app.css"></head>
+<body><a class="skip-link" href="#main">К основному содержанию</a><header class="topbar"><a class="brand" href="/app/tenants/{{.TenantID}}">Staffy</a><strong>Отчёт пилота автозапчастей</strong></header>
+<div class="shell"><nav aria-label="Основная навигация"><a href="/app/tenants/{{.TenantID}}">Сегодня</a><a href="/app/tenants/{{.TenantID}}/employees">Сотрудники</a><a href="/app/tenants/{{.TenantID}}/integrations">Интеграции</a></nav><main id="main">
+{{if .View.Degraded}}
+<section class="panel" aria-label="Отчёт пилота недоступен">
+<h1>Отчёт пилота автозапчастей</h1>
+<p class="alert" role="alert">{{.View.DegradationWord}}</p>
+<p class="next-note">Ваши полномочия на этой странице: {{.View.ScopeText}}.</p>
+</section>
+{{else}}
+<section class="panel" aria-label="Отчёт пилота автозапчастей">
+<h1>Отчёт пилота автозапчастей</h1>
+<p class="next-note">Сквозной результат пилота — чистая read-time деривация над живым материалом контура (кейсы 2-1..2-13, идентификация 4-2, применимость 4-4, заказы 4-6..4-9): отчёт ничего не записывает; повторное чтение неизменного мира даёт тот же ответ; поздние факты меняют чтение перечиткой, история не переписывается.</p>
+<p class="alert" role="alert">{{.View.BoundaryWord}}</p>
+<p role="status" aria-live="polite">Выборка: <strong>{{.View.SampleSizeText}}</strong>; {{.View.PeriodWord}}.</p>
+{{if .View.EmptySampleWord}}<p class="status" role="status">{{.View.EmptySampleWord}}</p>{{end}}
+<p class="next-note">Ваши полномочия на этой странице: {{.View.ScopeText}}.</p>
+
+<h2>Воронка десяти стадий</h2>
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Воронка десяти стадий">
+<table class="datamap-table">
+<caption>Воронка десяти стадий: доказанные counts (unknown_pending-стадии в знаменатели конверсий не входят); выборка: {{.View.SampleSizeText}}; {{.View.PeriodWord}}</caption>
+<thead><tr><th scope="col">Стадия</th><th scope="col">Состояние словаря</th><th scope="col">Доказано</th></tr></thead>
+<tbody>
+{{range .View.Funnel}}
+<tr><th scope="row">{{.StageWord}} ({{.Stage}})</th><td>{{.StateWord}}</td><td>{{.CountText}}</td></tr>
+{{end}}
+</tbody>
+</table>
+</div>
+
+<h2>Конверсии между доказанными соседями</h2>
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Конверсии воронки">
+<table class="datamap-table">
+<caption>Конверсии между ДОКАЗАННЫМИ соседними стадиями (numerator/denominator BY NAME); выборка: {{.View.SampleSizeText}}; {{.View.PeriodWord}}</caption>
+<thead><tr><th scope="col">Из</th><th scope="col">В</th><th scope="col">Числитель</th><th scope="col">Знаменатель</th><th scope="col">Слово</th></tr></thead>
+<tbody>
+{{range .View.Conversions}}
+<tr><th scope="row">{{.From}}</th><td>{{.To}}</td><td>{{.Numerator}}</td><td>{{.Denominator}}</td><td>{{.Word}}</td></tr>
+{{end}}
+</tbody>
+</table>
+</div>
+
+<h2>Счётчики контуров</h2>
+{{range .View.Counters}}<p class="status" role="status">{{.}}</p>{{end}}
+<p class="alert" role="alert">Доля неизвестных исходов: {{.View.UnknownNumerator}} из {{.View.UnknownDenominator}} — {{.View.UnknownShareWord}}.</p>
+
+<h2>Неизмеримые показатели</h2>
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Неизмеримые показатели">
+<table class="datamap-table">
+<caption>Неизмеримые показатели — строками причин, чисел нет (отсутствующая составляющая не заменяется нулём)</caption>
+<thead><tr><th scope="col">Показатель</th><th scope="col">Причина</th></tr></thead>
+<tbody>
+{{range .View.NotMeasurable}}
+<tr><th scope="row">{{.Title}}</th><td>{{.Reason}}</td></tr>
+{{end}}
+</tbody>
+</table>
+</div>
+
+<h2>Словарь измерений v1</h2>
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Словарь измерений">
+<table class="datamap-table">
+<caption>Словарь измерений v1 (утверждается одобрением спеки; смена определения — новая версия, не молча)</caption>
+<thead><tr><th scope="col">ID</th><th scope="col">Название</th><th scope="col">Формула</th><th scope="col">Grain</th><th scope="col">Числитель</th><th scope="col">Знаменатель</th><th scope="col">Версия</th><th scope="col">Владелец</th></tr></thead>
+<tbody>
+{{range .View.Dictionary}}
+<tr><th scope="row"><span class="digest-block">{{.ID}}</span></th><td>{{.Title}}</td><td>{{.Formula}}</td><td>{{.Grain}}</td><td>{{.Numerator}}</td><td>{{.Denominator}}</td><td>{{.Version}}</td><td>{{.Owner}}</td></tr>
+{{end}}
+</tbody>
+</table>
+</div>
+
+<p class="next-note">{{.View.ReadCostWord}}</p>
+</section>
+{{end}}
+</main></div></body></html>
+{{end}}
