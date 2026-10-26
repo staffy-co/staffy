@@ -43,6 +43,7 @@ type Server struct {
         orderCorrections    actionAPI.OrderCorrectionService
         orderStatus         actionAPI.OrderStatusService
         orderServicing      actionAPI.OrderServicingService
+        pilotOutcome        actionAPI.PilotOutcomeService
         authorization       actionAPI.AuthorizationService
         dispatch            actionAPI.DispatchService
         reconcile           actionAPI.ReconcileService
@@ -103,6 +104,11 @@ func New(identity api.Service, resolver port.PrincipalResolver, ids IDGenerator,
         s.mux.HandleFunc("GET /app", s.setup)
         s.mux.HandleFunc("POST /app/tenants", s.createTenantForm)
         s.mux.HandleFunc("GET /app/tenants/{tenant_id}", s.workspace)
+        // The Story 4.11 pilot outcome report page (the pilot.html 4-1
+        // precedent: the page route mounts for EVERY server — an unwired
+        // contour degrades honestly inside the handler with the zero page
+        // word, never a missing route).
+        s.mux.HandleFunc("GET /app/tenants/{tenant_id}/pilot-outcome", s.pilotOutcomePage)
         s.mux.HandleFunc("POST /v1/tenants", s.createTenantAPI)
         s.mux.HandleFunc("GET /v1/tenants/{tenant_id}/members", s.listMembersAPI)
         s.mux.HandleFunc("POST /v1/tenants/{tenant_id}/invitations", s.inviteMemberAPI)

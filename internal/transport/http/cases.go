@@ -616,6 +616,17 @@ func (s *Server) caseDetailPage(w http.ResponseWriter, r *http.Request) {
                 s.casesPageProblem(w, r, err)
                 return
         }
+        // The Story 4.11 outcome panel: the same honest degradation (an
+        // unwired surface, the ports-missing word of the app gate or a
+        // scope-forbidden member renders the zero panel — the page keeps
+        // the rest; every other failure fails the page honestly). The
+        // derivation never fails on a case without order material — the
+        // funnel speaks the honest not_reached ladder.
+        page.PilotOutcome, err = s.pilotOutcomePanelOf(r.Context(), actor, tenant, caseID)
+        if err != nil {
+                s.casesPageProblem(w, r, err)
+                return
+        }
         s.render(w, "case", map[string]any{
                 "TenantID": tenant,
                 "View":     page,
