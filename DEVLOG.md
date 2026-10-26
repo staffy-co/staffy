@@ -5637,4 +5637,4 @@ done:
 - Ветка codex/story-5-1-montagio-admission-registry от main 750a64b: этот коммит (спека + DEVLOG 274-sm + retro-4-2 infra) [skip ci]; sprint-status НЕ тронут (5-1 backlog до одобрения — дисциплина 52-sm; флип epic-5 in-progress вместе с ready-for-dev на CHECKPOINT 1 — урок 3-1)
 next: CHECKPOINT 1 — предъявление спеки владельцу финальным ответом сессии; ждать «продолжайте»/«одобряю» В ОТВЕТ на предъявление → флип backlog → ready-for-dev синхронно (спека + sprint-status ключ 5-1-допуск-каналов-и-маршрутов-montagio + epic-5 in-progress — урок 3-1 be883ae, прецедент 4-1 182-checkpoint-1) → Dev 01-05 → CHECKPOINT 2 (Epic 5: 1/19)
 владельцу: отозвать PAT после закрытия чата (retro-4-5/retro-3-6/retro-2-6; токен сессии ЖИВ — используется для пуша ветки)
-commit: TBD
+commit: 08a9766c5bfbce1e0484a13462e2c801a8df7341
