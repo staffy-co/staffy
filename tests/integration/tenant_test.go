@@ -214,6 +214,16 @@ func TestMain(m *testing.M) {
         if _, err = adminPool.Exec(ctx, strings.Split(string(pilotGateMigration), "-- +goose Down")[0]); err != nil {
                 panic(err)
         }
+        // Spec 5-1: the Montagio gate dictionary mirror (the CHECK constraint
+        // extension of the six Montagio pilot definitions — the lesson of
+        // 4-1 step-04 applied up front: the mirror travels with the dictionary).
+        montagioGateMigration, err := os.ReadFile("../../migrations/employee/00014_montagio_gate_dictionary.sql")
+        if err != nil {
+                panic(err)
+        }
+        if _, err = adminPool.Exec(ctx, strings.Split(string(montagioGateMigration), "-- +goose Down")[0]); err != nil {
+                panic(err)
+        }
         casesMigration, err := os.ReadFile("../../migrations/cases/00001_channel_event_case.sql")
         if err != nil {
                 panic(err)
