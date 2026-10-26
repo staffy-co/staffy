@@ -5723,4 +5723,4 @@ done:
 - Регресс шага: build/vet OK; unit 33 пакета ok 0 FAIL; git diff --check OK; замороженные поверхности не тронуты (pilot.go/pilot.html 4-1 байт-стабильны)
 next: Dev step-04 спеки 5-1 — интеграционная матрица живым PG (миры e2xx по регистру retro-4-3: гейт-инстансы живьём контуром 1-13, pack-pin fail-closed, synthetic verified → controlled при PASS, OQ-7B open → controlled НЕ live, per-маршрутная блокировка, RLS-слепота 404, идемпотентность ×2, миграция 00014 живая) + journeys z49 (страница: 4 стадии словами, Route Matrix, owners, фенс-слова, формулировки AC-11, замороженные слова соседних страниц байт-стабильны — правило 161, a11y, секреты 0); Accept: интеграция ×2 TZ зелёная; journeys 54/54 (49 spec-файлов ≥ порога 48)
 владельцу: отозвать PAT после закрытия чата (retro-4-5); решение развилки (курс A + externalization забронирован) — право вета
-commit: TBD
+commit: a55d6d9e168b9b92b2aca801e71a3d27dc82e929
