@@ -97,8 +97,8 @@ development_status:
   4-11-сквозной-бизнес-результат-пилота-автозапчастей: done
   epic-4-retrospective: done
 
-  epic-5: backlog
-  5-1-допуск-каналов-и-маршрутов-montagio: backlog
+  epic-5: in-progress
+  5-1-допуск-каналов-и-маршрутов-montagio: ready-for-dev
   5-2-нормализация-источников-обращения-в-единый-case: backlog
   5-3-квалификация-услуги-и-независимых-work-items: backlog
   5-4-safety-triage-до-коммерческого-предложения: backlog
