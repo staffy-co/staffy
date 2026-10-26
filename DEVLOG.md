@@ -5586,4 +5586,22 @@ done:
 - Коммит closure: ровно 3 файла (спека + sprint-status + DEVLOG) — qa_step05_4_11_scan.py уже в репо коммитом 2f29fb0 (часть A); feat БЕЗ маркера пропуска — CI ветки (workflow «CI» on: push + pull_request) стартует этим пушем
 next: CHECKPOINT 2 — PR → CI ×3 поимённо → sha-pinned merge → main ff-only → DEVLOG 272-checkpoint-2 в main → удаление ветки по правилу владельца (AGENTS.md 3cffb88)
 владельцу: отозвать PAT после закрытия чата (токен ЖИВ)
-commit: TBD (фиксация в main после merge — прецедент 263→6316375)
+commit: 5ae1afeca74e11da5b4226e8a7e785e9e8e047a1
+
+---
+date: 2026-10-26
+task: 272-checkpoint-2
+role: main (Super Z через субагентов — сбой инструментов сессии, протокол docs/CONTINUITY.md §4.1)
+story: 4-11
+summary: CHECKPOINT 2 story 4-11 «Сквозной бизнес-результат пилота автозапчастей» — полный merge-ритуал: PR #52 (sha-pin 5ae1afeca7 в теле, 14 коммитов, 26 файлов, +6702/−1122) → CI ×3 зелёный ПОИМЁННО (push 40306891290 / pull_request 40308754331 / main-push 40310480938 — все шаги verify зелёные поимённо) → живой GET сверки (head = пину = ветке-рефу, mergeable clean) → sha-pinned merge PUT {sha 5ae1afeca7, method merge} → merge-commit cc5200451ab59150e9c409fe6a656b7e5a4fe517 → локальный main ff-only 93f7e26 → cc52004 → DEVLOG 272 + трекинг scripts/pr_story_4_11.py (этот коммит)
+done:
+- Части 1-2 (субагенты ckpt2a/ckpt2b, CONTINUITY.md §4.1): PR #52 создан python-JSON скриптом (тело с sha-пином «Merge `5ae1afeca74e11da5b4226e8a7e785e9e8e047a1` (sha-pinned head of the branch, verified with a live GET before the merge).»); живые GET до/после CI: голова не двигалась, mergeable_state unstable → clean
+- Pre-merge живой GET сверки: PR head.sha = sha-пину в теле = ветке-рефу = 5ae1afeca74e11da5b4226e8a7e785e9e8e047a1, state=open, merged=false, mergeable=true, mergeable_state=clean — ЛЮБОЙ дрифт → abort (не случилось)
+- sha-pinned merge PUT /pulls/52/merge {"sha": "5ae1afeca74e11da5b4226e8a7e785e9e8e047a1", "merge_method": "merge"} → HTTP 200: merged=true, merge_commit_sha cc5200451ab59150e9c409fe6a656b7e5a4fe517 («Pull Request successfully merged», merged_at 2026-10-26T10:50:08Z); re-verification после: PR merged=true/state=closed, merge_commit_sha совпал, ls-remote refs/heads/main == cc52004
+- CI ×3 зелёный ПОИМЁННО (поллинг живым API ~20s): push #40306891290 (5ae1afe, Dev step-05 feat без маркера, ~7м22s) / pull_request #40308754331 (PR #52, 5ae1afe, ~9м35s) / main-push #40310480938 (merge-commit cc52004 на main, ~9м25s) — job «verify» success, все шаги зелёные поимённо: Set up job / Initialize containers / checkout@v7 / setup-go@v7 / setup-node@v7 / Go checks / PostgreSQL integration checks / Browser dependencies / Browser journeys / пост-шаги
+- Локальный main ff-only 93f7e26 → cc52004 (fetch + merge --ff-only origin/main): чистый fast-forward БЕЗ переписывания истории, 26 файлов +6702/−1122, 0 новых локальных коммитов; HEAD == merge_commit_sha == origin/main, дерево чистое (RPO=0)
+- Фиксация DEVLOG 271-dev-step-05 commit: TBD → 5ae1afeca74e11da5b4226e8a7e785e9e8e047a1 (closure-коммит 5ae1afe в main через merge — прецедент 263→6316375) + трекинг scripts/pr_story_4_11.py в main этим коммитом (gh_merge_4_11.py — ВНЕ репо, прецедент: в main трекается только PR-скрипт)
+- Гигиена: токен env-only весь цикл (CI-зонды/живые GET/merge/пуши в main), в диффах 0; этот docs-коммит с [skip ci]
+next: Epic 4 ЗАКРЫТ 11/11 (последняя story эпика) — по сигналу владельца: epic-4-retrospective (optional по sprint-status) или следующая работа по живому чтению epics.md; владелец отзывает PAT после закрытия чата
+владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ — использовался для CI-зондов, живых GET, merge PR #52, пушей DEVLOG/PR-скрипта в main и удаления слитой ветки сразу после этого коммита)
+commit: TBD (фиксация следующим docs-коммитом — прецедент 264→93f7e26)
