@@ -5670,4 +5670,4 @@ done:
 - Флип исполнен одним коммитом [skip ci]: спека status ready-for-dev + Spec Change Log CHECKPOINT 1 + sprint-status (5-1 → ready-for-dev, epic-5 → in-progress) + эта запись; TBD-фиксация вторым коммитом (прецедент 274-sm→3877dea, 275-vision→a4c4a91)
 next: Dev шаги 01-05 спеки 5-1 (step-01 домен pilot_montagio + gateDictionary +6 + миграция 00014; step-02 каталог 4 декларации; step-03 app/транспорт/страница/OpenAPI; step-04 интеграция e2xx + journeys z49; step-05 QA-closure) → CHECKPOINT 2 (PR → CI ×3 поимённо → sha-pinned merge → main ff-only → DEVLOG → удаление ветки; Epic 5: 1/19); после CHECKPOINT 2 — SM-слот externalization-эпика + ревизия плана эпиков (бронь этого решения); преемнику: bash scripts/bootstrap.sh до step-01 (Go/PG сброшены контейнером — прямой зонд)
 владельцу: отозвать PAT после закрытия чата (retro-4-5); право вета на решение развилки и бронь externalization сохраняется; при явном сигнале третьего тенента/интеграции — AG-3-триггер срабатывает раньше плана
-commit: TBD
+commit: 42a854273f6f6cc3104270418371f6352aea0893
