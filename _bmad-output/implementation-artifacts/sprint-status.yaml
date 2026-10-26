@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-16-2026 16:47
-last_updated: 10-25-2026
+last_updated: 10-26-2026
 project: staffy
 project_key: NOKEY
 tracking_system: file-system
@@ -83,7 +83,7 @@ development_status:
   3-9-ограниченные-действия-staffy-во-время-recovery: done
   epic-3-retrospective: done
 
-  epic-4: in-progress
+  epic-4: done
   4-1-допуск-каналов-и-систем-пилота-магазина-олега: done
   4-2-структурированная-идентификация-автомобиля-и-защищённая-пере: done
   4-3-классификация-запроса-детали-и-граница-диагностики: done
@@ -95,7 +95,7 @@ development_status:
   4-9-правдивый-статус-abcp-1с-и-поставщика: done
   4-10-безопасное-обслуживание-существующего-заказа: done
   4-11-сквозной-бизнес-результат-пилота-автозапчастей: done
-  epic-4-retrospective: optional
+  epic-4-retrospective: done
 
   epic-5: backlog
   5-1-допуск-каналов-и-маршрутов-montagio: backlog
@@ -212,3 +212,29 @@ action_items:
     action: Ревокация всех выданных PAT владельцем после закрытия чата (retro-2-6 повторён: ≥15 передач открытым текстом за эпик, одна верифицированная смерть токена, env-only per-invocation выдержан)
     owner: owner
     status: open
+
+# Action items из epic-4-retrospective (2026-10-26, коммит см. DEVLOG 273-retro):
+  - id: retro-4-1
+    action: Перенос honest-границ спек 4-1..4-11 в регистр deferred-work — 10 новых записей (58→68); открытые записи Epic 2/3 переоценены в §7 ретро (annotation, не удаление — прецеденты retro-1-2/retro-3-1)
+    owner: epic-4-retrospective
+    status: done
+  - id: retro-4-2
+    action: Epic-валидация в check-continuity.sh (ретро-3-2, третий перенос) — FAIL при заявке закрытого эпика с не-done stories; CI-шаг git ls-files tests/journeys с порогом ≥ 48. ИЗМЕНЕНИЕ против retro-3-2 — владелец пункта теперь SM-фаза следующей story (не «следующий dev-цикл» — у пункта появляется хозяин)
+    owner: SM-фаза story 5-1
+    status: open
+  - id: retro-4-3
+    action: Регистр слотов миров (ретро-3-3 актуализация) — c2xx занят fitment-матрицами (c221–c225), order-семейство — сиды 755–770; новые миры Epic 5 — свободные диапазоны e2xx+/f2xx+; таблица мир → seed → диапазон в AGENTS.md либо scripts/ (до реализации коллизии ищутся grep-ом)
+    owner: dev
+    status: open
+  - id: retro-4-4
+    action: Развилка механических долгов Epic 2 (PascalCase PolicyOutcome; N+1 2-2/2-3) — закрыть попутными срезами Epic 5 ЛИБО снять осознанным решением владельца (третий перенос — вечный перенос недопустим)
+    owner: dev / владелец
+    status: open
+  - id: retro-4-5
+    action: Ревокация всех выданных PAT владельцем после закрытия чата (retro-3-6/2-6 повторён; 0 смертей за эпик, env-only выдержан, ~63 упоминания ревокации в записях эпика)
+    owner: owner
+    status: open
+  - id: retro-4-6
+    action: Порядок «ретроспектива → следующий эпик» исполнен — Epic 5 «Эксперт по услугам Montagio» стартует SM-фазой 5-1 по сигналу владельца
+    owner: process
+    status: done

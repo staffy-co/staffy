@@ -234,3 +234,43 @@
 - source_spec: `spec-3-7-reconciliation-of-uncertain-results.md`
   summary: Recovery-scope-разрешения сверки при приостановленном коннекторе (долг 3-7): срез 3-9 консервативен — scoped control paused = блок сверки (запроса нет, honest-строка отчёта); разрешение ограниченной сверки в recovery-режиме не построено.
   evidence: спека 3-7 honest-границы «recovery-scope-разрешения сверки при приостановленном коннекторе (3-9 — срез консервативен: paused = блок)»; перенесено epic-3-retrospective (2026-10-23, retro-3-1).
+
+- source_spec: `spec-4-1-pilot-admission-registry.md`
+  summary: Реальные адаптеры и credentials пилота (jivo-chat / abcp-parts / staffy-synthetic-telephony): декларации версионированы (AdapterImplemented false), производственный dispatch заблокирован nil-адаптером до AG-4/OQ-1..OQ-5 PASS; Mango Office — кандидат голосового маршрута (OQ-1 open).
+  evidence: спека 4-1 Always/never-границы (AG-4 open, OQ-11 synthetic-only); подтверждено 4-4/4-6 (поле версии Connector не заполняется, заказ — nil-адаптер); перенесено epic-4-retrospective (2026-10-26, retro-4-1).
+
+- source_spec: `spec-4-3-part-request-classification.md`
+  summary: Реальный AI-классификатор запроса детали (семантическое извлечение фактов из слов клиента) и диагностический маршрут каталога — вне пилота: режим выводится детерминированной лестницей, извлечение — оператор с provenance 2-2.
+  evidence: спека 4-3 Implementation Notes «реальный AI-классификатор — вне пилота (AG-4; AD-7 контур со своими stories)»; перенесено epic-4-retrospective (2026-10-26, retro-4-1).
+
+- source_spec: `spec-4-4-fitment-evidence.md`
+  summary: Лицензированный каталог-коннектор (Laximo/OQ-5) и поле «версия Connector» в fitment-записях: появится с реальным адаптером после OQ-5 PASS; материальный потребитель ProfileDigest (результаты каталога) — будущий срез.
+  evidence: спека 4-4 Implementation Notes «поле не заполняется; трассируемость материалом записи… появится с реальным адаптером по OQ-5 PASS»; спека 4-2 «материальный потребитель digest — будущий срез»; перенесено epic-4-retrospective (2026-10-26, retro-4-1).
+
+- source_spec: `spec-4-5-offers-and-comparison.md`
+  summary: Реальное чтение предложений поставщиков через адаптер (сейчас — менеджерские записи Supplier Offer); доставка/сбор не оцениваются и окончательная стоимость не рассчитывается (единственная арифметика — количество × записанная клиентская цена).
+  evidence: спека 4-5 Implementation Notes «доставка/сбор НЕ оцениваются и НЕ обещаются»; AG-4; перенесено epic-4-retrospective (2026-10-26, retro-4-1).
+
+- source_spec: `spec-4-7-decision-ready-order-verification.md`
+  summary: Внешняя доставка уведомлений (email/SMS/push/Jivo-исходящие) и автоматический backup-переключатель задач/воркеры/таймеры: уведомление — карточка поверхности, overdue — read-time деривация, fallback — явный reassign человеком.
+  evidence: спека 4-7 Never-границы (OQ-2 вне среза; AG-4/AD-14 runtime-workers); зеркалится 4-8/4-9/4-10 Never; перенесено epic-4-retrospective (2026-10-26, retro-4-1).
+
+- source_spec: `spec-4-8-order-correction-before-purchase.md`
+  summary: Исполнение отмены/изменения ABCP-заказа: change/cancel-команд в живой декларации 4-1 нет (каталог не расширяется), отмена — слово-рекомендация + ручной контур (консолидирует запись №215 Epic 3 об исполнителях cancel/compensation); фиксация канала связи с клиентом при коррекции — OQ-1/OQ-2.
+  evidence: спека 4-8 Never-границы «НЕ строить изменение ABCP-заказа действием (AG-4)»; спека 4-10 CancelFeasibility — «подтверждённая отмена не существует»; перенесено epic-4-retrospective (2026-10-26, retro-4-1).
+
+- source_spec: `spec-4-9-truthful-order-status.md`
+  summary: Адаптеры чтения ABCP/1С/поставщика и webhook-приёмник/polling/callback поздних состояний (консолидирует запись Epic 3 о webhook поздних квитанций): источники фактов — только квитанции диспетчерного контура и человеческие записи.
+  evidence: спека 4-9 Never-границы (AG-4: credential-bearing реализации нет, дедуп — идемпотентность BY KEY и упорядоченный fold); перенесено epic-4-retrospective (2026-10-26, retro-4-1).
+
+- source_spec: `spec-4-9-truthful-order-status.md`
+  summary: Расширение authorityMatrixV1 (2-7) заказными полями жизненного цикла заказа: матрица полномочий живёт словарями спеки 4-9; расширение единой матрицы — будущий срез с OQ-19 evidence.
+  evidence: спека 4-9 Never-границы «НЕ расширять authorityMatrixV1 (OQ-19 открыт)»; перенесено epic-4-retrospective (2026-10-26, retro-4-1).
+
+- source_spec: `spec-4-10-safe-existing-order-servicing.md`
+  summary: Lookup заказа через Connector чтения ABCP/1С/поставщика (OQ-18) и cross-case профиль поиска по телефону/email (OQ-16): поиск читает только записанный контуром материал, case-scoped only.
+  evidence: спека 4-10 Never-границы «lookup — ТОЛЬКО материал контура», «cross-case профиль не строится»; перенесено epic-4-retrospective (2026-10-26, retro-4-1).
+
+- source_spec: `spec-4-11-pilot-business-outcome.md`
+  summary: OQ-7 baseline-контур и сравнительные выводы пилота (SM-2 живой этап); терминальные стадии воронки (paid/returned) и выручка из 1С (OQ-4); batch-чтения отчёта /pilot-outcome (сейчас ListCases → per-case чтения).
+  evidence: спека 4-11 Never-границы «НЕ строить baseline/когорты/пороги (OQ-7 не пройден)», «выручка — только Owning System 1С (OQ-4)»; Implementation Notes «batch-чтения — будущая оптимизация»; перенесено epic-4-retrospective (2026-10-26, retro-4-1).
