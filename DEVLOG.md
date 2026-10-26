@@ -5506,4 +5506,18 @@ done:
 - Флип: spec-4-11 status backlog → ready-for-dev + sprint-status 4-11 backlog → ready-for-dev (синхронно, этот коммит)
 next: Dev 01-05 по спеке (домен → порт+сервис → панель+отчёт → eval+journeys → QA-closure) → CHECKPOINT 2 (PR → CI ×3 → sha-pinned merge → Epic 4: 11/11)
 владельцу: отозвать PAT после закрытия чата (токен ЖИВ)
+commit: 2439544000a0bfdade21d730560f20c2f4b7475d
+
+---
+date: 2026-10-26
+task: 267-dev-step-01
+role: main (Super Z через субагента — сбой инструментов сессии, протокол docs/CONTINUITY.md §4.1)
+story: 4-11
+summary: Dev шаг 01 story 4-11 — домен pilot_outcome: словари compile-time (10 стадий BY NAME + 3 состояния + слова evidence/пинов + атрибуция + Measurement Dictionary v1 {измеримые: case_volume/stage counts/конверсии между ДОКАЗАННЫМИ соседями/corrections/handoff/recovery/unknown_outcome_share; НЕизмеримые: revenue/margin/variable_costs/human_minutes — строками-причинами, БЕЗ числовых полей структурно} + OQ-7 гейт-слово) + DeriveCaseOutcome (чистый fold: атрибуция первого принятого inbound + 10 стадий с evidence BY NAME/временем/источником; терминальные — unknown_pending ВСЕГДА) + DerivePilotReport (агрегатный fold: counts/конверсии с numerator/denominator/выборка/период/доля неизвестных) + unit-матрица (словари/свежий кейс/полный путь/late-flip/атрибуция-unknown/агрегат/пустая выборка/структурные зонды честности)
+done:
+- Файлы: internal/action/domain/pilot_outcome.go + pilot_outcome_test.go (новые, 0 правок замороженных машин)
+- Регресс: go build ./... OK; go vet ./internal/action/... OK; go test ./internal/action/domain/ -count=1 — зелёный (включая новые Pilot-тесты)
+- DEVLOG: фиксация 266 TBD → 2439544; эта запись с commit: TBD (фиксация следующим шагом)
+next: Dev шаг 02 — порт PilotCaseSource + app PilotOutcomeService (CaseOutcomeView + PilotReportView, деградация nil/forbidden)
+владельцу: отозвать PAT после закрытия чата (токен ЖИВ)
 commit: TBD
