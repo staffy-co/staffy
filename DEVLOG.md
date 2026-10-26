@@ -5493,3 +5493,17 @@ done:
 next: CHECKPOINT 1 — предъявление спеки владельцу финальным ответом сессии; ждать «продолжайте»/«одобряю» В ОТВЕТ на предъявление → флип backlog → ready-for-dev синхронно (спека + sprint-status) → Dev 01-05 → CHECKPOINT 2 (Epic 4: 11/11)
 владельцу: отозвать PAT после закрытия чата (retro-3-6/retro-2-6; токен сессии ЖИВ)
 commit: ff06e6d647533dc5e341f171983b806c49b15d67
+
+---
+date: 2026-10-26
+task: 266-dev-flip
+role: main (Super Z, сессия web-d497a728, рестарт после сбоя инструментов)
+story: 4-11
+summary: «продолжайте» владельца В ОТВЕТ на предъявление CHECKPOINT 1 = одобрение спеки 4-11: синхронный флип spec + sprint-status в ready-for-dev (дисциплина 52-sm, один коммит)
+done:
+- Сбой инструментов пережит по протоколу docs/CONTINUITY.md §4.1: после рестарта сессии прямой зонд echo alive ЖИВ → работаю сам, без субагентов; причина смерти предшественницы — ЗАПРЕЩЁННАЯ /dev/tcp-проба (урок §4.1 п.«Причина-лидер» — больше НИКОГДА; живость PG — только pg_ctl status)
+- Живые зонды ДО правок: ветка = origin 0c89c7a (RPO=0), main 93f7e26, дерево чистое; Go 1.27.1 жив; PG 16.4 жив (pg_ctl status PID 1322); bootstrap пережил рестарт без ресайкла контейнера
+- Флип: spec-4-11 status backlog → ready-for-dev + sprint-status 4-11 backlog → ready-for-dev (синхронно, этот коммит)
+next: Dev 01-05 по спеке (домен → порт+сервис → панель+отчёт → eval+journeys → QA-closure) → CHECKPOINT 2 (PR → CI ×3 → sha-pinned merge → Epic 4: 11/11)
+владельцу: отозвать PAT после закрытия чата (токен ЖИВ)
+commit: TBD
