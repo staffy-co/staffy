@@ -5520,4 +5520,22 @@ done:
 - DEVLOG: фиксация 266 TBD → 2439544; эта запись с commit: TBD (фиксация следующим шагом)
 next: Dev шаг 02 — порт PilotCaseSource + app PilotOutcomeService (CaseOutcomeView + PilotReportView, деградация nil/forbidden)
 владельцу: отозвать PAT после закрытия чата (токен ЖИВ)
+commit: a781ae9e2ac93b3601c88fe4b06f80a3409173a2
+
+---
+date: 2026-10-26
+task: 268-dev-step-02
+role: main (Super Z через субагента — сбой инструментов сессии, протокол docs/CONTINUITY.md §4.1)
+story: 4-11
+summary: Dev шаг 02 story 4-11 — порт PilotCaseSource {CasesView/CaseView/FactsView; cases API Service удовлетворяет структурно} + api PilotOutcomeService {ReadPilotCaseOutcome/ReadPilotReport} + app-контур PilotOutcomeService: authorize (review-гейт, 404/403 словами), assemblePilotCaseMaterial (живое чтение: Timeline inbound+accepted → атрибуция; Vehicle/PartRequest/Fitment 4-2..4-4; операции/квитанции/проверки/факты/коррекции/recovery 4-6..4-9 — OrderStatusView-паттерн), ReadPilotReport (листинг кейсов периода → per-case деривация → агрегат; period YYYY-MM / весь период наблюдения), честная деградация nil-порта словом
+done:
+- internal/action/port/pilot_outcome.go (новый): узкий read-порт PilotCaseSource {CasesView/CaseView/FactsView} — сигнатуры сверены с живым cases API Service (api.go 213-215/580), стиль CaseMaterialSource/AssuranceSource
+- internal/action/api/pilot_outcome.go (новый): PilotOutcomeService {ReadPilotCaseOutcome/ReadPilotReport} — стиль OrderStatusService (read-only, деривация пишет НИЧЕГО)
+- internal/action/app/pilot_outcome.go (новый): 4 честных слова (скоуп review/неподключённый контур/весь период/префикс периода) + var _ api.PilotOutcomeService + requirePilotOutcomePorts (пилот-порт + операции/квитанции/проверки/коррекции/факты/recovery) + authorizePilotOutcome (точная копия authorizeOrderStatus) + assemblePilotCaseMaterial (CaseView: Timeline inbound+accepted → PilotInboundEvent; Vehicle: ConfirmedKeys/LastConfirmedAt по Confirmation, IdentificationSatisfied по Completeness.SatisfiedBy; PartRequestConfirmed = наличие подтверждённого атрибута — дайджест ВСЕГДА непустой, честным сигналом НЕ является (адаптация, задокументирована); Fitment: proven-позиции с ProvenAt = max ReceivedAt доказательств; Handoff.RequestsCount; операции OrderActionID: committed-квитанция с внешним ID → Receipt-пин, задачи+события проверок, факты, счёт коррекций, счёт recovery по err==nil-паттерну recovery.go:637) + ReadPilotCaseOutcome + ReadPilotReport (листинг → период-фильтр только при парсе YYYY-MM, малформедное слово проходит как слово периода без фильтрации; periodWord = «период: <слово>» либо «весь период наблюдения»)
+- internal/action/app/service.go: поле pilotCases port.PilotCaseSource (комментарий story 4.11) + WithPilotOutcome(pilotCases) *Service (цепной With*-стиль)
+- Проводка composition-roots (3 точки, прецедент 4-9/4-10): cmd/staffy-core/main.go (WithPilotOutcome(casesService) — прямая структурная передача, тот же инстанс что caseMaterial) + tests/integration/cases_order_test.go buildOrderService (WithPilotOutcome(w.cases)) + tests/journeys/action_order_fixture.go (адаптер pilotCaseSource{cases *casesFixture} — прецедент previewCasesMaterial, +CasesView; добавлен casesAPI-импорт). Транспортные бинды НЕ добавлены — маршруты приходят с шагом 03
+- Тесты: internal/action/app/pilot_outcome_test.go (новый): TestReadPilotCaseOutcomeDegradation (слово неподключённого контура, панель+отчёт), TestReadPilotCaseOutcomeScopeRefusal (не-участник → 404; без review → 403 со словом скоупа, панель+отчёт), TestReadPilotCaseOutcomeDerivation (атрибуция jivo/chat/evt-9, 6 proven-стадий, 4 терминальных unknown_pending с пинами, счётчики handoff/corrections/recovery=1), TestReadPilotCaseOutcomeFreshCase (honest not_reached-лестница), TestReadPilotReportDerivation (CaseVolume=2, StageCounts, 5 конверсий, unknown share 2/2, слово периода), TestReadPilotReportPeriodFilter (внешняя строка месяца фильтруется; малформедный период = без фильтрации, слово проходит) — фейки переиспользованы (fakeOperationRepo/fakeDispatchRepo/fakeVerificationRepo/fakeCorrectionRepo/fakeOrderFactRepo/fakeRecoveryRepo/scopeIdentity), новый только pilotCaseSourceFake
+- Регресс: go build ./... OK; go vet ./... OK (включая -tags integration ./tests/integration/); go test ./internal/action/... -count=1 — ALL GREEN (app/domain/catalog ok, регрессий нет)
+next: Dev шаг 03 — панель «Исход обращения» + страница «Отчёт пилота» + wire-тесты
+владельцу: отозвать PAT после закрытия чата (токен ЖИВ)
 commit: TBD

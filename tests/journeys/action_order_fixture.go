@@ -33,6 +33,7 @@ import (
 	"github.com/artemiosu/staffy/internal/adapters/owningsystem"
 	"github.com/artemiosu/staffy/internal/adapters/packresolver"
 	"github.com/artemiosu/staffy/internal/adapters/reconciliationsyn"
+	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
 	connectorAPI "github.com/artemiosu/staffy/internal/connector/api"
 	connectorDomain "github.com/artemiosu/staffy/internal/connector/domain"
 	domain "github.com/artemiosu/staffy/internal/identity/domain"
@@ -162,8 +163,33 @@ func newOrderWorld(casesWorld *casesFixture, controls *controlsFixture, entitlem
 		// rereads ∪ the facts — AG-4/OQ-18); the repository mirrors the
 		// store's request_no ladder and the UNIQUE full request key at
 		// the same trust state.
-		WithOrderServicing(newOrderServicingMemoryRepository(authorizations, dispatchRepo, orderCorrections, orderFacts), orderAssuranceSource{cases: casesWorld})
+		WithOrderServicing(newOrderServicingMemoryRepository(authorizations, dispatchRepo, orderCorrections, orderFacts), orderAssuranceSource{cases: casesWorld}).
+		// The Story 4.11 pilot outcome contour: the READ-ONLY case
+		// outcome panel and pilot report derivation over the LIVE
+		// fixture case world (the narrow pilot case source adapter —
+		// the previewCasesMaterial precedent with the listing read
+		// added; ZERO writes, ZERO migrations).
+		WithPilotOutcome(pilotCaseSource{cases: casesWorld})
 	return service, dispatchAdapter, reconcileAdapter
+}
+
+// pilotCaseSource adapts the cases fixture onto the narrow pilot case
+// port of Story 4.11 (the previewCasesMaterial precedent with the
+// CasesView listing read the pilot report sample needs).
+type pilotCaseSource struct {
+	cases *casesFixture
+}
+
+func (m pilotCaseSource) CasesView(ctx context.Context, actor domain.Principal, tenant id.UUID) (casesAPI.CasesView, error) {
+	return m.cases.CasesView(ctx, actor, tenant)
+}
+
+func (m pilotCaseSource) CaseView(ctx context.Context, actor domain.Principal, tenant, caseID id.UUID) (casesAPI.CaseView, error) {
+	return m.cases.CaseView(ctx, actor, tenant, caseID)
+}
+
+func (m pilotCaseSource) FactsView(ctx context.Context, actor domain.Principal, tenant, caseID id.UUID) (casesAPI.FactsView, error) {
+	return m.cases.FactsView(ctx, actor, tenant, caseID)
 }
 
 // The compile-time proof the actions fixture serves the narrow order

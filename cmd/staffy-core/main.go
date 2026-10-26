@@ -253,7 +253,20 @@ func run(logger *slog.Logger) error {
 		// receipts, the rereads, the facts — AG-4/OQ-18); NO cancel
 		// execution, NO change execution, NO client delivery exists
 		// (the OQ-3 fence, the OQ-1/OQ-2 Never of 4-9).
-		WithOrderServicing(actionStore.NewPostgres(pool), assurancesource.New(casesService))
+		WithOrderServicing(actionStore.NewPostgres(pool), assurancesource.New(casesService)).
+		// The Story 4.11 pilot outcome contour: the READ-ONLY
+		// derivation of the case outcome panel and the pilot report
+		// page (the ten-stage funnel, the attribution of the first
+		// accepted inbound channel event, the aggregate of the
+		// period — ZERO writes, ZERO migrations). The case surface
+		// rides the cases service DIRECTLY — the narrow
+		// PilotCaseSource port (the listing, the case view, the
+		// facts view) is satisfied structurally (the CaseMaterialSource
+		// precedent of the WithPreviews wiring); the order machine
+		// material rides the repositories wired above (the
+		// OrderStatusView read pattern). NO transport bind yet —
+		// the routes land with the step-03 panel/page surfaces.
+		WithPilotOutcome(casesService)
 	transport.BindActionCatalog(actionService)
 	transport.BindActionPreviews(actionService)
 	transport.BindOrderProposals(actionService)

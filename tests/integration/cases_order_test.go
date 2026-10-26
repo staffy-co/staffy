@@ -148,7 +148,13 @@ func (w *casesWorld) buildOrderService(adapter actionPort.MutationAdapter, reade
 		// operations of the tenant) with the Identity Proof Gate over the LIVE
 		// 2-3 assurance derivation of the contact case (the composition-root
 		// adapter over the cases service — the production root precedent).
-		WithOrderServicing(actionStore.NewPostgres(runtimePool), assurancesource.New(w.cases))
+		WithOrderServicing(actionStore.NewPostgres(runtimePool), assurancesource.New(w.cases)).
+		// The Story 4.11 pilot outcome contour: the READ-ONLY case
+		// outcome panel and pilot report derivation over the SAME
+		// live cases service (the narrow PilotCaseSource port is
+		// satisfied structurally — the CaseMaterialSource precedent
+		// of the WithPreviews wiring; ZERO writes, ZERO migrations).
+		WithPilotOutcome(w.cases)
 	if reader != nil {
 		service = service.WithPreviewReader(reader)
 	}
