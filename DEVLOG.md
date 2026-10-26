@@ -5654,4 +5654,4 @@ done:
 - Техника: контейнер сброшен между сообщениями (токен-файл /tmp исчез — перекэширован, 600, env-only; репо/worklog не пострадали, RPO=0 до и после); механика check-continuity прочитана живьём ДО коммита (скан статусов только implementation-artifacts/spec-*.md — PRODUCT-VISION.md проверку не ломает); все docs-коммиты [skip ci]
 next: решение владельца по развилке со сверкой PRODUCT-VISION.md: (A) «продолжайте/одобряю» = флип 5-1 backlog → ready-for-dev синхронно (спека + sprint-status + epic-5 in-progress) → Dev 01-05 → CHECKPOINT 2; (B) correct-course = SM-фаза externalization-эпика (декларативные паки + реестр tools + MCP-адаптер + AG-3 третий тенент); гибрид = одобрить 5-1 + готовить externalization-эпик параллельно; merge ветки 5-1 с main совместим автоматически (файл видения придёт со стороны main, DEVLOG конфликтов не даёт)
 владельцу: отозвать PAT после закрытия чата (retro-4-5); экспертные решения §9.1-9.3 PRODUCT-VISION.md — право вета
-commit: TBD
+commit: f91253625497e3b108e5a5260fae2311640d1b4d
