@@ -5704,4 +5704,4 @@ done:
 - Регресс шага: build/vet OK; unit 33 пакета ok 0 FAIL; git diff --check OK
 next: Dev step-03 спеки 5-1 — app read-only MontagioAdmission живыми чтениями reused (манифесты → ConnectorFacts → gate-инстансы; НИ ОДНОЙ записи, счётчики, reflect-зонд) + GET /v1/tenants/{t}/montagio/admission (200/401/403/404 membership-ДО-материала) + страница /app/tenants/{t}/montagio (Route Matrix/стадии словами/owners/фенсы/формулировки AC-11/a11y) + OpenAPI +1 путь/+схемы/enum-зеркала 8/6/4 + контракт-тест + server.go роуты
 владельцу: отозвать PAT после закрытия чата (retro-4-5); решение развилки (курс A + externalization забронирован) — право вета
-commit: TBD
+commit: 575cdd53fb30a9829eca31812848065e9a707097
