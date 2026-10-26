@@ -5572,4 +5572,18 @@ done:
 - Тесты: z48 соло — 1 passed (4.8s); ПОЛНЫЙ journeys сьют — 53 passed (4.4m), z48 бежит последним [53/53] зелёным в накопленном мире
 next: Dev шаг 05 — QA-саморевью и closure (полный свежий регресс build/vet/unit + интеграция ×2 TZ + journeys 48/48 + qa-скан + git diff --check; замороженные машины name-only; спека done + sprint-status done — Epic 4: 11/11; коммит feat БЕЗ [skip ci])
 владельцу: отозвать PAT после закрытия чата
-commit: TBD
+commit: 5ca09d4759eab1b1149a3d380a2b70f43756de9d
+
+---
+date: 2026-10-26
+task: 271-dev-step-05
+role: main (Super Z через субагентов — сбой инструментов сессии, протокол docs/CONTINUITY.md §4.1)
+story: 4-11
+summary: Dev шаг 05 — QA-саморевью и closure story 4-11: (A) qa_step05_4_11_scan.py CLEAN fail=0 warn=0 (0 миграций/0 пишущих путей в новом контуре/замороженные машины 2-3/2-13/3-6/3-8/4-6..4-10 name-only — 26 файлов диффа ⊆ allowed/цен-полей 0/VIN-диалог-телефон полей 0/import-graph домена stdlib+platform-id AD-10/секреты 0) — коммит 2f29fb0; свежий полный регресс: build OK/vet OK/unit 32 пакета зелёные/интеграция ПОЛНАЯ ×2 TZ (UTC 67.6s + Europe/Moscow 69.6s) зелёная/git diff --check чист/journeys 53/53 свежим прогоном на коде HEAD (5ca09d4; после — только docs); gofmt-нота: 2 новых файла в legacy space-стиле репо (базлайн main — 79 файлов; CI gofmt не гейтит — прецедент); (B) closure: Spec Change Log (CHECKPOINT 1 + Dev 01-05), спека done, sprint-status done — Epic 4: 11/11; ЭТОТ коммит feat БЕЗ [skip ci] — CI ветки стартует
+done:
+- DEVLOG: фиксация 270-dev-step-04 commit: TBD → 5ca09d4759eab1b1149a3d380a2b70f43756de9d (прецедент фиксации шагом-наследником)
+- Closure-флипы (прецедент d4f6218 story 4-10): spec-4-11-pilot-business-outcome.md — YAML status ready-for-dev → done + ОДНА строка Spec Change Log «2026-10-26, review loop 0 (dev): Dev 01-05 закрыты (домен/порт+сервис/панель+отчёт/eval-матрица+journeys z48/QA-closure) после одобрения CHECKPOINT 1; спека и sprint-status переходят в done; Epic 4: 11/11; honest bounds delivered as specced (read-time срез, 0 миграций, 0 пишущих путей)» — новейшая сверху, как у 4-10; sprint-status.yaml — 4-11-сквозной-бизнес-результат-пилота-автозапчастей: ready-for-dev → done (epic-4-retrospective НЕ тронут — optional; epic-4 — в ведении sprint sync, не флипался руками — прецедент 4-10); YAML-структура сверена живым парсером: исторические «: »-артефакты retro-записей байтово идентичны HEAD — новых не внесено
+- Коммит closure: ровно 3 файла (спека + sprint-status + DEVLOG) — qa_step05_4_11_scan.py уже в репо коммитом 2f29fb0 (часть A); feat БЕЗ маркера пропуска — CI ветки (workflow «CI» on: push + pull_request) стартует этим пушем
+next: CHECKPOINT 2 — PR → CI ×3 поимённо → sha-pinned merge → main ff-only → DEVLOG 272-checkpoint-2 в main → удаление ветки по правилу владельца (AGENTS.md 3cffb88)
+владельцу: отозвать PAT после закрытия чата (токен ЖИВ)
+commit: TBD (фиксация в main после merge — прецедент 263→6316375)
