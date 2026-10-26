@@ -1,0 +1,45 @@
+{{define "montagio"}}
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Пилот услуг Montagio · Staffy</title><link rel="stylesheet" href="/assets/app.css"></head>
+<body><a class="skip-link" href="#main">К основному содержанию</a><header class="topbar"><a class="brand" href="/app/tenants/{{.TenantID}}">Staffy</a><strong>Пилот услуг Montagio</strong></header>
+<div class="shell"><nav aria-label="Основная навигация"><a href="/app/tenants/{{.TenantID}}">Сегодня</a><a href="/app/tenants/{{.TenantID}}/employees">Сотрудники</a><a href="/app/tenants/{{.TenantID}}/integrations">Интеграции</a></nav><main id="main"><section class="panel">
+<h1>Пилот услуг Montagio: реестр допуска</h1>
+<p>Read-time вывод допуска каналов и источников обращений пилота над живыми фактами: запечатанный пин Domain Pack «Услуги», производные состояния capabilities подключений (никогда секреты) и история gate-инстансов. Страница ничего не записывает: повторное чтение неизменного мира даёт тот же ответ. Адаптеры Novofon/сайта/партнёра/B2B не реализованы (AG-4); Avito вне пилотного production substrate (OQ-18) — заявленных capabilities Avito не существует.</p>
+<p class="next-note">Ваши полномочия на этой странице: {{.View.ScopeText}}.</p>
+<p role="status" aria-live="polite">Domain Pack: <strong>{{.View.PackText}}</strong>{{if not .View.PackOK}} — все маршруты честно заблокированы до прикрепления пина к запечатанному контуру{{end}}.</p>
+
+<h2>Маршрутная матрица Montagio (стадии словами)</h2>
+<p class="next-note">Четыре стадии различимы текстом и семантически: «кандидат» — заявлен, capabilities живыми доказательствами не подтверждены либо маршрут честно ограничен этим срезом; «проверен» — capabilities подтверждены, controlled-гейты не закрыты; «контролируемый реальный клиент» — controlled-гейты имеют действующие PASS; «live» — плюс live-гейты {OQ-7B, OQ-14}. Разрешение одного маршрута не расширяет остальные; блокировка затрагивает только свой маршрут.</p>
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Маршрутная матрица Montagio">
+<table class="datamap-table">
+<caption>Маршруты Montagio: стадия текстом, колонки матрицы словами, blockers с точными словами, следующим владельцем проверки и safe state</caption>
+<thead><tr><th scope="col">Маршрут</th><th scope="col">Стадия</th><th scope="col">Модальность и интенты</th><th scope="col">Блокировки</th></tr></thead>
+<tbody>
+{{range .View.Routes}}<tr><th scope="row">{{.Title}}</th><td><strong>{{.StageText}}</strong> ({{.Stage}})<br><span class="next-note">{{.StageWord}}</span>{{if .CapWord}}<p class="alert" role="note">{{.CapWord}}</p>{{end}}{{if .FenceWords}}<p class="alert" role="note">{{range .FenceWords}}{{.}}{{end}}</p>{{end}}{{if .FallbackWords}}{{range .FallbackWords}}<p class="next-note">{{.}}</p>{{end}}{{end}}</td><td><span class="digest-block">{{.ModalityWord}}</span><br><span class="next-note">{{.IntentsWord}}</span><details class="knowledge-details"><summary>Автономность · Human Inbox · fallback</summary><dl><dt>Автономность</dt><dd>{{.AutonomyWord}}</dd><dt>Human Inbox</dt><dd>{{.HumanInboxWord}}</dd><dt>Fallback-маршрут</dt><dd>{{.FallbackRouteWord}}</dd></dl></details></td><td>{{if .Blockers}}<ul class="form-error">{{range .Blockers}}<li><span class="digest-block">{{.Source}}: {{.ID}}</span>: {{.Word}}{{if .SafeState}}<br>Safe state: {{.SafeState}}{{end}}<br>Следующий владелец проверки: {{.NextOwner}}.</li>{{end}}</ul>{{else}}—{{end}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+
+<h3>Требуемые гейты и capabilities по маршрутам</h3>
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Требования маршрутов Montagio">
+<table class="datamap-table">
+<caption>Каждый требуемый controlled-гейт и live-гейт со состоянием, точным словом, safe state и следующим владельцем; каждая требуемая capability с производным состоянием; evidence-требования гейтов — в закрытых details</caption>
+<thead><tr><th scope="col">Маршрут</th><th scope="col">Controlled-гейты</th><th scope="col">Live-гейты</th><th scope="col">Capabilities</th></tr></thead>
+<tbody>
+{{range .View.Routes}}<tr><th scope="row">{{.ID}}</th><td>{{if .Gates}}<ul class="form-error">{{range .Gates}}<li><span class="digest-block">{{.ID}}</span> — {{.StateText}}{{if .Word}}: {{.Word}}{{end}}<details class="knowledge-details"><summary>Safe state и следующий владелец</summary><dl><dt>Safe state</dt><dd>{{.SafeState}}</dd><dt>Следующий владелец проверки</dt><dd>{{.NextOwner}}</dd><dt>Лестница</dt><dd>controlled = verified + действующие PASS controlled-гейтов; live = controlled + {OQ-7B, OQ-14} (Execution order GATE-REGISTRY дословно)</dd></dl></details></li>{{end}}</ul>{{else}}маршрут не требует controlled-гейтов{{end}}</td><td>{{if .LiveGates}}<ul class="form-error">{{range .LiveGates}}<li><span class="digest-block">{{.ID}}</span> — {{.StateText}}{{if .Word}}: {{.Word}}{{end}}<br>Следующий владелец проверки: {{.NextOwner}}.</li>{{end}}</ul>{{else}}вечный кандидат среза — live-лестница не заявляется{{end}}</td><td>{{if .Capabilities}}<ul class="form-error">{{range .Capabilities}}<li><span class="digest-block">{{.ID}}</span> ({{.ConnectorID}}) — {{if .Word}}{{.Word}}{{else}}verified{{end}}</li>{{end}}</ul>{{else}}внешних требований нет (поверхность Staffy){{end}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+
+<h2>Утверждённые правдивые формулировки (AC-11)</h2>
+<p class="next-note">Словарь compile-time утверждённых слов — единственная основа публичных формулировок роли Montagio и специалиста; генерация формулировок моделью в этом срезе не выполняется.</p>
+<div class="datamap-table-wrap" tabindex="0" role="group" aria-label="Словарь утверждённых формулировок AC-11">
+<table class="datamap-table">
+<caption>Утверждённые формулировки AC-11 (каждая — дословное слово словаря)</caption>
+<thead><tr><th scope="col">№</th><th scope="col">Формулировка</th></tr></thead>
+<tbody>
+{{range $index, $word := .View.WordingWords}}<tr><th scope="row">{{$index}}</th><td>{{$word}}</td></tr>{{end}}
+</tbody>
+</table>
+</div>
+</section></main></div></body></html>
+{{end}}

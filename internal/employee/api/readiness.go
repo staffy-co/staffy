@@ -92,6 +92,10 @@ type ReadinessService interface {
         // pilot admission registry (spec 4-1): never a write, the rights of the
         // test & release view scope reused.
         PilotAdmission(context.Context, identity.Principal, id.UUID) (PilotAdmissionView, error)
+        // MontagioAdmission composes the tenant-level read-time derivation of
+        // the Montagio admission registry (spec 5-1): never a write, the rights
+        // of the test & release view scope reused.
+        MontagioAdmission(context.Context, identity.Principal, id.UUID) (MontagioAdmissionView, error)
 }
 
 // GateInstanceStateText renders one instance state honestly for displays.

@@ -29,6 +29,9 @@ type fakeReadiness struct {
         pilot        employeeAPI.PilotAdmissionView
         pilotSet     bool
         pilotErr     error
+        montagio     employeeAPI.MontagioAdmissionView
+        montagioSet  bool
+        montagioErr  error
         viewErr      error
         gateErr      error
         publishErr   error
@@ -117,6 +120,21 @@ func (f *fakeReadiness) PilotAdmission(_ context.Context, _ domain.Principal, te
                 }
         }
         return f.pilot, nil
+}
+
+func (f *fakeReadiness) MontagioAdmission(_ context.Context, _ domain.Principal, tenant id.UUID) (employeeAPI.MontagioAdmissionView, error) {
+        if f.montagioErr != nil {
+                return employeeAPI.MontagioAdmissionView{}, f.montagioErr
+        }
+        if !f.montagioSet {
+                f.montagio = employeeAPI.MontagioAdmissionView{
+                        TenantID: tenant, CanManage: true, ViewScope: employeeAPI.ReadinessScopeManage,
+                        Report: employeeDomain.DeriveMontagioAdmission(employeeDomain.MontagioFacts{
+                                PackID: "", PackVersion: "", Capabilities: map[string]employeeDomain.CapabilityFact{}, Instances: []employeeDomain.GateInstance{},
+                        }),
+                }
+        }
+        return f.montagio, nil
 }
 
 func newReadinessTestServer(t *testing.T, fake *fakeReadiness) *Server {

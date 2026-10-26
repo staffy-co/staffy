@@ -419,6 +419,18 @@ var montagioGateWords = map[string]struct {
         },
 }
 
+// montagioGateDictionaryIDs mirrors the six Montagio gate definitions the
+// registry carries (the dictionary extension of spec 5-1) — the wire and
+// OpenAPI enums pin it (the mirror discipline: routes 8 / gates 6 /
+// stages 4).
+var montagioGateDictionaryIDs = []string{"OQ-7A", "OQ-8", "OQ-9", "OQ-10", "OQ-13A", "OQ-18"}
+
+// MontagioGateDictionaryIDs returns the six Montagio gate dictionary words
+// in fixed order (a copy).
+func MontagioGateDictionaryIDs() []string {
+        return append([]string(nil), montagioGateDictionaryIDs...)
+}
+
 // ---------------------------------------------------------------------------
 // The read-time derivation
 // ---------------------------------------------------------------------------
@@ -459,12 +471,13 @@ type MontagioRouteAdmission struct {
 }
 
 // MontagioAdmissionReport is the whole read-time derivation: the pack pin
-// state, the approved AC-11 wording dictionary and every route in
-// dictionary order.
+// state, the approved AC-11 wording dictionary, the six-word Montagio gate
+// dictionary mirror and every route in dictionary order.
 type MontagioAdmissionReport struct {
-        PackPinned   bool                    `json:"pack_pinned"`
-        PackWord     string                  `json:"pack_word"`
-        WordingWords []string                `json:"wording_words"`
+        PackPinned   bool                     `json:"pack_pinned"`
+        PackWord     string                   `json:"pack_word"`
+        WordingWords []string                 `json:"wording_words"`
+        GateIDs      []string                 `json:"montagio_gate_ids"`
         Routes       []MontagioRouteAdmission `json:"routes"`
 }
 
@@ -476,7 +489,11 @@ type MontagioAdmissionReport struct {
 // no state — an unchanged world always yields the byte-stable same answer.
 // A blocking of one route never extends to another route (AC-13/AC-14).
 func DeriveMontagioAdmission(facts MontagioFacts) MontagioAdmissionReport {
-        report := MontagioAdmissionReport{Routes: []MontagioRouteAdmission{}, WordingWords: append([]string(nil), MontagioWordingWords...)}
+        report := MontagioAdmissionReport{
+                Routes:       []MontagioRouteAdmission{},
+                WordingWords: append([]string(nil), MontagioWordingWords...),
+                GateIDs:      append([]string(nil), montagioGateDictionaryIDs...),
+        }
         // (1) The pack pin: the fail-closed prerequisite of every route.
         packOK := facts.PackID == MontagioRequiredPackID && PackVersionAtLeast(facts.PackVersion, MontagioRequiredPackMinVersion)
         report.PackPinned = packOK

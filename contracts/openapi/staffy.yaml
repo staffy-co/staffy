@@ -1950,6 +1950,23 @@ paths:
         '401': { $ref: '#/components/responses/Problem' }
         '403': { $ref: '#/components/responses/Problem' }
         '404': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/montagio/admission:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+    get:
+      operationId: readMontagioAdmission
+      summary: 'Пилот услуг Montagio — read-time реестр допуска (спека 5-1: маршруты 8 слов, 4-стадийная лестница candidate/verified/controlled/live, пин Domain Pack «Услуги», DERIVED capabilities, controlled- и live-гейты; записи НЕТ — повторное чтение того же мира даёт тот же ответ)'
+      x-staffy-principal-required: true
+      description: 'Права test & release поверхности reused: configuration — управление, review/audit — просмотр; участник без скоупа — честный 403, не-участник — 404 membership-до-материала. Пустое чтение без 400; свободные query-поля игнорируются. Секреты и значения config-полей подключений не читаются и не возвращаются. Avito-деклараций не существует; формулировки AC-11 — словарь, не генерация.'
+      responses:
+        '200':
+          description: 'Деривация на чтении: пин пака «Услуги», словарь формулировок AC-11, зеркало словаря 6 Montagio-гейтов, маршрутная матрица 8 слов с 4-стадийной лестницей и блокировками (точные слова, safe state, следующий владелец)'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MontagioAdmissionView' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
   /v1/ingress/channel-events:
     post:
       operationId: ingestChannelEvent
@@ -5679,6 +5696,71 @@ components:
         reconcile_query_text: { type: string }
         terminal_evidence_text: { type: string }
         state_word: { type: string }
+    MontagioAdmissionView:
+      type: object
+      additionalProperties: false
+      required: [tenant_id, montagio_admission, can_manage, view_scope]
+      description: 'Реестр допуска пилота услуг Montagio (спека 5-1): read-time вывод над живыми фактами — НИ ОДНОЙ записи, идемпотентность выводом; повторное чтение неизменного мира байт-стабильно'
+      properties:
+        tenant_id: { type: string, format: uuid }
+        montagio_admission: { $ref: '#/components/schemas/MontagioAdmissionReport' }
+        can_manage: { type: boolean, description: 'configuration — true; review/audit — false (просмотр)' }
+        view_scope: { type: string, enum: [configuration, review-or-audit] }
+    MontagioAdmissionReport:
+      type: object
+      additionalProperties: false
+      required: [pack_pinned, pack_word, wording_words, montagio_gate_ids, routes]
+      description: 'Пин Domain Pack «Услуги» (fail-closed до montagio-services@>=1.0.0), словарь утверждённых формулировок AC-11 (5 слов), зеркало словаря 6 Montagio-гейтов и маршрутная матрица 8 слов с 4-стадийной лестницей'
+      properties:
+        pack_pinned: { type: boolean }
+        pack_word: { type: string }
+        wording_words: { type: array, items: { type: string }, description: 'Утверждённые правдивые формулировки AC-11 — compile-time словарь, не генерация' }
+        montagio_gate_ids: { type: array, items: { type: string, enum: [OQ-7A, OQ-8, OQ-9, OQ-10, OQ-13A, OQ-18] }, description: 'Зеркало словаря 6 Montagio-гейтов расширения реестра (спека 5-1)' }
+        routes: { type: array, items: { $ref: '#/components/schemas/MontagioRouteView' } }
+    MontagioRouteView:
+      type: object
+      additionalProperties: false
+      required: [route_id, title, stage, stage_word, modality_word, intents_word, autonomy_word, human_inbox_word, fallback_route_word]
+      description: 'Один маршрут фиксированного словаря 8 слов: 4-стадийная лестница (candidate — заявлен/честно ограничен; verified — capabilities доказаны, controlled-гейты не закрыты; controlled — controlled-гейты PASS; live — плюс live-гейты {OQ-7B, OQ-14}), колонки Route Matrix словами, требуемые capabilities, controlled-/live-гейты, blockers с точными словами, cap-/fence-слова'
+      properties:
+        route_id: { type: string, enum: [novofon_voice, montagio_web, partner_intake, b2b_intake, protected_web_continuation, human_inbox, avito_candidate, public_commercial] }
+        title: { type: string }
+        stage: { type: string, enum: [candidate, verified, controlled, live], description: 'Стадия = min по вкладам; CapWord маршрута (avito_candidate — вечный кандидат OQ-18; public_commercial — capped до машин Order/payment) держит стадию не выше candidate' }
+        stage_word: { type: string }
+        modality_word: { type: string, description: 'Колонка Route Matrix: модальность и направления' }
+        intents_word: { type: string, description: 'Колонка Route Matrix: интенты маршрута' }
+        autonomy_word: { type: string, description: 'Колонка Route Matrix: классы автономности задаёт версионированный Operating Profile — автономность выше стадии допуска НЕ заявляется' }
+        human_inbox_word: { type: string, description: 'Колонка Route Matrix: единый подтверждённый Human Inbox' }
+        fallback_route_word: { type: string, description: 'Колонка Route Matrix: fallback-маршрут' }
+        cap_word: { type: string, description: 'Честное слово ограничения маршрута этим срезом (только avito_candidate/public_commercial)' }
+        capabilities: { type: array, items: { $ref: '#/components/schemas/PilotCapabilityView' } }
+        gates: { type: array, items: { $ref: '#/components/schemas/MontagioGateRequirementView' } }
+        live_gates: { type: array, items: { $ref: '#/components/schemas/MontagioGateRequirementView' } }
+        blockers: { type: array, items: { $ref: '#/components/schemas/MontagioBlockerView' } }
+        fence_words: { type: array, items: { type: string } }
+        fallback_words: { type: array, items: { type: string } }
+    MontagioGateRequirementView:
+      type: object
+      additionalProperties: false
+      required: [id, state]
+      description: 'Один требуемый гейт Montagio-маршрута (controlled- или live-лестница): производное состояние инстанса (pass/open/in_test/fail/expired/missing), точное слово закрытия, safe state и следующий владелец проверки словами владельцев канона'
+      properties:
+        id: { type: string, enum: [OQ-7A, OQ-7B, OQ-8, OQ-9, OQ-10, OQ-11, OQ-12, OQ-13A, OQ-13B, OQ-14, OQ-18, AG-1, AG-2, AG-4], description: 'Гейты, на которые ссылаются Montagio-маршруты (6 Montagio + 8 платформенных)' }
+        state: { type: string }
+        word: { type: string }
+        safe_state: { type: string }
+        next_owner: { type: string }
+    MontagioBlockerView:
+      type: object
+      additionalProperties: false
+      required: [source, id, word, next_owner]
+      description: 'Одна честная блокировка Montagio-маршрута: источник (pack/cap/capability/gate/live-gate), точное слово, safe state и следующий владелец проверки; блокировка затрагивает только свой маршрут (AC-13/AC-14)'
+      properties:
+        source: { type: string, enum: [pack, cap, capability, gate, live-gate] }
+        id: { type: string }
+        word: { type: string }
+        safe_state: { type: string }
+        next_owner: { type: string }
     ReleaseAdmission:
       type: object
       required: [tenant_id, employee_id, decision_no, stage, manifest, profile_version, profile_digest, routes, actor_id, approver_roles, step_up_verified, decided_at, digest]
