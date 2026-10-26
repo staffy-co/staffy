@@ -5555,4 +5555,4 @@ done:
 - Регресс: gofmt (новые файлы чисты; хирургические правки в стиле пробелов легаси-файлов); go build ./... OK; go vet ./... OK; go test ./internal/transport/http/ -run 'PilotOutcome' -count=1 — 5/5 PASS; go test ./internal/transport/http/ -count=1 — ok (весь пакет, PG не нужен); go test ./internal/... ./cmd/... -count=1 — ALL GREEN
 next: Dev шаг 04 — интеграционная eval-матрица (живой PG) + journeys z48 «pilot-outcome»
 владельцу: отозвать PAT после закрытия чата (токен ЖИВ)
-commit: TBD
+commit: f2a8770bac1c2b774b1a1f1de78f1adf390dcd6a
