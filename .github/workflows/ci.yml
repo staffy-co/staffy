@@ -26,6 +26,11 @@ jobs:
           --health-retries 20
     steps:
       - uses: actions/checkout@v7
+      - name: Journeys spec files threshold
+        run: |
+          count=$(git ls-files 'tests/journeys/*.spec.ts' | wc -l)
+          echo "journeys spec files: ${count} (threshold: >= 48)"
+          test "$count" -ge 48
       - uses: actions/setup-go@v7
         with:
           go-version: '1.27.1'
