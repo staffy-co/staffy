@@ -5688,4 +5688,4 @@ done:
 - Регресс шага: build/vet OK; unit 33 пакета ok 0 FAIL; интеграционная выборка живой PG ok; git diff --check OK; замороженные машины не тронуты (pilot.go 4-1 байт-стабилен — только чтение)
 next: Dev step-02 спеки 5-1 — каталог connector: novofon-sip 1.1.0 (двенадцать AC-3), montagio-web 1.0.0 (девять AC-5), partner-intake 1.0.0 (AC-6), b2b-intake 1.0.0 (AC-7) полной семантики 1-9 + unit каталога + кросс-зеркало словарь маршрутов ↔ декларации (Accept: мутирующих новых capabilities 0; Avito-деклараций 0; прежние версии pinned immutable)
 владельцу: отозвать PAT после закрытия чата (retro-4-5); решение развилки (курс A + externalization забронирован) — право вета
-commit: TBD
+commit: d96b63c9539450fb241d03c3e9b35511db1cf584
