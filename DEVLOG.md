@@ -5785,4 +5785,4 @@ done:
 - Удаление ветки codex/story-5-1-montagio-admission-registry ×3 (правило владельца AGENTS.md): (a) pre-verify живой GET compare main...ветка → behind/ahead_by=0 (полностью слита); (b) GitHub DELETE /git/refs/heads/... → 204 + контрольный GET → 404; (c) локально git branch -d + update-ref -d stale-рефы — исполняется следующим действием этой же сессии
 next: SM-слот externalization-эпика + ревизия плана эпиков (бронь 276-checkpoint-1: декларативные паки + реестр tools + MCP-адаптер + AG-3; флаг 275-vision — нет явного build-out эпика AI Runtime/голосового медиа-слоя/разговорного онбординга §2/§3 звезды; AG-3-триггер — реальный спрос третьего тенента; право вета владельца) — по сигналу владельца
 владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — PR/merge/API/пуши сессии); право вета на бронь externalization и решения §9 PRODUCT-VISION.md
-commit: TBD (фиксация следующим docs-коммитом — прецедент 272-checkpoint-2→1a7d16e)
+commit: 9e2f3ee384d96bc7aa962304b087d24d72cff90a
