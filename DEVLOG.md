@@ -5740,4 +5740,4 @@ done:
 - Регресс шага (scripts/regress_step04_5_1.sh, песочница вне репо): gofmt новых файлов чисто; go build ./... OK; go vet ./... OK; unit ВСЕ пакеты -count=1 ok 0 FAIL; интеграция живым PG ×2 TZ (UTC + Europe/Moscow) полным прогоном зелёная; матрица 5-1 12/12 поимённо; journeys 54/54 полным серийным прогоном (49 spec-файлов ≥ порога 48 retro-4-2); Accept спеки выполнен
 next: Dev step-05 спеки 5-1 — QA-closure: свежий контекст по диффу 01-04 (спека + sprint-status + deferred-work сверен), регресс всех контуров свежим прогоном, флип спеки → done + sprint-status 5-1 → done (Epic 5: 1/19, коммит feat БЕЗ [skip ci]) → CHECKPOINT 2 (PR → CI ×3 поимённо → sha-pinned merge → main ff-only → DEVLOG → удаление ветки ×3; scripts/pr_story_* прецеденты)
 владельцу: отозвать PAT после закрытия чата (retro-4-5); решение развилки (курс A + externalization забронирован) — право вета
-commit: TBD (фиксация следующим docs-коммитом — прецедент 279-dev-step-03→883fba7)
+commit: dc54a37b6c30c8558691b629f5e543601f6e1e71
