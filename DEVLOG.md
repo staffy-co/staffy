@@ -5861,3 +5861,19 @@ done:
 next: Dev шаг-02 — loader.go: go:embed registry + индекс + hash-сверка + fail-closed валидация (обязательные поля 17 поимённо; enum-словари платформы {support_status: reference_setup_only; stage: setup; VariantField.Type: string|integer|boolean; Vehicle.Kind: vin|text|integer; Part.Kind: text|integer|enum; review_slots ⊆ connectors|knowledge|behavior}; AtLeastOneOf ⊆ Schema; UpgradeFrom-цели существуют; major без UpgradeFrom = отказ; ReplacementImpact непустой) + матрица отказов 12+ поимённо в loader_test.go; реестр целиком или паника
 владельцу: отозвать PAT после закрытия чата (retro-4-5)
 commit: c61ed092c85cb775797c265df5852279951a9e78
+
+---
+date: 2026-10-28
+task: 289-dev-7-1-step-02
+role: main (Super Z, сессия web-d497a728)
+story: 7-1
+summary: Dev шаг-02 story 7-1 — загрузчик fail-closed loader.go: go:embed registry/*.json + индекс + hash-сверка sha256 поимённо + полная валидация ДО использования (обязательные поля 17 поимённо {id, version, name, purpose, support_status, stage, connector_types, journeys, critical_entities, policies, capabilities, gates, schema, policy_ref, knowledge_ref, eval_ref} + replacement_impact {compatibility/changed/review_slots}; enum-словари платформы пак не расширяет: support_status {reference_setup_only}, stage {setup}, VariantField.Type {string|integer|boolean}, Vehicle.Kind {vin|text|integer}, Part.Kind {text|integer|enum}, review_slots ⊆ {connectors|knowledge|behavior} в replacement+upgrade; AtLeastOneOf ⊆ Schema; UpgradeFrom-цели существуют в реестре; major-правило: НОВЫЙ major без UpgradeFrom = отказ, minor/patch существующего major совместимы по умолчанию; строгий semver-core major.minor.patch без prerelease/build — честная граница среза) + интеграция индекса (дубликаты, канон имени <id>@<version>.json, неиндексированные файлы = отказ, отсутствующие файлы, пустой индекс); невалидный артефакт = реестр ЦЕЛИКОМ не загружается (частичный каталог запрещён); reject-матрица 21 поимённый случай в loader_test.go (fstest.MapFS на РЕАЛЬНЫХ артефактах, мутация одного аспекта на кейс) + негативный контроль (minor 6.0.1 без UpgradeFrom допущен) + живой embed-реестр грузится чисто и байт-стабилен golden
+done:
+- Дизайн: loadRegistry(fs.FS) — абстракция ФС для тестируемости (embed.FS в проде, fstest.MapFS в тестах); validateManifest (одиночный артефакт) + validateMajorTransitions (кросс-манифестные правила) + parseSemver; словари платформы — канонические map[string]bool с комментарием «пак использует, но не расширяет»
+- Дефект пойман саморевью ДО прогона: первая реализация major-правила отклоняла minor/patch существующего major при наличии другого major — противоречие спеке («minor/patch без UpgradeFrom допустимы») — переписана на условие «major НОВ (не встречается среди остальных версий пака)»
+- Порядок отказов: id/version → семвер → обязательные поля → словари → replacement_impact → AtLeastOneOf; кросс: UpgradeFrom-цели → major-правило; все причины поимённые «<id>@<version>: <причина>» русскими словами (словарь спеки)
+- gofmt-нормализация табами обоих новых файлов; полный живой прогон: build/vet OK, unit 34 пакета ok -count=1, 0 FAIL
+- catalog.go НЕ тронут (литералы живы — Get/List/Impact всё ещё из карты; переключение = шаг-03)
+next: Dev шаг-03 — переключение каталога на реестр: catalog.go surgical (литералы + replacementImpact + label-инъекция clone() удаляются; Get/List/Impact из загруженного реестра; clone() чистое глубокое копирование с сохранением nil-ности UpgradeFrom) + immutability-тесты + witness-тесты шага-01 обязаны остаться зелёными байт-стабильно + регресс всего репо
+владельцу: отозвать PAT после закрытия чата (retro-4-5)
+commit: TBD
