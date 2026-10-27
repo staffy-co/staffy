@@ -5877,3 +5877,19 @@ done:
 next: Dev шаг-03 — переключение каталога на реестр: catalog.go surgical (литералы + replacementImpact + label-инъекция clone() удаляются; Get/List/Impact из загруженного реестра; clone() чистое глубокое копирование с сохранением nil-ности UpgradeFrom) + immutability-тесты + witness-тесты шага-01 обязаны остаться зелёными байт-стабильно + регресс всего репо
 владельцу: отозвать PAT после закрытия чата (retro-4-5)
 commit: 70183ebb3e223d4905c6db7bab0a2c330d2224c0
+
+---
+date: 2026-10-28
+task: 290-dev-7-1-step-03
+role: main (Super Z, сессия web-d497a728)
+story: 7-1
+summary: Dev шаг-03 story 7-1 — ПЕРЕКЛЮЧЕНИЕ каталога на реестр: catalog.go переписан (110→105 строк, нормализация табами — файл переписан целиком, дифф тотальный по замыслу): карта 7 литералов УДАЛЕНА, пакетная replacementImpact УДАЛЕНА, label-инъекция clone() УДАЛЕНА (labels и replacement_impact приходят из артефактов); var registry = mustLoadRegistry() (fail-closed: невалидный артефакт = паника загрузки, частичного каталога не существует); Get — линейный поиск по реестру (7 манифестов), List — канонический порядок реестра, Impact — текстуально НЕ ИЗМЕНЁН; clone() — чистое глубокое копирование с сохранением nil-ности UpgradeFrom (было: пустая карта — на проводе невидимо, deep-equal с перепарсами теперь честный); потребители 0 правок (дифф-зонд: вне packs/ не изменён ни один файл)
+done:
+- Witness-тесты шага-01 ПЕРЕЖИЛИ переключение байт-стабильно: TestGoldenMatchesLiveCatalog (List/Get/Impact golden-эквивалентность) + TestRegistryArtifactsMatchGolden + TestRegistryIndexCanonicalOrder — все зелёные НАД РЕЕСТРОМ; эквивалентность семантики всех 7 опубликованных версий доказана живым прогоном
+- TestCatalogImmutability (новый, 20 мутаций по каждому вложенному месту включая общие backing-массивы: Schema/labels/Vehicle/Part/Modes/SafetyMarkers/Fitment/Comparison/ReplacementImpact/UpgradeFrom/List-копия) — мутация невидима следующему читателю; дефекты теста пойманы саморевью до прогона (Changed[0] после nil-перезаписи; Values не у того MaterialKey)
+- Зеркала domain/pack_test.go (ValidateVariants/иммутабельность/reverse-impact) зелёные без правок; полная матрица шага-02 зелёная
+- Полный живой прогон: build/vet OK; unit 34 пакета ok -count=1, 0 FAIL; gofmt packs/ чист целиком (catalog.go нормализован табами при переписывании)
+- Вертикальные слова: литералы из ядра удалены живым зондом (в packs/*.js 0; «Автозапчасти» остался только в замороженном pilot.go 4-1, «поиск детали» — в комментариях вертикальной машины cases/domain 4.3 — калибровка зонда шага-04: словарь чистых фраз снят живым grep: 9 кандидатов с 0 матчей)
+next: Dev шаг-04 — drift-CI: drift_test.go (TestVerticalWordsAbsentFromCore — зона прод-.go {domain,app,port,store}+cmd минус честные исключения {pilot.go, pilot_montagio.go, cases/**} с поимённым словарём фраз артефактов; TestRegistryAppendOnlyBaseline по env STAFFY_REGISTRY_BASELINE; TestAppendOnlyComparisonDetectsDeletion — симуляция удаления записи = FAIL) + ci.yml +шаг (git fetch origin main → baseline index → go test с env); симуляция PR внешнего автора (+артефакт +запись, 0 .go) полным прогоном; фиксация honest-границы в deferred-work
+владельцу: отозвать PAT после закрытия чата (retro-4-5)
+commit: TBD

@@ -145,6 +145,52 @@ func parsed(t *testing.T, raw string) domain.PackManifest {
 	return m
 }
 
+// TestCatalogImmutability: a caller's mutation of a returned manifest — at
+// every nested spot, including the shared-backing arrays a shallow copy
+// would leak — is invisible to the next reader: the registry serves deep
+// copies only.
+func TestCatalogImmutability(t *testing.T) {
+	golden := loadGolden(t)
+	m, ok := packs.Get("auto-parts", "6.0.0")
+	if !ok {
+		t.Fatal("missing auto-parts@6.0.0")
+	}
+	m.Name = "hacked"
+	m.ConnectorTypes[0] = "hacked"
+	m.Journeys[0] = "hacked"
+	m.CriticalEntities[0] = "hacked"
+	m.Policies[0] = "hacked"
+	m.Capabilities[0] = "hacked"
+	m.Gates[0] = "hacked"
+	m.Schema["parts_interest"] = domain.VariantField{Type: "boolean"}
+	m.VehicleIdentification.MaterialKeys[0].Label = "hacked"
+	m.VehicleIdentification.AlternativeSets[0][0] = "hacked"
+	m.PartRequests.MaterialKeys[0].Label = "hacked"
+	m.PartRequests.MaterialKeys[3].Values[0] = "hacked"
+	m.PartRequests.Modes[0].Mode = "hacked"
+	m.PartRequests.SafetyMarkers[0] = "hacked"
+	m.Fitment.AllowedSources[0] = "hacked"
+	m.Comparison.RankCriteriaLabels["budget"] = "hacked"
+	m.ReplacementImpact.Changed[0] = "hacked"
+	upgradeImpact := m.UpgradeFrom["5.0.0"]
+	upgradeImpact.Changed[0] = "hacked"
+	m.UpgradeFrom["5.0.0"] = domain.PackImpact{Compatibility: "hacked"}
+
+	again, _ := packs.Get("auto-parts", "6.0.0")
+	if got, want := canonical(t, again), canonical(t, golden.List[0]); got != want {
+		t.Fatalf("мутация копии видна следующему читателю\ngot:  %s\nwant: %s", got, want)
+	}
+
+	listed := packs.List()
+	listed[0].Name = "hacked"
+	listed[0].Schema["parts_interest"] = domain.VariantField{Type: "boolean"}
+	listed[0].ReplacementImpact.ReviewSlots[0] = "hacked"
+	fresh := packs.List()
+	if got, want := canonical(t, fresh), canonical(t, golden.List); got != want {
+		t.Fatal("мутация List() видна следующему читателю")
+	}
+}
+
 // TestGoldenMatchesLiveCatalog: the golden snapshot equals the live catalog
 // semantics byte-stably — List() order and content, every Get(), and every
 // replayed Impact() probe (upgrade edges, cross-id replacement, the missing
