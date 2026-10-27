@@ -5922,4 +5922,4 @@ done:
 - Accept спеки выполнен по всем 5 шагам; AC-1..AC-4 полностью, AC-5 валидационная часть + декларирование ReviewSlots (honest: механика гейтов внешних авторов = существующий PR-процесс, deferred-work)
 next: CHECKPOINT 2 — PR ветки → CI ×3 поимённо (push-ран ветки уже должен запуститься этим коммитом без маркера; PR-ран synchronize; main-ран после merge) → sha-pinned merge → main ff-only локально → DEVLOG checkpoint-2 → удаление ветки ×3 (GitHub DELETE + локально -d + update-ref -d); Epic 7: 1/4; далее SM-слот story 7-2 (реестр tools с типизированными контрактами) по сигналу владельца
 владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/PR/merge/API сессии)
-commit: TBD
+commit: fdf5dcf27509f655504dba48ab436e3e84ee0693
