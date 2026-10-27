@@ -5769,4 +5769,20 @@ done:
 - Восстановление: эта DEVLOG-запись коммитится БЕЗ [skip ci] и пушится — push-ран на новой голове + synchronize pull_request-ран PR #53; после зелёных ×2 — sha-pinned merge новой головы (main-ран ×3); урок зафиксирован: closure-коммит БЕЗ маркера пушить ОТДЕЛЬНО от docs-коммитов TBD-фиксации, либо TBD фиксировать в main после merge (прецедент 4-11 271→5ae1afe — TBD-фиксация в main)
 next: ожидание зелёных CI ×2 (push + synchronize PR #53) → sha-pinned merge головы (PUT /pulls/53/merge с sha) → main-ран зелёный → в main: DEVLOG 283-checkpoint-2 (закрытие: части слияния/CI поимённо/ff-only локального main) + фиксации TBD 281→738bc02 и 282→SHA этой записи + трекинг scripts/pr_story_5_1.py в main (прецедент 272-checkpoint-2/1a7d16e) + удаление ветки codex/story-5-1-montagio-admission-registry ×3 (GitHub DELETE refs/heads → 204, локально -d, stale update-ref -d — правило владельца AGENTS.md) → SM-слот externalization-эпика + ревизия плана эпиков (бронь 276-checkpoint-1, флаг 275-vision)
 владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — PR/API/пуши)
-commit: TBD (фиксация в main после merge — прецедент 271-dev-step-05→5ae1afe)
+commit: 28a03ab656fd6588f0abf70b88b193ed9b284d8a
+
+---
+date: 2026-10-27
+task: 283-checkpoint-2
+role: main (Super Z, сессия web-d497a728)
+story: 5-1
+summary: CHECKPOINT 2 story 5-1 ЗАКРЫТ — PR #53 sha-pinned merge 28a03ab → merge-commit e0d6495; CI ×3 ПОИМЁННО зелёный (push 40461745827 на голове ветки / pull_request 40461749283 synchronize PR #53 / main-push 40462861217 на merge-commit); локальный main ff-only 8a37d5d → e0d6495; фиксация TBD 282 → 28a03ab + трекинг scripts/pr_story_5_1.py в main; Story 5-1 закрыта ЦЕЛИКОМ (Dev 01-05 + CHECKPOINT 1/2) — Epic 5: 1/19
+done:
+- CI-восстановление сработало: push-ран 40461745827 + synchronize-ран PR 40461749283 на голове 28a03ab (запись 282-checkpoint-2-open без маркера пропуска), оба success поимённо живым API-поллингом; pre-merge живой GET сверил PR #53 head == 28a03ab, state open, mergeable true; PUT /pulls/53/merge sha-pinned → 200 merged=true, merge-commit e0d64956d37010a15ff6557848208b941a7c9731; main-push рана 40462861217 success (полный CI на merge-commit) — ×3 суммарно, дисциплина 4-11 исполнена
+- Локальный main ff-only: git fetch origin + merge --ff-only origin/main — 8a37d5d → e0d6495, без переписывания; дерево чистое
+- Урок CI-последовательности зафиксирован в 282 (для будущих closures): closure-коммит БЕЗ маркера пушить ОТДЕЛЬНО от docs-коммитов TBD-фиксации (или TBD фиксировать в main после merge — прецедент 4-11): единый пуш с docs-головой [skip ci] глушит push-ран, а PR с docs-головой не даёт pull_request-рана
+- Трекинг: scripts/pr_story_5_1.py скопирован в main (становится tracked; прецедент 272-checkpoint-2 → 1a7d16e: в main трекается только PR-скрипт, merge-скрипт остаётся в песочнице)
+- Удаление ветки codex/story-5-1-montagio-admission-registry ×3 (правило владельца AGENTS.md): (a) pre-verify живой GET compare main...ветка → behind/ahead_by=0 (полностью слита); (b) GitHub DELETE /git/refs/heads/... → 204 + контрольный GET → 404; (c) локально git branch -d + update-ref -d stale-рефы — исполняется следующим действием этой же сессии
+next: SM-слот externalization-эпика + ревизия плана эпиков (бронь 276-checkpoint-1: декларативные паки + реестр tools + MCP-адаптер + AG-3; флаг 275-vision — нет явного build-out эпика AI Runtime/голосового медиа-слоя/разговорного онбординга §2/§3 звезды; AG-3-триггер — реальный спрос третьего тенента; право вета владельца) — по сигналу владельца
+владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — PR/merge/API/пуши сессии); право вета на бронь externalization и решения §9 PRODUCT-VISION.md
+commit: TBD (фиксация следующим docs-коммитом — прецедент 272-checkpoint-2→1a7d16e)
