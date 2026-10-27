@@ -18,10 +18,10 @@ import (
 // scope. The view never records anything — a repeated read of an unchanged
 // world returns the same answer.
 type MontagioAdmissionView struct {
-	TenantID  id.UUID                       `json:"tenant_id"`
+	TenantID  id.UUID                        `json:"tenant_id"`
 	Report    domain.MontagioAdmissionReport `json:"montagio_admission"`
-	CanManage bool                          `json:"can_manage"`
-	ViewScope string                        `json:"view_scope"`
+	CanManage bool                           `json:"can_manage"`
+	ViewScope string                         `json:"view_scope"`
 }
 
 // The route/blocker/gate wire views are the domain shapes (aliases: zero

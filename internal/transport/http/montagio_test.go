@@ -224,14 +224,14 @@ func TestMontagioPageRendersTheStagesAndOwners(t *testing.T) {
 	for _, want := range []string{
 		"Пилот услуг Montagio: реестр допуска",
 		"кандидат", "проверен", // the stages read as text (AC-13)
-		"контролируемый реальный клиент", // the 4-stage ladder distinguishes controlled (AC-13)
-		"классы автономности задаёт версионированный Operating Profile", // the autonomy column word
-		"единый подтверждённый Human Inbox",                             // the human inbox column word
+		"контролируемый реальный клиент",                                     // the 4-stage ladder distinguishes controlled (AC-13)
+		"классы автономности задаёт версионированный Operating Profile",      // the autonomy column word
+		"единый подтверждённый Human Inbox",                                  // the human inbox column word
 		"scraping, имитация клиента и обход ограничений платформы запрещены", // the eternal Avito cap (AC-8)
 		"закрытые validation-сценарии НЕ блокируются",                        // the OQ-10 fence (AC-12)
 		"Утверждённые правдивые формулировки (AC-11)",                        // the wording dictionary section
-		"best-effort без SLA",                                                // the OQ-13A wording
-		"К основному содержанию",                                             // the skip link of the a11y skeleton
+		"best-effort без SLA",    // the OQ-13A wording
+		"К основному содержанию", // the skip link of the a11y skeleton
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("the montagio page must contain %q", want)
