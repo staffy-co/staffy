@@ -5845,4 +5845,4 @@ done:
 - Флип: spec status ready-for-dev + Spec Change Log запись; sprint-status 7-1 ready-for-dev + epic-7 in-progress; этот DEVLOG
 next: Dev шаги 01-05 по спеке (шаг-01 golden-снимок ДО правок + 7 артефактов registry/ + index.json sha256 append-only; шаг-02 loader.go fail-closed + матрица отказов 12+ поимённо; шаг-03 переключение catalog.go + байт-стабильная эквивалентность golden; шаг-04 drift-CI + симуляция PR внешнего автора; шаг-05 QA-closure feat БЕЗ [skip ci]) → CHECKPOINT 2 (PR → CI ×3 поимённо → sha-pinned merge → main ff-only → DEVLOG → удаление ветки ×3; Epic 7: 1/4)
 владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API сессии)
-commit: TBD
+commit: bdae0c5db1e19b4925e7dc3c56031e88d98d5a70
