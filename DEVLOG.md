@@ -5923,3 +5923,13 @@ done:
 next: CHECKPOINT 2 — PR ветки → CI ×3 поимённо (push-ран ветки уже должен запуститься этим коммитом без маркера; PR-ран synchronize; main-ран после merge) → sha-pinned merge → main ff-only локально → DEVLOG checkpoint-2 → удаление ветки ×3 (GitHub DELETE + локально -d + update-ref -d); Epic 7: 1/4; далее SM-слот story 7-2 (реестр tools с типизированными контрактами) по сигналу владельца
 владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/PR/merge/API сессии)
 commit: fdf5dcf27509f655504dba48ab436e3e84ee0693
+
+---
+date: 2026-10-28
+task: 293-checkpoint-2-open
+role: main (Super Z, сессия web-d497a728)
+story: 7-1
+summary: CHECKPOINT 2 story 7-1 ОТКРЫТ: PR #54 создан (head 4440f74, sha-pin в теле, контракт среза + шаги + регресс) — ветка 16 коммитов от main 6d1fd85, 19 файлов +3962/−99; ГОЛОВА пуша 4440f74 несла маркер [skip ci] (TBD-фиксация) и погасила бы раны (урок 282) — этот коммит БЕЗ маркера запускает push-ран ветки и synchronize-ран PR; далее поллинг CI ×2 поимённо → pre-merge GET → sha-pinned merge → main-ран (CI ×3) → main ff-only → DEVLOG checkpoint-2 → удаление ветки ×3
+next: поллинг ранов до success поимённо, затем merge PR #54 sha-pinned
+владельцу: отозвать PAT после закрытия чата (retro-4-5)
+commit: 4440f7438198c058143ffb8b2dacc9a6cdcf3f53~PENDING
