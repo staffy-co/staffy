@@ -5876,4 +5876,4 @@ done:
 - catalog.go НЕ тронут (литералы живы — Get/List/Impact всё ещё из карты; переключение = шаг-03)
 next: Dev шаг-03 — переключение каталога на реестр: catalog.go surgical (литералы + replacementImpact + label-инъекция clone() удаляются; Get/List/Impact из загруженного реестра; clone() чистое глубокое копирование с сохранением nil-ности UpgradeFrom) + immutability-тесты + witness-тесты шага-01 обязаны остаться зелёными байт-стабильно + регресс всего репо
 владельцу: отозвать PAT после закрытия чата (retro-4-5)
-commit: TBD
+commit: 70183ebb3e223d4905c6db7bab0a2c330d2224c0
