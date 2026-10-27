@@ -5908,4 +5908,4 @@ done:
 - Полный живой прогон финального дерева: build/vet OK; unit 34 ok -count=1 0 FAIL; gofmt packs/ чист; git diff --check OK
 next: Dev шаг-05 — QA-closure: свежий контекст по диффу 01-04 (саморевью эквивалентности/fail-closed/immutability/append-only/зона зонда без ложных срабатываний); финальный регресс всех контуров (build/vet, unit -count=1, интеграция ×2 TZ живой PG, journeys полным серийным прогоном); спека done + Spec Change Log closure; sprint-status 7-1 → done (epic-7 in-progress, 1/4); deferred-work синхронно; коммит feat БЕЗ [skip ci] — CI проверит ветку
 владельцу: отозвать PAT после закрытия чата (retro-4-5)
-commit: TBD
+commit: 29c4da2b659aad521cda2b4222e2e216235ea4e5
