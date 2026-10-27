@@ -5946,3 +5946,16 @@ done:
 next: пуш фикса БЕЗ маркера → push-ран + synchronize-ран PR #54 на новой голове → поллинг до success → pre-merge GET → sha-pinned merge → main-ран (CI ×3) → main ff-only → DEVLOG checkpoint-2 → удаление ветки ×3
 владельцу: отозвать PAT после закрытия чата (retro-4-5)
 commit: 2211e0b75d2e93957f345d9e6a471fb229a5a6af
+
+---
+date: 2026-10-28
+task: 295-ci-fix-github-env
+role: main (Super Z, сессия web-d497a728)
+story: 7-1
+summary: Второй ремонт CI (раны 049751f failed: «базовый индекс: no such file or directory» — env задавался БЕЗУСЛОВНО в блоке env шага Go checks, файл честно отсутствовал при первой ревизии): канонический GITHUB_ENV — переменная STAFFY_REGISTRY_BASELINE экспортируется ТОЛЬКО в ветке успеха git show (запись >> $GITHUB_ENV в шаге базы); блок env из Go checks удалён; семантика теста остаётся строгой (env задан = файл обязан существовать и парситься; env не задан = skip) — сломанная pipeline-конфигурация падает громко, первая ревизия пропускается честно
+done:
+- Матрица поведения теста зафиксирована: env отсутствует → skip (CI первой ревизии); env задан + файл валиден → сверка; env задан + файл пуст/отсутствует → громкий FAIL (сигнал поломки конфига, fail-closed)
+- yaml валиден живым парсером; локальный сьют зелёный
+next: пуш фикса БЕЗ маркера → оба рана на новой голове → поллинг до success → pre-merge GET → sha-pinned merge PR #54 → main-ран (CI ×3) → main ff-only → DEVLOG checkpoint-2 → удаление ветки ×3
+владельцу: отозвать PAT после закрытия чата (retro-4-5)
+commit: 049751f3b862bd68f3351fa21c67444ffb7b403e~PENDING
