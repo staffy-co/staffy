@@ -5846,3 +5846,18 @@ done:
 next: Dev шаги 01-05 по спеке (шаг-01 golden-снимок ДО правок + 7 артефактов registry/ + index.json sha256 append-only; шаг-02 loader.go fail-closed + матрица отказов 12+ поимённо; шаг-03 переключение catalog.go + байт-стабильная эквивалентность golden; шаг-04 drift-CI + симуляция PR внешнего автора; шаг-05 QA-closure feat БЕЗ [skip ci]) → CHECKPOINT 2 (PR → CI ×3 поимённо → sha-pinned merge → main ff-only → DEVLOG → удаление ветки ×3; Epic 7: 1/4)
 владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API сессии)
 commit: bdae0c5db1e19b4925e7dc3c56031e88d98d5a70
+
+---
+date: 2026-10-28
+task: 288-dev-7-1-step-01
+role: main (Super Z, сессия web-d497a728)
+story: 7-1
+summary: Dev шаг-01 story 7-1 — golden-снимок + артефакты + индекс: 7 JSON-артефактов registry/{auto-parts@1.0.0–6.0.0, montagio-services@1.0.0}.json + index.json (sha256 hash-пины, канонический порядок List: auto-parts 6→1, montagio последней) + golden-фикстура testdata/pack_catalog_golden.json (List всех 7 + 9 impact-проб: 6 upgrade-рёбер, 2 кросс-id replacement, 1 отсутствующее ребро ok=false) сняты ОДНОРАЗОВЫМ генератором с ЖИВОГО бинарного каталога ДО правок (генератор — throwaway-тест STAFFY_SNAPSHOT=1, удалён до коммита: golden = доказательство, никогда не перегенерируется); labels Schema {«Интерес к деталям», «Глубина сопоставления», «Инженерная сантехника», «Отопление»} и ReplacementImpact переехали в артефакты (снимок снят с Get() — clone()-обогащение в момент снятия); catalog.go НЕ тронут (литералы ещё живы — переключение в шаге-03)
+done:
+- Генератор: внешний тест-пакет packs_test (доступ только к экспорту Get/List/Impact), детерминированный вывод (MarshalIndent 2 пробела + \n; карты сортированы Go; impact-пробы отсортированы ключом), sha256 по точным байтам файла
+- Коммит-тесты catalog_test.go (3 теста, gofmt-чистые, табы): TestRegistryIndexCanonicalOrder (порядок индекса == golden == живой List), TestRegistryArtifactsMatchGolden (файл существует + sha256 пин байтов + parse + canonical-marshal байт-равен golden записи + deep-equal перепарса), TestGoldenMatchesLiveCatalog (List() байт-равен golden.List; каждый Get() байт-равен golden записи; 9 проб реплея Impact() с ok; Get несуществующей версии = false) — свидетель эквивалентности, обязан пережить переключение шага-03
+- Байт-стабильность через canonical-marshal (json.Marshal сортирует карты): равная семантика = равные байты; nil-vs-empty словари невидимы на проводе (omitempty) — честная граница метода, продублирована deep-equal перепарсов
+- Полный живой прогон ДО закрытия шага (урок 5-1 step-04): build/vet OK, unit 34 пакета ok -count=1, 0 FAIL; gofmt новых файлов чист (catalog.go — старая space-аномалия, не тронут)
+next: Dev шаг-02 — loader.go: go:embed registry + индекс + hash-сверка + fail-closed валидация (обязательные поля 17 поимённо; enum-словари платформы {support_status: reference_setup_only; stage: setup; VariantField.Type: string|integer|boolean; Vehicle.Kind: vin|text|integer; Part.Kind: text|integer|enum; review_slots ⊆ connectors|knowledge|behavior}; AtLeastOneOf ⊆ Schema; UpgradeFrom-цели существуют; major без UpgradeFrom = отказ; ReplacementImpact непустой) + матрица отказов 12+ поимённо в loader_test.go; реестр целиком или паника
+владельцу: отозвать PAT после закрытия чата (retro-4-5)
+commit: TBD

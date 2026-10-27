@@ -1,0 +1,127 @@
+{
+  "id": "auto-parts",
+  "version": "3.0.0",
+  "name": "Автозапчасти",
+  "purpose": "Настройка предпочтений и идентификации автомобиля для запросов об автозапчастях",
+  "support_status": "reference_setup_only",
+  "stage": "setup",
+  "connector_types": [
+    "catalog",
+    "inventory"
+  ],
+  "journeys": [
+    "поиск детали",
+    "уточнение аналога",
+    "идентификация автомобиля"
+  ],
+  "critical_entities": [
+    "деталь",
+    "артикул",
+    "автомобиль"
+  ],
+  "policies": [
+    "не обещать наличие и цену без проверки"
+  ],
+  "capabilities": [
+    "setup_preferences"
+  ],
+  "gates": [
+    "connector_check",
+    "knowledge_eval",
+    "simulation"
+  ],
+  "schema": {
+    "matching_depth": {
+      "label": "Глубина сопоставления",
+      "type": "integer",
+      "min": 1,
+      "max": 3
+    },
+    "parts_interest": {
+      "label": "Интерес к деталям",
+      "type": "string",
+      "enum": [
+        "original",
+        "analogs",
+        "both"
+      ]
+    }
+  },
+  "vehicle_identification": {
+    "material_keys": [
+      {
+        "key": "vehicle.vin",
+        "label": "VIN",
+        "kind": "vin"
+      },
+      {
+        "key": "vehicle.make",
+        "label": "Марка",
+        "kind": "text"
+      },
+      {
+        "key": "vehicle.model",
+        "label": "Модель",
+        "kind": "text"
+      },
+      {
+        "key": "vehicle.year_of_manufacture",
+        "label": "Год выпуска",
+        "kind": "integer",
+        "min": 1900,
+        "max": 2100
+      },
+      {
+        "key": "vehicle.trim",
+        "label": "Модификация",
+        "kind": "text",
+        "optional": true
+      },
+      {
+        "key": "vehicle.engine",
+        "label": "Двигатель",
+        "kind": "text",
+        "optional": true
+      }
+    ],
+    "alternative_sets": [
+      [
+        "vehicle.vin"
+      ],
+      [
+        "vehicle.make",
+        "vehicle.model",
+        "vehicle.year_of_manufacture"
+      ]
+    ]
+  },
+  "policy_ref": "auto-parts/policy/3.0.0",
+  "knowledge_ref": "auto-parts/knowledge/3.0.0",
+  "eval_ref": "auto-parts/eval/3.0.0",
+  "upgrade_from": {
+    "2.0.0": {
+      "compatibility": "compatible",
+      "changed": [
+        "identification"
+      ],
+      "review_slots": [
+        "connectors"
+      ]
+    }
+  },
+  "replacement_impact": {
+    "compatibility": "incompatible",
+    "changed": [
+      "domain",
+      "schema",
+      "policy",
+      "knowledge",
+      "eval"
+    ],
+    "review_slots": [
+      "connectors",
+      "knowledge",
+      "behavior"
+    ]
+  }
+}
