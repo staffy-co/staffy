@@ -5756,3 +5756,17 @@ done:
 next: CHECKPOINT 2 story 5-1 — PR (scripts/pr_story_* прецеденты: ветка → PR на main) → CI ×3 поимённо зелёный → sha-pinned merge → main ff-only → DEVLOG 282-checkpoint-2 + фиксации TBD 281 → удаление ветки ×3 (GitHub/локально/stale-рефа, правило владельца AGENTS.md) → SM-слот externalization-эпика + ревизия плана эпиков (бронь 276-checkpoint-1: флаг 275-vision build-out AI Runtime/голоса/разговорного онбординга; AG-3-триггер — реальный спрос третьего тенента)
 владельцу: отозвать PAT после закрытия чата (retro-4-5; токен сессии ЖИВ — push/ls-remote/API-зонды); право вета на решение развилки и бронь externalization сохраняется
 commit: 738bc02d285c6f032d4c529c5148e93a368e8a9f
+
+---
+date: 2026-10-27
+task: 282-checkpoint-2-open
+role: main (Super Z, сессия web-d497a728)
+story: 5-1
+summary: CHECKPOINT 2 story 5-1 ОТКРЫТ — PR #53 создан (head c3bb5e3, base main, sha-pin в теле); урок CI-последовательности: docs-коммит TBD-фиксации поверх closure-головы 738bc02 погасил push-ран единого пуша ([skip ci] на голове пуша глушит workflow) и PR-ран (head = docs-коммит с маркером) — восстановление БЕЗ переписывания истории: эта запись ложится на ветку БЕЗ маркера пропуска → push-ран + synchronize-ран PR #53 (CI ×2 поимённо), sha-pinned merge по зелёным ранам даст main-ран (×3 суммарно — дисциплина 4-11)
+done:
+- PR #53 создан скриптом песочницы scripts/pr_story_5_1.py (прецедент pr_story_4_11.py): title/head/base/body с sha-pin головы и полным контрактом среза (лестница 4 стадии, словари 8/6/5, декларации каталога, честные границы, regression-сводка, 16 коммитов/29 файлов/+6069−1737)
+- Зонд живого API ДО восстановления: runs?head_sha=738bc02 = 0, runs?head_sha=c3bb5e3 = 0 — push-ран погашен маркером головы, PR-ран не создан (PR открыт с docs-головой)
+- Восстановление: эта DEVLOG-запись коммитится БЕЗ [skip ci] и пушится — push-ран на новой голове + synchronize pull_request-ран PR #53; после зелёных ×2 — sha-pinned merge новой головы (main-ран ×3); урок зафиксирован: closure-коммит БЕЗ маркера пушить ОТДЕЛЬНО от docs-коммитов TBD-фиксации, либо TBD фиксировать в main после merge (прецедент 4-11 271→5ae1afe — TBD-фиксация в main)
+next: ожидание зелёных CI ×2 (push + synchronize PR #53) → sha-pinned merge головы (PUT /pulls/53/merge с sha) → main-ран зелёный → в main: DEVLOG 283-checkpoint-2 (закрытие: части слияния/CI поимённо/ff-only локального main) + фиксации TBD 281→738bc02 и 282→SHA этой записи + трекинг scripts/pr_story_5_1.py в main (прецедент 272-checkpoint-2/1a7d16e) + удаление ветки codex/story-5-1-montagio-admission-registry ×3 (GitHub DELETE refs/heads → 204, локально -d, stale update-ref -d — правило владельца AGENTS.md) → SM-слот externalization-эпика + ревизия плана эпиков (бронь 276-checkpoint-1, флаг 275-vision)
+владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — PR/API/пуши)
+commit: TBD (фиксация в main после merge — прецедент 271-dev-step-05→5ae1afe)
