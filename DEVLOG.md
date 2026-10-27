@@ -5892,4 +5892,4 @@ done:
 - Вертикальные слова: литералы из ядра удалены живым зондом (в packs/*.js 0; «Автозапчасти» остался только в замороженном pilot.go 4-1, «поиск детали» — в комментариях вертикальной машины cases/domain 4.3 — калибровка зонда шага-04: словарь чистых фраз снят живым grep: 9 кандидатов с 0 матчей)
 next: Dev шаг-04 — drift-CI: drift_test.go (TestVerticalWordsAbsentFromCore — зона прод-.go {domain,app,port,store}+cmd минус честные исключения {pilot.go, pilot_montagio.go, cases/**} с поимённым словарём фраз артефактов; TestRegistryAppendOnlyBaseline по env STAFFY_REGISTRY_BASELINE; TestAppendOnlyComparisonDetectsDeletion — симуляция удаления записи = FAIL) + ci.yml +шаг (git fetch origin main → baseline index → go test с env); симуляция PR внешнего автора (+артефакт +запись, 0 .go) полным прогоном; фиксация honest-границы в deferred-work
 владельцу: отозвать PAT после закрытия чата (retro-4-5)
-commit: TBD
+commit: 0181200ce059c786bb46d4183478df693815a4c2
