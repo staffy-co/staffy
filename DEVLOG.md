@@ -5958,4 +5958,4 @@ done:
 - yaml валиден живым парсером; локальный сьют зелёный
 next: пуш фикса БЕЗ маркера → оба рана на новой голове → поллинг до success → pre-merge GET → sha-pinned merge PR #54 → main-ран (CI ×3) → main ff-only → DEVLOG checkpoint-2 → удаление ветки ×3
 владельцу: отозвать PAT после закрытия чата (retro-4-5)
-commit: 049751f3b862bd68f3351fa21c67444ffb7b403e~PENDING
+commit: 838bd84ad422b2e1d6825eb03e81a62ed8be07b8
