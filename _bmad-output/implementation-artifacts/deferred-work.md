@@ -274,3 +274,35 @@
 - source_spec: `spec-4-11-pilot-business-outcome.md`
   summary: OQ-7 baseline-контур и сравнительные выводы пилота (SM-2 живой этап); терминальные стадии воронки (paid/returned) и выручка из 1С (OQ-4); batch-чтения отчёта /pilot-outcome (сейчас ListCases → per-case чтения).
   evidence: спека 4-11 Never-границы «НЕ строить baseline/когорты/пороги (OQ-7 не пройден)», «выручка — только Owning System 1С (OQ-4)»; Implementation Notes «batch-чтения — будущая оптимизация»; перенесено epic-4-retrospective (2026-10-26, retro-4-1).
+
+- source_spec: `spec-5-1-montagio-admission-registry.md`
+  summary: Адаптеры Novofon (SIP), сайта Montagio (Django), партнёрского intake и B2B intake — не реализованы (AG-4): capabilities заявлены декларациями каталога честно (AdapterImplemented false), живой evidence невозможен до адаптер-срезов; реальные credentials запрещены (safe state AG-4).
+  evidence: спека 5-1 Boundaries/Never «адаптеры не реализуются этим срезом»; каталог ProbeAllowed только read-only; перенесено Dev step-02 (2026-10-27).
+
+- source_spec: `spec-5-1-montagio-admission-registry.md`
+  summary: Реальные voice-метрики Novofon (задержка/interruption/recovery) живым probe — будущий срез: гейт-требование OQ-12/OQ-13B rides словами, числовых обещаний нет; запись/обработка аудио требуют consent/retention-решения (AC-4).
+  evidence: спека 5-1 Boundaries «реальные задержка/interruption/recovery — evidence OQ-12, будущий срез»; FenceWords novofon_voice; перенесено Dev step-04 (2026-10-27).
+
+- source_spec: `spec-5-1-montagio-admission-registry.md`
+  summary: Связывание обращения с тем же Case при переходах web/телефон/защищённое продолжение (correlation-state) — story 5-2 (нормализация источников); retries/idempotency — семантические поля деклараций, НЕ отдельные capabilities.
+  evidence: спека 5-1 FenceWords montagio_web «контур нормализации story 5-2»; перенесено Dev step-02 (2026-10-27).
+
+- source_spec: `spec-5-1-montagio-admission-registry.md`
+  summary: Бизнес-машины Order/payment Montagio — stories 5-8..5-12/5-17: маршрут public_commercial остаётся capped candidate до их постройки (OQ-10 блокирует публичный маршрут, НЕ блокируя закрытые validation-сценарии); ценовая машина — 5-6 (OQ-9).
+  evidence: спека 5-1 CapWord public_commercial; Boundaries AC-12; перенесено Dev step-01 (2026-10-27).
+
+- source_spec: `spec-5-1-montagio-admission-registry.md`
+  summary: Avito — вечный candidate среза (OQ-18): официальный разрешённый способ интеграции не доказан; Connector допускается позднее после отдельных capability/policy/compliance gates; деклараций Avito в каталоге нет (AC-8) — capability неподтверждённого провайдера не заявляются.
+  evidence: спека 5-1 CapWord avito_candidate + FenceWords; каталог — 0 Avito-деклараций (зонд Dev step-05); перенесено Dev step-01 (2026-10-27).
+
+- source_spec: `spec-5-1-montagio-admission-registry.md`
+  summary: OQ-16 (cross-case профиль поиска) и OQ-17 (privacy-расширение) — открыты до явных product trigger: открытые гейты НЕ блокируют пилотную работу (Execution order п.6); OQ-17-слово у human_inbox — связка, не требование.
+  evidence: спека 5-1 Implementation Notes «OQ-16/OQ-17 остаются открытыми»; перенесено Dev step-05 (2026-10-27).
+
+- source_spec: `spec-5-1-montagio-admission-registry.md`
+  summary: Публичные формулировки роли Montagio/специалиста — только словарь AC-11 (5 утверждённых слов compile-time); генерация формулировок моделью не выполняется этим срезом; best-effort/без SLA — OQ-13A.
+  evidence: спека 5-1 Boundaries «формулировки — словарь, не генерация»; страница — секция словаря; перенесено Dev step-03 (2026-10-27).
+
+- source_spec: `spec-5-1-montagio-admission-registry.md`
+  summary: command.outbound-reply (montagio-web 1.0.0) — структурно неисполним этим срезом: существующее словарное слово 4-1, ProbeAllowed false + AdapterImplemented false; webhooks Novofon — ingress будущего среза (декларация read-only query жива).
+  evidence: спека 5-1 противоречие Never/Code Map разрешено в пользу ядра честности (Dev step-02, пин-тест TestMontagioDeclarationsOfferNoExecutableMutations); перенесено Dev step-02 (2026-10-27).

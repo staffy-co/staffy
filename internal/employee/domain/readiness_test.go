@@ -93,10 +93,12 @@ func passInstance(definitionID string, route *Route, modality string) GateInstan
 func TestGateDictionaryMatchesRegistry(t *testing.T) {
         dictionary := GateDictionary()
         // Spec 4-1 (Pilot Admission Registry) extends the dictionary: 8 platform
-        // definitions + 6 pilot definitions {OQ-1..OQ-5, OQ-19} — the AG-4 of the
-        // pilot set is the platform definition already present (identical canon).
-        if len(dictionary) != 14 {
-                t.Fatalf("the registry dictionary carries 8 platform + 6 pilot (spec 4-1) definitions, got %d", len(dictionary))
+        // definitions + 6 pilot definitions {OQ-1..OQ-5, OQ-19}; spec 5-1
+        // (Montagio Admission Registry) extends it again: + 6 Montagio
+        // definitions {OQ-7A, OQ-8, OQ-9, OQ-10, OQ-13A, OQ-18} — the AG-4
+        // of both pilot sets is the platform definition already present.
+        if len(dictionary) != 20 {
+                t.Fatalf("the registry dictionary carries 8 platform + 6 Oleg (spec 4-1) + 6 Montagio (spec 5-1) definitions, got %d", len(dictionary))
         }
         for _, definition := range dictionary {
                 if len(definition.RequiredApproverRoles) == 0 {

@@ -83,6 +83,12 @@ const (
         GateRoleFitmentExpert      = "FitmentExpert"
         GateRoleArchitecture       = "Architecture"
         GateRoleOwningSystemOwners = "OwningSystemOwners"
+        // The Montagio approver-role labels of spec 5-1 (the registry marks
+        // of the Montagio pilot gates, verbatim canon spellings).
+        GateRolePricingOperations        = "Pricing/Operations"
+        GateRoleLegalFinanceOperations   = "Legal/Finance/Operations"
+        GateRoleTenant                   = "Tenant"
+        GateRolePartnershipsArchitecture = "Partnerships/Architecture"
 )
 
 // Readiness element states: a missing mandatory element is a recorded
@@ -135,13 +141,15 @@ type GateDefinition struct {
 
 // gateDictionary is the fixed order of the platform definitions that
 // participate in the stage map, followed by the pilot definitions of spec
-// 4-1 (Pilot Admission Registry): the Oleg pilot gates {OQ-1..OQ-5, OQ-19}
-// are carried from the GATE-REGISTRY planning artifacts into the product
-// surface by that spec — the dictionary extension the comment here
-// anticipated ("extending it is a new spec version"). The AG-4 of the
-// pilot set is the platform definition above (identical canon). The
-// remaining tenant-specific gates (OQ-6..OQ-10, AG-3…) stay project-
-// planning artifacts — deliberately not carried into the product surface.
+// 4-1 (Pilot Admission Registry) and the Montagio definitions of spec 5-1
+// (Montagio Admission Registry): the Oleg pilot gates {OQ-1..OQ-5, OQ-19}
+// were carried from the GATE-REGISTRY planning artifacts by 4-1, and the
+// Montagio pilot gates {OQ-7A, OQ-8, OQ-9, OQ-10, OQ-13A, OQ-18} are
+// carried by 5-1 — two dictionary extensions of the kind the comment here
+// anticipated ("extending it is a new spec version"). The AG-4 of both pilot
+// sets is the platform definition above (identical canon). The remaining
+// tenant-specific gates (OQ-6, AG-3…) stay project-planning artifacts —
+// deliberately not carried into the product surface.
 var gateDictionary = []GateDefinition{
         {
                 ID: "OQ-11", Criticality: "critical",
@@ -243,6 +251,54 @@ var gateDictionary = []GateDefinition{
                 RequiredApproverRoles: []string{GateRoleArchitecture, GateRoleOwningSystemOwners},
                 EvidenceRequirement:   "Per material field/entity: authority, external ID/version/time, projection, conflict rule, reconcile query, terminal evidence and contract tests",
                 SafeState:             "field is unknown; no mutation or terminal success",
+                AllowRoleCoincidence:  false,
+        },
+        // The Montagio gate definitions of spec 5-1 (the GATE-REGISTRY canon
+        // verbatim: criticality, approver roles, evidence requirement, safe
+        // state; none of them is route-scoped — only OQ-11 carries the route
+        // dimension). The OQ-13A carries the planning PASS instance of
+        // 2026-09-15 (best-effort wording) — the product instances are created
+        // by the existing test & release contour.
+        {
+                ID: "OQ-7A", Criticality: "high",
+                RequiredApproverRoles: []string{GateRoleProductOwner, GateRoleMontagioOperations},
+                EvidenceRequirement:   "Pre-registered UJ-M1/UJ-M2 allocation, denominator, eligibility, exclusions/crossover, matching and measurement owners",
+                SafeState:             "simulation only; neither route substitutes for the other",
+                AllowRoleCoincidence:  false,
+        },
+        {
+                ID: "OQ-8", Criticality: "critical",
+                RequiredApproverRoles: []string{GateRoleMontagioOperations},
+                EvidenceRequirement:   "Named supply, safety/technical, commercial/legal and recovery owners; acknowledgement windows, backup/escalation and drill",
+                SafeState:             "no immediate-help promise; named owner/next update or honest intake/callback",
+                AllowRoleCoincidence:  false,
+        },
+        {
+                ID: "OQ-9", Criticality: "critical",
+                RequiredApproverRoles: []string{GateRoleProductOwner, GateRolePricingOperations},
+                EvidenceRequirement:   "Market cut, approved rule, cost floor, source/version, freshness, exceptions and examples",
+                SafeState:             "approved range/measurement/human route; no fixed-price promise",
+                AllowRoleCoincidence:  false,
+        },
+        {
+                ID: "OQ-10", Criticality: "critical",
+                RequiredApproverRoles: []string{GateRoleProductOwner, GateRoleLegalFinanceOperations},
+                EvidenceRequirement:   "Written contract party, payment, tax/KKT/receipt, insurance, warranty, claim/refund and subcontractor model; tabletop approval",
+                SafeState:             "public_contractor_order=intake_only/no_promises; closed test truthfully names actual parties",
+                AllowRoleCoincidence:  false,
+        },
+        {
+                ID: "OQ-13A", Criticality: "medium",
+                RequiredApproverRoles: []string{GateRoleProductOwner, GateRoleTenant},
+                EvidenceRequirement:   "Explicit best-effort/no-SLA decision and customer wording",
+                SafeState:             "no contractual uptime claim",
+                AllowRoleCoincidence:  false,
+        },
+        {
+                ID: "OQ-18", Criticality: "high",
+                RequiredApproverRoles: []string{GateRoleProductOwner, GateRolePartnershipsArchitecture},
+                EvidenceRequirement:   "Demand, official API/terms, account capability, residency/security, cost, failure semantics and reusable contract fit",
+                SafeState:             "not shown available; assisted extension only",
                 AllowRoleCoincidence:  false,
         },
 }
@@ -508,7 +564,7 @@ func ValidateGateTransition(spec GateTransitionSpec, history []GateInstance) (Ga
         }
         definition, known := GateDefinitionByID(spec.DefinitionID)
         if !known {
-                return spec, invalid("definition_id", "Определение «"+spec.DefinitionID+"» вне фиксированного словаря реестра (14 определений: 8 платформенных + 6 пилотных спеки 4-1): запись против локальных определений запрещена.")
+                return spec, invalid("definition_id", "Определение «"+spec.DefinitionID+"» вне фиксированного словаря реестра (20 определений: 8 платформенных + 6 пилотных спеки 4-1 + 6 Montagio спеки 5-1): запись против локальных определений запрещена.")
         }
         switch spec.TargetState {
         case GateStateOpen, GateStateInTest, GateStatePass, GateStateFail, GateStateExpired, GateStateNotApplicable:

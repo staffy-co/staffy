@@ -397,12 +397,13 @@ func TestReadinessDerivationAndPublication(t *testing.T) {
         }
 
         // The gate registry view lists the fixed dictionary and the empty history.
-        // Spec 4-1 extends the dictionary: 8 platform + 6 pilot definitions.
+        // Spec 4-1 extends the dictionary: 8 platform + 6 Oleg pilot definitions;
+        // spec 5-1 adds the 6 Montagio definitions: 8 + 6 + 6 = 20.
         gates, err := w.employee.GateInstancesView(ctx, w.readinessActor(true), w.tenant, employee)
         if err != nil {
                 t.Fatal(err)
         }
-        if len(gates.Definitions) != 14 || len(gates.Instances) != 0 || !gates.CanManage {
+        if len(gates.Definitions) != 20 || len(gates.Instances) != 0 || !gates.CanManage {
                 t.Fatalf("gate view: definitions=%d instances=%d can_manage=%v", len(gates.Definitions), len(gates.Instances), gates.CanManage)
         }
 }
