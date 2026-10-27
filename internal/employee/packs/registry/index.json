@@ -1,0 +1,46 @@
+{
+  "entries": [
+    {
+      "id": "auto-parts",
+      "version": "6.0.0",
+      "file": "auto-parts@6.0.0.json",
+      "sha256": "f709d500c9c9e20120ec4aebde8c6306544b0682546ca7ab87819b43e78d5365"
+    },
+    {
+      "id": "auto-parts",
+      "version": "5.0.0",
+      "file": "auto-parts@5.0.0.json",
+      "sha256": "b1008d2a593e82e0d18a4d34dcac150fa71d1c6c5bbd0abcb276243cb442b202"
+    },
+    {
+      "id": "auto-parts",
+      "version": "4.0.0",
+      "file": "auto-parts@4.0.0.json",
+      "sha256": "896530ee17941ea2bde5fa52755cfc29da2cb483c54f15de5955b353fcbaf128"
+    },
+    {
+      "id": "auto-parts",
+      "version": "3.0.0",
+      "file": "auto-parts@3.0.0.json",
+      "sha256": "ded3286b8d764023e1965424faf781972193f144c93a9b58e69813261d752b4b"
+    },
+    {
+      "id": "auto-parts",
+      "version": "2.0.0",
+      "file": "auto-parts@2.0.0.json",
+      "sha256": "37404428be813f96d026c94ba67b208c48162d1e56149243445821113656a48b"
+    },
+    {
+      "id": "auto-parts",
+      "version": "1.0.0",
+      "file": "auto-parts@1.0.0.json",
+      "sha256": "13022bebcb38f4171b055998486b672d95d6d56b0fe69d6ea1d04f66dbce03ba"
+    },
+    {
+      "id": "montagio-services",
+      "version": "1.0.0",
+      "file": "montagio-services@1.0.0.json",
+      "sha256": "7e85587683b4434c4d5b5f3b921adfe0532e93290fb2ce1c6201b08da4d9ea31"
+    }
+  ]
+}

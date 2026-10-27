@@ -5818,3 +5818,144 @@ done:
 next: SM-фаза story 7-1 «Декларативный каталог Domain Pack» (по этому же сигналу владельца — «потом продолжайте SM-фазу 7-1, как планировали»): спека первого среза на story-ветке, CHECKPOINT 1 по явному «одобряю» (дисциплина 52-sm)
 владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API этой сессии); право вета на аннотацию маркетплейсов (последовательность к листингу, критерии готовности)
 commit: 382d46b18905fe82b228f31f9ac46b67bc180761 (TBD-заполнение, прецедент 284→a132e48)
+
+---
+date: 2026-10-27
+task: 286-sm-7-1
+role: main (Super Z, сессия web-d497a728)
+story: 7-1
+summary: SM-фаза story 7-1 «Декларативный каталог Domain Pack» — спека первого среза создана на ветке codex/story-7-1-declarative-domain-pack-catalog (от main 6d1fd85, после 285-marketplace-note): вынос 7 опубликованных манифестов {auto-parts@1.0.0–6.0.0, montagio-services@1.0.0} из Go-карты packs/catalog.go в версионируемые JSON-артефакты registry/ с индексом hash-пинов sha256 (append-only) + загрузчик с fail-closed валидацией ДО использования (обязательные поля — урок ValidateVariants 5-1; enum-словари платформы пак не расширяет; AtLeastOneOf ⊆ Schema; UpgradeFrom-цели существуют; major без UpgradeFrom отклоняется поимённо; ReplacementImpact обязателен; невалидный артефакт = реестр целиком не загружается, частичный каталог запрещён) + эквивалентность семантики всех опубликованных версий байт-стабильно (golden-фикстуры снятые ДО миграции; labels Schema и ReplacementImpact переезжают из clone()/пакетовой переменной в артефакты; потребители packresolver/action/transport/employee — 0 правок, сигнатуры Get/List/Impact неизменны) + drift-CI (sha256 индекс↔файлы, append-only, вертикальный зонд общих пакетов ядра) + путь внешнего автора = PR «артефакт + индексная запись» без правки ядра (review-гейты слотов impact — существующим PR-процессом, honest-граница в deferred-work); 0 SQL, 0 правок OpenAPI/страниц; статус спеки backlog — CHECKPOINT 1 по явному «одобряю» владельца (дисциплина 52-sm)
+done:
+- Входы живым чтением до письма: epics.md (Story 7.1 AC-1..AC-5, ревизия 1, аннотация 7.4), PRODUCT-VISION §4/§6, ARCHITECTURE-SPINE AD-1 (четыре слоя кастомизации)/AD-2 (DAG модулей), AR-29 (AG-3 до третьего тенента), internal/employee/domain/pack.go (PackManifest json-теги; immutability-комментарии 4-2..4-5), internal/employee/packs/catalog.go (7 литералов; clone()-обогащение labels «Интерес к деталям»/«Глубина сопоставления»/«Инженерная сантехника»/«Отопление» — вертикальные слова в Go-коде ядра; пакетовая replacementImpact), миграция 00002 (пины employee.drafts jsonb id@version), потребители packs.Get/List/Impact живым grep (packresolver; action/domain/catalog.go; transport/http/domain_pack.go; employee app/service.go + app/release.go + store/readiness.go), spec-5-1 как шаблон формата
+- Первый срез ограничен честно: AC-1..AC-4 полностью; AC-5 (внешний автор) — валидационная часть + декларирование ReviewSlots в артефакте + исполнение review существующим PR-процессом (механика отдельных гейтов внешних авторов — deferred-work, honest word); реестр tools/MCP/коннекторы (7.2–7.4), HTTP-поверхность публикации, внешние хранилища, SQL — вне среза
+- Спека _bmad-output/implementation-artifacts/spec-7-1-declarative-domain-pack-catalog.md: frontmatter (backlog, route employee, baseline 6d1fd85, 9 контекстов) + Intent/Boundaries/I-O матрица 12 кейсов/Code Map/Tasks 01-05/Implementation Notes/Spec Change Log
+next: CHECKPOINT 1 — предъявление спеки владельцу; по «одобряю»: флип status → ready-for-dev + Spec Change Log CHECKPOINT 1 + sprint-status (7-1 → ready-for-dev, epic-7 → in-progress) + push → Dev шаги 01-05 (golden-снимок → загрузчик → переключение+эквивалентность → drift-CI → QA-closure) → CHECKPOINT 2 (PR, CI ×3 поимённо, sha-pinned merge, удаление ветки ×3)
+владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API сессии); право вета на срез спеки (правило major-валидатора, зона вертикального зонда, путь внешнего автора PR-ом)
+commit: eb2f62bfd398e331b00880ab58f73aadf6e7f642 (TBD-заполнение, прецедент 280→dc54a37)
+
+---
+date: 2026-10-28
+task: 287-checkpoint-1
+role: main (Super Z, сессия web-d497a728)
+story: 7-1
+summary: CHECKPOINT 1 story 7-1 «Декларативный каталог Domain Pack» — спека первого среза предъявлена владельцу (доставка возобновлением после смерти контекста: запись checkpoint1-7-1 — чистая верификация git-зондами без правок репо: ветка 898247f = origin RPO=0, CI ветки success ×2 поимённо eb2f62b/898247f, main 6d1fd85 не тронут, check-continuity OK) и одобрена ответом «продолжайте» на предъявление (дисциплина 52-sm); флип синхронный одним коммитом (урок 3-1, прецедент 276-checkpoint-1/42a8542): спека backlog → ready-for-dev + Spec Change Log CHECKPOINT 1 + sprint-status (7-1 → ready-for-dev; epic-7 → in-progress; last_updated 10-28-2026); срез одобрен как предъявлен (право вета владельца сохранено: правило major-валидатора, зона вертикального зонда, путь внешнего автора PR-ом)
+done:
+- Доставка предъявления после смерти контекста предшественницы: сводка платформы отставала на цикл (ретро-4) — git-истина (ls-remote живым токеном) подтвердила: маркетплейс-аннотация (main 6d1fd85) и спека 7-1 (ветка 898247f) закрыты предшественницей; работа не выполнялась дважды
+- Контейнер сброшен между сообщениями: токен перекэширован /tmp/.staffy_gh_token (600, env-only); Go/PG отсутствуют прямыми зондами — bootstrap поднимается до Dev шага 01
+- Флип: spec status ready-for-dev + Spec Change Log запись; sprint-status 7-1 ready-for-dev + epic-7 in-progress; этот DEVLOG
+next: Dev шаги 01-05 по спеке (шаг-01 golden-снимок ДО правок + 7 артефактов registry/ + index.json sha256 append-only; шаг-02 loader.go fail-closed + матрица отказов 12+ поимённо; шаг-03 переключение catalog.go + байт-стабильная эквивалентность golden; шаг-04 drift-CI + симуляция PR внешнего автора; шаг-05 QA-closure feat БЕЗ [skip ci]) → CHECKPOINT 2 (PR → CI ×3 поимённо → sha-pinned merge → main ff-only → DEVLOG → удаление ветки ×3; Epic 7: 1/4)
+владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API сессии)
+commit: bdae0c5db1e19b4925e7dc3c56031e88d98d5a70
+
+---
+date: 2026-10-28
+task: 288-dev-7-1-step-01
+role: main (Super Z, сессия web-d497a728)
+story: 7-1
+summary: Dev шаг-01 story 7-1 — golden-снимок + артефакты + индекс: 7 JSON-артефактов registry/{auto-parts@1.0.0–6.0.0, montagio-services@1.0.0}.json + index.json (sha256 hash-пины, канонический порядок List: auto-parts 6→1, montagio последней) + golden-фикстура testdata/pack_catalog_golden.json (List всех 7 + 9 impact-проб: 6 upgrade-рёбер, 2 кросс-id replacement, 1 отсутствующее ребро ok=false) сняты ОДНОРАЗОВЫМ генератором с ЖИВОГО бинарного каталога ДО правок (генератор — throwaway-тест STAFFY_SNAPSHOT=1, удалён до коммита: golden = доказательство, никогда не перегенерируется); labels Schema {«Интерес к деталям», «Глубина сопоставления», «Инженерная сантехника», «Отопление»} и ReplacementImpact переехали в артефакты (снимок снят с Get() — clone()-обогащение в момент снятия); catalog.go НЕ тронут (литералы ещё живы — переключение в шаге-03)
+done:
+- Генератор: внешний тест-пакет packs_test (доступ только к экспорту Get/List/Impact), детерминированный вывод (MarshalIndent 2 пробела + \n; карты сортированы Go; impact-пробы отсортированы ключом), sha256 по точным байтам файла
+- Коммит-тесты catalog_test.go (3 теста, gofmt-чистые, табы): TestRegistryIndexCanonicalOrder (порядок индекса == golden == живой List), TestRegistryArtifactsMatchGolden (файл существует + sha256 пин байтов + parse + canonical-marshal байт-равен golden записи + deep-equal перепарса), TestGoldenMatchesLiveCatalog (List() байт-равен golden.List; каждый Get() байт-равен golden записи; 9 проб реплея Impact() с ok; Get несуществующей версии = false) — свидетель эквивалентности, обязан пережить переключение шага-03
+- Байт-стабильность через canonical-marshal (json.Marshal сортирует карты): равная семантика = равные байты; nil-vs-empty словари невидимы на проводе (omitempty) — честная граница метода, продублирована deep-equal перепарсов
+- Полный живой прогон ДО закрытия шага (урок 5-1 step-04): build/vet OK, unit 34 пакета ok -count=1, 0 FAIL; gofmt новых файлов чист (catalog.go — старая space-аномалия, не тронут)
+next: Dev шаг-02 — loader.go: go:embed registry + индекс + hash-сверка + fail-closed валидация (обязательные поля 17 поимённо; enum-словари платформы {support_status: reference_setup_only; stage: setup; VariantField.Type: string|integer|boolean; Vehicle.Kind: vin|text|integer; Part.Kind: text|integer|enum; review_slots ⊆ connectors|knowledge|behavior}; AtLeastOneOf ⊆ Schema; UpgradeFrom-цели существуют; major без UpgradeFrom = отказ; ReplacementImpact непустой) + матрица отказов 12+ поимённо в loader_test.go; реестр целиком или паника
+владельцу: отозвать PAT после закрытия чата (retro-4-5)
+commit: c61ed092c85cb775797c265df5852279951a9e78
+
+---
+date: 2026-10-28
+task: 289-dev-7-1-step-02
+role: main (Super Z, сессия web-d497a728)
+story: 7-1
+summary: Dev шаг-02 story 7-1 — загрузчик fail-closed loader.go: go:embed registry/*.json + индекс + hash-сверка sha256 поимённо + полная валидация ДО использования (обязательные поля 17 поимённо {id, version, name, purpose, support_status, stage, connector_types, journeys, critical_entities, policies, capabilities, gates, schema, policy_ref, knowledge_ref, eval_ref} + replacement_impact {compatibility/changed/review_slots}; enum-словари платформы пак не расширяет: support_status {reference_setup_only}, stage {setup}, VariantField.Type {string|integer|boolean}, Vehicle.Kind {vin|text|integer}, Part.Kind {text|integer|enum}, review_slots ⊆ {connectors|knowledge|behavior} в replacement+upgrade; AtLeastOneOf ⊆ Schema; UpgradeFrom-цели существуют в реестре; major-правило: НОВЫЙ major без UpgradeFrom = отказ, minor/patch существующего major совместимы по умолчанию; строгий semver-core major.minor.patch без prerelease/build — честная граница среза) + интеграция индекса (дубликаты, канон имени <id>@<version>.json, неиндексированные файлы = отказ, отсутствующие файлы, пустой индекс); невалидный артефакт = реестр ЦЕЛИКОМ не загружается (частичный каталог запрещён); reject-матрица 21 поимённый случай в loader_test.go (fstest.MapFS на РЕАЛЬНЫХ артефактах, мутация одного аспекта на кейс) + негативный контроль (minor 6.0.1 без UpgradeFrom допущен) + живой embed-реестр грузится чисто и байт-стабилен golden
+done:
+- Дизайн: loadRegistry(fs.FS) — абстракция ФС для тестируемости (embed.FS в проде, fstest.MapFS в тестах); validateManifest (одиночный артефакт) + validateMajorTransitions (кросс-манифестные правила) + parseSemver; словари платформы — канонические map[string]bool с комментарием «пак использует, но не расширяет»
+- Дефект пойман саморевью ДО прогона: первая реализация major-правила отклоняла minor/patch существующего major при наличии другого major — противоречие спеке («minor/patch без UpgradeFrom допустимы») — переписана на условие «major НОВ (не встречается среди остальных версий пака)»
+- Порядок отказов: id/version → семвер → обязательные поля → словари → replacement_impact → AtLeastOneOf; кросс: UpgradeFrom-цели → major-правило; все причины поимённые «<id>@<version>: <причина>» русскими словами (словарь спеки)
+- gofmt-нормализация табами обоих новых файлов; полный живой прогон: build/vet OK, unit 34 пакета ok -count=1, 0 FAIL
+- catalog.go НЕ тронут (литералы живы — Get/List/Impact всё ещё из карты; переключение = шаг-03)
+next: Dev шаг-03 — переключение каталога на реестр: catalog.go surgical (литералы + replacementImpact + label-инъекция clone() удаляются; Get/List/Impact из загруженного реестра; clone() чистое глубокое копирование с сохранением nil-ности UpgradeFrom) + immutability-тесты + witness-тесты шага-01 обязаны остаться зелёными байт-стабильно + регресс всего репо
+владельцу: отозвать PAT после закрытия чата (retro-4-5)
+commit: 70183ebb3e223d4905c6db7bab0a2c330d2224c0
+
+---
+date: 2026-10-28
+task: 290-dev-7-1-step-03
+role: main (Super Z, сессия web-d497a728)
+story: 7-1
+summary: Dev шаг-03 story 7-1 — ПЕРЕКЛЮЧЕНИЕ каталога на реестр: catalog.go переписан (110→105 строк, нормализация табами — файл переписан целиком, дифф тотальный по замыслу): карта 7 литералов УДАЛЕНА, пакетная replacementImpact УДАЛЕНА, label-инъекция clone() УДАЛЕНА (labels и replacement_impact приходят из артефактов); var registry = mustLoadRegistry() (fail-closed: невалидный артефакт = паника загрузки, частичного каталога не существует); Get — линейный поиск по реестру (7 манифестов), List — канонический порядок реестра, Impact — текстуально НЕ ИЗМЕНЁН; clone() — чистое глубокое копирование с сохранением nil-ности UpgradeFrom (было: пустая карта — на проводе невидимо, deep-equal с перепарсами теперь честный); потребители 0 правок (дифф-зонд: вне packs/ не изменён ни один файл)
+done:
+- Witness-тесты шага-01 ПЕРЕЖИЛИ переключение байт-стабильно: TestGoldenMatchesLiveCatalog (List/Get/Impact golden-эквивалентность) + TestRegistryArtifactsMatchGolden + TestRegistryIndexCanonicalOrder — все зелёные НАД РЕЕСТРОМ; эквивалентность семантики всех 7 опубликованных версий доказана живым прогоном
+- TestCatalogImmutability (новый, 20 мутаций по каждому вложенному месту включая общие backing-массивы: Schema/labels/Vehicle/Part/Modes/SafetyMarkers/Fitment/Comparison/ReplacementImpact/UpgradeFrom/List-копия) — мутация невидима следующему читателю; дефекты теста пойманы саморевью до прогона (Changed[0] после nil-перезаписи; Values не у того MaterialKey)
+- Зеркала domain/pack_test.go (ValidateVariants/иммутабельность/reverse-impact) зелёные без правок; полная матрица шага-02 зелёная
+- Полный живой прогон: build/vet OK; unit 34 пакета ok -count=1, 0 FAIL; gofmt packs/ чист целиком (catalog.go нормализован табами при переписывании)
+- Вертикальные слова: литералы из ядра удалены живым зондом (в packs/*.js 0; «Автозапчасти» остался только в замороженном pilot.go 4-1, «поиск детали» — в комментариях вертикальной машины cases/domain 4.3 — калибровка зонда шага-04: словарь чистых фраз снят живым grep: 9 кандидатов с 0 матчей)
+next: Dev шаг-04 — drift-CI: drift_test.go (TestVerticalWordsAbsentFromCore — зона прод-.go {domain,app,port,store}+cmd минус честные исключения {pilot.go, pilot_montagio.go, cases/**} с поимённым словарём фраз артефактов; TestRegistryAppendOnlyBaseline по env STAFFY_REGISTRY_BASELINE; TestAppendOnlyComparisonDetectsDeletion — симуляция удаления записи = FAIL) + ci.yml +шаг (git fetch origin main → baseline index → go test с env); симуляция PR внешнего автора (+артефакт +запись, 0 .go) полным прогоном; фиксация honest-границы в deferred-work
+владельцу: отозвать PAT после закрытия чата (retro-4-5)
+commit: 0181200ce059c786bb46d4183478df693815a4c2
+
+---
+date: 2026-10-28
+task: 291-dev-7-1-step-04
+role: main (Super Z, сессия web-d497a728)
+story: 7-1
+summary: Dev шаг-04 story 7-1 — drift-CI + путь внешнего автора: drift_test.go (3 пробы: TestVerticalWordsAbsentFromCore — зонд держит ноль вертикальных фраз в прод-.go общих пакетов ядра {domain,app,port,store}+cmd, словарь 17 фраз артефактов ФИКСИРОВАН в тесте (Names/Purposes/Journeys/labels всех 7 паков, снят живым grep; обновление словаря = новая версия пака = осознанный шаг), честные исключения поимённо {pilot.go — замороженная машина 4-1, cases/domain/part.go — вертикальная машина 4.3}; TestRegistryAppendOnlyBaseline — сверка с базой origin/main по env STAFFY_REGISTRY_BASELINE (локально skip); TestAppendOnlyComparisonDetectsDeletion — симуляция удаления записи/перезаписи sha = поимённые отказы, дополнения разрешены) + ci.yml +шаг Domain Pack registry baseline (git fetch origin main → git show …index.json → env в Go checks; checkout depth 1 не мешает — fetch явный; первая ревизия → честный skip) + СИМУЛЯЦИЯ PR внешнего автора: +logistics-freight@1.0.0.json +запись индекса, 0 правок .go — полный сьют зелёный с 8-м манифестом (валидация/hash/append-only/зонд), полный регресс репо 34 ok, симуляция откачена
+done:
+- ДЕФЕКТ ДИЗАЙНА пойман симуляцией (суть шага): witness-тесты требовали ТОЧНОГО равенства реестра golden (7) — внешний пак (+артефакт +запись, 0 .go) падал бы в CI, противореча I/O-матрице спеки; тесты переформулированы на ПОДСЕРИЮ: golden-семёрка обязана присутствовать в индексе/List()/реестре в том же относительном порядке байт-стабильно (TestRegistryIndexCanonicalOrder, TestGoldenMatchesLiveCatalog, TestLoaderLoadsEmbeddedRegistry), golden-записи обязаны оставаться запиненными sha256 (TestRegistryArtifactsMatchGolden), дополнения = зона загрузчика; TestLoaderAcceptsMinorWithoutUpgradeFrom — счёт от живой базы, не константа; TestCatalogImmutability — слоты по id@version, не [0]
+- Дрейф-семантика append-only: записи базы выживают неизменными (удаление = «защита живых пинов тенентов», sha-изменение = «опубликованная версия неизменяема»), дополнения разрешены — путь внешнего автора жив
+- ci.yml: yaml валиден (живой парсер); шаг перед Go checks; env STAFFY_REGISTRY_BASELINE=/tmp/pack-registry-baseline.json
+- deferred-work +3 honest-границы (машина review-гейтов внешних авторов = существующий PR-процесс; HTTP-поверхность/внешние хранилища вне среза; semver-core без prerelease — расширение = правка ядра)
+- Полный живой прогон финального дерева: build/vet OK; unit 34 ok -count=1 0 FAIL; gofmt packs/ чист; git diff --check OK
+next: Dev шаг-05 — QA-closure: свежий контекст по диффу 01-04 (саморевью эквивалентности/fail-closed/immutability/append-only/зона зонда без ложных срабатываний); финальный регресс всех контуров (build/vet, unit -count=1, интеграция ×2 TZ живой PG, journeys полным серийным прогоном); спека done + Spec Change Log closure; sprint-status 7-1 → done (epic-7 in-progress, 1/4); deferred-work синхронно; коммит feat БЕЗ [skip ci] — CI проверит ветку
+владельцу: отозвать PAT после закрытия чата (retro-4-5)
+commit: 29c4da2b659aad521cda2b4222e2e216235ea4e5
+
+---
+date: 2026-10-28
+task: 292-dev-7-1-step-05
+role: main (Super Z, сессия web-d497a728)
+story: 7-1
+summary: Dev шаг-05 story 7-1 — QA-closure: саморевью свежим взглядом по диффу 01-04 (19 файлов +3962/−99; 0 SQL/0 OpenAPI/0 шаблонов живым дифф-зондом; замороженные машины 4-1 не тронуты; потребители 0 правок; эквивалентность/fail-closed/immutability/append-only/зона зонда — Major-находок нет, дефект дизайна witness-тестов пойман и закрыт в шаге-04 симуляцией внешнего автора); финальный регресс ВСЕХ контуров свежими прогонами на финальном дереве: build/vet OK; unit 34 пакета ok -count=1 0 FAIL; интеграция ×2 TZ живой PG (UTC 66.3s / Europe/Moscow 63.5s) зелёная; journeys 54/54 полным серийным прогоном 3.6m (chromium переустановлен после сброса контейнера); closure: спека status done + Spec Change Log Dev 01-05 closure; sprint-status 7-1 → done (epic-7 in-progress, 1/4); deferred-work +3 honest-границы (шаг-04); коммит feat БЕЗ [skip ci] — CI проверит ветку полным сьютом включая новый шаг реестровой базы
+done:
+- QA-саморевью зонами: (1) эквивалентность — golden-семёрка в индексе/List()/embed-реестре байт-стабильно подсерией, impact-пробы реплеем, 20 мутаций иммутабельности; (2) fail-closed — 21 поимённый отказ + паника загрузки mustLoadRegistry + orphan-файлы + дубликаты + канон имён; (3) append-only — удаление/перезапись пойманы, дополнения разрешены, CI-база origin/main; (4) вертикальный зонд — 17 фраз, 0 нарушений, 2 поимённых честных исключения; (5) путь внешнего автора — симуляция logistics-freight@1.0.0 (0 правок .go) полным прогоном зелёная, откачена
+- Контейнерные восстановления сессии: Go/PG подняты bootstrap; chromium journeys переустановлен (npx playwright install chromium) после сброса; PATH go для webServer journeys инлайн-экспортом
+- Accept спеки выполнен по всем 5 шагам; AC-1..AC-4 полностью, AC-5 валидационная часть + декларирование ReviewSlots (honest: механика гейтов внешних авторов = существующий PR-процесс, deferred-work)
+next: CHECKPOINT 2 — PR ветки → CI ×3 поимённо (push-ран ветки уже должен запуститься этим коммитом без маркера; PR-ран synchronize; main-ран после merge) → sha-pinned merge → main ff-only локально → DEVLOG checkpoint-2 → удаление ветки ×3 (GitHub DELETE + локально -d + update-ref -d); Epic 7: 1/4; далее SM-слот story 7-2 (реестр tools с типизированными контрактами) по сигналу владельца
+владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/PR/merge/API сессии)
+commit: fdf5dcf27509f655504dba48ab436e3e84ee0693
+
+---
+date: 2026-10-28
+task: 293-checkpoint-2-open
+role: main (Super Z, сессия web-d497a728)
+story: 7-1
+summary: CHECKPOINT 2 story 7-1 ОТКРЫТ: PR #54 создан (head 4440f74, sha-pin в теле, контракт среза + шаги + регресс) — ветка 16 коммитов от main 6d1fd85, 19 файлов +3962/−99; ГОЛОВА пуша 4440f74 несла маркер [skip ci] (TBD-фиксация) и погасила бы раны (урок 282) — этот коммит БЕЗ маркера запускает push-ран ветки и synchronize-ран PR; далее поллинг CI ×2 поимённо → pre-merge GET → sha-pinned merge → main-ран (CI ×3) → main ff-only → DEVLOG checkpoint-2 → удаление ветки ×3
+next: поллинг ранов до success поимённо, затем merge PR #54 sha-pinned
+владельцу: отозвать PAT после закрытия чата (retro-4-5)
+commit: 08a32ea64b1039edebfa47e47720c9df0ded5d76
+
+---
+date: 2026-10-28
+task: 294-ci-fix-baseline
+role: main (Super Z, сессия web-d497a728)
+story: 7-1
+summary: Ремонт CI шага базы реестра (оба рана 3d5bf10 failed в Go checks): git show origin/main:index.json на main БЕЗ реестра (7-1 не смержена — первая ревизия) неуспешен, НО редирект > создавал ПУСТОЙ файл до проверки → env указывал на пустоту → TestRegistryAppendOnlyBaseline падал «JSON: unexpected end of JSON input»; фикс — rm -f файла в ветке отсутствия (+ страховочный rm -f в начале шага); семантика верифицирована локально: env задан + файла нет = громкий FAIL (fail-closed сигнал о поломке CI-конфига — честно), env не задан = skip; первый merge 7-1 создаёт реестр на main — все последующие PR-раны получают реальную базу 7 записей
+done:
+- Логи скачаны живым API (runs/40582037740/logs → verify/8_Go checks.txt: drift_test.go:153 «базовый индекс: JSON: unexpected end of JSON input»); корень подтверждён логом шага 7 («baseline: отсутствует» при созданном пустом файле)
+- ci.yml хирургический rm -f ×2; yaml валиден живым парсером
+next: пуш фикса БЕЗ маркера → push-ран + synchronize-ран PR #54 на новой голове → поллинг до success → pre-merge GET → sha-pinned merge → main-ран (CI ×3) → main ff-only → DEVLOG checkpoint-2 → удаление ветки ×3
+владельцу: отозвать PAT после закрытия чата (retro-4-5)
+commit: 2211e0b75d2e93957f345d9e6a471fb229a5a6af
+
+---
+date: 2026-10-28
+task: 295-ci-fix-github-env
+role: main (Super Z, сессия web-d497a728)
+story: 7-1
+summary: Второй ремонт CI (раны 049751f failed: «базовый индекс: no such file or directory» — env задавался БЕЗУСЛОВНО в блоке env шага Go checks, файл честно отсутствовал при первой ревизии): канонический GITHUB_ENV — переменная STAFFY_REGISTRY_BASELINE экспортируется ТОЛЬКО в ветке успеха git show (запись >> $GITHUB_ENV в шаге базы); блок env из Go checks удалён; семантика теста остаётся строгой (env задан = файл обязан существовать и парситься; env не задан = skip) — сломанная pipeline-конфигурация падает громко, первая ревизия пропускается честно
+done:
+- Матрица поведения теста зафиксирована: env отсутствует → skip (CI первой ревизии); env задан + файл валиден → сверка; env задан + файл пуст/отсутствует → громкий FAIL (сигнал поломки конфига, fail-closed)
+- yaml валиден живым парсером; локальный сьют зелёный
+next: пуш фикса БЕЗ маркера → оба рана на новой голове → поллинг до success → pre-merge GET → sha-pinned merge PR #54 → main-ран (CI ×3) → main ff-only → DEVLOG checkpoint-2 → удаление ветки ×3
+владельцу: отозвать PAT после закрытия чата (retro-4-5)
+commit: 838bd84ad422b2e1d6825eb03e81a62ed8be07b8

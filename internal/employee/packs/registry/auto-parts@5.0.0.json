@@ -1,0 +1,255 @@
+{
+  "id": "auto-parts",
+  "version": "5.0.0",
+  "name": "Автозапчасти",
+  "purpose": "Настройка предпочтений, идентификации автомобиля, материала запроса детали и доказательства применимости для запросов об автозапчастях",
+  "support_status": "reference_setup_only",
+  "stage": "setup",
+  "connector_types": [
+    "catalog",
+    "inventory"
+  ],
+  "journeys": [
+    "поиск детали",
+    "уточнение аналога",
+    "идентификация автомобиля"
+  ],
+  "critical_entities": [
+    "деталь",
+    "артикул",
+    "автомобиль"
+  ],
+  "policies": [
+    "не обещать наличие и цену без проверки"
+  ],
+  "capabilities": [
+    "setup_preferences"
+  ],
+  "gates": [
+    "connector_check",
+    "knowledge_eval",
+    "simulation"
+  ],
+  "schema": {
+    "matching_depth": {
+      "label": "Глубина сопоставления",
+      "type": "integer",
+      "min": 1,
+      "max": 3
+    },
+    "parts_interest": {
+      "label": "Интерес к деталям",
+      "type": "string",
+      "enum": [
+        "original",
+        "analogs",
+        "both"
+      ]
+    }
+  },
+  "vehicle_identification": {
+    "material_keys": [
+      {
+        "key": "vehicle.vin",
+        "label": "VIN",
+        "kind": "vin"
+      },
+      {
+        "key": "vehicle.make",
+        "label": "Марка",
+        "kind": "text"
+      },
+      {
+        "key": "vehicle.model",
+        "label": "Модель",
+        "kind": "text"
+      },
+      {
+        "key": "vehicle.year_of_manufacture",
+        "label": "Год выпуска",
+        "kind": "integer",
+        "min": 1900,
+        "max": 2100
+      },
+      {
+        "key": "vehicle.trim",
+        "label": "Модификация",
+        "kind": "text",
+        "optional": true
+      },
+      {
+        "key": "vehicle.engine",
+        "label": "Двигатель",
+        "kind": "text",
+        "optional": true
+      }
+    ],
+    "alternative_sets": [
+      [
+        "vehicle.vin"
+      ],
+      [
+        "vehicle.make",
+        "vehicle.model",
+        "vehicle.year_of_manufacture"
+      ]
+    ]
+  },
+  "part_requests": {
+    "material_keys": [
+      {
+        "key": "part.kind",
+        "label": "Деталь",
+        "kind": "text",
+        "role": "part_kind"
+      },
+      {
+        "key": "part.side",
+        "label": "Сторона",
+        "kind": "text",
+        "optional": true
+      },
+      {
+        "key": "part.quantity",
+        "label": "Количество",
+        "kind": "integer",
+        "min": 1,
+        "max": 999
+      },
+      {
+        "key": "part.preference",
+        "label": "Предпочтение",
+        "kind": "enum",
+        "values": [
+          "original",
+          "analogs",
+          "both"
+        ],
+        "role": "preference"
+      },
+      {
+        "key": "part.oem_number",
+        "label": "OEM-номер",
+        "kind": "text",
+        "role": "oem_number"
+      },
+      {
+        "key": "part.symptom",
+        "label": "Симптом",
+        "kind": "text",
+        "role": "symptom"
+      },
+      {
+        "key": "part.budget",
+        "label": "Бюджет",
+        "kind": "text",
+        "optional": true
+      },
+      {
+        "key": "part.deadline",
+        "label": "Срок",
+        "kind": "text",
+        "optional": true
+      },
+      {
+        "key": "part.brands",
+        "label": "Приемлемые бренды",
+        "kind": "text",
+        "optional": true
+      },
+      {
+        "key": "part.constraints",
+        "label": "Ограничения",
+        "kind": "text",
+        "optional": true
+      }
+    ],
+    "modes": [
+      {
+        "mode": "diagnostic",
+        "label": "Диагностика по симптому",
+        "priority": 1,
+        "requires": [
+          "part.symptom"
+        ]
+      },
+      {
+        "mode": "exact_repeat",
+        "label": "Точный повтор по номеру",
+        "priority": 2,
+        "requires": [
+          "part.kind",
+          "part.oem_number"
+        ]
+      },
+      {
+        "mode": "original_vs_analog",
+        "label": "Выбор: оригинал или аналог",
+        "priority": 3,
+        "requires": [
+          "part.kind",
+          "part.preference"
+        ]
+      },
+      {
+        "mode": "named_part",
+        "label": "Названная деталь",
+        "priority": 4,
+        "requires": [
+          "part.kind",
+          "part.quantity"
+        ]
+      }
+    ],
+    "safety_markers": [
+      "тормоз",
+      "рул",
+      "подушк",
+      "ремн безопасн",
+      "абс",
+      "есп"
+    ],
+    "part_search_journey": "поиск детали"
+  },
+  "fitment": {
+    "link_types": [
+      "original",
+      "cross"
+    ],
+    "max_cross_depth": 3,
+    "allowed_sources": [
+      "abcp_catalog",
+      "laximo_catalog"
+    ],
+    "max_age_seconds": 604800
+  },
+  "policy_ref": "auto-parts/policy/5.0.0",
+  "knowledge_ref": "auto-parts/knowledge/5.0.0",
+  "eval_ref": "auto-parts/eval/5.0.0",
+  "upgrade_from": {
+    "4.0.0": {
+      "compatibility": "compatible",
+      "changed": [
+        "fitment"
+      ],
+      "review_slots": [
+        "connectors"
+      ]
+    }
+  },
+  "replacement_impact": {
+    "compatibility": "incompatible",
+    "changed": [
+      "domain",
+      "schema",
+      "policy",
+      "knowledge",
+      "eval"
+    ],
+    "review_slots": [
+      "connectors",
+      "knowledge",
+      "behavior"
+    ]
+  }
+}

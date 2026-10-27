@@ -1,0 +1,76 @@
+{
+  "id": "auto-parts",
+  "version": "1.0.0",
+  "name": "Автозапчасти",
+  "purpose": "Настройка предпочтений для запросов об автозапчастях",
+  "support_status": "reference_setup_only",
+  "stage": "setup",
+  "connector_types": [
+    "catalog",
+    "inventory"
+  ],
+  "journeys": [
+    "поиск детали",
+    "уточнение аналога"
+  ],
+  "critical_entities": [
+    "деталь",
+    "артикул",
+    "автомобиль"
+  ],
+  "policies": [
+    "не обещать наличие и цену без проверки"
+  ],
+  "capabilities": [
+    "setup_preferences"
+  ],
+  "gates": [
+    "connector_check",
+    "knowledge_eval",
+    "simulation"
+  ],
+  "schema": {
+    "parts_interest": {
+      "label": "Интерес к деталям",
+      "type": "string",
+      "enum": [
+        "original",
+        "analogs",
+        "both"
+      ]
+    }
+  },
+  "policy_ref": "auto-parts/policy/1.0.0",
+  "knowledge_ref": "auto-parts/knowledge/1.0.0",
+  "eval_ref": "auto-parts/eval/1.0.0",
+  "upgrade_from": {
+    "2.0.0": {
+      "compatibility": "incompatible",
+      "changed": [
+        "schema",
+        "policy",
+        "eval"
+      ],
+      "review_slots": [
+        "connectors",
+        "knowledge",
+        "behavior"
+      ]
+    }
+  },
+  "replacement_impact": {
+    "compatibility": "incompatible",
+    "changed": [
+      "domain",
+      "schema",
+      "policy",
+      "knowledge",
+      "eval"
+    ],
+    "review_slots": [
+      "connectors",
+      "knowledge",
+      "behavior"
+    ]
+  }
+}

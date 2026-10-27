@@ -306,3 +306,15 @@
 - source_spec: `spec-5-1-montagio-admission-registry.md`
   summary: command.outbound-reply (montagio-web 1.0.0) — структурно неисполним этим срезом: существующее словарное слово 4-1, ProbeAllowed false + AdapterImplemented false; webhooks Novofon — ingress будущего среза (декларация read-only query жива).
   evidence: спека 5-1 противоречие Never/Code Map разрешено в пользу ядра честности (Dev step-02, пин-тест TestMontagioDeclarationsOfferNoExecutableMutations); перенесено Dev step-02 (2026-10-27).
+
+- source_spec: `spec-7-1-declarative-domain-pack-catalog.md`
+  summary: Механика review-гейтов внешних авторов паков — отдельной машины НЕТ: ReviewSlots перехода декларируются в артефакте (UpgradeFrom/replacement_impact), исполнение review = существующий PR-процесс владельца (валидация схемы/enum/правил — fail-closed загрузчиком в CI); расширение словаря вертикального зонда при принятии нового пака — осознанный правкой drift_test.go, не автоматизм.
+  evidence: спека 7-1 Boundaries «не строить машину review-гейтов внешних авторов (граница — deferred-work)»; симуляция внешнего PR Dev step-04 (+logistics-freight@1.0.0 артефакт+запись, 0 правок .go — сьют зелёный); перенесено Dev step-04 (2026-10-28).
+
+- source_spec: `spec-7-1-declarative-domain-pack-catalog.md`
+  summary: HTTP-поверхность публикации/администрирования реестра и внешние хранилища/CDN — вне среза: путь внешнего автора = git PR «артефакт + индексная запись» (go:embed, реестр версионируется git'ом с ядром); синхронизация внешнего автора с живым реестром тенента (pull/подписка) — будущий срез по AG-3-триггеру.
+  evidence: спека 7-1 Boundaries Never (HTTP-поверхность, внешние хранилища, AG-4); Implementation Notes go:embed; перенесено Dev step-04 (2026-10-28).
+
+- source_spec: `spec-7-1-declarative-domain-pack-catalog.md`
+  summary: Semver-словарь версий артефактов — строгий core major.minor.patch без prerelease/build-тегов: расширение формата = правка ядра (parseSemver) + ревизия правила major-переходов, осознанный шаг.
+  evidence: спека 7-1 Implementation Notes «строгий semver-core — честная граница среза»; loader.go parseSemver; перенесено Dev step-02 (2026-10-28).

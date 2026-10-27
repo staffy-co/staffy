@@ -40,6 +40,17 @@ jobs:
           node-version: '24.21.0'
           cache: npm
           cache-dependency-path: tests/journeys/package-lock.json
+      - name: Domain Pack registry baseline (append-only drift)
+        run: |
+          rm -f /tmp/pack-registry-baseline.json
+          git fetch --no-tags origin main || true
+          if git show origin/main:internal/employee/packs/registry/index.json > /tmp/pack-registry-baseline.json 2>/dev/null; then
+            echo "pack registry baseline: origin/main $(git rev-parse --short origin/main)"
+            echo "STAFFY_REGISTRY_BASELINE=/tmp/pack-registry-baseline.json" >> "$GITHUB_ENV"
+          else
+            rm -f /tmp/pack-registry-baseline.json
+            echo "pack registry baseline: отсутствует (первая ревизия реестра) — append-only-сверка пропущена"
+          fi
       - name: Go checks
         run: |
           go test ./...

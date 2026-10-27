@@ -1,0 +1,63 @@
+{
+  "id": "montagio-services",
+  "version": "1.0.0",
+  "name": "Услуги Montagio",
+  "purpose": "Настройка направлений инженерных услуг",
+  "support_status": "reference_setup_only",
+  "stage": "setup",
+  "connector_types": [
+    "service_catalog",
+    "scheduling"
+  ],
+  "journeys": [
+    "уточнение услуги",
+    "передача мастеру"
+  ],
+  "critical_entities": [
+    "услуга",
+    "заявка"
+  ],
+  "policies": [
+    "не обещать доступность и выполнение без проверки"
+  ],
+  "capabilities": [
+    "setup_preferences"
+  ],
+  "gates": [
+    "connector_check",
+    "knowledge_eval",
+    "simulation"
+  ],
+  "schema": {
+    "engineering_plumbing": {
+      "label": "Инженерная сантехника",
+      "type": "boolean"
+    },
+    "heating": {
+      "label": "Отопление",
+      "type": "boolean"
+    }
+  },
+  "at_least_one_of": [
+    "engineering_plumbing",
+    "heating"
+  ],
+  "policy_ref": "montagio-services/policy/1.0.0",
+  "knowledge_ref": "montagio-services/knowledge/1.0.0",
+  "eval_ref": "montagio-services/eval/1.0.0",
+  "replacement_impact": {
+    "compatibility": "incompatible",
+    "changed": [
+      "domain",
+      "schema",
+      "policy",
+      "knowledge",
+      "eval"
+    ],
+    "review_slots": [
+      "connectors",
+      "knowledge",
+      "behavior"
+    ]
+  }
+}
