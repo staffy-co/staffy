@@ -5972,4 +5972,4 @@ done:
 - main: 872ec66 = merge PR #54; ветка подлежит удалению ×3
 next: удаление ветки ×3 (GitHub DELETE refs/heads + локально -d + update-ref -d при stale) с compare-проверкой behind/ahead_by=0; затем финал: ls-remote только main, RPO=0, check-continuity; следующий слот — SM-фаза story 7-2 «Реестр tools с типизированными контрактами» по сигналу владельца (Epic 7: 1/4)
 владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/PR/merge/DELETE/API сессии)
-commit: 872ec6651bc5ec7e6b2bb2cb529d19cb5989dc9a~PENDING
+commit: 2c6336ec0b10ac0dbddaab243407550082b3f9da
