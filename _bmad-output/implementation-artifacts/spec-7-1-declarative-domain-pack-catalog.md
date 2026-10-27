@@ -2,7 +2,7 @@
 title: 'Story 7.1 — Декларативный каталог Domain Pack (первый срез: вынос 7 опубликованных манифестов {auto-parts@1.0.0–6.0.0, montagio-services@1.0.0} из Go-карты internal/employee/packs/catalog.go в версионируемые JSON-артефакты internal/employee/packs/registry/ с индексом hash-пинов sha256 (append-only) + загрузчик с fail-closed валидацией ДО использования (обязательные поля; enum-словары платформы {support_status, stage, kind, review_slots ⊆ {connectors, knowledge, behavior}}; AtLeastOneOf ⊆ Schema; UpgradeFrom-цели существуют в реестре; major-версия без UpgradeFrom-записи отклоняется поимённо; ReplacementImpact обязателен; невалидный артефакт = реестр не загружается ЦЕЛИКОМ, частичный каталог запрещён) + эквивалентность семантики ВСЕХ опубликованных версий байт-стабильно (golden-фикстуры Get/List/Impact, снятые с живого бинарного каталога ДО миграции; labels полей Schema {«Интерес к деталям», «Глубина сопоставления», «Инженерная сантехника», «Отопление»} переезжают из clone() в артефакты; ReplacementImpact переезжает из пакетовой переменной в артефакты) + drift-CI (sha256 индекс↔файлы; append-only индекс: удаление записи = FAIL; валидация всех артефактов на каждом ране; вертикальные слова предметных областей в прод-.go общих пакетов ядра = 0) + путь внешнего автора = PR «артефакт + индексная запись» без правки ядра (review-гейты слотов impact декларированы в артефакте, исполнение — существующим PR-процессом репозитория; платформенные словари паком не редактируются — значения вне enum = отказ))'
 type: 'feature'
 created: '2026-10-27'
-status: 'backlog'
+status: 'ready-for-dev'
 route: 'employee'
 baseline_commit: '6d1fd85765adba14f3bd788ac57813a395352962'
 context:
@@ -87,3 +87,4 @@ context:
 ## Spec Change Log
 
 - 2026-10-27, SM-фаза: спека первого среза создана (status: backlog). CHECKPOINT 1 — по явному «одобряю» владельца (дисциплина 52-sm): флип status → ready-for-dev + sprint-status.yaml (7-1-декларативный-каталог-domain-pack → ready-for-dev; epic-7 → in-progress) + push ветки; Dev шаги 01-05 после CHECKPOINT 1
+- 2026-10-28, CHECKPOINT 1: спека предъявлена владельцу (доставка после смерти контекста предшественницы — запись checkpoint1-7-1, верификация git-зондами: ветка 898247f = origin RPO=0, CI ветки success ×2 поимённо) и одобрена ответом «продолжайте» на предъявление (дисциплина 52-sm); флип backlog → ready-for-dev + sprint-status (7-1 → ready-for-dev; epic-7 → in-progress) синхронно одним коммитом (урок 3-1); Dev шаги 01-05 стартуют

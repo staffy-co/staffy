@@ -5832,3 +5832,17 @@ done:
 next: CHECKPOINT 1 — предъявление спеки владельцу; по «одобряю»: флип status → ready-for-dev + Spec Change Log CHECKPOINT 1 + sprint-status (7-1 → ready-for-dev, epic-7 → in-progress) + push → Dev шаги 01-05 (golden-снимок → загрузчик → переключение+эквивалентность → drift-CI → QA-closure) → CHECKPOINT 2 (PR, CI ×3 поимённо, sha-pinned merge, удаление ветки ×3)
 владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API сессии); право вета на срез спеки (правило major-валидатора, зона вертикального зонда, путь внешнего автора PR-ом)
 commit: eb2f62bfd398e331b00880ab58f73aadf6e7f642 (TBD-заполнение, прецедент 280→dc54a37)
+
+---
+date: 2026-10-28
+task: 287-checkpoint-1
+role: main (Super Z, сессия web-d497a728)
+story: 7-1
+summary: CHECKPOINT 1 story 7-1 «Декларативный каталог Domain Pack» — спека первого среза предъявлена владельцу (доставка возобновлением после смерти контекста: запись checkpoint1-7-1 — чистая верификация git-зондами без правок репо: ветка 898247f = origin RPO=0, CI ветки success ×2 поимённо eb2f62b/898247f, main 6d1fd85 не тронут, check-continuity OK) и одобрена ответом «продолжайте» на предъявление (дисциплина 52-sm); флип синхронный одним коммитом (урок 3-1, прецедент 276-checkpoint-1/42a8542): спека backlog → ready-for-dev + Spec Change Log CHECKPOINT 1 + sprint-status (7-1 → ready-for-dev; epic-7 → in-progress; last_updated 10-28-2026); срез одобрен как предъявлен (право вета владельца сохранено: правило major-валидатора, зона вертикального зонда, путь внешнего автора PR-ом)
+done:
+- Доставка предъявления после смерти контекста предшественницы: сводка платформы отставала на цикл (ретро-4) — git-истина (ls-remote живым токеном) подтвердила: маркетплейс-аннотация (main 6d1fd85) и спека 7-1 (ветка 898247f) закрыты предшественницей; работа не выполнялась дважды
+- Контейнер сброшен между сообщениями: токен перекэширован /tmp/.staffy_gh_token (600, env-only); Go/PG отсутствуют прямыми зондами — bootstrap поднимается до Dev шага 01
+- Флип: spec status ready-for-dev + Spec Change Log запись; sprint-status 7-1 ready-for-dev + epic-7 in-progress; этот DEVLOG
+next: Dev шаги 01-05 по спеке (шаг-01 golden-снимок ДО правок + 7 артефактов registry/ + index.json sha256 append-only; шаг-02 loader.go fail-closed + матрица отказов 12+ поимённо; шаг-03 переключение catalog.go + байт-стабильная эквивалентность golden; шаг-04 drift-CI + симуляция PR внешнего автора; шаг-05 QA-closure feat БЕЗ [skip ci]) → CHECKPOINT 2 (PR → CI ×3 поимённо → sha-pinned merge → main ff-only → DEVLOG → удаление ветки ×3; Epic 7: 1/4)
+владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API сессии)
+commit: TBD
