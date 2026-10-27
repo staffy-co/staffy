@@ -5831,4 +5831,4 @@ done:
 - Спека _bmad-output/implementation-artifacts/spec-7-1-declarative-domain-pack-catalog.md: frontmatter (backlog, route employee, baseline 6d1fd85, 9 контекстов) + Intent/Boundaries/I-O матрица 12 кейсов/Code Map/Tasks 01-05/Implementation Notes/Spec Change Log
 next: CHECKPOINT 1 — предъявление спеки владельцу; по «одобряю»: флип status → ready-for-dev + Spec Change Log CHECKPOINT 1 + sprint-status (7-1 → ready-for-dev, epic-7 → in-progress) + push → Dev шаги 01-05 (golden-снимок → загрузчик → переключение+эквивалентность → drift-CI → QA-closure) → CHECKPOINT 2 (PR, CI ×3 поимённо, sha-pinned merge, удаление ветки ×3)
 владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API сессии); право вета на срез спеки (правило major-валидатора, зона вертикального зонда, путь внешнего автора PR-ом)
-commit: TBD (фиксация на ветке — прецедент 280→dc54a37)
+commit: eb2f62bfd398e331b00880ab58f73aadf6e7f642 (TBD-заполнение, прецедент 280→dc54a37)
