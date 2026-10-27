@@ -5909,3 +5909,17 @@ done:
 next: Dev шаг-05 — QA-closure: свежий контекст по диффу 01-04 (саморевью эквивалентности/fail-closed/immutability/append-only/зона зонда без ложных срабатываний); финальный регресс всех контуров (build/vet, unit -count=1, интеграция ×2 TZ живой PG, journeys полным серийным прогоном); спека done + Spec Change Log closure; sprint-status 7-1 → done (epic-7 in-progress, 1/4); deferred-work синхронно; коммит feat БЕЗ [skip ci] — CI проверит ветку
 владельцу: отозвать PAT после закрытия чата (retro-4-5)
 commit: 29c4da2b659aad521cda2b4222e2e216235ea4e5
+
+---
+date: 2026-10-28
+task: 292-dev-7-1-step-05
+role: main (Super Z, сессия web-d497a728)
+story: 7-1
+summary: Dev шаг-05 story 7-1 — QA-closure: саморевью свежим взглядом по диффу 01-04 (19 файлов +3962/−99; 0 SQL/0 OpenAPI/0 шаблонов живым дифф-зондом; замороженные машины 4-1 не тронуты; потребители 0 правок; эквивалентность/fail-closed/immutability/append-only/зона зонда — Major-находок нет, дефект дизайна witness-тестов пойман и закрыт в шаге-04 симуляцией внешнего автора); финальный регресс ВСЕХ контуров свежими прогонами на финальном дереве: build/vet OK; unit 34 пакета ok -count=1 0 FAIL; интеграция ×2 TZ живой PG (UTC 66.3s / Europe/Moscow 63.5s) зелёная; journeys 54/54 полным серийным прогоном 3.6m (chromium переустановлен после сброса контейнера); closure: спека status done + Spec Change Log Dev 01-05 closure; sprint-status 7-1 → done (epic-7 in-progress, 1/4); deferred-work +3 honest-границы (шаг-04); коммит feat БЕЗ [skip ci] — CI проверит ветку полным сьютом включая новый шаг реестровой базы
+done:
+- QA-саморевью зонами: (1) эквивалентность — golden-семёрка в индексе/List()/embed-реестре байт-стабильно подсерией, impact-пробы реплеем, 20 мутаций иммутабельности; (2) fail-closed — 21 поимённый отказ + паника загрузки mustLoadRegistry + orphan-файлы + дубликаты + канон имён; (3) append-only — удаление/перезапись пойманы, дополнения разрешены, CI-база origin/main; (4) вертикальный зонд — 17 фраз, 0 нарушений, 2 поимённых честных исключения; (5) путь внешнего автора — симуляция logistics-freight@1.0.0 (0 правок .go) полным прогоном зелёная, откачена
+- Контейнерные восстановления сессии: Go/PG подняты bootstrap; chromium journeys переустановлен (npx playwright install chromium) после сброса; PATH go для webServer journeys инлайн-экспортом
+- Accept спеки выполнен по всем 5 шагам; AC-1..AC-4 полностью, AC-5 валидационная часть + декларирование ReviewSlots (honest: механика гейтов внешних авторов = существующий PR-процесс, deferred-work)
+next: CHECKPOINT 2 — PR ветки → CI ×3 поимённо (push-ран ветки уже должен запуститься этим коммитом без маркера; PR-ран synchronize; main-ран после merge) → sha-pinned merge → main ff-only локально → DEVLOG checkpoint-2 → удаление ветки ×3 (GitHub DELETE + локально -d + update-ref -d); Epic 7: 1/4; далее SM-слот story 7-2 (реестр tools с типизированными контрактами) по сигналу владельца
+владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/PR/merge/API сессии)
+commit: TBD
