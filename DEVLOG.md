@@ -5893,3 +5893,19 @@ done:
 next: Dev шаг-04 — drift-CI: drift_test.go (TestVerticalWordsAbsentFromCore — зона прод-.go {domain,app,port,store}+cmd минус честные исключения {pilot.go, pilot_montagio.go, cases/**} с поимённым словарём фраз артефактов; TestRegistryAppendOnlyBaseline по env STAFFY_REGISTRY_BASELINE; TestAppendOnlyComparisonDetectsDeletion — симуляция удаления записи = FAIL) + ci.yml +шаг (git fetch origin main → baseline index → go test с env); симуляция PR внешнего автора (+артефакт +запись, 0 .go) полным прогоном; фиксация honest-границы в deferred-work
 владельцу: отозвать PAT после закрытия чата (retro-4-5)
 commit: 0181200ce059c786bb46d4183478df693815a4c2
+
+---
+date: 2026-10-28
+task: 291-dev-7-1-step-04
+role: main (Super Z, сессия web-d497a728)
+story: 7-1
+summary: Dev шаг-04 story 7-1 — drift-CI + путь внешнего автора: drift_test.go (3 пробы: TestVerticalWordsAbsentFromCore — зонд держит ноль вертикальных фраз в прод-.go общих пакетов ядра {domain,app,port,store}+cmd, словарь 17 фраз артефактов ФИКСИРОВАН в тесте (Names/Purposes/Journeys/labels всех 7 паков, снят живым grep; обновление словаря = новая версия пака = осознанный шаг), честные исключения поимённо {pilot.go — замороженная машина 4-1, cases/domain/part.go — вертикальная машина 4.3}; TestRegistryAppendOnlyBaseline — сверка с базой origin/main по env STAFFY_REGISTRY_BASELINE (локально skip); TestAppendOnlyComparisonDetectsDeletion — симуляция удаления записи/перезаписи sha = поимённые отказы, дополнения разрешены) + ci.yml +шаг Domain Pack registry baseline (git fetch origin main → git show …index.json → env в Go checks; checkout depth 1 не мешает — fetch явный; первая ревизия → честный skip) + СИМУЛЯЦИЯ PR внешнего автора: +logistics-freight@1.0.0.json +запись индекса, 0 правок .go — полный сьют зелёный с 8-м манифестом (валидация/hash/append-only/зонд), полный регресс репо 34 ok, симуляция откачена
+done:
+- ДЕФЕКТ ДИЗАЙНА пойман симуляцией (суть шага): witness-тесты требовали ТОЧНОГО равенства реестра golden (7) — внешний пак (+артефакт +запись, 0 .go) падал бы в CI, противореча I/O-матрице спеки; тесты переформулированы на ПОДСЕРИЮ: golden-семёрка обязана присутствовать в индексе/List()/реестре в том же относительном порядке байт-стабильно (TestRegistryIndexCanonicalOrder, TestGoldenMatchesLiveCatalog, TestLoaderLoadsEmbeddedRegistry), golden-записи обязаны оставаться запиненными sha256 (TestRegistryArtifactsMatchGolden), дополнения = зона загрузчика; TestLoaderAcceptsMinorWithoutUpgradeFrom — счёт от живой базы, не константа; TestCatalogImmutability — слоты по id@version, не [0]
+- Дрейф-семантика append-only: записи базы выживают неизменными (удаление = «защита живых пинов тенентов», sha-изменение = «опубликованная версия неизменяема»), дополнения разрешены — путь внешнего автора жив
+- ci.yml: yaml валиден (живой парсер); шаг перед Go checks; env STAFFY_REGISTRY_BASELINE=/tmp/pack-registry-baseline.json
+- deferred-work +3 honest-границы (машина review-гейтов внешних авторов = существующий PR-процесс; HTTP-поверхность/внешние хранилища вне среза; semver-core без prerelease — расширение = правка ядра)
+- Полный живой прогон финального дерева: build/vet OK; unit 34 ok -count=1 0 FAIL; gofmt packs/ чист; git diff --check OK
+next: Dev шаг-05 — QA-closure: свежий контекст по диффу 01-04 (саморевью эквивалентности/fail-closed/immutability/append-only/зона зонда без ложных срабатываний); финальный регресс всех контуров (build/vet, unit -count=1, интеграция ×2 TZ живой PG, journeys полным серийным прогоном); спека done + Spec Change Log closure; sprint-status 7-1 → done (epic-7 in-progress, 1/4); deferred-work синхронно; коммит feat БЕЗ [skip ci] — CI проверит ветку
+владельцу: отозвать PAT после закрытия чата (retro-4-5)
+commit: TBD

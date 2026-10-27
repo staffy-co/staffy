@@ -81,28 +81,42 @@ func loadIndex(t *testing.T) indexFile {
 	return idx
 }
 
-// TestRegistryIndexCanonicalOrder: the index order is the canonical List()
-// order (auto-parts 6→1, montagio-services last) and matches the golden.
+// TestRegistryIndexCanonicalOrder: the golden sequence appears in the
+// index in the same relative order — the registry grows (an external
+// author appends new packs and versions with zero core edits), but the
+// published order of the snapshot seven never reshuffles.
 func TestRegistryIndexCanonicalOrder(t *testing.T) {
 	golden := loadGolden(t)
 	idx := loadIndex(t)
 	live := packs.List()
-	if len(idx.Entries) != len(golden.List) || len(idx.Entries) != len(live) {
-		t.Fatalf("count mismatch: index=%d golden=%d live=%d", len(idx.Entries), len(golden.List), len(live))
+	if len(idx.Entries) < len(golden.List) || len(live) < len(golden.List) {
+		t.Fatalf("реестр меньше снапшота: index=%d golden=%d live=%d", len(idx.Entries), len(golden.List), len(live))
 	}
-	for i, entry := range idx.Entries {
-		if golden.List[i].ID != entry.ID || golden.List[i].Version != entry.Version {
-			t.Fatalf("index entry %d %s@%s != golden %s@%s", i, entry.ID, entry.Version, golden.List[i].ID, golden.List[i].Version)
+	cursor := 0
+	for _, entry := range idx.Entries {
+		if cursor < len(golden.List) && golden.List[cursor].ID == entry.ID && golden.List[cursor].Version == entry.Version {
+			cursor++
 		}
-		if live[i].ID != entry.ID || live[i].Version != entry.Version {
-			t.Fatalf("index entry %d %s@%s != live %s@%s", i, entry.ID, entry.Version, live[i].ID, live[i].Version)
+	}
+	if cursor != len(golden.List) {
+		t.Fatalf("golden-последовательность нарушена в индексе: совпало %d из %d", cursor, len(golden.List))
+	}
+	cursor = 0
+	for _, m := range live {
+		if cursor < len(golden.List) && golden.List[cursor].ID == m.ID && golden.List[cursor].Version == m.Version {
+			cursor++
 		}
+	}
+	if cursor != len(golden.List) {
+		t.Fatalf("golden-последовательность нарушена в List(): совпало %d из %d", cursor, len(golden.List))
 	}
 }
 
-// TestRegistryArtifactsMatchGolden: every artifact exists, its sha256 pins
-// the exact file bytes, and its parsed semantics equal the golden snapshot
-// byte-stably (labels and replacement_impact included).
+// TestRegistryArtifactsMatchGolden: every golden entry stays pinned in
+// the index by the sha256 of its exact file bytes and its parsed semantics
+// equal the golden snapshot byte-stably (labels and replacement_impact
+// included). Registry additions beyond the golden are validated by the
+// loader — the golden covers the snapshot seven.
 func TestRegistryArtifactsMatchGolden(t *testing.T) {
 	golden := loadGolden(t)
 	idx := loadIndex(t)
@@ -110,7 +124,13 @@ func TestRegistryArtifactsMatchGolden(t *testing.T) {
 	for _, m := range golden.List {
 		byKey[m.ID+"@"+m.Version] = m
 	}
+	seen := map[string]bool{}
 	for _, entry := range idx.Entries {
+		want, ok := byKey[entry.ID+"@"+entry.Version]
+		if !ok {
+			continue // a registry addition — the loader's validation covers it
+		}
+		seen[entry.ID+"@"+entry.Version] = true
 		raw, err := os.ReadFile("registry/" + entry.File)
 		if err != nil {
 			t.Fatalf("%s@%s: %v", entry.ID, entry.Version, err)
@@ -123,15 +143,16 @@ func TestRegistryArtifactsMatchGolden(t *testing.T) {
 		if err := json.Unmarshal(raw, &manifest); err != nil {
 			t.Fatalf("%s@%s: parse: %v", entry.ID, entry.Version, err)
 		}
-		want, ok := byKey[entry.ID+"@"+entry.Version]
-		if !ok {
-			t.Fatalf("%s@%s: no golden entry", entry.ID, entry.Version)
-		}
 		if got, wantJSON := canonical(t, manifest), canonical(t, want); got != wantJSON {
 			t.Fatalf("%s@%s: artifact != golden\ngot:  %s\nwant: %s", entry.ID, entry.Version, got, wantJSON)
 		}
 		if !reflect.DeepEqual(manifest, parsed(t, canonical(t, want))) {
 			t.Fatalf("%s@%s: artifact deep-equal mismatch", entry.ID, entry.Version)
+		}
+	}
+	for _, m := range golden.List {
+		if !seen[m.ID+"@"+m.Version] {
+			t.Fatalf("%s@%s: golden-запись исчезла из индекса", m.ID, m.Version)
 		}
 	}
 }
@@ -182,32 +203,58 @@ func TestCatalogImmutability(t *testing.T) {
 	}
 
 	listed := packs.List()
-	listed[0].Name = "hacked"
-	listed[0].Schema["parts_interest"] = domain.VariantField{Type: "boolean"}
-	listed[0].ReplacementImpact.ReviewSlots[0] = "hacked"
+	var listedFirst domain.PackManifest
+	for _, m := range listed {
+		if m.ID == "auto-parts" && m.Version == "6.0.0" {
+			listedFirst = m
+		}
+	}
+	listedFirst.Name = "hacked"
+	listedFirst.Schema["parts_interest"] = domain.VariantField{Type: "boolean"}
+	listedFirst.ReplacementImpact.ReviewSlots[0] = "hacked"
 	fresh := packs.List()
-	if got, want := canonical(t, fresh), canonical(t, golden.List); got != want {
+	var freshFirst domain.PackManifest
+	for _, m := range fresh {
+		if m.ID == "auto-parts" && m.Version == "6.0.0" {
+			freshFirst = m
+		}
+	}
+	if got, want := canonical(t, freshFirst), canonical(t, golden.List[0]); got != want {
 		t.Fatal("мутация List() видна следующему читателю")
 	}
 }
 
-// TestGoldenMatchesLiveCatalog: the golden snapshot equals the live catalog
-// semantics byte-stably — List() order and content, every Get(), and every
-// replayed Impact() probe (upgrade edges, cross-id replacement, the missing
-// edge). This is the equivalence contract the registry switch must keep.
+// TestGoldenMatchesLiveCatalog: the golden snapshot equals the live
+// catalog semantics byte-stably — every golden manifest appears in List()
+// in the same relative order and byte-identical, every golden Get()
+// returns the golden bytes, and every Impact() probe replays (upgrade
+// edges, cross-id replacement, the missing edge). Registry additions
+// beyond the golden pass through the loader validation — this is the
+// equivalence contract the registry switch must keep for the published
+// seven.
 func TestGoldenMatchesLiveCatalog(t *testing.T) {
 	golden := loadGolden(t)
 
-	if got, want := canonical(t, packs.List()), canonical(t, golden.List); got != want {
-		t.Fatalf("List() != golden.List\ngot:  %s\nwant: %s", got, want)
+	live := packs.List()
+	cursor := 0
+	for _, m := range live {
+		if cursor < len(golden.List) && golden.List[cursor].ID == m.ID && golden.List[cursor].Version == m.Version {
+			if got, want := canonical(t, m), canonical(t, golden.List[cursor]); got != want {
+				t.Fatalf("List(): %s@%s != golden\ngot:  %s\nwant: %s", m.ID, m.Version, got, want)
+			}
+			cursor++
+		}
+	}
+	if cursor != len(golden.List) {
+		t.Fatalf("golden-последовательность нарушена в List(): совпало %d из %d", cursor, len(golden.List))
 	}
 
 	for _, m := range golden.List {
-		live, ok := packs.Get(m.ID, m.Version)
+		liveManifest, ok := packs.Get(m.ID, m.Version)
 		if !ok {
 			t.Fatalf("%s@%s: live Get missing", m.ID, m.Version)
 		}
-		if got, want := canonical(t, live), canonical(t, m); got != want {
+		if got, want := canonical(t, liveManifest), canonical(t, m); got != want {
 			t.Fatalf("Get(%s@%s) != golden\ngot:  %s\nwant: %s", m.ID, m.Version, got, want)
 		}
 	}

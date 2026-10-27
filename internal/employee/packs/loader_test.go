@@ -338,6 +338,7 @@ func TestLoaderRejectionMatrix(t *testing.T) {
 // only for a NEW major (the spec: minor/patch без UpgradeFrom допустимы).
 func TestLoaderAcceptsMinorWithoutUpgradeFrom(t *testing.T) {
 	fsys, index := baseFS(t)
+	base := len(index.Entries)
 	m := readManifest(t, fsys, "auto-parts", "6.0.0")
 	m.Version = "6.0.1"
 	m.UpgradeFrom = nil
@@ -349,13 +350,15 @@ func TestLoaderAcceptsMinorWithoutUpgradeFrom(t *testing.T) {
 	if err != nil {
 		t.Fatalf("minor без UpgradeFrom должен допускаться: %v", err)
 	}
-	if len(manifests) != 8 {
-		t.Fatalf("ожидалось 8 манифестов, получено %d", len(manifests))
+	if len(manifests) != base+1 {
+		t.Fatalf("ожидалось %d манифестов, получено %d", base+1, len(manifests))
 	}
 }
 
 // TestLoaderLoadsEmbeddedRegistry: the REAL embedded registry loads clean,
-// in the canonical index order, byte-stably equal to the golden snapshot.
+// and the golden sequence appears in it in the same relative order,
+// byte-stably equal per entry — registry additions beyond the golden load
+// through the same validation and stay allowed.
 func TestLoaderLoadsEmbeddedRegistry(t *testing.T) {
 	manifests, err := loadRegistry(registryFiles)
 	if err != nil {
@@ -371,23 +374,30 @@ func TestLoaderLoadsEmbeddedRegistry(t *testing.T) {
 	if err := json.Unmarshal(goldenRaw, &golden); err != nil {
 		t.Fatal(err)
 	}
-	if len(manifests) != len(golden.List) {
-		t.Fatalf("ожидалось %d манифестов, получено %d", len(golden.List), len(manifests))
+	if len(manifests) < len(golden.List) {
+		t.Fatalf("ожидалось не меньше %d манифестов, получено %d", len(golden.List), len(manifests))
 	}
+	cursor := 0
 	for i := range manifests {
-		if manifests[i].ID != golden.List[i].ID || manifests[i].Version != golden.List[i].Version {
-			t.Fatalf("порядок %d: %s@%s != golden %s@%s", i, manifests[i].ID, manifests[i].Version, golden.List[i].ID, golden.List[i].Version)
+		if cursor >= len(golden.List) {
+			break
 		}
-		liveRaw, err := json.Marshal(manifests[i])
-		if err != nil {
-			t.Fatal(err)
+		if manifests[i].ID == golden.List[cursor].ID && manifests[i].Version == golden.List[cursor].Version {
+			liveRaw, err := json.Marshal(manifests[i])
+			if err != nil {
+				t.Fatal(err)
+			}
+			goldenEntry, err := json.Marshal(golden.List[cursor])
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(liveRaw) != string(goldenEntry) {
+				t.Fatalf("манифест %s@%s != golden байт-стабильно", manifests[i].ID, manifests[i].Version)
+			}
+			cursor++
 		}
-		goldenEntry, err := json.Marshal(golden.List[i])
-		if err != nil {
-			t.Fatal(err)
-		}
-		if string(liveRaw) != string(goldenEntry) {
-			t.Fatalf("манифест %s@%s != golden байт-стабильно", manifests[i].ID, manifests[i].Version)
-		}
+	}
+	if cursor != len(golden.List) {
+		t.Fatalf("golden-последовательность нарушена в реестре: совпало %d из %d", cursor, len(golden.List))
 	}
 }
