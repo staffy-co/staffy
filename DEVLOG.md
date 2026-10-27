@@ -5959,3 +5959,17 @@ done:
 next: пуш фикса БЕЗ маркера → оба рана на новой голове → поллинг до success → pre-merge GET → sha-pinned merge PR #54 → main-ран (CI ×3) → main ff-only → DEVLOG checkpoint-2 → удаление ветки ×3
 владельцу: отозвать PAT после закрытия чата (retro-4-5)
 commit: 838bd84ad422b2e1d6825eb03e81a62ed8be07b8
+
+---
+date: 2026-10-28
+task: 296-checkpoint-2
+role: main (Super Z, сессия web-d497a728)
+story: 7-1
+summary: CHECKPOINT 2 story 7-1 ЗАКРЫТ: PR #54 смержен sha-pinned (pre-merge GET: head 94b024b open mergeable; PUT merge → merge-commit 872ec66, 20 коммитов); CI ×3 ПОИМЁННО success: push-ран ветки 40583012715 + synchronize-ран PR 40583020993 + main push-ран 40584565617; локальный main ff-only 6d1fd85 → 872ec66; слияние принесло на main реестр паков (последующие PR-раны получают реальную append-only базу 7 записей); эпизод CI-последовательности: 2 ремонта шага базы реестра (пустой файл от редиректа → rm -f; безусловный env → GITHUB_ENV только в ветке успеха) — оба пойманы поллингом, логи скачаны живым API, фиксы верифицированы локально до пуша
+done:
+- CI ×3: ветка push + PR synchronize + main push — все success поимённо (дисциплина 4-11)
+- Дорога к merge: PR #54 (head 4440f74 → голова пуша с маркером погасила бы раны — урок 282: восстановление коммитом 293 без маркера); первый прогон пары ранов failed (пустой baseline-файл), второй failed (env без файла), третий — GITHUB_ENV-фикс — оба success; merge sha-pinned
+- main: 872ec66 = merge PR #54; ветка подлежит удалению ×3
+next: удаление ветки ×3 (GitHub DELETE refs/heads + локально -d + update-ref -d при stale) с compare-проверкой behind/ahead_by=0; затем финал: ls-remote только main, RPO=0, check-continuity; следующий слот — SM-фаза story 7-2 «Реестр tools с типизированными контрактами» по сигналу владельца (Epic 7: 1/4)
+владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/PR/merge/DELETE/API сессии)
+commit: 872ec6651bc5ec7e6b2bb2cb529d19cb5989dc9a~PENDING
