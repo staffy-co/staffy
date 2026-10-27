@@ -5860,4 +5860,4 @@ done:
 - Полный живой прогон ДО закрытия шага (урок 5-1 step-04): build/vet OK, unit 34 пакета ok -count=1, 0 FAIL; gofmt новых файлов чист (catalog.go — старая space-аномалия, не тронут)
 next: Dev шаг-02 — loader.go: go:embed registry + индекс + hash-сверка + fail-closed валидация (обязательные поля 17 поимённо; enum-словари платформы {support_status: reference_setup_only; stage: setup; VariantField.Type: string|integer|boolean; Vehicle.Kind: vin|text|integer; Part.Kind: text|integer|enum; review_slots ⊆ connectors|knowledge|behavior}; AtLeastOneOf ⊆ Schema; UpgradeFrom-цели существуют; major без UpgradeFrom = отказ; ReplacementImpact непустой) + матрица отказов 12+ поимённо в loader_test.go; реестр целиком или паника
 владельцу: отозвать PAT после закрытия чата (retro-4-5)
-commit: TBD
+commit: c61ed092c85cb775797c265df5852279951a9e78
