@@ -5933,3 +5933,16 @@ summary: CHECKPOINT 2 story 7-1 ОТКРЫТ: PR #54 создан (head 4440f74,
 next: поллинг ранов до success поимённо, затем merge PR #54 sha-pinned
 владельцу: отозвать PAT после закрытия чата (retro-4-5)
 commit: 08a32ea64b1039edebfa47e47720c9df0ded5d76
+
+---
+date: 2026-10-28
+task: 294-ci-fix-baseline
+role: main (Super Z, сессия web-d497a728)
+story: 7-1
+summary: Ремонт CI шага базы реестра (оба рана 3d5bf10 failed в Go checks): git show origin/main:index.json на main БЕЗ реестра (7-1 не смержена — первая ревизия) неуспешен, НО редирект > создавал ПУСТОЙ файл до проверки → env указывал на пустоту → TestRegistryAppendOnlyBaseline падал «JSON: unexpected end of JSON input»; фикс — rm -f файла в ветке отсутствия (+ страховочный rm -f в начале шага); семантика верифицирована локально: env задан + файла нет = громкий FAIL (fail-closed сигнал о поломке CI-конфига — честно), env не задан = skip; первый merge 7-1 создаёт реестр на main — все последующие PR-раны получают реальную базу 7 записей
+done:
+- Логи скачаны живым API (runs/40582037740/logs → verify/8_Go checks.txt: drift_test.go:153 «базовый индекс: JSON: unexpected end of JSON input»); корень подтверждён логом шага 7 («baseline: отсутствует» при созданном пустом файле)
+- ci.yml хирургический rm -f ×2; yaml валиден живым парсером
+next: пуш фикса БЕЗ маркера → push-ран + synchronize-ран PR #54 на новой голове → поллинг до success → pre-merge GET → sha-pinned merge → main-ран (CI ×3) → main ff-only → DEVLOG checkpoint-2 → удаление ветки ×3
+владельцу: отозвать PAT после закрытия чата (retro-4-5)
+commit: 3d5bf1046a44af0137f8efa9571b23da5aabc27f~PENDING
