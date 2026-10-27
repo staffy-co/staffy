@@ -132,6 +132,23 @@ development_status:
   6-10-инструменты-доказуемого-no-code-onboarding-и-reuse: backlog
   epic-6-retrospective: optional
 
+  epic-7: backlog
+  7-1-декларативный-каталог-domain-pack: backlog
+  7-2-реестр-tools-с-типизированными-контрактами: backlog
+  7-3-mcp-сервер-поверхности-реестра-tools: backlog
+  7-4-внешние-mcp-серверы-как-класс-connector: backlog
+  epic-7-retrospective: optional
+
+  epic-8: backlog
+  epic-8-retrospective: optional
+
+  epic-9: backlog
+  epic-9-retrospective: optional
+
+  epic-10: backlog
+  epic-10-retrospective: optional
+
+
 # Action items из epic-1-retrospective (2026-10-08, коммит см. DEVLOG 29-retro):
 action_items:
   - id: retro-1-1
