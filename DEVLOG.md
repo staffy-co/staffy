@@ -5945,4 +5945,4 @@ done:
 - ci.yml хирургический rm -f ×2; yaml валиден живым парсером
 next: пуш фикса БЕЗ маркера → push-ран + synchronize-ран PR #54 на новой голове → поллинг до success → pre-merge GET → sha-pinned merge → main-ран (CI ×3) → main ff-only → DEVLOG checkpoint-2 → удаление ветки ×3
 владельцу: отозвать PAT после закрытия чата (retro-4-5)
-commit: 3d5bf1046a44af0137f8efa9571b23da5aabc27f~PENDING
+commit: 2211e0b75d2e93957f345d9e6a471fb229a5a6af
