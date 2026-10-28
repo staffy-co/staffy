@@ -6260,3 +6260,20 @@ done:
 next: step-03 — транспорт tools_external.go + страница external_tools.html + OpenAPI +1 path + external_tools_contract_test.go (зеркала) + секреты VerifyCommand в форме/API
 владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API-зонды сессии; передан открытым текстом в чате)
 commit: 03453db61747613d30f330d143f7a5291f2655b2
+
+---
+date: 2026-10-29
+task: 317-dev-step-03-7-4
+role: main (Super Z, сессия web-d497a728)
+story: 7-4
+summary: Dev step-03 story 7-4 — транспортная матрица словаря внешних инструментов: tools_external.go (API + страница read-only за лестницей 3-1/7-2, фейк-инъекция) + external_tools.html (разделы/провенанс/honest-состояния/честные причины) + OpenAPI +1 path и три закрытые схемы + external_tools_contract_test.go (зеркала типизации и состояний)
+done:
+- Транспорт: малформед-путь 404 ПОСЛЕ резолвера (порядок лестницы — тест-пин); 403 словами скоупов ДО материала; 500 инфраструктуры; непривязанная поверхность 404
+- DTO: ExternalToolSectionView/EntryView/ProvenanceView — закрытые формы, схемы записей реюзят ToolSchemaFieldView (платформенный словарь типизации — зеркало дисциплины реестра 7-2)
+- Контракт-тест: типизация ↔ tools.ToolFieldTypes() поимённо; state ↔ [admitted,rejected]; environment ↔ [sandbox,test] (карта класса AG-4); status ↔ машина подключений; additionalProperties false; сводка обязана говорить деривацию/исчезновение/read-only/AR-30/Planner/скоупы
+- Страница: разделы по подключениям, провенанс записей, honest-причины отклонений и пустых разделов, честное пустое состояние тенента без подключений класса, НИ ОДНОЙ формы (строго read-only — тест-пин)
+- УРОК go-тест-фейк: errors.Is требует Unwrap — обёртка скоупов без Unwrap давала 500 вместо 403
+- Прогоны: build/vet OK; unit OK; интеграция ×2 TZ (UTC 69.0s / Moscow 58.9s) OK; diff-check OK
+next: step-04 — fixture-мир external-mcp (external_mcp_fixture.go + тумблеры foreign-revision/oversized/leaky + секреты VerifyCommand форма/API в транспорте) + journey z52 полный сценарий живьём ДО коммита
+владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API-зонды сессии; передан открытым текстом в чате)
+commit: 7519dde68f7e875ca1ff6cd59a2522225a2275b4
