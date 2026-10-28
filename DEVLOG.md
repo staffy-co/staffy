@@ -6041,4 +6041,4 @@ done:
 - полный живой прогон: build/vet зелёные, unit 35 пакетов ok, integration release ok
 next: Dev step-04 — поверхность оператора: transport routes GET /v1/tenants/{id}/tools (list новейших + пин-чтение точной версии) + страница /app/tenants/{id}/tools словарями текстом + OpenAPI +2 path + enum-зеркала + contract_test + journey spec-файл z-серии
 владельцу: отозвать PAT после закрытия чата (retro-4-5)
-commit: TBD
+commit: 1946c79d4a2f73aa294133e3cb708d7c22eec9a3
