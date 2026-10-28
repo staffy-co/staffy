@@ -967,6 +967,16 @@ func main() {
 	// journey world) and the fixture membership ladder of the read
 	// gate (the actionsMembership precedent).
 	server.BindToolsCatalog(newToolsCatalogFixture())
+	// The Story 7.3 wiring: the MCP surface machine over the fixture
+	// world — the REAL registry contracts of 7-2 (all honestly
+	// not_implemented, never exposed) plus the implemented demo contract
+	// of the TEST CONTOUR, the scripted adapter and dependency gate with
+	// the honest toggles (the fixture doors below), the fixture
+	// membership ladder of the 7-2 precedent and the discarded audit
+	// stream (the append-only line is the unit truth; the journey walks
+	// the wire). Production wires the EMPTY adapter registry (AG-4).
+	mcpWorld := newMCPFixtureWorld()
+	server.BindMCP(mcpWorld.service)
 	controls := newControlsFixture()
 	server.BindControls(controls)
 	// The Story 3-4 wiring: the preview world over the LIVE fixture fact
@@ -1349,6 +1359,38 @@ func main() {
 			return
 		}
 		pilotOutcome.reset()
+		w.WriteHeader(http.StatusNoContent)
+	})
+	// The fixture-only MCP dependency rotation switch (Story 7.3): the
+	// z51 journey walks the dynamic half of the AC-3 exposure gate — the
+	// stale rotation closes the demo tool (it disappears from the list,
+	// the call refuses with the state word); the reset returns the
+	// verified fact. Production never exposes it.
+	root.HandleFunc("POST /fixture/mcp-dependency-stale", func(w http.ResponseWriter, r *http.Request) {
+		r.ParseForm()
+		mcpWorld.gate.setStale(r.FormValue("enabled") == "1")
+		w.WriteHeader(http.StatusNoContent)
+	})
+	// The fixture-only MCP adapter leak switch: the scripted adapter adds
+	// an undeclared key to its output — the fail-closed output validation
+	// refuses the whole answer and the internal material never travels
+	// (AC-2). Production never exposes it.
+	root.HandleFunc("POST /fixture/mcp-adapter-leaky", func(w http.ResponseWriter, r *http.Request) {
+		r.ParseForm()
+		mcpWorld.adapter.setLeaky(r.FormValue("enabled") == "1")
+		w.WriteHeader(http.StatusNoContent)
+	})
+	// The fixture-only MCP rate window switch: the low window (3 requests
+	// per minute of the journey clock) serves the 429 + Retry-After leg;
+	// the reset rebuilds the declared production window with fresh
+	// buckets. Production never exposes it.
+	root.HandleFunc("POST /fixture/mcp-rate-low", func(w http.ResponseWriter, r *http.Request) {
+		r.ParseForm()
+		if r.FormValue("enabled") == "1" {
+			mcpWorld.service.WithRateWindow(3, time.Minute, journeyClock)
+		} else {
+			mcpWorld.service.WithRateWindow(120, time.Minute, journeyClock)
+		}
 		w.WriteHeader(http.StatusNoContent)
 	})
 	root.HandleFunc("POST /fixture/recovery-ag4", func(w http.ResponseWriter, r *http.Request) {

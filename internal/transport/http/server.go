@@ -37,6 +37,7 @@ type Clock interface{ Now() time.Time }
 type Server struct {
 	identity            api.Service
 	toolsCatalog        toolsCatalogService
+	mcp                 mcpService
 	actionCatalog       actionAPI.ActionCatalogService
 	actionPreviews      actionAPI.PreviewService
 	orderProposals      actionAPI.OrderProposalService
