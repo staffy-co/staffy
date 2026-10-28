@@ -86,7 +86,12 @@ func TestVerticalWordsAbsentFromCore(t *testing.T) {
 			}
 			if !zone.allGo {
 				switch filepath.Base(filepath.Dir(path)) {
-				case "domain", "app", "port", "store", "tools":
+				// The Story 7-3 zone: internal/mcp is the platform protocol
+				// package — vertically clean by construction (the tool
+				// material travels through the ports), so the probe walks
+				// it with the same zero (the dictionary of phrases does
+				// NOT grow).
+				case "domain", "app", "port", "store", "tools", "mcp":
 				default:
 					return nil
 				}

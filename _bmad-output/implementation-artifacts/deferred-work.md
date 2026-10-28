@@ -330,3 +330,31 @@
 - source_spec: `spec-7-2-typed-tools-registry.md`
   summary: Платформенные tool-контракты (поверх каталога паков/реестра tools) не регистрируются — потребность не доказана (принцип честности capability Монtagio/Avito); по реальному спросу (Planner 8.3, онбординг 10) — артефактом без правки ядра; словарь determinism_class расширяется ТОЛЬКО правкой ядра с явным архитектурным решением.
   evidence: спека 7-2 Boundaries Never (платформенные контракты, расширение словарей артефактами); Implementation Notes словарь классов; перенесено Dev step-05 (2026-10-28).
+
+- source_spec: `spec-7-3-mcp-registry-surface.md`
+  summary: Живые адаптеры вертикальных контрактов на MCP-поверхности — продакшн-реестр адаптеров ПУСТ (AG-4, прецедент nil-адаптеров 3-6/3-7): все 3 контракта реестра 7-2 остаются честно not_implemented (не экспонируются и не вызываемы — двойная честность 7-2 сохранена); первый живой адаптер = НОВАЯ версия артефакта со словом implemented + проводка composition root — по реальному спросу (Planner 8.3 tool-rounds / внешний интегратор).
+  evidence: спека 7-3 Boundaries Never (не регистрировать живые адаптеры); main.go BindMCP с пустым реестром + комментарий AG-4; fixture-мир journeys доказывает машину; перенесено Dev step-01 (2026-10-29).
+
+- source_spec: `spec-7-3-mcp-registry-surface.md`
+  summary: OAuth 2.1 authorization/resource-сервер MCP — вне среза: аутентификация = существующий порт PrincipalResolver (401 до материала); продакшн-PrincipalResolver платформенно не существует (AG-4, контур development/loopback); формальная MCP-авторизация (защищённые ресурс-серверы, аудит-токены) — будущий срез по реальному внешнему спросу.
+  evidence: спека 7-3 Boundaries Never (не строить OAuth 2.1); лестница 401 в service/transport; перенесено Dev step-01 (2026-10-29).
+
+- source_spec: `spec-7-3-mcp-registry-surface.md`
+  summary: Backward-compat handshake-эпохи MCP (клиенты ≤2025-11-25: initialize/initialized, Mcp-Session-Id, SSE-стримы, batch) — не реализуется: ревизия 2026-07-28 удалила ядро handshake (SEP-2575/SEP-2567), чужие ревизии честно отклоняются UnsupportedProtocolVersionError со списком ровно [2026-07-28]; compat-слой — по реальному спросу внешнего интегратора (экосистема мигрирует на stateless-ядро).
+  evidence: спека 7-3 Boundaries Never + I/O-матрица (чужая ревизия = 200 JSON-RPC ошибка со списком); protocol.go пиннинг + тесты; перенесено Dev step-02 (2026-10-29).
+
+- source_spec: `spec-7-3-mcp-registry-surface.md`
+  summary: Durable PG-гроссбух аудита tools/call — вне среза: сегодня аудит = append-only slog-строка (code/tenant/principal/tool@version/verdict+причина/correlation_id); в продакшне вызываемых инструментов НОЛЬ — гроссбух без строк; переносится вместе с первым живым адаптером/принципалом.
+  evidence: спека 7-3 Boundaries (аудит slog-строкой; PG-гроссбух deferred); service.go audit(); перенесено Dev step-02 (2026-10-29).
+
+- source_spec: `spec-7-3-mcp-registry-surface.md`
+  summary: Entitlement-бюджеты MCP-поверхности — интеграция отложена честно: rate = фиксированное окно принципала в памяти (60с/120, 429+Retry-After), бюджет вызова = ctx-таймаут; entitlement-машина (1-11) существует, подключение её лимитов к поверхности — по реальному спросу; in-memory окно — честная односайловая граница (горизонтальный разворот платформы не существует, AG-4; распределение окна = внешний балансировщик будущего развёртывания).
+  evidence: спека 7-3 Boundaries (rate/budget декларированы в коде) + Implementation Notes (окно делится внешним балансировщиком); service.go rateWindow/WithRateWindow/WithCallBudget; перенесено Dev step-01 (2026-10-29).
+
+- source_spec: `spec-7-3-mcp-registry-surface.md`
+  summary: Кэш-слова ttlMs/cacheScope (SEP-2549) НЕ заявляются — экспозиция инструментов зависит от живых доказательств (ротация зависимости → stale → исчезновение): декларирование кэша было бы ложью о стабильности словаря; появятся с durable-гроссбухом и первым живым адаптером, если спрос докажет.
+  evidence: спека 7-3 Boundaries Never (не заявлять ttlMs/cacheScope) + Implementation Notes; discover-ответ заявляет только факт (tools only, listChanged=false); перенесено Dev step-02 (2026-10-29).
+
+- source_spec: `spec-7-3-mcp-registry-surface.md`
+  summary: Уточнение поимённой capability зависимости контракта (гейт сегодня на уровне подключения типа: verified ∃ ∧ failed/stale ∅ ∧ live) — контракт 7-2 не декларирует поле привязки capability (его нет); уточнение до поимённой capability — будущей версией артефакта контракта по спросу (Planner 8.3), осознанным расширением схемы.
+  evidence: спека 7-3 Implementation Notes (гейт на уровне подключения честен; уточнение — будущей версией контракта); toolsdependency.go словарь слов состояний; перенесено Dev step-01 (2026-10-29).
