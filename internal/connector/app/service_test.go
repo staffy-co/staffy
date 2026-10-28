@@ -282,6 +282,16 @@ func (r *connRepo) ListEvidence(_ context.Context, _ tenancy.Context, connection
         return out, nil
 }
 
+// ReadSeal serves the MAC matrix of the external class probes: the active
+// seal of the connection secret (revoked seals never match).
+func (r *connRepo) ReadSeal(_ context.Context, _ tenancy.Context, connectionID, secretID id.UUID) (connectorDomain.Seal, bool, error) {
+        seal, ok := r.seals[secretID]
+        if !ok || seal.ConnectionID != connectionID || seal.RevokedAt != nil {
+                return connectorDomain.Seal{}, false, nil
+        }
+        return *seal, true, nil
+}
+
 func serviceFixture() (*Service, *connRepo) {
         repo := newConnRepo()
         s := New(repo, connIdentity{allowed: true}, stubVerifier{}, connClock{}, &connIDs{})
@@ -301,7 +311,7 @@ func (stubVerifier) BasicCheck(_ context.Context, def connectorDomain.ConnectorD
         return result
 }
 
-func (stubVerifier) Probe(_ context.Context, _ connectorDomain.ConnectorDefinition, dec connectorDomain.CapabilityDeclaration, _ connectorDomain.Environment, _ map[string]string) api.ProbeResult {
+func (stubVerifier) Probe(_ context.Context, _ connectorDomain.ConnectorDefinition, dec connectorDomain.CapabilityDeclaration, _ connectorDomain.Environment, _ map[string]string, _ map[string]string) api.ProbeResult {
         return api.ProbeResult{
                 Outcome:         connectorDomain.EvidenceVerified,
                 DeliveryLevel:   string(connectorDomain.DeliveryDelivered),
@@ -763,5 +773,103 @@ func TestVerifyCapabilityLifecycleGuardsAndIdempotency(t *testing.T) {
                                 t.Fatalf("stale reason must name the rotation: %s", report.StateReason)
                         }
                 }
+        }
+}
+
+
+// TestVerifyCapabilityExternalMACMatrix (Story 7-4 step-01): the probes of
+// the external MCP class run AUTHENTICATED — the key material of the
+// command is MAC-checked against the accepted seal BEFORE any network
+// round. The matrix: the matching key runs the probe and stores evidence;
+// the mismatching key refuses honestly with the MAC words; the missing key
+// refuses with the unauthenticated-round words; the rotation invalidates
+// the prior evidence anchor (the SecretID anchor of Applicable) and the
+// old key stops matching the new seal.
+func TestVerifyCapabilityExternalMACMatrix(t *testing.T) {
+        s, repo := serviceFixture()
+        ctx := context.Background()
+        created, err := s.Create(ctx, api.CreateCommand{
+                Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, IdempotencyKey: "create-key-ext1", CorrelationID: connCorrelation,
+                ConnectorID: "staffy-external-mcp-server", ConnectorVer: "1.0.0", Label: "Внешний MCP-сервер", Environment: connectorDomain.EnvSandbox,
+                Config: map[string]string{"endpoint": "https://demo.sandbox.example"},
+        })
+        if err != nil {
+                t.Fatalf("create: %v", err)
+        }
+        connectionID := created.Connection.ConnectionID
+        if _, err = s.Connect(ctx, connectCommand(connectionID, 1, "connect-key-ext1", "sandbox-external-key")); err != nil {
+                t.Fatalf("connect: %v", err)
+        }
+
+        // The missing key: the unauthenticated round is impossible fail-closed.
+        _, err = s.VerifyCapability(ctx, api.VerifyCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: connectionID, CorrelationID: connCorrelation, Capability: "query.server-discover", IdempotencyKey: "verify-ext-m1"})
+        if err == nil {
+                t.Fatal("проба без секрета обязана отказываться")
+        }
+        var rule connectorDomain.RuleError
+        if !errors.As(err, &rule) || !strings.Contains(rule.Reason, "требует секрет подключения") {
+                t.Fatalf("слова отказа отсутствия ключа: %v", err)
+        }
+        if len(repo.evidence) != 0 {
+                t.Fatalf("evidence не пишется до MAC-проверки: %d", len(repo.evidence))
+        }
+
+        // The mismatching key: the honest MAC refusal BEFORE the network round.
+        _, err = s.VerifyCapability(ctx, api.VerifyCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: connectionID, CorrelationID: connCorrelation, Capability: "query.server-discover", IdempotencyKey: "verify-ext-m2", Secrets: map[string]string{"api_key": "sandbox-wrong-key"}})
+        if err == nil {
+                t.Fatal("несовпадающий ключ обязан отказываться")
+        }
+        if !errors.As(err, &rule) || !strings.Contains(rule.Reason, "не совпадает с принятым подключением") {
+                t.Fatalf("слова отказа MAC: %v", err)
+        }
+        if len(repo.evidence) != 0 {
+                t.Fatalf("evidence не пишется при несовпадении MAC: %d", len(repo.evidence))
+        }
+
+        // The matching key: the probe runs and the evidence is stored.
+        verified, err := s.VerifyCapability(ctx, api.VerifyCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: connectionID, CorrelationID: connCorrelation, Capability: "query.server-discover", IdempotencyKey: "verify-ext-v1", Secrets: map[string]string{"api_key": "sandbox-external-key"}})
+        if err != nil {
+                t.Fatalf("совпадающий ключ обязан допускать пробу: %v", err)
+        }
+        if verified.Report.State != connectorDomain.CapStateVerified || verified.Report.Evidence == nil {
+                t.Fatalf("отчёт пробы: %+v", verified.Report)
+        }
+
+        // The tool-call capability stays honestly un-probeable (declaration ≠
+        // claim): the guard refuses before the MAC check runs.
+        _, err = s.VerifyCapability(ctx, api.VerifyCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: connectionID, CorrelationID: connCorrelation, Capability: "query.tool-call", IdempotencyKey: "verify-ext-t1", Secrets: map[string]string{"api_key": "sandbox-external-key"}})
+        if err == nil {
+                t.Fatal("query.tool-call обязан отказываться (ProbeAllowed=false)")
+        }
+
+        // The rotation: the new seal invalidates the old key AND the prior
+        // evidence anchor (the SecretID of Applicable) — the state reads stale
+        // until a fresh probe.
+        if _, err = s.Rotate(ctx, connectCommand(connectionID, created.Connection.Version+1, "rotate-key-ext1", "sandbox-rotated-key")); err != nil {
+                t.Fatalf("rotate: %v", err)
+        }
+        _, err = s.VerifyCapability(ctx, api.VerifyCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: connectionID, CorrelationID: connCorrelation, Capability: "query.server-discover", IdempotencyKey: "verify-ext-v2", Secrets: map[string]string{"api_key": "sandbox-external-key"}})
+        if err == nil {
+                t.Fatal("старый ключ после ротации обязан не совпадать с новым seal")
+        }
+        if !errors.As(err, &rule) || !strings.Contains(rule.Reason, "не совпадает с принятым подключением") {
+                t.Fatalf("слова отказа ротации: %v", err)
+        }
+        state, err := s.CapabilityState(ctx, identityDomain.Principal{ID: connActor}, connTenant, connectionID)
+        if err != nil {
+                t.Fatalf("state: %v", err)
+        }
+        for _, report := range state.Capabilities {
+                if report.ID == "query.server-discover" && report.State != connectorDomain.CapStateStale {
+                        t.Fatalf("evidence после ротации обязан читаться stale: %+v", report)
+                }
+        }
+        // The rotated key re-opens the probe; the state returns to verified.
+        reVerified, err := s.VerifyCapability(ctx, api.VerifyCommand{Actor: identityDomain.Principal{ID: connActor}, TenantID: connTenant, ConnectionID: connectionID, CorrelationID: connCorrelation, Capability: "query.server-discover", IdempotencyKey: "verify-ext-v3", Secrets: map[string]string{"api_key": "sandbox-rotated-key"}})
+        if err != nil {
+                t.Fatalf("ротированный ключ обязан допускать пробу: %v", err)
+        }
+        if reVerified.Report.State != connectorDomain.CapStateVerified {
+                t.Fatalf("повторная проба обязана вернуть verified: %+v", reVerified.Report)
         }
 }

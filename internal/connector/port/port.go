@@ -85,4 +85,10 @@ type Repository interface {
         // a matching record replays the immutable version snapshot of the command,
         // a different request hash is an honest conflict. No audit side effects.
         LookupCommand(ctx context.Context, scope tenancy.Context, operation, key, hash string) (connectorDomain.Connection, bool, error)
+        // ReadSeal reads the ACTIVE seal envelope (sealed, seal_key) of one
+        // connection secret (Story 7-4): revoked seals never match. The read
+        // serves ONLY the MAC verification of the external-class probes — the
+        // key is used for the constant-time equality check inside the verify
+        // call and never leaves it.
+        ReadSeal(ctx context.Context, scope tenancy.Context, connectionID, secretID id.UUID) (connectorDomain.Seal, bool, error)
 }

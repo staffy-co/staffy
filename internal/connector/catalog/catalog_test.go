@@ -30,10 +30,12 @@ func TestCatalogListsEveryPublishedDefinition(t *testing.T) {
 }
 
 func TestCatalogOnlySyntheticConnectorIsConnectable(t *testing.T) {
+	// Story 7-4: the external MCP class joins the connectable set — the
+	// client machine and the probe router are REAL production code.
 	for _, d := range List() {
-		if d.ID == "staffy-synthetic-telephony" {
+		if d.ID == "staffy-synthetic-telephony" || d.ID == "staffy-external-mcp-server" {
 			if !d.Connectable() {
-				t.Fatal("synthetic telephony must be connectable")
+				t.Fatalf("%s must be connectable", d.ID)
 			}
 			continue
 		}

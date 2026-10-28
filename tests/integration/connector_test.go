@@ -33,13 +33,14 @@ func TestConnectionLifecycleCatalogRLSIdempotencyAndSecretSealing(t *testing.T) 
         corr := id.MustParse("01994f64-6c00-7000-8000-00000000e301")
         svc := connectorService(identity, ids)
 
-        // Catalog is tenant-scoped and only the synthetic connector is connectable.
+        // Catalog is tenant-scoped; the synthetic telephony and the external
+        // MCP class (Story 7-4) are the two connectable adapters.
         defs, err := svc.Catalog(ctx, owner, tenant)
         if err != nil || len(defs) < 7 {
                 t.Fatalf("catalog=%d err=%v", len(defs), err)
         }
         for _, d := range defs {
-                if d.ID != "staffy-synthetic-telephony" && d.Connectable() {
+                if d.ID != "staffy-synthetic-telephony" && d.ID != "staffy-external-mcp-server" && d.Connectable() {
                         t.Fatalf("%s must not be connectable", d.ID)
                 }
         }

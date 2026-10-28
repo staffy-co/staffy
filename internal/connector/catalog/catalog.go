@@ -736,6 +736,77 @@ var definitions = []domain.ConnectorDefinition{
 		DocumentationURL:    "https://exolve.ru/",
 		Fields:              []domain.FieldSchema{},
 	},
+	{
+		// Spec 7-4 (первый срез «Внешние MCP-серверы как класс Connector»):
+		// класс «внешний MCP-сервер» — реальный продакшн-адаптер (клиентская
+		// машина internal/mcpclient + MAC-проверенная проба роутера
+		// connectorprobe), НЕ синтетика. Карта разрешает окружения ровно
+		// {sandbox, test} — production отсутствует (AG-4 fail-closed на
+		// классе). Пять capabilities: две живые read-only пробы (обнаружение
+		// сервера и словарь инструментов — источник инвентаря), вызов
+		// инструмента заявлен ProbeAllowed=false (машина доказана
+		// тест-контуром, потребитель — Planner 8.3: declaration ≠ claim),
+		// мутация внешней системы — заблокированное Connector capability за
+		// Action Gateway, входящее событие — честно нереализованное
+		// (stateless-клиент подписок не открывает).
+		ID:                  "staffy-external-mcp-server",
+		Version:             "1.0.0",
+		Type:                domain.TypeBusiness,
+		Name:                "Staffy External MCP Server",
+		Purpose:             "Внешний MCP-сервер как класс Connector (первый срез 7-4): подключение внешнего сервера read-tools по ревизии протокола MCP 2026-07-28 — живые пробы с ключом из команды проверки (MAC против принятого seal), тенент-скоупед словарь read-tools с деривацией из фактов и машина вызова под Planner 8.3. Продакшн-окружение на карте отсутствует (AG-4).",
+		SupportStatus:       domain.StatusSupported,
+		AdapterImplemented:  true,
+		AllowedEnvironments: []domain.Environment{domain.EnvSandbox, domain.EnvTest},
+		RequiredAccountType: "external-mcp",
+		DocumentationURL:    "https://docs.bmad-method.org/",
+		Fields: []domain.FieldSchema{
+			{Name: "endpoint", Label: "Endpoint", Type: domain.FieldURL, Required: true, Description: "Адрес внешнего MCP-сервера (https://…): stateless-ядро ревизии 2026-07-28 — одиночные JSON-RPC POST server/discover | tools/list | tools/call."},
+			{Name: "server_label", Label: "Метка сервера", Type: domain.FieldText, Required: false, Description: "Понятное имя внешнего сервера"},
+			{Name: "api_key", Label: "API-ключ (sandbox)", Type: domain.FieldText, Required: true, Secret: true, Description: "Формат sandbox-… Значение принимается один раз и больше не показывается; пробы требуют ключ в команде проверки (MAC-проверка до сети)."},
+		},
+		Capabilities: []domain.CapabilityDeclaration{
+			{
+				ID: "query.server-discover", Title: "Обнаружение сервера", Description: "Живой раунд server/discover: переговоры ревизии протокола (ровно 2026-07-28) и идентичность внешнего сервера (read-only).",
+				Direction: domain.DirectionOutbound, Operation: domain.OperationQuery,
+				TimeoutMS: 10000, Ordering: "unordered", RateLimit: "30 запросов/мин", SizeLimit: "256 КиБ ответа",
+				Idempotent: false, Receipt: "query_result", ReceiptLevel: domain.DeliveryDelivered,
+				CancelCompensation: "не применимо (read-only)", Reconciliation: "не требуется (read-only)", ReconciliationOwner: "Technical Lead",
+				ProbeAllowed: true,
+			},
+			{
+				ID: "query.tools-list", Title: "Словарь инструментов сервера", Description: "Живые раунды server/discover + tools/list: фильтрованный инвентарь read-tools внешнего сервера — источник тенент-скоупед словаря (read-only).",
+				Direction: domain.DirectionOutbound, Operation: domain.OperationQuery,
+				TimeoutMS: 10000, Ordering: "unordered", RateLimit: "30 запросов/мин", SizeLimit: "256 КиБ инвентаря",
+				Idempotent: false, Receipt: "query_result", ReceiptLevel: domain.DeliveryDelivered,
+				CancelCompensation: "не применимо (read-only)", Reconciliation: "не требуется (read-only)", ReconciliationOwner: "Technical Lead",
+				ProbeAllowed: true,
+			},
+			{
+				ID: "query.tool-call", Title: "Вызов инструмента сервера", Description: "Машина вызова (strict вход/выход, credential-агностичная) доказана тест-контуром; HTTP-поверхности вызова нет — потребитель закреплён за Planner 8.3. Проверка этой capability не выполняется: declaration ≠ claim.",
+				Direction: domain.DirectionOutbound, Operation: domain.OperationQuery,
+				TimeoutMS: 10000, Ordering: "unordered", RateLimit: "30 вызовов/мин", SizeLimit: "256 КиБ ответа",
+				Idempotent: false, Receipt: "typed_result", ReceiptLevel: domain.DeliveryDelivered,
+				CancelCompensation: "не применимо (read-only)", Reconciliation: "не требуется (read-only)", ReconciliationOwner: "Technical Lead",
+				ProbeAllowed: false,
+			},
+			{
+				ID: "command.external-tool", Title: "Мутация внешней системы", Description: "Мутирующая операция внешнего инструмента; заблокирована до Action Gateway — семейство честно закрыто, write-инструмент не существует ни как запись словаря, ни как инструмент модели.",
+				Direction: domain.DirectionOutbound, Operation: domain.OperationCommand,
+				TimeoutMS: 10000, Ordering: "fifo", RateLimit: "30 команд/мин", SizeLimit: "256 КиБ полезной нагрузки",
+				Idempotent: false, Receipt: "accepted → delivered → committed", ReceiptLevel: domain.DeliveryCommitted,
+				CancelCompensation: "отмена недоступна; компенсация не поддерживается до AG-среза внешних мутаций", Reconciliation: "query_reconcilable по словарю внешнего сервера (будущий AG-срез)", ReconciliationOwner: "Technical Lead",
+				ProbeAllowed: false,
+			},
+			{
+				ID: "event.server-message", Title: "Сообщение сервера", Description: "Приём события внешнего сервера; путь не реализован в текущем срезе — stateless-клиент подписок не открывает (ревизия 2026-07-28), честное состояние без ложного успеха.",
+				Direction: domain.DirectionInbound, Operation: domain.OperationEvent,
+				TimeoutMS: 5000, Ordering: "fifo", RateLimit: "120 событий/мин", SizeLimit: "16 КиБ события",
+				Idempotent: false, Receipt: "event_ack", ReceiptLevel: domain.DeliveryAccepted,
+				CancelCompensation: "не применимо (inbound)", Reconciliation: "дедупликация по event_id на стороне staffy", ReconciliationOwner: "Technical Lead",
+				ProbeAllowed: false,
+			},
+		},
+	},
 }
 
 // List returns a defensive copy of the newest published version of every

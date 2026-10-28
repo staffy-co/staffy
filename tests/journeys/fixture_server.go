@@ -598,7 +598,7 @@ func (f *connectorFixture) VerifyCapability(_ context.Context, c connectorAPI.Ve
 		}
 	}
 	now := time.Now().UTC()
-	probe := fixtureVerifier.Probe(context.Background(), def, dec, current.Environment, current.Config)
+	probe := fixtureVerifier.Probe(context.Background(), def, dec, current.Environment, current.Config, c.Secrets)
 	row := connectorDomain.CapabilityEvidence{
 		TenantID: tenantID, EvidenceID: fixtureEvidenceID, ConnectionID: current.ConnectionID, SecretID: current.SecretID,
 		Environment: current.Environment, ContractVersion: current.ConnectorVer, AdapterBuild: fixtureVerifier.Build(),

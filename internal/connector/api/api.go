@@ -50,11 +50,19 @@ type RevokeCommand struct {
 // VerifyCommand runs the safe read-only probe for one declared capability of
 // one connection. The idempotency key replays the same evidence instead of
 // producing contradictory rows.
+// VerifyCommand runs the safe read-only probe for one declared capability of
+// one connection. The idempotency key replays the same evidence instead of
+// producing contradictory rows. The Secrets member (Story 7-4) carries the
+// probe key material of the external MCP class: in-memory only — the service
+// MAC-checks it against the accepted seal BEFORE any network round, and the
+// material is never persisted, never logged and never echoed (the 1-8
+// invariant).
 type VerifyCommand struct {
 	Actor                            domain.Principal
 	TenantID, ConnectionID, CorrelationID id.UUID
 	Capability                       string
 	IdempotencyKey                   string
+	Secrets                          map[string]string
 }
 
 type CreateResult struct {
@@ -92,7 +100,7 @@ type CapabilityStateResult struct {
 // provider responses in every result.
 type Verifier interface {
 	BasicCheck(ctx context.Context, def connectorDomain.ConnectorDefinition, env connectorDomain.Environment, config map[string]string, secrets map[string]string) connectorDomain.CheckResult
-	Probe(ctx context.Context, def connectorDomain.ConnectorDefinition, dec connectorDomain.CapabilityDeclaration, env connectorDomain.Environment, config map[string]string) ProbeResult
+	Probe(ctx context.Context, def connectorDomain.ConnectorDefinition, dec connectorDomain.CapabilityDeclaration, env connectorDomain.Environment, config map[string]string, secrets map[string]string) ProbeResult
 	Build() string
 }
 

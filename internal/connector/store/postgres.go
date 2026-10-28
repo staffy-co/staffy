@@ -629,6 +629,34 @@ func (s *Postgres) ListEvidence(ctx context.Context, scope tenancy.Context, conn
         return out, tx.Commit(ctx)
 }
 
+// ReadSeal reads the ACTIVE seal envelope of one connection secret (the
+// narrow read of the MAC verification, Story 7-4): exactly the existing
+// columns of the existing table — 0 migrations. The read runs inside the
+// scoped transaction (the RLS tenant context of the platform), revoked
+// seals never match and a missing row is the honest not-found.
+func (s *Postgres) ReadSeal(ctx context.Context, scope tenancy.Context, connectionID, secretID id.UUID) (connectorDomain.Seal, bool, error) {
+        tx, err := s.begin(ctx, scope, true)
+        if err != nil {
+                return connectorDomain.Seal{}, false, err
+        }
+        defer func() { _ = tx.Rollback(ctx) }()
+        var seal connectorDomain.Seal
+        err = tx.QueryRow(ctx, "select sealed, seal_key, created_at from connector.secret_seals where tenant_id=$1 and connection_id=$2 and secret_id=$3 and revoked_at is null", scope.TenantID(), connectionID, secretID).Scan(&seal.Sealed, &seal.Key, &seal.CreatedAt)
+        if errors.Is(err, pgx.ErrNoRows) {
+                return connectorDomain.Seal{}, false, nil
+        }
+        if err != nil {
+                return connectorDomain.Seal{}, false, err
+        }
+        if err = tx.Commit(ctx); err != nil {
+                return connectorDomain.Seal{}, false, err
+        }
+        seal.TenantID = scope.TenantID()
+        seal.ConnectionID = connectionID
+        seal.SecretID = secretID
+        return seal, true, nil
+}
+
 type evidenceRow interface {
         Scan(dest ...any) error
 }
