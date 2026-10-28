@@ -6068,4 +6068,4 @@ done:
 - саморевью по диффу: 28 файлов +4622/−1625; 0 SQL-миграций; замороженные машины не тронуты; существующие неформатированные файлы (order_status) вне среза — не тронуты
 next: CHECKPOINT 2 — PR (scripts/pr_story_7_2.py по прецеденту 5-1/7-1) → CI ×3 поимённо (push ветки + synchronize PR + push main) → sha-pinned merge → main ff-only → DEVLOG checkpoint-2 → удаление ветки ×3 (compare behind/ahead_by=0 → DELETE → GET 404 → локально -d); Epic 7: 2/4
 владельцу: отозвать PAT после закрытия чата (retro-4-5)
-commit: TBD
+commit: 02ae5b8e9881cad3b631341272dcb21eb95810c0
