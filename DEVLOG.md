@@ -6096,3 +6096,16 @@ done:
 next: CHECKPOINT 1 — предъявление спеки владельцу финальным ответом; по явному «одобряю»/«продолжайте» на предъявление (52-sm): флип backlog → ready-for-dev синхронно одним коммитом (спека + sprint-status ключ 7-3-mcp-сервер-поверхности-реестра-tools; epic-7 остаётся in-progress — урок 3-1) → Dev шаги 01-05 → CHECKPOINT 2 (PR → CI ×3 поимённо → sha-pinned merge → main ff-only → DEVLOG → удаление ветки ×3; Epic 7: 3/4)
 владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API-зонды сессии; передан открытым текстом в чате)
 commit: d57d2db6a389908e3e0e3b2d0c11ad305c340699
+
+---
+date: 2026-10-29
+task: 306-checkpoint-1-7-3
+role: main (Super Z, сессия web-d497a728)
+story: 7-3
+summary: CHECKPOINT 1 story 7-3 ЗАКРЫТ: одобрение владельца получено («продолжайте» в ответ на предъявление спеки — дисциплина 52-sm); верификация SM-фазы после сброса контекста живыми зондами (ветка codex/story-7-3-mcp-registry-surface @ 1704377, CI-ран 40715512611 — completed/success поимённо, синхронность спека/sprint-status/DEVLOG 305, локальная гигиена чекаута: main ff → a798161, слитая 7-2-ветка удалена); флип status backlog → ready-for-dev синхронно одним коммитом (спека + Spec Change Log + sprint-status 7-3-mcp-сервер-поверхности-реестра-tools; epic-7 остаётся in-progress; урок 3-1); Dev шаги 01-05 открыты
+done:
+- предъявление спеки доставлено владельцу финальным ответом окна verify-7-3-sm-after-reset (протокол «расхождение источников → верь git»: сводка сброса была СТАЛОЙ — живые зонды ls-remote/API/CI поимённо до предъявления)
+- CI-вердикт SM-головы зафиксирован здесь: ран 40715512611 на 1704377 (push, .github/workflows/ci.yml) — completed / success; TBD-фиксация 305 (1704377) остаётся головой протокольной чистоты ветки
+next: Dev шаги 01-05 (01 носители протокола + проводка: internal/mcp protocol/ports/service + adapters/toolssource + toolsdependency + transport BindMCP каркас + main.go ПУСТОЙ реестр AG-4; 02 методы discover/list/call + гейт 4 ветви + strict-валидация вход/выход + projection + структурный тест write-невозможности; 03 транспорт полная матрица + OpenAPI +1 path + контракт-тест зеркал; 04 fixture-мир + scripted MCP-клиент journey z{51} живьём до коммита; 05 drift-зона +mcp + QA-closure: спека done + sprint-status done + feat БЕЗ [skip ci]) → CHECKPOINT 2 (PR → CI ×3 поимённо → sha-pinned merge → main ff-only → DEVLOG → удаление ветки ×3; Epic 7: 3/4)
+владельцу: отозвать PAT после закрытия чата (retro-4-5)
+commit: TBD

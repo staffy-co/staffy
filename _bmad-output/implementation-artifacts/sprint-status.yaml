@@ -135,7 +135,7 @@ development_status:
   epic-7: in-progress
   7-1-декларативный-каталог-domain-pack: done
   7-2-реестр-tools-с-типизированными-контрактами: done
-  7-3-mcp-сервер-поверхности-реестра-tools: backlog
+  7-3-mcp-сервер-поверхности-реестра-tools: ready-for-dev
   7-4-внешние-mcp-серверы-как-класс-connector: backlog
   epic-7-retrospective: optional
 
