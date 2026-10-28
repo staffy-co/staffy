@@ -1,0 +1,45 @@
+{{define "tools"}}
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Реестр инструментов · Staffy</title><link rel="stylesheet" href="/assets/app.css"></head>
+<body><a class="skip-link" href="#main">К основному содержанию</a><header class="topbar"><a class="brand" href="/app/tenants/{{.TenantID}}">Staffy</a><strong>Пространство → Реестр инструментов</strong></header>
+<div class="shell"><nav aria-label="Основная навигация"><a href="/app/tenants/{{.TenantID}}">Сегодня</a><a href="/app/tenants/{{$.TenantID}}/people">Участники</a></nav><main id="main"><section class="panel"><h1>Реестр инструментов</h1>
+<p>Типизированные контракты инструментов платформы: версии закреплены sha256-пинами append-only индекса, классы детерминированности и статусы адаптеров объявлены честно. Класс детерминированности платформы — deterministic_read, единственное значение: write-инструмент структурно невозможен, расширение словаря — только правкой ядра. Чтение требует полномочия integrations или configuration. Исполнения вызовов в этом срезе не существует: регистрация контракта ≠ доступность вызова (диспетчеризация — Planner/MCP-сервер будущих срезов).</p>
+{{if .HasCards}}
+<ul class="action-catalog">
+{{range .Cards}}
+<li class="action-card">
+<strong>{{.Name}}</strong>
+<span>Идентификатор: {{.ID}} · версия {{.Version}}</span>
+<span>Класс детерминированности: <strong>{{.Determinism}}</strong></span>
+<span>Состояние адаптера: <strong>{{.AdapterStatus}}</strong>{{if eq .AdapterStatus "not_implemented"}} — объявлен, но вызов невозможен{{end}}</span>
+<span>Владелец: {{.Owner}}</span>
+<span>Доказательство: {{.EvidenceRef}}</span>
+{{if .DependencyText}}<span>Зависимость: коннектор типа {{.DependencyText}}</span>{{else}}<span>Зависимости: нет (самодостаточный контракт)</span>{{end}}
+<span>Назначение: {{.Purpose}}</span>
+{{if or .HasInputKeys .HasOutputKeys}}
+<details class="action-schema"><summary>Типизированные схемы</summary>
+{{if .HasInputKeys}}
+<h3>Входные ключи</h3>
+<ul class="action-fields">
+{{range .InputRows}}
+<li><strong>{{.Label}}</strong> ({{.Name}}): тип {{.Type}}{{if .Bounds}}, границы {{.Bounds}}{{end}}{{if .Values}}, значения: {{.Values}}{{end}}, необязательный: {{.Optional}}</li>
+{{end}}
+</ul>
+{{end}}
+{{if .HasOutputKeys}}
+<h3>Выходные ключи</h3>
+<ul class="action-fields">
+{{range .OutputRows}}
+<li><strong>{{.Label}}</strong> ({{.Name}}): тип {{.Type}}{{if .Bounds}}, границы {{.Bounds}}{{end}}{{if .Values}}, значения: {{.Values}}{{end}}, необязательный: {{.Optional}}</li>
+{{end}}
+</ul>
+{{end}}
+</details>
+{{end}}
+</li>
+{{end}}
+</ul>
+{{else}}
+<p class="empty-state">{{.EmptyText}}</p>
+{{end}}
+</section></main></div></body></html>
+{{end}}

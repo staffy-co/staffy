@@ -6042,3 +6042,17 @@ done:
 next: Dev step-04 — поверхность оператора: transport routes GET /v1/tenants/{id}/tools (list новейших + пин-чтение точной версии) + страница /app/tenants/{id}/tools словарями текстом + OpenAPI +2 path + enum-зеркала + contract_test + journey spec-файл z-серии
 владельцу: отозвать PAT после закрытия чата (retro-4-5)
 commit: 1946c79d4a2f73aa294133e3cb708d7c22eec9a3
+
+---
+date: 2026-10-28
+task: 302-dev-step-04-7-2
+role: main (Super Z, сессия web-d497a728)
+story: 7-2
+summary: Dev step-04 story 7-2 — поверхность оператора: internal/tools/service.go read-gate FIRST (MembershipService-порт, лестница 3-1: не-member ErrNotFound ДО материала, member без integrations|configuration ErrForbidden со словами скоупов; List новейших честным semver-сравнением, Get пин-чтение) + transport tools_catalog.go (GET /v1/tenants/{id}/tools list + пин-чтение {tool_id}/{tool_version} + страница /app/tenants/{id}/tools; строгий decode пина: charset [a-z0-9._-] 1..120 + semver-core тройка без leading zero — малформед = честный 404 ДО сервиса; problem-мэппинг с честным 500; honest empty state AG-4) + интерфейс toolsCatalogService в Server (фейк-инъекция прецедента 3-1) + main.go wiring (production tools.NewCatalogService(identityService)) + шаблон tools.html (словари текстом: классы/статусы/зависимости/владельцы, details/summary progressive disclosure, skip-link/320px/секреты 0) + OpenAPI +2 path + schema ToolContractView/ToolSchemaFieldView с enum-зеркалами (determinism_class [deterministic_read] ЕДИНСТВЕННОЕ, adapter_status [implemented, not_implemented], типы [string, integer, boolean]) + публичные словари DeterminismClasses/AdapterStatuses/ToolFieldTypes в internal/tools (зеркальные источники) + contract-тест зеркал (400 запрещён, мутационные методы отсутствуют, паттерны пинов, required-список) + journey z55 tools-registry.spec.ts (живые 3 контракта, not_implemented слова, пин, малформед ×8, кросс-тенант 404, оператор 403 словами до материала, a11y 320px) + tools_registry_fixture.go (toolsMembership лестница прецедента actionsMembership; реестр = production embed, фикстурного словаря нет)
+done:
+- УРОК html/template: «+» экранируется в «&#43;» — проверки фраз со спецсимволами брать без них («артефакт», «индексная запись» отдельно); httptest.NewRequest падает на пробеле в path — малформед-кейсы с uppercase/charset
+- journey прогнан живьём локально (1 passed 1.6s) до коммита — поверхность реально отвечает в fixture-мире
+- полный живой прогон: build/vet зелёные, unit 35 ok, contracts/openapi ok
+next: Dev step-05 — drift-CI (ci.yml +tools-база append-only GITHUB_ENV-паттерном 7-1; словарь вертикального зонда + фразы артефактов tools + зона +internal/tools) + СИМУЛЯЦИЯ PR внешнего автора (+tool-артефакт +запись индекса, 0 правок .go, полный сьют, откат) + финальный регресс всех контуров (build/vet, unit -count=1, интеграция ×2 TZ, journeys серийно) + спека done + sprint-status done (epic-7 in-progress 2/4) + deferred-work honest-границы + коммит feat БЕЗ маркера пропуска
+владельцу: отозвать PAT после закрытия чата (retro-4-5)
+commit: TBD
