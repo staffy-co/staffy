@@ -6108,4 +6108,4 @@ done:
 - CI-вердикт SM-головы зафиксирован здесь: ран 40715512611 на 1704377 (push, .github/workflows/ci.yml) — completed / success; TBD-фиксация 305 (1704377) остаётся головой протокольной чистоты ветки
 next: Dev шаги 01-05 (01 носители протокола + проводка: internal/mcp protocol/ports/service + adapters/toolssource + toolsdependency + transport BindMCP каркас + main.go ПУСТОЙ реестр AG-4; 02 методы discover/list/call + гейт 4 ветви + strict-валидация вход/выход + projection + структурный тест write-невозможности; 03 транспорт полная матрица + OpenAPI +1 path + контракт-тест зеркал; 04 fixture-мир + scripted MCP-клиент journey z{51} живьём до коммита; 05 drift-зона +mcp + QA-closure: спека done + sprint-status done + feat БЕЗ [skip ci]) → CHECKPOINT 2 (PR → CI ×3 поимённо → sha-pinned merge → main ff-only → DEVLOG → удаление ветки ×3; Epic 7: 3/4)
 владельцу: отозвать PAT после закрытия чата (retro-4-5)
-commit: TBD
+commit: aaa1bb3af5e0493c3ae2154485a68ccd5a324b01
