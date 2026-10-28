@@ -6082,3 +6082,17 @@ done:
 - next: удаление ветки ×3 (GitHub DELETE refs/heads + локально -d + update-ref -d при stale) с compare-проверкой behind/ahead_by=0; затем финал: ls-remote только main, RPO=0, check-continuity; следующий слот — SM-фаза story 7-3 «MCP-сервер поверхности реестра tools» по сигналу владельца
 владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/PR/merge/API сессии; передан открытым текстом в чате)
 commit: e8d9dee16657e70dc4c9b87b6902bff8e6bd09aa
+
+---
+date: 2026-10-28
+task: 305-sm-7-3
+role: main (Super Z, сессия web-d497a728)
+story: 7-3
+summary: SM-фаза story 7-3 «MCP-сервер поверхности реестра tools» — спека первого среза создана на ветке codex/story-7-3-mcp-registry-surface: протокольная машина MCP по ТЕКУЩЕЙ ревизии 2026-07-28 (stateless-ядро: handshake/Mcp-Session-Id удалены протоколом; server/discover + tools/list + tools/call; заголовки Mcp-Method/Mcp-Name сверяются с телом; версии _meta+MCP-Protocol-Version; stdlib без SDK) за лестницей членства 3-1/7-2 + гейт экспозиции AC-1 (артефакт implemented ∧ рантайм-адаптер ∧ живая зависимость verified без failed/stale; продакшн-адаптеров НЕТ — honest empty AG-4, машина в fixture-мире journeys; ротация → stale → исчезновение из словаря = закрытие динамической половины AC-3 спеки 7-2) + путь вызова через контракт реестра 7-2 (пин id@version, strict-валидация входа И выхода по словарю типизации, пин версии в content, write структурно невозможен) + rate/budget декларированы (256 KiB/413, окно принципала/429+Retry-After, ctx-бюджет) + аудит slog-строкой (PG-гроссбух deferred) + тотальная проекция словаря типизации в JSON Schema MCP-провода + scripted MCP-клиент journey z{51} + drift-зона +internal/mcp + проводка main.go BindMCP с пустым реестром адаптеров; 0 SQL; 0 правок internal/tools
+done:
+- Входы живым чтением: epics.md Story 7.3 (AC ×4) + Epic 7 Требования/Граница + Ревизия 1; ARCHITECTURE-SPINE AD-5/AD-6/AD-7/AD-10/AD-11; AR-17 (epics.md:172); субстрат 7-2 живым чтением (contract.go/loader.go/catalog.go/service.go/tools_catalog.go); словарь состояний коннекторов 1-8 (DeriveCapabilityStates: verified/stale/failed; ConnectionFacts несёт connector_type); лестница 3-1; deferred-work хвост 7-2 (исполнение/probe → 7.3); актуальность ревизии MCP проверена внешним поиском (WebSearch): current = 2026-07-28 — stateless-ядро (SEP-2575/SEP-2567), server/discover, Mcp-Method/Mcp-Name (SEP-2243), кэш-слова (SEP-2549); предыдущие 2025-11-25/2025-06-18 — handshake-эпоха
+- Зонды: MCP/JSON-RPC в коде нет; УСТАНОВЛЕН git-факт: BindToolsCatalog в cmd/staffy-core/main.go НЕТ (7-2 закрыт по спеке «cmd — 0 изменений»; фраза DEVLOG 302 «main.go wiring (production tools.NewCatalogService)» НЕТОЧНА — NewCatalogService инстанцируется только в tests/journeys/tools_registry_fixture.go; расхождение зафиксировано здесь correction-записью по протоколу «верь git»)
+- Спека ~105 строк (status backlog, route employee, baseline a798161, 7 контекстов); I/O-матрица 23 кейса; шаги 01-05
+next: CHECKPOINT 1 — предъявление спеки владельцу финальным ответом; по явному «одобряю»/«продолжайте» на предъявление (52-sm): флип backlog → ready-for-dev синхронно одним коммитом (спека + sprint-status ключ 7-3-mcp-сервер-поверхности-реестра-tools; epic-7 остаётся in-progress — урок 3-1) → Dev шаги 01-05 → CHECKPOINT 2 (PR → CI ×3 поимённо → sha-pinned merge → main ff-only → DEVLOG → удаление ветки ×3; Epic 7: 3/4)
+владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API-зонды сессии; передан открытым текстом в чате)
+commit: TBD
