@@ -3285,6 +3285,71 @@ paths:
         '401': { $ref: '#/components/responses/Problem' }
         '403': { $ref: '#/components/responses/Problem' }
         '404': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/mcp:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+    post:
+      operationId: callMcpSurface
+      summary: 'MCP-поверхность реестра tools (7.3, первый срез): единый машинный endpoint по ревизии MCP 2026-07-28 — stateless-ядро (handshake initialize/initialized и Mcp-Session-Id удалены протоколом; batch = invalid request; GET/DELETE = 405). Методы server/discover + tools/list + tools/call за лестницей членства (нет личности = 401 резолвера, не-member = честный 404, member без скоупов integrations|configuration = 403 со словами ДО протокольного материала). Гейт экспозиции fail-closed: артефакт implemented ∧ determinism_class = deterministic_read (write структурно невозможен — проверяется НА слое) ∧ адаптер зарегистрирован composition root ∧ зависимость жива по словарю состояний подключений 1-8; продакшн-адаптеров НОЛЬ — honest empty AG-4. Заголовки Mcp-Method/Mcp-Name/MCP-Protocol-Version сверяются с телом (рассинхрон = 400 invalid request); заявка ревизии обязательна в _meta каждого сообщения и заголовком, чужая ревизия = 200 JSON-RPC UnsupportedProtocolVersionError со списком ровно [2026-07-28]. Тело ≤ 256 KiB (413), Content-Type application/json (415), фиксированное окно запросов на принципала (429 + Retry-After), ctx-бюджет вызова; аудит каждого tools/call slog-строкой'
+      x-staffy-principal-required: true
+      parameters:
+        - name: Mcp-Method
+          in: header
+          required: true
+          description: 'Заявка маршрутизации (SEP-2243): сверяется с методом тела — рассинхрон = 400 invalid request'
+          schema: { type: string, enum: [server/discover, tools/list, tools/call] }
+        - name: Mcp-Name
+          in: header
+          required: false
+          description: 'Имя инструмента: обязателен и сверяется с params.name только на tools/call; на прочих методах его быть не должно'
+          schema: { type: string, minLength: 1 }
+        - name: MCP-Protocol-Version
+          in: header
+          required: true
+          description: 'Заявка ревизии протокола: сверяется с _meta.protocolVersion тела — отсутствие/рассинхрон = 400 invalid request'
+          schema: { type: string, enum: ['2026-07-28'] }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/McpRequestEnvelope' }
+      responses:
+        '200':
+          description: 'Единственная форма JSON-RPC ответа (result ИЛИ error): успех методов; протокольные ошибки — метод не существует (-32601), invalid params (-32602), UnsupportedProtocolVersionError со списком ровно [2026-07-28]; tool execution errors — isError=true с поимёнными словами полей (SEP-1303, модель самокорректируется), выход валидируется fail-closed (AC-2)'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/McpResponseEnvelope' }
+        '202':
+          description: 'Уведомление (сообщение без id) принято без действия — тело пусто; отмена in-flight в stateless-ядре не гарантируется (202 без действия — честно)'
+        '400':
+          description: 'Невалидный конверт или заявки маршрутизации: batch старой эпохи, малформед-JSON, закрытая верхняя форма, словарь id (string|number), параметры не объект, рассинхрон Mcp-Method/Mcp-Name/версии — телом JSON-RPC ошибка; HTTP-ошибки лестницы и бюджетов несут problem-контракт платформы'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/McpResponseEnvelope' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { description: 'Member без скоупов integrations|configuration — слова скоупов ДО единого байта JSON-RPC', content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '404': { $ref: '#/components/responses/Problem' }
+        '413': { description: 'Тело поверх декларированного бюджета 256 KiB', content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '415': { description: 'Content-Type обязан быть application/json', content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '429':
+          description: 'Окно запросов принципала исчерпано — повтор после Retry-After'
+          headers:
+            Retry-After:
+              description: 'Секунды до закрытия текущего окна'
+              schema: { type: integer, minimum: 1 }
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+    get:
+      operationId: refuseMcpStream
+      summary: '405 всегда: ревизия 2026-07-28 не имеет стримов — сервер никогда не инициирует (ответы application/json без SSE)'
+      responses:
+        '405': { description: 'Метод не поддерживается: только POST', content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+    delete:
+      operationId: refuseMcpSession
+      summary: '405 всегда: ревизия 2026-07-28 не имеет сессий (Mcp-Session-Id удалён протоколом)'
+      responses:
+        '405': { description: 'Метод не поддерживается: только POST', content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
   /v1/tenants/{tenant_id}/controls:
     parameters:
       - $ref: '#/components/parameters/TenantID'
@@ -7775,6 +7840,159 @@ components:
         min: { type: integer }
         max: { type: integer }
         optional: { type: boolean }
+    McpRequestEnvelope:
+      type: object
+      additionalProperties: false
+      required: [jsonrpc, method]
+      description: 'Строгий конверт ОДНОГО JSON-RPC 2.0 сообщения ревизии MCP 2026-07-28: batch-массив = invalid request (одно сообщение на POST); закрытая верхняя форма (неизвестный ключ = отказ); id — словарь string|number, отсутствие id = уведомление (202 без действия); params только объект; _meta несёт заявку ревизии протокола (обязательна в каждом сообщении, сверяется с заголовком MCP-Protocol-Version)'
+      properties:
+        jsonrpc: { type: string, enum: ['2.0'] }
+        id:
+          oneOf:
+            - { type: string, minLength: 1 }
+            - { type: number }
+        method: { type: string, minLength: 1 }
+        params: { type: object, additionalProperties: true }
+        _meta:
+          type: object
+          additionalProperties: false
+          required: [protocolVersion]
+          properties:
+            protocolVersion: { type: string, enum: ['2026-07-28'] }
+    McpResponseEnvelope:
+      type: object
+      additionalProperties: false
+      required: [jsonrpc, id]
+      description: 'Единый JSON-RPC ответ поверхности: result ИЛИ error (никогда оба); id — эхо запроса (null только для сообщений, не доехавших до собственного id); протокольные ошибки несут код и поимённые слова; tool execution errors живут ВНУТРИ result (isError=true, SEP-1303)'
+      properties:
+        jsonrpc: { type: string, enum: ['2.0'] }
+        id:
+          oneOf:
+            - { type: 'null' }
+            - { type: string, minLength: 1 }
+            - { type: number }
+        result: { $ref: '#/components/schemas/McpResult' }
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message]
+          properties:
+            code: { type: integer }
+            message: { type: string, minLength: 1 }
+            data:
+              type: object
+              additionalProperties: true
+              description: 'Структурированный материал ошибки: supportedVersions ровно [2026-07-28] у UnsupportedProtocolVersionError'
+    McpResult:
+      description: 'Result-член ответа: словарь методов ревизии (server/discover → McpDiscoverResult; tools/list → McpListToolsResult; tools/call → McpCallToolResult)'
+      oneOf:
+        - { $ref: '#/components/schemas/McpDiscoverResult' }
+        - { $ref: '#/components/schemas/McpListToolsResult' }
+        - { $ref: '#/components/schemas/McpCallToolResult' }
+    McpDiscoverResult:
+      type: object
+      additionalProperties: false
+      required: [protocolVersions, capabilities, serverInfo]
+      description: 'Ответ server/discover: поддерживаемые ревизии РОВНО [2026-07-28] (пиннинг платформенным тестом); capabilities = факт — tools only, listChanged=false (экспозиция зависит от живых доказательств: resources/prompts/sampling/elicitation/ttlMs/cacheScope НЕ заявляются); serverInfo.version — зеркало info.version контракта (смена версии платформы = осознанный шаг в двух местах)'
+      properties:
+        protocolVersions:
+          type: array
+          minItems: 1
+          maxItems: 1
+          items: { type: string, enum: ['2026-07-28'] }
+        capabilities:
+          type: object
+          additionalProperties: false
+          required: [tools]
+          properties:
+            tools:
+              type: object
+              additionalProperties: false
+              required: [listChanged]
+              properties:
+                listChanged: { type: boolean, enum: [false] }
+        serverInfo: { $ref: '#/components/schemas/McpServerInfo' }
+    McpServerInfo:
+      type: object
+      additionalProperties: false
+      required: [name, version]
+      description: 'Идентичность сервера: имя платформы и версия — зеркало info.version этого контракта (контракт-тест сверяет равенство)'
+      properties:
+        name: { type: string, enum: [staffy] }
+        version: { type: string, minLength: 1 }
+    McpListToolsResult:
+      type: object
+      additionalProperties: false
+      required: [tools]
+      description: 'Ответ tools/list: экспонируемое — честное пересечение фактов (реестр ∩ deterministic_read ∩ implemented ∩ адаптер ∩ живая зависимость); пустой массив (не null) — состояние AG-4: продакшн-адаптеров НОЛЬ; ротация зависимости → stale → инструмент исчезает'
+      properties:
+        tools:
+          type: array
+          items: { $ref: '#/components/schemas/McpTool' }
+    McpTool:
+      type: object
+      additionalProperties: false
+      required: [name, title, description, inputSchema, outputSchema, annotations]
+      description: 'Провайдция контракта реестра 7-2 на провод MCP: name = id реестра, title = человеческое имя, description = назначение + пин <id>@<version> + слова словарей; схемы — тотальная 1:1 проекция платформенного словаря типизации в JSON Schema (реестр остаётся платформенным языком — json-schema.org в артефакты не входит, Never 7-2); annotations.readOnlyHint = true — факт словаря deterministic_read'
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120, pattern: '^[a-z0-9._-]+$' }
+        title: { type: string, minLength: 1 }
+        description: { type: string, minLength: 1 }
+        inputSchema: { $ref: '#/components/schemas/McpJsonSchemaObject' }
+        outputSchema: { $ref: '#/components/schemas/McpJsonSchemaObject' }
+        annotations:
+          type: object
+          additionalProperties: false
+          required: [readOnlyHint]
+          properties:
+            readOnlyHint: { type: boolean, enum: [true] }
+    McpJsonSchemaObject:
+      type: object
+      additionalProperties: false
+      required: [type, properties]
+      description: 'JSON Schema-проекция платформенной схемы контракта (только провод MCP): закрытая форма свойств — неизвестный ключ аргументов = поимённый отказ вызова; required — список обязательных ключей в стабильном порядке; пустая схема = объект без required; нулевая граница — незаданное слово, не едет на провод'
+      properties:
+        type: { type: string, enum: [object] }
+        properties:
+          type: object
+          additionalProperties: { $ref: '#/components/schemas/McpJsonSchemaProperty' }
+        required:
+          type: array
+          items: { type: string, minLength: 1 }
+    McpJsonSchemaProperty:
+      type: object
+      additionalProperties: false
+      required: [title, type]
+      description: 'Одно свойство проекции: title = человеческая метка поля; type — зеркало платформенного словаря типизации (string | integer | boolean — контракт-тест сверяет против tools.ToolFieldTypes()); enum только у string; minimum/maximum только у integer (нулевая граница = незаданное слово)'
+      properties:
+        title: { type: string, minLength: 1 }
+        type: { type: string, enum: [string, integer, boolean] }
+        enum:
+          type: array
+          minItems: 1
+          items: { type: string, minLength: 1 }
+        minimum: { type: number }
+        maximum: { type: number }
+    McpCallToolResult:
+      type: object
+      additionalProperties: false
+      required: [content]
+      description: 'Ответ tools/call: content несёт пин <id>@<version> выполненного контракта (или слова отказа); structuredContent — типизированный выход, валидированный по output_schema fail-closed (undeclared ключ/тип = отказ, внутренний материал НЕ пересылается — AC-2); isError=true — tool execution error с поимёнными словами полей (SEP-1303), НЕ протокольная ошибка'
+      properties:
+        content:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            additionalProperties: false
+            required: [type, text]
+            properties:
+              type: { type: string, enum: [text] }
+              text: { type: string, minLength: 1 }
+        structuredContent:
+          type: object
+          additionalProperties: true
+        isError: { type: boolean, enum: [true] }
     ActionDefinitionView:
       type: object
       additionalProperties: false
