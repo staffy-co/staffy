@@ -6012,4 +6012,4 @@ done:
 - полный живой прогон: build/vet зелёные, unit 35 пакетов ok, 0 FAIL
 next: Dev step-02 — загрузчик internal/tools/loader.go fail-closed (обязательные поля, платформенные словари determinism_class {deterministic_read} / adapter_status / типы схем, semver-core, дубликаты/orphan/канон/sha256, поимённые причины) + reject-матрица 12+ на fstest.MapFS + негативный контроль + кросс-валидация поля tools в packs loader (рефы разрешаются, dependency.connector_type ∈ connector_types пака, составная публикация fail-closed) + catalog.go Get/List с clone-дисциплиной
 владельцу: отозвать PAT после закрытия чата (retro-4-5)
-commit: TBD
+commit: 37780e06019eff980c4193560b02ffaf4832fbcf
