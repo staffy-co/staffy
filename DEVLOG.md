@@ -6207,4 +6207,4 @@ done:
 - Спека 108 строк (status backlog, route employee, baseline 12dc41d, 7 контекстов); I/O-матрица 25 кейсов; шаги 01-05 (машина+класс+роутер+секреты → инвентарь+словарь+деривация+вызов → транспорт+OpenAPI → fixture+journey → drift+QA-closure с epic-7 → done 4/4); sprint-status 7-4 остаётся backlog до CHECKPOINT 1 (синхронно спеке)
 next: CHECKPOINT 1 — предъявление спеки владельцу финальным ответом; по явному «одобряю»/«продолжайте» на предъявление (52-sm): флип backlog → ready-for-dev синхронно одним коммитом (спека + sprint-status ключ 7-4-внешние-mcp-серверы-как-класс-connector; epic-7 остаётся in-progress — урок 3-1) → Dev шаги 01-05 → CHECKPOINT 2 (PR → CI ×3 поимённо → sha-pinned merge → main ff-only → DEVLOG → удаление ветки ×3; Epic 7: 4/4 → done)
 владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API-зонды сессии; передан открытым текстом в чате)
-commit: TBD
+commit: e49c841e0bbc2d4fdad485b6a2c32149f415c217
