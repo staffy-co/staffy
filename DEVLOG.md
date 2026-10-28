@@ -6095,4 +6095,4 @@ done:
 - Спека ~105 строк (status backlog, route employee, baseline a798161, 7 контекстов); I/O-матрица 23 кейса; шаги 01-05
 next: CHECKPOINT 1 — предъявление спеки владельцу финальным ответом; по явному «одобряю»/«продолжайте» на предъявление (52-sm): флип backlog → ready-for-dev синхронно одним коммитом (спека + sprint-status ключ 7-3-mcp-сервер-поверхности-реестра-tools; epic-7 остаётся in-progress — урок 3-1) → Dev шаги 01-05 → CHECKPOINT 2 (PR → CI ×3 поимённо → sha-pinned merge → main ff-only → DEVLOG → удаление ветки ×3; Epic 7: 3/4)
 владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API-зонды сессии; передан открытым текстом в чате)
-commit: TBD
+commit: d57d2db6a389908e3e0e3b2d0c11ad305c340699
