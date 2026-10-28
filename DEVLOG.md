@@ -6056,3 +6056,16 @@ done:
 next: Dev step-05 — drift-CI (ci.yml +tools-база append-only GITHUB_ENV-паттерном 7-1; словарь вертикального зонда + фразы артефактов tools + зона +internal/tools) + СИМУЛЯЦИЯ PR внешнего автора (+tool-артефакт +запись индекса, 0 правок .go, полный сьют, откат) + финальный регресс всех контуров (build/vet, unit -count=1, интеграция ×2 TZ, journeys серийно) + спека done + sprint-status done (epic-7 in-progress 2/4) + deferred-work honest-границы + коммит feat БЕЗ маркера пропуска
 владельцу: отозвать PAT после закрытия чата (retro-4-5)
 commit: 1d1a081ac23606dd14ea90b39b5c62ab2be6de56
+
+---
+date: 2026-10-28
+task: 303-dev-step-05-7-2
+role: main (Super Z, сессия web-d497a728)
+story: 7-2
+summary: Dev step-05 story 7-2 — drift-CI + внешний автор + QA-closure: ci.yml +tools-база append-only (STAFFY_TOOLS_BASELINE GITHUB_ENV-паттерном 7-1: экспорт только в ветке успеха git show, первая ревизия честный skip); вертикальный зонд 23 фразы (шість фраз артефактов tools добавлены осознанно) + зона +internal/tools (платформенный пакет общего ядра); internal/tools/drift_test.go append-only симуляции удаления/перезаписи поимённо + CI-базовый тест (skip локально); СИМУЛЯЦИЯ PR внешнего автора: logistics-freight.quote-lookup@1.0.0 +артефакт +запись индекса, 0 правок .go — ПОЛНЫЙ сьют зелёный (35 ok) и journey зелёный (подсерия), откачена; УРОК ×2 (повтор 7-1): пины «ровно 3» и «дубликат последней записи» хрупки к росту реестра — переформулированы подсерией/динамически ДО слияния (witness-подсерия в carriers/negative control/journey z55; дубликат головы+хвоста двумя тестами); спека done + Spec Change Log closure; sprint-status done (epic-7 in-progress, 2/4); deferred-work +3 honest-границы
+done:
+- финальный регресс ВСЕХ контуров: build/vet зелёные; gofmt новых файлов чист; unit 35 ok -count=1; интеграция ×2 TZ живым PG (UTC 65.3s / Moscow 66.8s); journeys 55/55 серийно 3.5m (55-й — tools-registry, замыкает цепочку)
+- саморевью по диффу: 28 файлов +4622/−1625; 0 SQL-миграций; замороженные машины не тронуты; существующие неформатированные файлы (order_status) вне среза — не тронуты
+next: CHECKPOINT 2 — PR (scripts/pr_story_7_2.py по прецеденту 5-1/7-1) → CI ×3 поимённо (push ветки + synchronize PR + push main) → sha-pinned merge → main ff-only → DEVLOG checkpoint-2 → удаление ветки ×3 (compare behind/ahead_by=0 → DELETE → GET 404 → локально -d); Epic 7: 2/4
+владельцу: отозвать PAT после закрытия чата (retro-4-5)
+commit: TBD

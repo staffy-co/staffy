@@ -51,6 +51,17 @@ jobs:
             rm -f /tmp/pack-registry-baseline.json
             echo "pack registry baseline: отсутствует (первая ревизия реестра) — append-only-сверка пропущена"
           fi
+      - name: Tool registry baseline (append-only drift)
+        run: |
+          rm -f /tmp/tool-registry-baseline.json
+          git fetch --no-tags origin main || true
+          if git show origin/main:internal/tools/registry/index.json > /tmp/tool-registry-baseline.json 2>/dev/null; then
+            echo "tool registry baseline: origin/main $(git rev-parse --short origin/main)"
+            echo "STAFFY_TOOLS_BASELINE=/tmp/tool-registry-baseline.json" >> "$GITHUB_ENV"
+          else
+            rm -f /tmp/tool-registry-baseline.json
+            echo "tool registry baseline: отсутствует (первая ревизия реестра tools) — append-only-сверка пропущена"
+          fi
       - name: Go checks
         run: |
           go test ./...

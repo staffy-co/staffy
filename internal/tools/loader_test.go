@@ -262,12 +262,15 @@ func rejections(t *testing.T) []struct {
 			wantWord: "неверный формат версии 1.0",
 		},
 		{
-			name: "дубликат индексной записи",
+			name: "дубликат головной записи",
 			mutate: func(t *testing.T, fsys fstest.MapFS, index *registryIndex) {
-				index.Entries = append(index.Entries, index.Entries[len(index.Entries)-1])
+				index.Entries = append(index.Entries, index.Entries[0])
 				flushIndex(t, fsys, index)
 			},
-			wantWord: "индексная запись auto-parts.fitment-evidence@1.0.0: дубликат",
+			// Голова реестра — первая запись среза (стабильна как начало
+			// witness-подсерии); дубликат хвоста (растёт с внешними
+			// дополнениями) проверяется динамическим тестом ниже.
+			wantWord: "индексная запись auto-parts.vehicle-identification@1.0.0: дубликат",
 		},
 		{
 			name: "имя файла нарушает канон",
@@ -320,6 +323,24 @@ func rejections(t *testing.T) []struct {
 	}
 }
 
+// TestLoaderRejectsDuplicateTailEntry: дубликат ХВОСТОВОЙ записи индекса
+// отказывается поимённо — хвост реестра растёт с каждым внешним
+// дополнением (7-2 держит живую привязку + симуляцию внешнего PR),
+// поэтому ключ вычисляется динамически, а не пинится словом.
+func TestLoaderRejectsDuplicateTailEntry(t *testing.T) {
+	fsys, index := baseFS(t)
+	key := index.Entries[len(index.Entries)-1].ID + "@" + index.Entries[len(index.Entries)-1].Version
+	index.Entries = append(index.Entries, index.Entries[len(index.Entries)-1])
+	flushIndex(t, fsys, index)
+	_, err := loadRegistry(fsys)
+	if err == nil {
+		t.Fatal("реестр tools загрузился — отказ не сработал")
+	}
+	if !strings.Contains(err.Error(), "индексная запись "+key+": дубликат") {
+		t.Fatalf("отказ без поимённой причины:\nполучено: %v\nожидалось слово: индексная запись %s: дубликат", err, key)
+	}
+}
+
 func TestLoaderRejectionMatrix(t *testing.T) {
 	for _, test := range rejections(t) {
 		t.Run(test.name, func(t *testing.T) {
@@ -345,8 +366,21 @@ func TestLoaderNegativeControl(t *testing.T) {
 	if err != nil {
 		t.Fatalf("живой реестр tools не грузится: %v", err)
 	}
-	if len(contracts) != 3 {
-		t.Fatalf("ожидалось 3 контракта, получено %d", len(contracts))
+	// The witness-subseries: the three live contracts stay first; registry
+	// additions (the external author's PR) are allowed — the negative
+	// control never pins the registry size (the Story 7-1 precedent).
+	want := []string{
+		"auto-parts.vehicle-identification@1.0.0",
+		"auto-parts.part-request-classification@1.0.0",
+		"auto-parts.fitment-evidence@1.0.0",
+	}
+	if len(contracts) < len(want) {
+		t.Fatalf("реестр tools меньше среза: %d < %d", len(contracts), len(want))
+	}
+	for i, key := range want {
+		if contracts[i].ID+"@"+contracts[i].Version != key {
+			t.Fatalf("witness-подсерия нарушена на %d: %s", i, contracts[i].ID+"@"+contracts[i].Version)
+		}
 	}
 }
 

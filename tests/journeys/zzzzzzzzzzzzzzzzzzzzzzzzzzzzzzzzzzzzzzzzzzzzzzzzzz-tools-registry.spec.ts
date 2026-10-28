@@ -30,7 +30,7 @@ test('tools-registry: the live contracts, the honest not_implemented words, the 
     // dictionary and the platform guarantees spoken as text.
     await page.goto(toolsPath);
     await expect(page.locator('h1')).toHaveText('Реестр инструментов');
-    await expect(page.locator('.action-card')).toHaveCount(3);
+    await expect(page.locator('.action-card').count()).resolves.toBeGreaterThanOrEqual(3);
     const fitment = page.locator('.action-card').first();
     await expect(fitment).toContainText('Идентификация автомобиля');
     await expect(fitment).toContainText('deterministic_read');
@@ -48,11 +48,17 @@ test('tools-registry: the live contracts, the honest not_implemented words, the 
     const list = await api.get(listPath);
     expect(list.status()).toBe(200);
     const contracts = (await list.json()).tools;
-    expect(contracts.map((c: any) => `${c.id}@${c.version}`)).toEqual([
+    // The witness-subseries: the three live contracts stay first in the
+    // canonical order; registry additions (the external author's PR) are
+    // allowed — the journey never pins the registry size (the Story 7-1
+    // subseries precedent).
+    const series = contracts.map((c: any) => `${c.id}@${c.version}`);
+    const wantSeries = [
       'auto-parts.vehicle-identification@1.0.0',
       'auto-parts.part-request-classification@1.0.0',
       'auto-parts.fitment-evidence@1.0.0',
-    ]);
+    ];
+    expect(series.slice(0, wantSeries.length)).toEqual(wantSeries);
     for (const contract of contracts) {
       expect(contract.determinism_class).toBe('deterministic_read');
       expect(contract.adapter_status).toBe('not_implemented');

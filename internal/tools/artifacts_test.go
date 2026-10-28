@@ -48,8 +48,26 @@ func loadToolIndex(t *testing.T) toolIndexFile {
 // the <id>@<version>.json canon.
 func TestToolArtifactsCarriers(t *testing.T) {
 	idx := loadToolIndex(t)
-	if len(idx.Entries) != 3 {
-		t.Fatalf("ожидалось 3 контракта в индексе, получено %d", len(idx.Entries))
+	// The witness-subseries of the first slice: the three live contracts
+	// stay in place; registry additions (the external author's PR) are
+	// ALLOWED — the loader's validation covers them (the Story 7-1
+	// subseries precedent).
+	wantSeries := []string{
+		"auto-parts.vehicle-identification@1.0.0",
+		"auto-parts.part-request-classification@1.0.0",
+		"auto-parts.fitment-evidence@1.0.0",
+	}
+	if len(idx.Entries) < len(wantSeries) {
+		t.Fatalf("реестр tools меньше среза: %d < %d", len(idx.Entries), len(wantSeries))
+	}
+	cursor := 0
+	for _, entry := range idx.Entries {
+		if cursor < len(wantSeries) && wantSeries[cursor] == entry.ID+"@"+entry.Version {
+			cursor++
+		}
+	}
+	if cursor != len(wantSeries) {
+		t.Fatalf("witness-подсерия tools нарушена: совпало %d из %d", cursor, len(wantSeries))
 	}
 	seen := map[string]bool{}
 	for _, entry := range idx.Entries {
