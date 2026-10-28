@@ -6167,3 +6167,16 @@ done:
 next: Dev step-05 — drift-зона +mcp (зонд фраз НЕ растёт — 24 записи; internal/mcp вертикально-чист, прод-.go) + финальный регресс всех контуров (build/vet, unit -count=1, интеграция ×2 TZ живым PG, journeys серийным прогоном) + QA-closure: спека → done + Spec Change Log closure, sprint-status 7-3 → done (epic-7 in-progress 3/4), deferred-work +honest-границы {живые адаптеры; OAuth 2.1 MCP; backward-compat handshake-эпохи; PG-гроссбух аудита; entitlement-бюджеты; ttlMs-кэш-слова} + коммит feat БЕЗ [skip ci] — CI проверит ветку
 владельцу: отозвать PAT после закрытия чата (retro-4-5)
 commit: a1c5df66fd9e588c1c759839460fa010a26c424c
+
+---
+date: 2026-10-29
+task: 311-dev-step-05-7-3
+role: main (Super Z, сессия web-d497a728)
+story: 7-3
+summary: Dev step-05 story 7-3 — drift-зона + QA-closure: зонд вертикального словаря packs/drift_test.go расширен зоной internal/mcp осознанной правкой (словарь фраз НЕ растёт — платформенный пакет протокола вертикально-чист; зонд 0 фраз живым прогоном; correction по протоколу «верь git»: словарь несёт 23 записи с одним дубликатом, I/O-матрица спеки считала 24 — счётное расхождение Given-кейса, поведение зонда не затронуто) + спека 7-3 → done с полным Spec Change Log closure (wire-пиннинг: базовый конверт jsonrpc/id/method/params и CallToolResult content/structuredContent/isError подтверждены живым чтением официальной схемы 2025-11-25 raw.githubusercontent; ревизия-специфичные имена — server/discover, заголовки, _meta — пиннинг платформенных тестов, официальная схема 2026-07-28 «Asset not found») + sprint-status 7-3 → done (epic-7 in-progress 3/4) + deferred-work +7 honest-границ {живые адаптеры = новая версия артефакта implemented + проводка root по спросу Planner 8.3/внешний интегратор; OAuth 2.1 MCP-авторизация; backward-compat handshake-эпохи; PG-гроссбух аудита (сегодня slog append-only, вызываемых в продакшне ноль); entitlement-бюджеты + честная односайловая граница in-memory окна (AG-4: горизонтального развёртывания нет); ttlMs/cacheScope не заявляются — экспозиция зависит от живых доказательств; поимённая capability зависимости — будущей версией контракта}
+done:
+- ФИНАЛЬНЫЙ регресс всех контуров живыми прогонами: build OK, vet OK, unit 38 пакетов ok (-count=1, 0 FAIL), интеграция ×2 TZ живым PG (TZ=UTC 62.898s ok + TZ=Europe/Moscow 66.284s ok), journeys 56/56 серийным прогоном 3.6m (z51 замыкает цепочку; порог CI ≥48 не затронут — 56 файлов); gofmt новых файлов чист (дисциплина 4-1); git diff --check чист
+- Commit БЕЗ [skip ci] — голова ветки активирует CI-ран проверки ветки (урок 282)
+next: CHECKPOINT 2 — PR story 7-3 (sha-pin головы в теле, прецедент pr_story_7_2.py) → CI ×3 поимённо (push-ран ветки + synchronize-ран PR + main-ран после merge) → sha-pinned merge (GitHub API, голова пином) → main ff-only локально → DEVLOG 312-checkpoint-2 + TBD-заполнение → удаление ветки ×3 (локально -d + push --delete + ls-remote-зонд) → работа worklog; Epic 7: 3/4
+владельцу: отозвать PAT после закрытия чата (retro-4-5)
+commit: 3dfb64786d9d52e5bc208d976323914d9eceac91
