@@ -6241,3 +6241,22 @@ done:
 next: step-02 — инвентарь + словарь internal/externaltools + деривация + проекция JSON Schema → платформенный словарь + машина вызова Calls + адаптер externaltoolsfacts
 владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API-зонды сессии; передан открытым текстом в чате)
 commit: 4575b50de48263b8dd36e369568e5ec393f57664
+
+---
+date: 2026-10-29
+task: 316-dev-step-02-7-4
+role: main (Super Z, сессия web-d497a728)
+story: 7-4
+summary: Dev step-02 story 7-4 — MCP-проба tools-list несёт компактный фильтрованный JSON-инвентарь в redacted_result; internal/externaltools (порты + запись + тотальная проекция JSON Schema → словарь типизации + чистая деривация + словарь за лестницей + машина вызова credential/target-агностичная) + composition-адаптер externaltoolsfacts (пин карточки и capability на проводке; WireTransport над mcpclient)
+done:
+- Проекция-матрица юнит: подмножество тотально {string|integer|boolean + enum + целые границы + required}; отказы ПОИМЁННО: number дробный/object/array/anyOf/дробная граница/enum не строками/корень не object/выходная схема; без readOnlyHint = AR-30 отказ
+- Деривация юнит: admitted/rejected строки с провенансом {карточка@версия, server name/version, evidence id, checked/expires}; 4 stale-якоря → записи исчезают со словами; connection guards (draft/failed/revoked); honest empty; битый/чужой инвентарь — честные слова
+- Словарь за лестницей: 404 не-member / 403 словами скоупов ДО материала / два честных пути (integrations|configuration); изоляция scope (факты читаются скоупом тенента сессии)
+- Calls юнит: happy (пин→валидация→раунд→выход), TOCTOU-пин (stale→отказ до раунда; ghost-инструмент; недопущенная запись AR-30; неизвестное подключение), strict вход поимённо ×3, strict выход fail-closed ×4 («выход не переслан»), ошибки транспорта честно
+- МИГРАЦИЯ 00003 (ОТКЛОНЕНИЕ от Never «0 SQL-миграций»: спека требовала инвентарь в redacted_result существующей строки evidence, но CHECK 00002 ограничивает 300 символов — конфликт разрешён в пользу архитектурного интента: релаксация бюджета CHECK до 262144 [зеркало машинного бюджета чтения 256 КиБ], БЕЗ новых таблиц/колонок; форма схемы неизменна; зарегистрирована в TestMain — урок 3-3)
+- УРОК flake: fixedClock связывает CompletedAt обеих проб tools-list → тай-брейк latestEvidence по EvidenceID флипает (4/6 падений) — wallClock в интеграционном тесте; диагностика через временный дамп CapabilityState
+- УРОК python: s.replace без assert молча не применяет замену («wall clock wired» солгал) — assert in при каждой замене
+- Прогоны: build/vet OK; unit OK; интеграция ×2 TZ (UTC 58.8s / Moscow 69.1s) OK ×8 стабильных прогонов деривации; diff-check OK
+next: step-03 — транспорт tools_external.go + страница external_tools.html + OpenAPI +1 path + external_tools_contract_test.go (зеркала) + секреты VerifyCommand в форме/API
+владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API-зонды сессии; передан открытым текстом в чате)
+commit: 03453db61747613d30f330d143f7a5291f2655b2
