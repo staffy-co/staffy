@@ -6208,3 +6208,18 @@ done:
 next: CHECKPOINT 1 — предъявление спеки владельцу финальным ответом; по явному «одобряю»/«продолжайте» на предъявление (52-sm): флип backlog → ready-for-dev синхронно одним коммитом (спека + sprint-status ключ 7-4-внешние-mcp-серверы-как-класс-connector; epic-7 остаётся in-progress — урок 3-1) → Dev шаги 01-05 → CHECKPOINT 2 (PR → CI ×3 поимённо → sha-pinned merge → main ff-only → DEVLOG → удаление ветки ×3; Epic 7: 4/4 → done)
 владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API-зонды сессии; передан открытым текстом в чате)
 commit: e49c841e0bbc2d4fdad485b6a2c32149f415c217
+
+---
+date: 2026-10-29
+task: 314-checkpoint-1-7-4
+role: main (Super Z, сессия web-d497a728)
+story: 7-4
+summary: CHECKPOINT 1 story 7-4 закрыт: одобрение владельца («продолжайте» на предъявление спеки финальным ответом SM-сессии 313-sm-7-4) — флип backlog → ready-for-dev синхронно одним коммитом (спека status + Spec Change Log запись закрытия + sprint-status.yaml ключ 7-4-внешние-mcp-серверы-как-класс-connector; epic-7 остаётся in-progress — урок 3-1); следующий шаг Dev 01-05
+done:
+- Спека 7-4: status → ready-for-dev + Spec Change Log запись закрытия CHECKPOINT 1
+- sprint-status.yaml: 7-4 → ready-for-dev; epic-7 in-progress НЕ тронут (урок 3-1)
+- Восстановление сессии после сброса контекста: сводка сброса была СТАЛОЙ (описывала фазу до закрытия 7-3); живые git-зонды установили истину (7-3 закрыта PR #56/merge 5534ddc, main 12dc41d; 7-4 SM завершён, ветка 4206e3b = origin, CI 40763762401 success; sprint-status 7-3 done, epic-7 3/4) — «расхождение источников → верь git» сработал повторно; сигнал владельца «продолжайте» + токен = одобрение CHECKPOINT 1 по контракту записи 313 (по «одобряю»/«продолжайте»: флип → Dev → CHECKPOINT 2)
+- Окружение поднято bootstrap.sh (go 1.27.1, node 24, PG 54329 PID жив); токен закэширован /tmp/.staffy_gh_token chmod 600
+next: Dev шаги 01-05 спеки 7-4 (шаг-01 клиентская машина internal/mcpclient + карточка класса каталога + роутер connectorprobe + секреты проб MAC/ReadSeal → шаг-02 инвентарь+словарь externaltools+деривация+машина вызова → шаг-03 транспорт+OpenAPI → шаг-04 fixture-мир+journey z52 → шаг-05 drift+QA-closure epic-7 done 4/4) → CHECKPOINT 2 (PR → CI ×3 поимённо → sha-pinned merge → main ff-only → DEVLOG → удаление ветки ×3)
+владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/PR/merge/API-зонды сессии; передан открытым текстом в чате)
+commit: TBD
