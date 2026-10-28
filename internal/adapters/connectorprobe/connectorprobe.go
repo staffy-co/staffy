@@ -18,6 +18,7 @@ package connectorprobe
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -167,24 +168,74 @@ func discoverProbe(ctx context.Context, client *mcpclient.Client, request, endpo
 	}
 }
 
+// inventoryForm is the compact JSON inventory the tools-list probe stores
+// in the redacted result: the server identity of the discover round plus
+// the FILTERED descriptors of the list round (the known protocol fields
+// only — the dictionary parses exactly this form; secrets do not exist in
+// it by protocol and the filter guarantees the fact).
+type inventoryForm struct {
+	Server inventoryServer `json:"server"`
+	Tools  []inventoryTool `json:"tools"`
+}
+
+type inventoryServer struct {
+	Name    string `json:"name"`
+	Version string `json:"version"`
+}
+
+type inventoryTool struct {
+	Name         string         `json:"name"`
+	Title        string         `json:"title"`
+	Description  string         `json:"description"`
+	ReadOnlyHint bool           `json:"readOnlyHint"`
+	InputSchema  map[string]any `json:"inputSchema"`
+	OutputSchema map[string]any `json:"outputSchema"`
+}
+
+// inventoryMarker separates the honest words of the outcome from the
+// compact JSON inventory inside the redacted result — the dictionary
+// contract of the probe and the derivation (pinned by the tests of both).
+const inventoryMarker = "\nИнвентарь: "
+
 // listProbe runs the inventory rounds (discover + tools/list) and answers
-// the honest words with the filtered inventory shape of step-02 (the
-// compact JSON inventory lands with the dictionary slice; this step proves
-// the rounds and the descriptor count).
+// the honest words with the compact FILTERED JSON inventory: the server
+// identity of the discover round (the provenance material) plus the
+// descriptors filtered to the known protocol fields, under the declared
+// reading budget of the machine (the body budget already refused anything
+// past it whole — no truncation happens here).
 func listProbe(ctx context.Context, client *mcpclient.Client, request, endpoint, authorization string, dec connectorDomain.CapabilityDeclaration) connectorAPI.ProbeResult {
-	if _, err := client.Discover(ctx, endpoint, authorization); err != nil {
+	discover, err := client.Discover(ctx, endpoint, authorization)
+	if err != nil {
 		return probeFailure(request, dec, err)
 	}
 	answer, err := client.ListTools(ctx, endpoint, authorization)
 	if err != nil {
 		return probeFailure(request, dec, err)
 	}
+	inventory := inventoryForm{
+		Server: inventoryServer{Name: discover.ServerInfo.Name, Version: discover.ServerInfo.Version},
+		Tools:  make([]inventoryTool, 0, len(answer.Tools)),
+	}
+	for _, tool := range answer.Tools {
+		inventory.Tools = append(inventory.Tools, inventoryTool{
+			Name:         tool.Name,
+			Title:        tool.Title,
+			Description:  tool.Description,
+			ReadOnlyHint: tool.Annotations.ReadOnlyHint,
+			InputSchema:  tool.InputSchema,
+			OutputSchema: tool.OutputSchema,
+		})
+	}
+	encoded, err := json.Marshal(inventory)
+	if err != nil {
+		return probeFailure(request, dec, fmt.Errorf("инвентарь не кодируется: %w", err))
+	}
+	words := fmt.Sprintf("Раунды server/discover + tools/list выполнены: инвентарь фильтрован до известных полей протокола, read-tools: %d; уровень доставки delivered (принятие запроса — не бизнес-результат).", len(answer.Tools))
 	return connectorAPI.ProbeResult{
 		Outcome:         connectorDomain.EvidenceVerified,
 		DeliveryLevel:   string(connectorDomain.DeliveryDelivered),
 		RedactedRequest: request,
-		RedactedResult: fmt.Sprintf("Раунды server/discover + tools/list выполнены: инвентарь фильтрован до известных полей протокола, read-tools: %d; уровень доставки delivered (принятие запроса — не бизнес-результат).",
-			len(answer.Tools)),
+		RedactedResult:  words + inventoryMarker + string(encoded),
 	}
 }
 

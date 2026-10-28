@@ -165,7 +165,7 @@ func TestRouterDiscoverProbeRunsTheAuthenticatedRound(t *testing.T) {
 	}
 }
 
-func TestRouterListProbeRunsBothRoundsAndCountsTheInventory(t *testing.T) {
+func TestRouterListProbeRunsBothRoundsAndStoresTheFilteredInventory(t *testing.T) {
 	server, authorizations := mcpWire(t, false)
 	router := New(verifier.Synthetic{})
 	card := externalCard(t)
@@ -177,6 +177,40 @@ func TestRouterListProbeRunsBothRoundsAndCountsTheInventory(t *testing.T) {
 	}
 	if !strings.Contains(result.RedactedResult, "read-tools: 1") {
 		t.Fatalf("слова исхода не несут счётчик инвентаря: %q", result.RedactedResult)
+	}
+	// The compact FILTERED JSON inventory rides the marker line: the server
+	// identity of the discover round plus the descriptors with the known
+	// protocol fields only (the dictionary contract — pinned here and in
+	// the derive tests).
+	marker := strings.LastIndex(result.RedactedResult, "\nИнвентарь: ")
+	if marker < 0 {
+		t.Fatalf("маркер инвентаря отсутствует: %q", result.RedactedResult)
+	}
+	var inventory struct {
+		Server struct {
+			Name    string `json:"name"`
+			Version string `json:"version"`
+		} `json:"server"`
+		Tools []struct {
+			Name         string         `json:"name"`
+			ReadOnlyHint bool           `json:"readOnlyHint"`
+			InputSchema  map[string]any `json:"inputSchema"`
+		} `json:"tools"`
+	}
+	if err := json.Unmarshal([]byte(strings.TrimSpace(result.RedactedResult[marker+len("\nИнвентарь: "):])), &inventory); err != nil {
+		t.Fatalf("инвентарь не читается: %v", err)
+	}
+	if inventory.Server.Name != "fixture-external" || inventory.Server.Version != "1.0.0" {
+		t.Fatalf("провенанс инвентаря: %+v", inventory.Server)
+	}
+	if len(inventory.Tools) != 1 || inventory.Tools[0].Name != "parts.lookup" || !inventory.Tools[0].ReadOnlyHint {
+		t.Fatalf("инвентарь не отфильтрован до известных полей: %+v", inventory.Tools)
+	}
+	if len(inventory.Tools[0].InputSchema) == 0 {
+		t.Fatal("схема дескриптора не попала в инвентарь")
+	}
+	if strings.Contains(result.RedactedResult, "sandbox-router-key") {
+		t.Fatal("секрет эхо в редацтированных словах")
 	}
 	if len(*authorizations) != 2 {
 		t.Fatalf("проба словаря обязана выполнять два раунда (discover + list), выполнено %d", len(*authorizations))
