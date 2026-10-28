@@ -1,0 +1,60 @@
+{
+  "id": "auto-parts.vehicle-identification",
+  "version": "1.0.0",
+  "name": "Идентификация автомобиля",
+  "purpose": "Определяет автомобиль клиента по VIN либо по комбинации марка+модель+год выпуска (машина story 4-2): возвращает нормализованную идентичность автомобиля без обращения к внешним системам",
+  "determinism_class": "deterministic_read",
+  "input_schema": {
+    "vehicle.vin": {
+      "label": "VIN",
+      "type": "string",
+      "optional": true
+    },
+    "vehicle.make": {
+      "label": "Марка",
+      "type": "string",
+      "optional": true
+    },
+    "vehicle.model": {
+      "label": "Модель",
+      "type": "string",
+      "optional": true
+    },
+    "vehicle.year_of_manufacture": {
+      "label": "Год выпуска",
+      "type": "integer",
+      "min": 1900,
+      "max": 2100,
+      "optional": true
+    }
+  },
+  "output_schema": {
+    "vehicle.make": {
+      "label": "Марка",
+      "type": "string"
+    },
+    "vehicle.model": {
+      "label": "Модель",
+      "type": "string"
+    },
+    "vehicle.year_of_manufacture": {
+      "label": "Год выпуска",
+      "type": "integer",
+      "min": 1900,
+      "max": 2100
+    },
+    "vehicle.trim": {
+      "label": "Модификация",
+      "type": "string",
+      "optional": true
+    },
+    "vehicle.engine": {
+      "label": "Двигатель",
+      "type": "string",
+      "optional": true
+    }
+  },
+  "owner": "auto-parts",
+  "evidence_ref": "auto-parts/spec/4.2",
+  "adapter_status": "not_implemented"
+}

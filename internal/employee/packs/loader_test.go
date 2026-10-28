@@ -278,10 +278,13 @@ func rejections() []testCase {
 		{
 			name: "дубликат индексной записи",
 			mutate: func(t *testing.T, fsys fstest.MapFS, index *registryIndex) {
-				index.Entries = append(index.Entries, index.Entries[0])
+				index.Entries = append(index.Entries, index.Entries[len(index.Entries)-1])
 				flushIndex(t, fsys, index)
 			},
-			wantWord: "индексная запись auto-parts@6.0.0: дубликат",
+			// Последняя witness-запись (montagio) стабильна как замыкающая
+			// golden-подсерии; дублирование головы реестра проверяется
+			// отдельным динамическим тестом ниже (голова растёт с реестром).
+			wantWord: "индексная запись montagio-services@1.0.0: дубликат",
 		},
 		{
 			name: "имя файла нарушает канон",
@@ -313,6 +316,24 @@ func rejections() []testCase {
 			},
 			wantWord: "индекс реестра: записи отсутствуют",
 		},
+	}
+}
+
+// TestLoaderRejectsDuplicateHeadEntry: дубликат ГОЛОВНОЙ записи индекса
+// отказывается поимённо — голова реестра растёт с каждым дополнением
+// (7-2 добавила auto-parts@6.1.0), поэтому ключ вычисляется динамически,
+// а не пинится словом.
+func TestLoaderRejectsDuplicateHeadEntry(t *testing.T) {
+	fsys, index := baseFS(t)
+	key := index.Entries[0].ID + "@" + index.Entries[0].Version
+	index.Entries = append(index.Entries, index.Entries[0])
+	flushIndex(t, fsys, index)
+	_, err := loadRegistry(fsys)
+	if err == nil {
+		t.Fatal("реестр загрузился — отказ не сработал")
+	}
+	if !strings.Contains(err.Error(), "индексная запись "+key+": дубликат") {
+		t.Fatalf("отказ без поимённой причины:\nполучено: %v\nожидалось слово: индексная запись %s: дубликат", err, key)
 	}
 }
 

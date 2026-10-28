@@ -5999,3 +5999,17 @@ done:
 next: Dev шаги 01-05 (01 носители: ToolContract + 3 артефакта + индексы + witness-подсерия; 02 загрузчик + reject-матрица 12+ + кросс-валидация packs loader; 03 честный presence tool_schemas 4 ветви; 04 поверхность оператора + OpenAPI + journey; 05 drift-CI + симуляция внешнего PR + QA-closure) → CHECKPOINT 2 (PR → CI ×3 поимённо → sha-pinned merge → main ff-only → удаление ветки ×3)
 владельцу: отозвать PAT после закрытия чата (retro-4-5)
 commit: 53f5097c32818c63d4fff84c5aced27487639a60
+
+---
+date: 2026-10-28
+task: 299-dev-step-01-7-2
+role: main (Super Z, сессия web-d497a728)
+story: 7-2
+summary: Dev step-01 story 7-2 — носители: тип ToolContract (+ToolSchemaField, ToolDependency) в платформенном вертикально-чистом пакете internal/tools; 3 вертикальных артефакта контрактов (vehicle-identification 4-2 / part-request-classification 4-3 / fitment-evidence 4-4 с dependency catalog) + index.json tools (sha256-пины, канонический порядок машин); поле PackManifest.Tools + ToolRef (nil у всех паков без привязки); артефакт auto-parts@6.1.0 = содержимое 6.0.0 + tools (semantic diff только version+tools, верифицирован живым сравнением); 8-я запись индекса паков — вставка 6.1.0 головой с сохранением относительного порядка witness-подсерии; clone() каталога паков копирует Tools (дисциплина имутабельности)
+done:
+- witness-тесты: artifacts_test.go (носители: парсинг, обязательные поля, словари, sha-пины, канон имён, честные not_implemented, dependency fitment) + tool_binding_test.go (привязка 6.1.0: 3 рефа, semantic diff, пин, каталог отдаёт, nil у старых, иммутабельность Tools)
+- УРОК (осознанная правка пина, урок 5-1): reject-матрица 7-1 хардкодила дубликат ГОЛОВНОЙ записи «6.0.0» — головой реестра стала 6.1.0; кейс таблицы переключён на стабильную замыкающую witness-запись (montagio), дубликат головы вынесен в отдельный динамический тест (ключ вычисляется, реестр растёт)
+- полный живой прогон: build/vet зелёные, unit 35 пакетов ok, 0 FAIL
+next: Dev step-02 — загрузчик internal/tools/loader.go fail-closed (обязательные поля, платформенные словари determinism_class {deterministic_read} / adapter_status / типы схем, semver-core, дубликаты/orphan/канон/sha256, поимённые причины) + reject-матрица 12+ на fstest.MapFS + негативный контроль + кросс-валидация поля tools в packs loader (рефы разрешаются, dependency.connector_type ∈ connector_types пака, составная публикация fail-closed) + catalog.go Get/List с clone-дисциплиной
+владельцу: отозвать PAT после закрытия чата (retro-4-5)
+commit: TBD

@@ -44,12 +44,31 @@ type PackManifest struct {
         // versions is never violated; the first policy arrives with
         // auto-parts@6.0.0).
         Comparison       *ComparisonPolicySchema `json:"comparison,omitempty"`
+        // Tools is the declared tool binding of Story 7-2: the refs of the
+        // typed tool contracts the pack binds (id + version, resolved and
+        // cross-validated against the tool registry at load). nil for every
+        // pack without a binding (the 1.0.0..6.0.0 auto-parts and
+        // montagio-services stay nil — the immutability of the published
+        // versions is never violated; the first binding arrives with
+        // auto-parts@6.1.0).
+        Tools            []ToolRef               `json:"tools,omitempty"`
         AtLeastOneOf     []string                `json:"at_least_one_of,omitempty"`
         PolicyRef        string                  `json:"policy_ref"`
         KnowledgeRef     string                  `json:"knowledge_ref"`
         EvalRef          string                  `json:"eval_ref"`
         UpgradeFrom      map[string]PackImpact   `json:"upgrade_from,omitempty"`
         ReplacementImpact PackImpact             `json:"replacement_impact"`
+}
+
+// ToolRef is one typed tool contract reference of a pack binding (Story
+// 7-2): the contract id and the exact version — resolved against the tool
+// registry (the append-only sha256-pinned artifact store) by the pack
+// loader; a ref the registry does not carry refuses the whole pack
+// registry (a composite publication must include its target — the
+// UpgradeFrom precedent).
+type ToolRef struct {
+        ID      string `json:"id"`
+        Version string `json:"version"`
 }
 
 // VehicleMaterialKey is one identification material key of the pack
