@@ -6222,4 +6222,4 @@ done:
 - Окружение поднято bootstrap.sh (go 1.27.1, node 24, PG 54329 PID жив); токен закэширован /tmp/.staffy_gh_token chmod 600
 next: Dev шаги 01-05 спеки 7-4 (шаг-01 клиентская машина internal/mcpclient + карточка класса каталога + роутер connectorprobe + секреты проб MAC/ReadSeal → шаг-02 инвентарь+словарь externaltools+деривация+машина вызова → шаг-03 транспорт+OpenAPI → шаг-04 fixture-мир+journey z52 → шаг-05 drift+QA-closure epic-7 done 4/4) → CHECKPOINT 2 (PR → CI ×3 поимённо → sha-pinned merge → main ff-only → DEVLOG → удаление ветки ×3)
 владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/PR/merge/API-зонды сессии; передан открытым текстом в чате)
-commit: TBD
+commit: 61a5d5712c06c658a46afa1aaa550f8e98b328aa
