@@ -3285,6 +3285,26 @@ paths:
         '401': { $ref: '#/components/responses/Problem' }
         '403': { $ref: '#/components/responses/Problem' }
         '404': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/tools/external:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+    get:
+      operationId: listExternalToolSections
+      summary: 'Словарь внешних инструментов (7.4, первый срез): read-tools внешних MCP-серверов — тенент-скоупед чистой деривацией из применимых доказательств probe query.tools-list живых подключений класса «внешний MCP-сервер» (read-only, скоуп integrations|configuration). Запись существует ⟺ живое подключение ∧ applicable evidence ∧ проекция дескриптора успешна: ротация секрета / save-конфига / смена билда / истечение TTL → записи исчезают; повторная проба возвращает. Поверхность строго read-only: вызовы — будущий Planner 8.3, HTTP-поверхности вызова нет; запись заявляет read-only (AR-30); состояние admitted | rejected + поимённая причина; честный пустой массив разделов — состояние, не дефект'
+      x-staffy-principal-required: true
+      responses:
+        '200':
+          description: 'Разделы подключений класса с записями словаря; честный пустой массив (не null) — подключений класса нет'
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sections]
+                properties:
+                  sections: { type: array, items: { $ref: '#/components/schemas/ExternalToolSectionView' } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
   /v1/tenants/{tenant_id}/mcp:
     parameters:
       - $ref: '#/components/parameters/TenantID'
@@ -7840,6 +7860,47 @@ components:
         min: { type: integer }
         max: { type: integer }
         optional: { type: boolean }
+    ExternalToolSectionView:
+      type: object
+      additionalProperties: false
+      required: [connection_id, connector_id, connector_version, environment, status, has_entries, entries]
+      description: 'Раздел словаря внешних инструментов одного подключения класса (7.4): записи существуют только при применимом доказательстве probe query.tools-list — якоря Applicable (connection/SecretID/окружение/пин контракта/билд/UpdatedAt/TTL-24ч) опустошают раздел честными словами; вторая запись состояний не существует, чтение не мутирует'
+      properties:
+        connection_id: { type: string, format: uuid }
+        connector_id: { type: string, minLength: 1 }
+        connector_version: { type: string, pattern: '^[0-9]+\.[0-9]+\.[0-9]+$' }
+        environment: { type: string, enum: [sandbox, test] }
+        status: { type: string, enum: [draft, connected_unverified, failed, revoked] }
+        has_entries: { type: boolean }
+        reason: { type: string, minLength: 1 }
+        entries: { type: array, items: { $ref: '#/components/schemas/ExternalToolEntryView' } }
+    ExternalToolEntryView:
+      type: object
+      additionalProperties: false
+      required: [name, title, description, state, input_schema, output_schema]
+      description: 'Запись словаря внешних инструментов: отфильтрованный дескриптор снимка доказательства, спроецированный на платформенный словарь типизации (подмножество тотально; вне — rejected с поимённой причиной, материальные схемы не возвращаются); provenance — снимок-версия записи (внешние инструменты не несут версий в ревизии 2026-07-28); state admitted требует readOnlyHint заявления сервера (AR-30)'
+      properties:
+        name: { type: string, minLength: 1 }
+        title: { type: string, minLength: 1 }
+        description: { type: string, minLength: 1 }
+        state: { type: string, enum: [admitted, rejected] }
+        reason: { type: string, minLength: 1 }
+        provenance: { $ref: '#/components/schemas/ExternalToolProvenanceView' }
+        input_schema: { type: array, items: { $ref: '#/components/schemas/ToolSchemaFieldView' } }
+        output_schema: { type: array, items: { $ref: '#/components/schemas/ToolSchemaFieldView' } }
+    ExternalToolProvenanceView:
+      type: object
+      additionalProperties: false
+      required: [connector_id, connector_version, server_name, server_version, evidence_id, checked_at, expires_at]
+      description: 'Провенанс записи: пин карточки класса, идентичность внешнего сервера (serverInfo раунда discover), строка доказательства и её окно (TTL-24ч); повторная проба обновляет снимок — записи не версируются независимо от доказательства'
+      properties:
+        connector_id: { type: string, minLength: 1 }
+        connector_version: { type: string, pattern: '^[0-9]+\.[0-9]+\.[0-9]+$' }
+        server_name: { type: string, minLength: 1 }
+        server_version: { type: string, minLength: 1 }
+        evidence_id: { type: string, format: uuid }
+        checked_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
     McpRequestEnvelope:
       type: object
       additionalProperties: false

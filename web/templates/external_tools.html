@@ -1,0 +1,57 @@
+{{define "external_tools"}}
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Словарь внешних инструментов · Staffy</title><link rel="stylesheet" href="/assets/app.css"></head>
+<body><a class="skip-link" href="#main">К основному содержанию</a><header class="topbar"><a class="brand" href="/app/tenants/{{.TenantID}}">Staffy</a><strong>Пространство → Словарь внешних инструментов</strong></header>
+<div class="shell"><nav aria-label="Основная навигация"><a href="/app/tenants/{{.TenantID}}">Сегодня</a><a href="/app/tenants/{{$.TenantID}}/people">Участники</a><a href="/app/tenants/{{$.TenantID}}/integrations">Интеграции</a></nav><main id="main"><section class="panel"><h1>Словарь внешних инструментов</h1>
+<p>Read-tools внешних MCP-серверов этого пространства: записи — чистая деривация из применимых доказательств probe «Словарь инструментов сервера» живых подключений класса «внешний MCP-сервер». Ротация секрета, сохранение конфигурации, смена сборки или истечение срока доказательства делают записи исчезающими — повторная проба на странице «Интеграции» возвращает их. Каждая запись заявляет read-only (AR-30): инструмент без заявления сервера не допускается. Поверхность строго read-only: вызовы инструментов — будущий потребитель Planner, HTTP-поверхности вызова не существует. Чтение требует полномочия integrations или configuration.</p>
+{{if .HasSections}}
+{{range .Sections}}
+<section class="capability-state" aria-labelledby="ext-{{.ConnectionID}}">
+<h2 id="ext-{{.ConnectionID}}">Подключение {{.ConnectorPin}} · {{.Environment}}</h2>
+<p class="next-note">Состояние подключения: {{.StatusText}}</p>
+{{if .HasEntries}}
+<ul class="action-catalog">
+{{range .Cards}}
+<li class="action-card{{if .Rejected}} action-card-blocked{{end}}">
+<strong>{{.Title}}</strong>
+<span>Инструмент: {{.Name}} · <span class="cap-state">{{.StateText}}</span></span>
+<span>Назначение: {{.Description}}</span>
+{{if .HasProvenance}}
+<span>Сервер: {{.ServerText}} · карточка {{.ConnectorPin}}</span>
+<span>Доказательство: {{.EvidenceID}} · проверено {{.CheckedAtText}} · действует до {{.ExpiresAtText}}</span>
+{{else}}
+<span class="cap-reason">Запись отклонена: материальных схем нет — причина ниже.</span>
+{{end}}
+{{if .Reason}}<span class="cap-reason">{{.Reason}}</span>{{end}}
+{{if or .HasInputKeys .HasOutputKeys}}
+<details class="action-schema"><summary>Типизированные схемы</summary>
+{{if .HasInputKeys}}
+<h3>Входные ключи</h3>
+<ul class="action-fields">
+{{range .InputRows}}
+<li><strong>{{.Label}}</strong> ({{.Name}}): тип {{.Type}}{{if .Bounds}}, границы {{.Bounds}}{{end}}{{if .Values}}, значения: {{.Values}}{{end}}, необязательный: {{.Optional}}</li>
+{{end}}
+</ul>
+{{end}}
+{{if .HasOutputKeys}}
+<h3>Выходные ключи</h3>
+<ul class="action-fields">
+{{range .OutputRows}}
+<li><strong>{{.Label}}</strong> ({{.Name}}): тип {{.Type}}{{if .Bounds}}, границы {{.Bounds}}{{end}}{{if .Values}}, значения: {{.Values}}{{end}}, необязательный: {{.Optional}}</li>
+{{end}}
+</ul>
+{{end}}
+</details>
+{{end}}
+</li>
+{{end}}
+</ul>
+{{else}}
+<p class="empty-state">{{.Reason}}</p>
+{{end}}
+</section>
+{{end}}
+{{else}}
+<p class="empty-state">{{.EmptyText}}</p>
+{{end}}
+</section></main></div></body></html>
+{{end}}
