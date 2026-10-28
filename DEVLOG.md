@@ -6192,4 +6192,4 @@ done:
 - Урок merge-API: эндпоинт слияния — PUT (не POST) с явным Content-Type: application/json (POST отвечал 404 Not Found при mergeable: True — живой зонд зафиксировал)
 next: SM-фаза story 7-4 «Внешние MCP-серверы как класс Connector» (последний слот Epic 7, 4/4) — ПО СИГНАЛУ ВЛАДЕЛЬЦА (дисциплина чекпоинтов: изучение входов → спека → CHECKPOINT 1 предъявление → одобрение → Dev)
 владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/PR/merge/API-зонды сессии; передан открытым текстом в чате)
-commit: TBD
+commit: ca5ceca6653c1c096bf9bdd0f41d3cf81cb53ac3
