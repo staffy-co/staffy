@@ -318,3 +318,15 @@
 - source_spec: `spec-7-1-declarative-domain-pack-catalog.md`
   summary: Semver-словарь версий артефактов — строгий core major.minor.patch без prerelease/build-тегов: расширение формата = правка ядра (parseSemver) + ревизия правила major-переходов, осознанный шаг.
   evidence: спека 7-1 Implementation Notes «строгий semver-core — честная граница среза»; loader.go parseSemver; перенесено Dev step-02 (2026-10-28).
+
+- source_spec: `spec-7-2-typed-tools-registry.md`
+  summary: Исполнение tool-вызовов и runtime capability-probe — вне среза: регистрация контракта ≠ доступность вызова; диспетчеризация и динамическая проверка evidence/stale при ротации коннектора строятся вызывателями (Planner 8.3 tool-rounds, MCP-сервер 7.3) поверх реестра; до них контракты видимы, но честно not_implemented и не вызываемы вдвойне.
+  evidence: спека 7-2 Boundaries Never (исполнение/диспетчеризация/probe не строятся); AC-3 честно частично — статическая кросс-валидация dependency.connector_type в срезе; перенесено Dev step-02 (2026-10-28).
+
+- source_spec: `spec-7-2-typed-tools-registry.md`
+  summary: Динамический capability-probe привязанных контрактов (evidence живости, stale при ротации коннектора) — будущий срез: статическая кросс-валидация зависимости против connector_types пака держится загрузчиком; проверка живого адаптера требует вызова и машины evidence коннектора (AC-3 динамическая половина).
+  evidence: спека 7-2 I/O Matrix кейс dependency ∉ connector_types; Implementation Notes dependency; перенесено Dev step-02 (2026-10-28).
+
+- source_spec: `spec-7-2-typed-tools-registry.md`
+  summary: Платформенные tool-контракты (поверх каталога паков/реестра tools) не регистрируются — потребность не доказана (принцип честности capability Монtagio/Avito); по реальному спросу (Planner 8.3, онбординг 10) — артефактом без правки ядра; словарь determinism_class расширяется ТОЛЬКО правкой ядра с явным архитектурным решением.
+  evidence: спека 7-2 Boundaries Never (платформенные контракты, расширение словарей артефактами); Implementation Notes словарь классов; перенесено Dev step-05 (2026-10-28).

@@ -5973,3 +5973,99 @@ done:
 next: удаление ветки ×3 (GitHub DELETE refs/heads + локально -d + update-ref -d при stale) с compare-проверкой behind/ahead_by=0; затем финал: ls-remote только main, RPO=0, check-continuity; следующий слот — SM-фаза story 7-2 «Реестр tools с типизированными контрактами» по сигналу владельца (Epic 7: 1/4)
 владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/PR/merge/DELETE/API сессии)
 commit: 2c6336ec0b10ac0dbddaab243407550082b3f9da
+
+---
+date: 2026-10-28
+task: 297-sm-7-2
+role: main (Super Z, сессия web-d497a728)
+story: 7-2
+summary: SM-фаза story 7-2 — спека первого среза «Реестр tools с типизированными контрактами»: субстрат без исполнения по зерну дисциплины 7-1 — версионируемые артефакты контрактов internal/tools/registry/<id>@<version>.json + индекс sha256 append-only + fail-closed загрузчик (обязательные поля; платформенный словарь determinism_class {deterministic_read} — write-класс структурно невозможен, расширение = правка ядра; adapter_status honest {implemented|not_implemented}; semver-core) + привязка пак→tools опциональным полем tools артефакта пака (первая живая привязка auto-parts@6.1.0 — minor major 6, совместимая по умолчанию, semantic diff только tools: 3 вертикальных контракта над машинами 4-2/4-3/4-4, все честно not_implemented) + кросс-валидация в загрузчике паков (рефы разрешаются; dependency.connector_type ∈ connector_types пака; составная публикация fail-closed) + честный presence tool_schemas в Release Manifest (производное состояние из привязки пина пака вместо статичной записки 1-12; Present=true только при ≥1 реализованном и проверенном — живых нет, машина fixture-покрыта; sealed-история не пересчитывается, AD-10) + read-only поверхность оператора по прецеденту «Каталог действий» 3-1 (list новейших + пин-чтение точной версии + страница словарей текстом + OpenAPI enum-зеркала + read-gate FIRST 404/403) + drift-CI (append-only база origin/main GITHUB_ENV-паттерном; зонд: словарь + фразы артефактов tools, зона +internal/tools) + путь внешнего автора = PR 0 правок .go; 0 SQL; исполнение/диспетчеризация и runtime capability-probe НЕ строятся (Planner 8.3 / MCP 7.3)
+done:
+- входы живым чтением: epics.md Story 7.2 (AC ×4, Требования AD-6/AD-7/AR-17/AR-29), ARCHITECTURE-SPINE AD-7 (typed bounded planner: модель запрашивает deterministic/read, writes никогда в tool set), release.go RuntimeDictionary/BuildRuntimeState/DeriveManifestStatus (машина манифеста 1-12: статичная записка tool_schemas — honest gap), реестр+загрузчик+witness 7-1 (зерно паттерна), pack.go (прецедент optional-полей 4-2..4-5), actions_catalog.go (прецедент словарной поверхности: routes /v1/tenants/{id}/action-definitions + pin-чтение + /app-страница + read-gate FIRST), deferred-work хвост; зонды: Planner/MCP/исполнение tools в коде нет — срез = чистый субстрат
+- решение о срезе: AC-3 честно частично (статическая кросс-валидация зависимостей в срезе; динамический capability-probe evidence/stale требует вызова — 7.3/8.3, deferred-work); платформенные контракты не регистрируются (потребность не доказана — Монtagio/Avito-принцип честности capability); вход/выход — платформенный язык типизированных ключей (json-schema.org не вводится)
+next: CHECKPOINT 1 — предъявление спеки владельцу; по явному «одобряю»/«продолжайте» на предъявление (дисциплина 52-sm): флип ready-for-dev синхронно одним коммитом (спека + sprint-status 7-2-реестр-tools-с-типизированными-контрактами + epic-7 остаётся in-progress; урок 3-1) → Dev шаги 01-05 → CHECKPOINT 2 (PR → CI ×3 поимённо → sha-pinned merge → main ff-only → DEVLOG → удаление ветки ×3; Epic 7: 2/4)
+владельцу: отозвать PAT после закрытия чата (retro-4-5)
+commit: 7f5a5122434c6b5fc818f24683010ea96c1e7283
+
+---
+date: 2026-10-28
+task: 298-checkpoint-1-7-2
+role: main (Super Z, сессия web-d497a728)
+story: 7-2
+summary: CHECKPOINT 1 story 7-2 ЗАКРЫТ: одобрение владельца получено («продолжайте» в ответ на предъявление спеки — дисциплина 52-sm); флип status backlog → ready-for-dev синхронно одним коммитом (спека + Spec Change Log + sprint-status 7-2-реестр-tools-с-типизированными-контрактами; epic-7 остаётся in-progress; урок 3-1); Dev шаги 01-05 открыты
+done:
+- предъявление доставлено возобновившейся сессией (checkpoint1-7-2: верификация живыми зондами ls-remote/CI ×2/check-continuity, 0 правок репо), одобрение получено тем же днём
+- внешняя консультация (раздельность «мозгов» и «рук») сверена со спайном ДО флипа: AD-6/AD-7 строже индустриального стандарта (write-исключительность человека вместо ACL-агенту); консультация подтверждает порядок эпиков (субстрат → мозг)
+next: Dev шаги 01-05 (01 носители: ToolContract + 3 артефакта + индексы + witness-подсерия; 02 загрузчик + reject-матрица 12+ + кросс-валидация packs loader; 03 честный presence tool_schemas 4 ветви; 04 поверхность оператора + OpenAPI + journey; 05 drift-CI + симуляция внешнего PR + QA-closure) → CHECKPOINT 2 (PR → CI ×3 поимённо → sha-pinned merge → main ff-only → удаление ветки ×3)
+владельцу: отозвать PAT после закрытия чата (retro-4-5)
+commit: 53f5097c32818c63d4fff84c5aced27487639a60
+
+---
+date: 2026-10-28
+task: 299-dev-step-01-7-2
+role: main (Super Z, сессия web-d497a728)
+story: 7-2
+summary: Dev step-01 story 7-2 — носители: тип ToolContract (+ToolSchemaField, ToolDependency) в платформенном вертикально-чистом пакете internal/tools; 3 вертикальных артефакта контрактов (vehicle-identification 4-2 / part-request-classification 4-3 / fitment-evidence 4-4 с dependency catalog) + index.json tools (sha256-пины, канонический порядок машин); поле PackManifest.Tools + ToolRef (nil у всех паков без привязки); артефакт auto-parts@6.1.0 = содержимое 6.0.0 + tools (semantic diff только version+tools, верифицирован живым сравнением); 8-я запись индекса паков — вставка 6.1.0 головой с сохранением относительного порядка witness-подсерии; clone() каталога паков копирует Tools (дисциплина имутабельности)
+done:
+- witness-тесты: artifacts_test.go (носители: парсинг, обязательные поля, словари, sha-пины, канон имён, честные not_implemented, dependency fitment) + tool_binding_test.go (привязка 6.1.0: 3 рефа, semantic diff, пин, каталог отдаёт, nil у старых, иммутабельность Tools)
+- УРОК (осознанная правка пина, урок 5-1): reject-матрица 7-1 хардкодила дубликат ГОЛОВНОЙ записи «6.0.0» — головой реестра стала 6.1.0; кейс таблицы переключён на стабильную замыкающую witness-запись (montagio), дубликат головы вынесен в отдельный динамический тест (ключ вычисляется, реестр растёт)
+- полный живой прогон: build/vet зелёные, unit 35 пакетов ok, 0 FAIL
+next: Dev step-02 — загрузчик internal/tools/loader.go fail-closed (обязательные поля, платформенные словари determinism_class {deterministic_read} / adapter_status / типы схем, semver-core, дубликаты/orphan/канон/sha256, поимённые причины) + reject-матрица 12+ на fstest.MapFS + негативный контроль + кросс-валидация поля tools в packs loader (рефы разрешаются, dependency.connector_type ∈ connector_types пака, составная публикация fail-closed) + catalog.go Get/List с clone-дисциплиной
+владельцу: отозвать PAT после закрытия чата (retro-4-5)
+commit: 37780e06019eff980c4193560b02ffaf4832fbcf
+
+---
+date: 2026-10-28
+task: 300-dev-step-02-7-2
+role: main (Super Z, сессия web-d497a728)
+story: 7-2
+summary: Dev step-02 story 7-2 — загрузчик и кросс-валидация: internal/tools/loader.go fail-closed (go:embed + sha256-пины + валидация ДО использования: обязательные поля 10, платформенные словари determinism_class {deterministic_read} ЕДИНСТВЕННОЕ значение / adapter_status / типы ключей схем словаря паков + правила форм (integer без values, границы только у integer, values только у string, label обязателен), semver-core строгий, дубликаты/orphan/канон имён) с поимёнными причинами + internal/tools/catalog.go Get/List с clone-дисциплией (пин-чтение точной версии, канонический порядок) + reject-матрица 23 кейса поимённо на fstest.MapFS живых артефактов (включая write/mutation классы, sha256-дрейф, пустой индекс, dependency без connector_type) + негативный контроль + fail-closed целиком + кросс-валидация привязки в packs loader: loadRegistryWithTools с инъекцируемым toolResolver (production = tools.Get), рефы tools разрешаются (составная публикация fail-closed поимённо), dependency.connector_type ∈ connector_types привязывающего пака (статическая половина AC-3), паки без tools минуют резолвер (nil-путь, тест с падающим резолвером)
+done:
+- УРОК саморевью ДО прогона: python-патч вставки вызова кросс-валидации в цикл не применился (tab-отступы, replace без assert) — негативный контроль «прошёл» из-за отсутствия вызова; ловится парой зондов (grep по факту + тест с пустым резолвером обязан падать); патч повторен с assert
+- Мутационные тесты кросс-валидации с rePin (мутация сознательная — пин обновляется честно, чтобы дошло до кросс-валидации, а не до sha256-отказа)
+- полный живой прогон: build/vet зелёные, unit 35 пакетов ok, 0 FAIL
+next: Dev step-03 — честный presence tool_schemas в Release Manifest: производное вычисление состояния при seal (4 ветви: пак без tools / tools not_implemented / fixture implemented → Present / sealed-история не пересчитывается AD-10); существующие release-тесты со статичной запиской обновляются осознанно; потребители манифеста не меняются (RuntimeComponentState структура неизменна)
+владельцу: отозвать PAT после закрытия чата (retro-4-5)
+commit: 9791aad251049fdc99a52da363da201f0ec22ecd
+
+---
+date: 2026-10-28
+task: 301-dev-step-03-7-2
+role: main (Super Z, сессия web-d497a728)
+story: 7-2
+summary: Dev step-03 story 7-2 — честный presence tool_schemas в Release Manifest: домен получил тип ToolBindingFact (вход производного состояния — домен не трогает реестры) + чистую функцию DeriveToolSchemasState с 4 честными ветвями (пак не закреплён / закреплён без привязки — производная записка вместо статичной «поверхность не существует» / привязка с not_implemented адаптерами — видима, Present=false, вызов невозможен / fixture implemented → Present=true с Ref пина пака) + BuildRuntimeState(toolSchemas) с обязательным входом (подстановка в словарь при фиксированном порядке 8 компонентов; статичная записка сохраняется у прочих gap-компонентов) + nil-ветка BuildManifestContent = производная записка для не-seal читателей (статика больше не путь по умолчанию); app SealManifest собирает состояние явно (пин пака → packs.Get → Tools → статусы контрактов tools.Get; инвариант append-only — недостижимый пин паникует громко вместо запечатывания лжи); journeys release_fixture повторяет production-выведение (машина манифеста путешествий = боевой seal)
+done:
+- тесты: release_tools_state_test.go (4 ветви поимённо, подстановка в словарь, nil-fallback производный) + существующие suite'ы пережили без правок (никто в unit не пинил текст статичной записки — grep живой); integration release живым PG зелёный
+- sealed-история не пересчитывается (AD-10): вычисление только при новых seal'ах — DeriveToolSchemasState чистая, вызывается из seal-пути и nil-fallback чтения (не пересчёт дайджестов)
+- УРОК: python-патч с несколькими replace БЕЗ write при упавшем assert = файл не записан ВООБЩЕ (assert до write) — симптом «undefined» ловится build-зондом; повторный прогон патча с отдельными assert-ами
+- полный живой прогон: build/vet зелёные, unit 35 пакетов ok, integration release ok
+next: Dev step-04 — поверхность оператора: transport routes GET /v1/tenants/{id}/tools (list новейших + пин-чтение точной версии) + страница /app/tenants/{id}/tools словарями текстом + OpenAPI +2 path + enum-зеркала + contract_test + journey spec-файл z-серии
+владельцу: отозвать PAT после закрытия чата (retro-4-5)
+commit: 1946c79d4a2f73aa294133e3cb708d7c22eec9a3
+
+---
+date: 2026-10-28
+task: 302-dev-step-04-7-2
+role: main (Super Z, сессия web-d497a728)
+story: 7-2
+summary: Dev step-04 story 7-2 — поверхность оператора: internal/tools/service.go read-gate FIRST (MembershipService-порт, лестница 3-1: не-member ErrNotFound ДО материала, member без integrations|configuration ErrForbidden со словами скоупов; List новейших честным semver-сравнением, Get пин-чтение) + transport tools_catalog.go (GET /v1/tenants/{id}/tools list + пин-чтение {tool_id}/{tool_version} + страница /app/tenants/{id}/tools; строгий decode пина: charset [a-z0-9._-] 1..120 + semver-core тройка без leading zero — малформед = честный 404 ДО сервиса; problem-мэппинг с честным 500; honest empty state AG-4) + интерфейс toolsCatalogService в Server (фейк-инъекция прецедента 3-1) + main.go wiring (production tools.NewCatalogService(identityService)) + шаблон tools.html (словари текстом: классы/статусы/зависимости/владельцы, details/summary progressive disclosure, skip-link/320px/секреты 0) + OpenAPI +2 path + schema ToolContractView/ToolSchemaFieldView с enum-зеркалами (determinism_class [deterministic_read] ЕДИНСТВЕННОЕ, adapter_status [implemented, not_implemented], типы [string, integer, boolean]) + публичные словари DeterminismClasses/AdapterStatuses/ToolFieldTypes в internal/tools (зеркальные источники) + contract-тест зеркал (400 запрещён, мутационные методы отсутствуют, паттерны пинов, required-список) + journey z55 tools-registry.spec.ts (живые 3 контракта, not_implemented слова, пин, малформед ×8, кросс-тенант 404, оператор 403 словами до материала, a11y 320px) + tools_registry_fixture.go (toolsMembership лестница прецедента actionsMembership; реестр = production embed, фикстурного словаря нет)
+done:
+- УРОК html/template: «+» экранируется в «&#43;» — проверки фраз со спецсимволами брать без них («артефакт», «индексная запись» отдельно); httptest.NewRequest падает на пробеле в path — малформед-кейсы с uppercase/charset
+- journey прогнан живьём локально (1 passed 1.6s) до коммита — поверхность реально отвечает в fixture-мире
+- полный живой прогон: build/vet зелёные, unit 35 ok, contracts/openapi ok
+next: Dev step-05 — drift-CI (ci.yml +tools-база append-only GITHUB_ENV-паттерном 7-1; словарь вертикального зонда + фразы артефактов tools + зона +internal/tools) + СИМУЛЯЦИЯ PR внешнего автора (+tool-артефакт +запись индекса, 0 правок .go, полный сьют, откат) + финальный регресс всех контуров (build/vet, unit -count=1, интеграция ×2 TZ, journeys серийно) + спека done + sprint-status done (epic-7 in-progress 2/4) + deferred-work honest-границы + коммит feat БЕЗ маркера пропуска
+владельцу: отозвать PAT после закрытия чата (retro-4-5)
+commit: 1d1a081ac23606dd14ea90b39b5c62ab2be6de56
+
+---
+date: 2026-10-28
+task: 303-dev-step-05-7-2
+role: main (Super Z, сессия web-d497a728)
+story: 7-2
+summary: Dev step-05 story 7-2 — drift-CI + внешний автор + QA-closure: ci.yml +tools-база append-only (STAFFY_TOOLS_BASELINE GITHUB_ENV-паттерном 7-1: экспорт только в ветке успеха git show, первая ревизия честный skip); вертикальный зонд 23 фразы (шість фраз артефактов tools добавлены осознанно) + зона +internal/tools (платформенный пакет общего ядра); internal/tools/drift_test.go append-only симуляции удаления/перезаписи поимённо + CI-базовый тест (skip локально); СИМУЛЯЦИЯ PR внешнего автора: logistics-freight.quote-lookup@1.0.0 +артефакт +запись индекса, 0 правок .go — ПОЛНЫЙ сьют зелёный (35 ok) и journey зелёный (подсерия), откачена; УРОК ×2 (повтор 7-1): пины «ровно 3» и «дубликат последней записи» хрупки к росту реестра — переформулированы подсерией/динамически ДО слияния (witness-подсерия в carriers/negative control/journey z55; дубликат головы+хвоста двумя тестами); спека done + Spec Change Log closure; sprint-status done (epic-7 in-progress, 2/4); deferred-work +3 honest-границы
+done:
+- финальный регресс ВСЕХ контуров: build/vet зелёные; gofmt новых файлов чист; unit 35 ok -count=1; интеграция ×2 TZ живым PG (UTC 65.3s / Moscow 66.8s); journeys 55/55 серийно 3.5m (55-й — tools-registry, замыкает цепочку)
+- саморевью по диффу: 28 файлов +4622/−1625; 0 SQL-миграций; замороженные машины не тронуты; существующие неформатированные файлы (order_status) вне среза — не тронуты
+next: CHECKPOINT 2 — PR (scripts/pr_story_7_2.py по прецеденту 5-1/7-1) → CI ×3 поимённо (push ветки + synchronize PR + push main) → sha-pinned merge → main ff-only → DEVLOG checkpoint-2 → удаление ветки ×3 (compare behind/ahead_by=0 → DELETE → GET 404 → локально -d); Epic 7: 2/4
+владельцу: отозвать PAT после закрытия чата (retro-4-5)
+commit: 02ae5b8e9881cad3b631341272dcb21eb95810c0

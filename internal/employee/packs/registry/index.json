@@ -2,6 +2,12 @@
   "entries": [
     {
       "id": "auto-parts",
+      "version": "6.1.0",
+      "file": "auto-parts@6.1.0.json",
+      "sha256": "95bb691d881d5e9b50f10dea3b94f52fc82a66eb2f35d3b8a1a684f76a8904f5"
+    },
+    {
+      "id": "auto-parts",
       "version": "6.0.0",
       "file": "auto-parts@6.0.0.json",
       "sha256": "f709d500c9c9e20120ec4aebde8c6306544b0682546ca7ab87819b43e78d5365"

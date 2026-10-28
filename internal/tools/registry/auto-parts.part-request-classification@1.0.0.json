@@ -1,0 +1,60 @@
+{
+  "id": "auto-parts.part-request-classification",
+  "version": "1.0.0",
+  "name": "Классификация запроса детали",
+  "purpose": "Определяет режим запроса детали клиента по детерминированной лестнице режимов — диагностика по симптому, точный повтор по номеру, выбор оригинал или аналог, названная деталь (машина story 4-3): возвращает выбранный режим и обязательные материальные ключи без обращения к внешним системам",
+  "determinism_class": "deterministic_read",
+  "input_schema": {
+    "part.kind": {
+      "label": "Деталь",
+      "type": "string",
+      "optional": true
+    },
+    "part.symptom": {
+      "label": "Симптом",
+      "type": "string",
+      "optional": true
+    },
+    "part.oem_number": {
+      "label": "OEM-номер",
+      "type": "string",
+      "optional": true
+    },
+    "part.preference": {
+      "label": "Предпочтение",
+      "type": "string",
+      "values": [
+        "original",
+        "analogs",
+        "both"
+      ],
+      "optional": true
+    },
+    "part.quantity": {
+      "label": "Количество",
+      "type": "integer",
+      "min": 1,
+      "max": 999,
+      "optional": true
+    }
+  },
+  "output_schema": {
+    "request.mode": {
+      "label": "Режим запроса",
+      "type": "string",
+      "values": [
+        "diagnostic",
+        "exact_repeat",
+        "original_vs_analog",
+        "named_part"
+      ]
+    },
+    "request.missing_keys": {
+      "label": "Недостающие ключи",
+      "type": "string"
+    }
+  },
+  "owner": "auto-parts",
+  "evidence_ref": "auto-parts/spec/4.3",
+  "adapter_status": "not_implemented"
+}

@@ -1,0 +1,59 @@
+{
+  "id": "auto-parts.fitment-evidence",
+  "version": "1.0.0",
+  "name": "Доказательство применимости",
+  "purpose": "Проверяет применимость детали к идентифицированному автомобилю по свежему доказательству из каталога — тип связи оригинал или кросс, источник, возраст доказательства (машина story 4-4): возвращает применимость с провенансом, без применимости ответ не даётся",
+  "determinism_class": "deterministic_read",
+  "input_schema": {
+    "part.oem_number": {
+      "label": "OEM-номер",
+      "type": "string"
+    },
+    "vehicle.make": {
+      "label": "Марка",
+      "type": "string"
+    },
+    "vehicle.model": {
+      "label": "Модель",
+      "type": "string"
+    },
+    "vehicle.year_of_manufacture": {
+      "label": "Год выпуска",
+      "type": "integer",
+      "min": 1900,
+      "max": 2100
+    }
+  },
+  "output_schema": {
+    "fitment.link_type": {
+      "label": "Тип связи",
+      "type": "string",
+      "values": [
+        "original",
+        "cross"
+      ]
+    },
+    "fitment.evidence_source": {
+      "label": "Источник доказательства",
+      "type": "string"
+    },
+    "fitment.evidence_age_seconds": {
+      "label": "Возраст доказательства",
+      "type": "integer",
+      "min": 0
+    },
+    "fitment.cross_depth": {
+      "label": "Глубина кросс-цепочки",
+      "type": "integer",
+      "min": 0,
+      "max": 3,
+      "optional": true
+    }
+  },
+  "owner": "auto-parts",
+  "evidence_ref": "auto-parts/spec/4.4",
+  "adapter_status": "not_implemented",
+  "dependency": {
+    "connector_type": "catalog"
+  }
+}

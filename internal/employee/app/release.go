@@ -12,6 +12,7 @@ import (
 	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
 	"github.com/artemiosu/staffy/internal/platform/id"
 	"github.com/artemiosu/staffy/internal/platform/tenancy"
+	"github.com/artemiosu/staffy/internal/tools"
 )
 
 // WithConnectorFacts wires the narrow connector facts port (release
@@ -361,6 +362,32 @@ func (s *Service) CreateConfigVersion(ctx context.Context, c api.VersionCommand)
 	})
 }
 
+// deriveToolSchemasState builds the derived tool_schemas component state
+// from the pack pin of the sealed configuration (Story 7-2): the pin's
+// pack manifest carries the tool binding, the tool registry carries the
+// honest adapter statuses. The append-only registries make a present pin
+// unresolvable IMPOSSIBLE (a pack version is never deleted; the loaders
+// are fail-closed) — an unreachable state fails loudly instead of sealing
+// a lie.
+func (s *Service) deriveToolSchemasState(packRef domain.PackRef) domain.RuntimeComponentState {
+	if packRef.Status != domain.RefPresent {
+		return domain.DeriveToolSchemasState(packRef, nil)
+	}
+	manifest, ok := packs.Get(packRef.ID, packRef.Version)
+	if !ok {
+		panic("release tool_schemas: append-only invariant broken — pinned pack " + packRef.ID + "@" + packRef.Version + " отсутствует в реестре")
+	}
+	bindings := make([]domain.ToolBindingFact, 0, len(manifest.Tools))
+	for _, ref := range manifest.Tools {
+		contract, ok := tools.Get(ref.ID, ref.Version)
+		if !ok {
+			panic("release tool_schemas: append-only invariant broken — bound tool " + ref.ID + "@" + ref.Version + " отсутствует в реестре tools")
+		}
+		bindings = append(bindings, domain.ToolBindingFact{ID: ref.ID, Version: ref.Version, AdapterStatus: contract.AdapterStatus})
+	}
+	return domain.DeriveToolSchemasState(packRef, bindings)
+}
+
 // SealManifest seals the manifest of one configuration version: the content
 // is built from the immutable version plus the connection facts at sealing
 // time; the digest and the status are derived before persistence and never
@@ -391,7 +418,8 @@ func (s *Service) SealManifest(ctx context.Context, c api.SealCommand) (domain.R
 	if err != nil {
 		return domain.ReleaseManifest{}, err
 	}
-	content := domain.BuildManifestContent(config, connections, nil)
+	toolState := s.deriveToolSchemasState(config.Refs.Pack)
+	content := domain.BuildManifestContent(config, connections, domain.BuildRuntimeState(toolState))
 	status := domain.DeriveManifestStatus(content)
 	digest, err := domain.ManifestDigest(content)
 	if err != nil {

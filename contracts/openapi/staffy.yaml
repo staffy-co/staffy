@@ -3237,6 +3237,54 @@ paths:
         '401': { $ref: '#/components/responses/Problem' }
         '403': { $ref: '#/components/responses/Problem' }
         '404': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/tools:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+    get:
+      operationId: listToolContracts
+      summary: 'Реестр инструментов (7.2): типизированные контракты deterministic_read — новейшая версия каждого (read-only, скоуп integrations|configuration); регистрация контракта не означает доступность вызова'
+      x-staffy-principal-required: true
+      responses:
+        '200':
+          description: 'Новейшие версии контрактов; честный пустой список — состояние AG-4 (ни один пак не привязывает контракты), не дефект'
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [tools]
+                properties:
+                  tools: { type: array, items: { $ref: '#/components/schemas/ToolContractView' } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+  /v1/tenants/{tenant_id}/tools/{tool_id}/{tool_version}:
+    parameters:
+      - $ref: '#/components/parameters/TenantID'
+      - name: tool_id
+        in: path
+        required: true
+        schema: { type: string, minLength: 1, maxLength: 120, pattern: '^[a-z0-9._-]+$' }
+      - name: tool_version
+        in: path
+        required: true
+        schema: { type: string, pattern: '^[0-9]+\.[0-9]+\.[0-9]+$' }
+    get:
+      operationId: getToolContract
+      summary: 'Пин точной версии контракта — старые версии неизменяемы (sha256 append-only) и резолвимы для будущих Manifest/Planner ссылок (8.3/7.3)'
+      x-staffy-principal-required: true
+      responses:
+        '200':
+          description: Закреплённый контракт точной (id, version) пары
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [tool]
+                properties:
+                  tool: { $ref: '#/components/schemas/ToolContractView' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
   /v1/tenants/{tenant_id}/controls:
     parameters:
       - $ref: '#/components/parameters/TenantID'
@@ -7692,6 +7740,41 @@ components:
         ref_id: { type: string, format: uuid, description: 'Якорь факта/наблюдения ЭТОГО обращения (пусто у спорного)' }
         disputed: { type: boolean, description: 'Честная пометка спорности (спорное утверждение не несёт ссылку)' }
         text: { type: string, minLength: 1, description: 'Текст утверждения — байт-в-байт подстрока текста сводки' }
+    ToolContractView:
+      type: object
+      additionalProperties: false
+      required: [id, version, name, purpose, determinism_class, adapter_status, owner, evidence_ref, input_schema, output_schema]
+      description: 'Типизированный контракт инструмента (7.2, первый срез): декларация без исполнения. Словарь determinism_class — единственное значение deterministic_read: write-инструмент структурно невозможен (AD-6/AD-7), расширение словаря = правка ядра; adapter_status — дисциплина AdapterImplemented (not_implemented виден, но вызов невозможен вдвойне: адаптеров нет и диспетчера нет); версии semver-core, sha256-пины append-only — смена семантики только новой версией; dependency — тип коннектора (не конкретный коннектор), кросс-валидируется против connector_types привязывающего пака'
+      properties:
+        id: { type: string, minLength: 1, maxLength: 120, pattern: '^[a-z0-9._-]+$' }
+        version: { type: string, pattern: '^[0-9]+\.[0-9]+\.[0-9]+$' }
+        name: { type: string, minLength: 1 }
+        purpose: { type: string, minLength: 1 }
+        determinism_class: { type: string, enum: [deterministic_read] }
+        adapter_status: { type: string, enum: [implemented, not_implemented] }
+        owner: { type: string, minLength: 1 }
+        evidence_ref: { type: string, minLength: 1 }
+        dependency:
+          type: object
+          additionalProperties: false
+          required: [connector_type]
+          properties:
+            connector_type: { type: string, minLength: 1 }
+        input_schema: { type: array, items: { $ref: '#/components/schemas/ToolSchemaFieldView' } }
+        output_schema: { type: array, items: { $ref: '#/components/schemas/ToolSchemaFieldView' } }
+    ToolSchemaFieldView:
+      type: object
+      additionalProperties: false
+      required: [name, label, type, optional]
+      description: 'Один типизированный ключ схемы контракта: платформенный словарь типизации (string | integer | boolean) — расширение словаря = правка ядра; values только у string, границы только у integer'
+      properties:
+        name: { type: string, minLength: 1 }
+        label: { type: string, minLength: 1 }
+        type: { type: string, enum: [string, integer, boolean] }
+        values: { type: array, items: { type: string, minLength: 1 } }
+        min: { type: integer }
+        max: { type: integer }
+        optional: { type: boolean }
     ActionDefinitionView:
       type: object
       additionalProperties: false

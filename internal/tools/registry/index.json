@@ -1,0 +1,22 @@
+{
+  "entries": [
+    {
+      "id": "auto-parts.vehicle-identification",
+      "version": "1.0.0",
+      "file": "auto-parts.vehicle-identification@1.0.0.json",
+      "sha256": "33c1f0091e6a0664ce1de2e13b37bbd1acaaef61a864cfb1d2cf9b3055eacd6b"
+    },
+    {
+      "id": "auto-parts.part-request-classification",
+      "version": "1.0.0",
+      "file": "auto-parts.part-request-classification@1.0.0.json",
+      "sha256": "d91392c7e4d2d61a238e4929e04105aded67c865a36af5455f658c7c4a93f340"
+    },
+    {
+      "id": "auto-parts.fitment-evidence",
+      "version": "1.0.0",
+      "file": "auto-parts.fitment-evidence@1.0.0.json",
+      "sha256": "4586a25a2f6e9d1a6797a30a2d2371c63267e1af292ae2db35f97952f7880ccf"
+    }
+  ]
+}

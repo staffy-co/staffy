@@ -37,6 +37,15 @@ var verticalPhrases = []string{
 	"Глубина сопоставления",
 	"Инженерная сантехника",
 	"Отопление",
+	// The Story 7-2 tool artifact phrases: the contract Names and the
+	// Purpose openers of the three vertical contracts. The registry
+	// artifacts carry the words; the core packages never do.
+	"Идентификация автомобиля",
+	"Классификация запроса детали",
+	"Доказательство применимости",
+	"Определяет автомобиль",
+	"Определяет режим запроса детали",
+	"Проверяет применимость детали",
 }
 
 // verticalExceptions are the honest vertical surfaces outside the probe
@@ -77,7 +86,7 @@ func TestVerticalWordsAbsentFromCore(t *testing.T) {
 			}
 			if !zone.allGo {
 				switch filepath.Base(filepath.Dir(path)) {
-				case "domain", "app", "port", "store":
+				case "domain", "app", "port", "store", "tools":
 				default:
 					return nil
 				}
