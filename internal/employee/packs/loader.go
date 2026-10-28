@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/artemiosu/staffy/internal/employee/domain"
+	"github.com/artemiosu/staffy/internal/tools"
 )
 
 // The registry is the versioned artifact store of the published Domain
@@ -54,11 +55,30 @@ var (
 	reviewSlotDictionary        = map[string]bool{"connectors": true, "knowledge": true, "behavior": true}
 )
 
+// toolResolver resolves a typed tool ref against the tool registry: the
+// production lookup serves the embedded registry of internal/tools; the
+// tests inject lookups over fstest.MapFS fixtures (the cross-validation
+// itself only needs the resolved contract, never the loader).
+type toolResolver func(id, version string) (tools.ToolContract, bool)
+
+// productionTools serves the embedded tool registry (Story 7-2): the
+// composite publication rule — a pack binding a tool ref the tool
+// registry does not carry refuses the whole pack registry.
+func productionTools(id, version string) (tools.ToolContract, bool) {
+	return tools.Get(id, version)
+}
+
 // loadRegistry reads the index and every artifact from fsys, verifies the
 // sha256 pins, validates every manifest and the cross-manifest rules, and
 // returns the manifests in the canonical index order — or the first named
 // reason the registry is not loadable.
 func loadRegistry(fsys fs.FS) ([]domain.PackManifest, error) {
+	return loadRegistryWithTools(fsys, productionTools)
+}
+
+// loadRegistryWithTools is loadRegistry with an injectable tool resolver
+// (the cross-validation of the tool binding runs on every load).
+func loadRegistryWithTools(fsys fs.FS, resolveTool toolResolver) ([]domain.PackManifest, error) {
 	indexRaw, err := fs.ReadFile(fsys, registryIndexFile)
 	if err != nil {
 		return nil, fmt.Errorf("индекс реестра: %w", err)
@@ -98,6 +118,9 @@ func loadRegistry(fsys fs.FS) ([]domain.PackManifest, error) {
 			return nil, fmt.Errorf("%s: JSON: %v", key, err)
 		}
 		if err := validateManifest(manifest); err != nil {
+			return nil, err
+		}
+		if err := validateToolBinding(manifest, resolveTool); err != nil {
 			return nil, err
 		}
 		byKey[key] = manifest
@@ -203,6 +226,39 @@ func validateManifest(m domain.PackManifest) error {
 	for _, name := range m.AtLeastOneOf {
 		if _, ok := m.Schema[name]; !ok {
 			return fmt.Errorf("%s: ключ %s не описан в schema", key, name)
+		}
+	}
+	return nil
+}
+
+// validateToolBinding enforces the composite publication rule of the tool
+// binding (Story 7-2): every tool ref of the pack's Tools field resolves
+// in the tool registry (a binding without its target refuses the whole
+// pack registry — the UpgradeFrom precedent), and a bound contract with a
+// declared dependency carries a connector type the BINDING pack declares
+// in its connector_types (the static half of AC-3; the dynamic capability
+// probe is the caller's — 7.3/8.3).
+func validateToolBinding(m domain.PackManifest, resolveTool toolResolver) error {
+	if len(m.Tools) == 0 {
+		return nil
+	}
+	for _, ref := range m.Tools {
+		contract, ok := resolveTool(ref.ID, ref.Version)
+		if !ok {
+			return fmt.Errorf("%s@%s: tool %s@%s отсутствует в реестре tools", m.ID, m.Version, ref.ID, ref.Version)
+		}
+		if contract.Dependency == nil {
+			continue
+		}
+		declared := false
+		for _, connectorType := range m.ConnectorTypes {
+			if connectorType == contract.Dependency.ConnectorType {
+				declared = true
+				break
+			}
+		}
+		if !declared {
+			return fmt.Errorf("%s@%s: tool %s@%s: зависимость connector_type %s не декларирована доменом пака", m.ID, m.Version, ref.ID, ref.Version, contract.Dependency.ConnectorType)
 		}
 	}
 	return nil

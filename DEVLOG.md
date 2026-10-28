@@ -6013,3 +6013,17 @@ done:
 next: Dev step-02 — загрузчик internal/tools/loader.go fail-closed (обязательные поля, платформенные словари determinism_class {deterministic_read} / adapter_status / типы схем, semver-core, дубликаты/orphan/канон/sha256, поимённые причины) + reject-матрица 12+ на fstest.MapFS + негативный контроль + кросс-валидация поля tools в packs loader (рефы разрешаются, dependency.connector_type ∈ connector_types пака, составная публикация fail-closed) + catalog.go Get/List с clone-дисциплиной
 владельцу: отозвать PAT после закрытия чата (retro-4-5)
 commit: 37780e06019eff980c4193560b02ffaf4832fbcf
+
+---
+date: 2026-10-28
+task: 300-dev-step-02-7-2
+role: main (Super Z, сессия web-d497a728)
+story: 7-2
+summary: Dev step-02 story 7-2 — загрузчик и кросс-валидация: internal/tools/loader.go fail-closed (go:embed + sha256-пины + валидация ДО использования: обязательные поля 10, платформенные словари determinism_class {deterministic_read} ЕДИНСТВЕННОЕ значение / adapter_status / типы ключей схем словаря паков + правила форм (integer без values, границы только у integer, values только у string, label обязателен), semver-core строгий, дубликаты/orphan/канон имён) с поимёнными причинами + internal/tools/catalog.go Get/List с clone-дисциплией (пин-чтение точной версии, канонический порядок) + reject-матрица 23 кейса поимённо на fstest.MapFS живых артефактов (включая write/mutation классы, sha256-дрейф, пустой индекс, dependency без connector_type) + негативный контроль + fail-closed целиком + кросс-валидация привязки в packs loader: loadRegistryWithTools с инъекцируемым toolResolver (production = tools.Get), рефы tools разрешаются (составная публикация fail-closed поимённо), dependency.connector_type ∈ connector_types привязывающего пака (статическая половина AC-3), паки без tools минуют резолвер (nil-путь, тест с падающим резолвером)
+done:
+- УРОК саморевью ДО прогона: python-патч вставки вызова кросс-валидации в цикл не применился (tab-отступы, replace без assert) — негативный контроль «прошёл» из-за отсутствия вызова; ловится парой зондов (grep по факту + тест с пустым резолвером обязан падать); патч повторен с assert
+- Мутационные тесты кросс-валидации с rePin (мутация сознательная — пин обновляется честно, чтобы дошло до кросс-валидации, а не до sha256-отказа)
+- полный живой прогон: build/vet зелёные, unit 35 пакетов ok, 0 FAIL
+next: Dev step-03 — честный presence tool_schemas в Release Manifest: производное вычисление состояния при seal (4 ветви: пак без tools / tools not_implemented / fixture implemented → Present / sealed-история не пересчитывается AD-10); существующие release-тесты со статичной запиской обновляются осознанно; потребители манифеста не меняются (RuntimeComponentState структура неизменна)
+владельцу: отозвать PAT после закрытия чата (retro-4-5)
+commit: TBD
