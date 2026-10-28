@@ -23,6 +23,8 @@ import (
 	"github.com/artemiosu/staffy/internal/adapters/controleffectiveresolver"
 	"github.com/artemiosu/staffy/internal/adapters/ingresssyn"
 	"github.com/artemiosu/staffy/internal/adapters/packresolver"
+	"github.com/artemiosu/staffy/internal/adapters/toolsdependency"
+	"github.com/artemiosu/staffy/internal/adapters/toolssource"
 	"github.com/artemiosu/staffy/internal/adapters/verificationsyn"
 	casesApp "github.com/artemiosu/staffy/internal/cases/app"
 	casesStore "github.com/artemiosu/staffy/internal/cases/store"
@@ -38,6 +40,7 @@ import (
 	entitlementStore "github.com/artemiosu/staffy/internal/entitlement/store"
 	"github.com/artemiosu/staffy/internal/identity/app"
 	"github.com/artemiosu/staffy/internal/identity/store"
+	"github.com/artemiosu/staffy/internal/mcp"
 	"github.com/artemiosu/staffy/internal/platform/id"
 	privacyApp "github.com/artemiosu/staffy/internal/privacy/app"
 	privacyDomain "github.com/artemiosu/staffy/internal/privacy/domain"
@@ -278,6 +281,18 @@ func run(logger *slog.Logger) error {
 	transport.BindDispatch(actionService)
 	transport.BindReconcile(actionService)
 	transport.BindRecovery(actionService)
+	// The Story 7.3 wiring: the MCP surface machine over the embedded 7-2
+	// registry (the production ToolSource composition adapter) and the LIVE
+	// connection facts (the DependencyGate composition adapter over the
+	// connector machine — the verified/failed/stale vocabulary of the
+	// DeriveCapabilityStates derivation). The ADAPTER REGISTRY is
+	// deliberately EMPTY — AG-4: no live adapters exist, the callable set
+	// is honestly empty (the nil-adapter precedents of 3-6/3-7: the
+	// protocol surface answers fully, every tools/call refuses in words
+	// naming the unregistered adapter); the first live adapter arrives as
+	// a NEW implemented artifact version plus this root's wiring of a
+	// future slice (the deferred-work boundary of the spec).
+	transport.BindMCP(mcp.New(identityService, toolssource.New(), emptyAdapterRegistry{}, toolsdependency.New(connectorService), logger))
 	// The scoped controls surface (Story 3.2): the operator emergency
 	// restriction module over its own PG store, the live identity gates
 	// and the connector ref resolution through the consumer-owned port
@@ -315,6 +330,14 @@ func run(logger *slog.Logger) error {
 type databaseVerifier interface {
 	QueryRow(context.Context, string, ...any) pgx.Row
 }
+
+// emptyAdapterRegistry is the AG-4 production fact of the MCP surface:
+// ZERO runtime adapters (the nil-adapter precedents of 3-6/3-7). The
+// registry is a composition fact, not an error: the surface answers, the
+// execution honestly refuses.
+type emptyAdapterRegistry struct{}
+
+func (emptyAdapterRegistry) Adapter(string, string) (mcp.Adapter, bool) { return nil, false }
 
 func verifyRuntimeDatabase(ctx context.Context, database databaseVerifier) error {
 	var role string
