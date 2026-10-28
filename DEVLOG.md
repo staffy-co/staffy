@@ -6140,3 +6140,16 @@ done:
 next: Dev step-03 — транспорт полная матрица (415 / 413 / 400-сверки Mcp-Method/Mcp-Name/версии / 202 / 405 / лестница problem ДО материала / JSON-RPC мэппинг 200/400 / 429 + Retry-After) + OpenAPI +1 path POST /v1/tenants/{tenant_id}/mcp (x-staffy-principal-required; закрытая форма envelope; лестница 200/202/400/401/403/404/405/413/415/429) + mcp_contract_test.go зеркала (типы проекции ↔ tools.ToolFieldTypes, serverInfo ↔ info.version, версии ровно [2026-07-28], readOnlyHint) + регресс unit полным прогоном
 владельцу: отозвать PAT после закрытия чата (retro-4-5)
 commit: d17382e27419784754b3e818ecefe60c20b0d16c
+
+---
+date: 2026-10-29
+task: 309-dev-step-03-7-3
+role: main (Super Z, сессия web-d497a728)
+story: 7-3
+summary: Dev step-03 story 7-3 — транспортная матрица + OpenAPI: full-stack тесты РЕАЛЬНОГО mcp.Service через провод (продакшн-стек: toolssource.New() над живым реестром 7-2 + пустой реестр адаптеров AG-4 + фикстуры членства) — discover 200 несёт protocolVersions ровно [2026-07-28] + listChanged:false + serverInfo staffy/0.1.0; tools/list honest empty [] (все живые контракты not_implemented); batch старой эпохи 400 поимённо «одно JSON-RPC сообщение»; малформед-JSON 400 -32700; notification 202 без тела; рассинхрон Mcp-Method 400; чужая ревизия 200 UnsupportedProtocolVersionError + supportedVersions:[2026-07-28]; неизвестный метод 200 -32601; member-без-скоупов 403 problem словами ДО единого байта JSON-RPC; OpenAPI +1 path POST /v1/tenants/{tenant_id}/mcp (x-staffy-principal-required: true; три header-параметра со словарями; requestBody McpRequestEnvelope; лестница 200/202/400/401/403/404/413/415/429 с Retry-After header; GET/DELETE задокументированы операциями 405 — стримов и сессий нет ревизией) + 8 схем компонент закрытыми формами + mcp_contract_test.go зеркала: словарь методов заголовка ↔ mcp-константы поимённо, пинн версии ↔ mcp.SupportedProtocolVersions(), типы проекции McpJsonSchemaProperty ↔ tools.ToolFieldTypes() (drift краснеет), serverInfo.name/version ↔ mcp.ServerName/ServerVersion ↔ info.version документа (осознанный шаг в двух местах), listChanged const false + readOnlyHint const true — факты, закрытые формы конвертов 5/4 членов, лестница кодов поимённо, 405 НЕ на POST
+done:
+- ЖИВОЙ прогон: build/vet зелёные, unit 38 пакетов ok (-count=1), 0 FAIL; yaml валиден (163 пути, 384 схемы); gofmt чист
+- Уроки шага: enum у header-параметра живёт В schema (не на параметре); YAML false/true парсятся булами — булевы enum-зеркала сверяются как bool, не словами
+next: Dev step-04 — fixture-мир MCP journeys: mcp_fixture.go (implemented демо-контракт с вертикальными словами ТОЛЬКО тест-контур + scripted адаптер с тумблерами undeclared-выхода/сна + scripted DependencyGate с тумблером stale + низкое окно) + fixture_server.go BindMCP(fixture) + тумблеры /fixture/mcp-{dependency-stale, adapter-leaky, rate-low} + z{51}-mcp-registry-surface.spec.ts scripted MCP-клиент (fetch без SDK: лестница, discover, list, call валидный/малформед/неизвестный, версии, заголовки, 202, 405, 429, ротация→исчезновение, изоляция тенентов, undeclared-выход); journey прогнать живьём ДО коммита (урок 7-2)
+владельцу: отозвать PAT после закрытия чата (retro-4-5)
+commit: efe9cd80bded93d62456982838c8f3c89a1c38ed
