@@ -12,6 +12,7 @@ import (
 	"github.com/artemiosu/staffy/internal/identity/domain"
 	"github.com/artemiosu/staffy/internal/platform/id"
 	"github.com/artemiosu/staffy/internal/platform/tenancy"
+	"github.com/artemiosu/staffy/internal/tools"
 )
 
 // releaseFixture is the in-memory release surface of the journey server:
@@ -42,6 +43,29 @@ func releaseScope() tenancy.Context {
 func (f *releaseFixture) unlock() { f.mu <- struct{}{} }
 
 // knowledgeSources returns the fixture knowledge list (nil-safe).
+// fixtureToolSchemasState повторяет производство-выведение tool_schemas
+// состояния app-уровня: пин пака → манифест пака (привязка) → статусы
+// контрактов реестра tools. Машина манифеста путешествий обязана
+// запечатывать то же производное состояние, что и боевой seal.
+func fixtureToolSchemasState(packRef employeeDomain.PackRef) employeeDomain.RuntimeComponentState {
+	if packRef.Status != employeeDomain.RefPresent {
+		return employeeDomain.DeriveToolSchemasState(packRef, nil)
+	}
+	manifest, ok := packs.Get(packRef.ID, packRef.Version)
+	if !ok {
+		return employeeDomain.DeriveToolSchemasState(packRef, nil)
+	}
+	bindings := make([]employeeDomain.ToolBindingFact, 0, len(manifest.Tools))
+	for _, ref := range manifest.Tools {
+		contract, ok := tools.Get(ref.ID, ref.Version)
+		if !ok {
+			continue
+		}
+		bindings = append(bindings, employeeDomain.ToolBindingFact{ID: ref.ID, Version: ref.Version, AdapterStatus: contract.AdapterStatus})
+	}
+	return employeeDomain.DeriveToolSchemasState(packRef, bindings)
+}
+
 func (f *releaseFixture) knowledgeSources() []employeeDomain.KnowledgeSource {
 	if f.employee.knowledge == nil {
 		return nil
@@ -201,7 +225,8 @@ func (f *releaseFixture) SealManifest(_ context.Context, c employeeAPI.SealComma
 	if err != nil {
 		return employeeDomain.ReleaseManifest{}, err
 	}
-	content := employeeDomain.BuildManifestContent(config, connections, nil)
+	toolState := fixtureToolSchemasState(config.Refs.Pack)
+	content := employeeDomain.BuildManifestContent(config, connections, employeeDomain.BuildRuntimeState(toolState))
 	status := employeeDomain.DeriveManifestStatus(content)
 	digest, err := employeeDomain.ManifestDigest(content)
 	if err != nil {

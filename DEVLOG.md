@@ -6027,3 +6027,18 @@ done:
 next: Dev step-03 — честный presence tool_schemas в Release Manifest: производное вычисление состояния при seal (4 ветви: пак без tools / tools not_implemented / fixture implemented → Present / sealed-история не пересчитывается AD-10); существующие release-тесты со статичной запиской обновляются осознанно; потребители манифеста не меняются (RuntimeComponentState структура неизменна)
 владельцу: отозвать PAT после закрытия чата (retro-4-5)
 commit: 9791aad251049fdc99a52da363da201f0ec22ecd
+
+---
+date: 2026-10-28
+task: 301-dev-step-03-7-2
+role: main (Super Z, сессия web-d497a728)
+story: 7-2
+summary: Dev step-03 story 7-2 — честный presence tool_schemas в Release Manifest: домен получил тип ToolBindingFact (вход производного состояния — домен не трогает реестры) + чистую функцию DeriveToolSchemasState с 4 честными ветвями (пак не закреплён / закреплён без привязки — производная записка вместо статичной «поверхность не существует» / привязка с not_implemented адаптерами — видима, Present=false, вызов невозможен / fixture implemented → Present=true с Ref пина пака) + BuildRuntimeState(toolSchemas) с обязательным входом (подстановка в словарь при фиксированном порядке 8 компонентов; статичная записка сохраняется у прочих gap-компонентов) + nil-ветка BuildManifestContent = производная записка для не-seal читателей (статика больше не путь по умолчанию); app SealManifest собирает состояние явно (пин пака → packs.Get → Tools → статусы контрактов tools.Get; инвариант append-only — недостижимый пин паникует громко вместо запечатывания лжи); journeys release_fixture повторяет production-выведение (машина манифеста путешествий = боевой seal)
+done:
+- тесты: release_tools_state_test.go (4 ветви поимённо, подстановка в словарь, nil-fallback производный) + существующие suite'ы пережили без правок (никто в unit не пинил текст статичной записки — grep живой); integration release живым PG зелёный
+- sealed-история не пересчитывается (AD-10): вычисление только при новых seal'ах — DeriveToolSchemasState чистая, вызывается из seal-пути и nil-fallback чтения (не пересчёт дайджестов)
+- УРОК: python-патч с несколькими replace БЕЗ write при упавшем assert = файл не записан ВООБЩЕ (assert до write) — симптом «undefined» ловится build-зондом; повторный прогон патча с отдельными assert-ами
+- полный живой прогон: build/vet зелёные, unit 35 пакетов ok, integration release ok
+next: Dev step-04 — поверхность оператора: transport routes GET /v1/tenants/{id}/tools (list новейших + пин-чтение точной версии) + страница /app/tenants/{id}/tools словарями текстом + OpenAPI +2 path + enum-зеркала + contract_test + journey spec-файл z-серии
+владельцу: отозвать PAT после закрытия чата (retro-4-5)
+commit: TBD
