@@ -6069,3 +6069,16 @@ done:
 next: CHECKPOINT 2 — PR (scripts/pr_story_7_2.py по прецеденту 5-1/7-1) → CI ×3 поимённо (push ветки + synchronize PR + push main) → sha-pinned merge → main ff-only → DEVLOG checkpoint-2 → удаление ветки ×3 (compare behind/ahead_by=0 → DELETE → GET 404 → локально -d); Epic 7: 2/4
 владельцу: отозвать PAT после закрытия чата (retro-4-5)
 commit: 02ae5b8e9881cad3b631341272dcb21eb95810c0
+
+---
+date: 2026-10-28
+task: 304-checkpoint-2-7-2
+role: main (Super Z, сессия web-d497a728)
+story: 7-2
+summary: CHECKPOINT 2 story 7-2 ЗАКРЫТ: PR #55 смержен sha-pinned (pre-merge GET: head 213be06 open mergeable clean; PUT merge → merge-commit 8619194); CI ×3 ПОИМЁННО success: push-ран ветки 40699471887 + synchronize-ран PR 40699482250 (оба на 213be06) + main push-ран 40701213858 (8619194); локальный main ff-only 40b795f → 8619194; слияние принесло на main реестр tools (3 контракта + индекс sha256 append-only — последующие PR-раны получают реальную tools-базу); урок 282 применён дважды: TBD-фиксация DEVLOG и скрипт-PR головы несли [skip ci] — активационные пустые коммиты 4fdcb16 + 213be06 без маркера подняли оба рана
+done:
+- CI ×3: ветка push + PR synchronize + main push — все success поимённо (дисциплина 4-11)
+- Полный цикл story 7-2 за одну сессию: CHECKPOINT 1 (флип 53f5097) → Dev 01-05 (37780e0/9791aad/1946c79/1d1a081/02ae5b8) → CHECKPOINT 2 (PR #55, merge 8619194); Epic 7: 2/4
+- next: удаление ветки ×3 (GitHub DELETE refs/heads + локально -d + update-ref -d при stale) с compare-проверкой behind/ahead_by=0; затем финал: ls-remote только main, RPO=0, check-continuity; следующий слот — SM-фаза story 7-3 «MCP-сервер поверхности реестра tools» по сигналу владельца
+владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/PR/merge/API сессии; передан открытым текстом в чате)
+commit: TBD
