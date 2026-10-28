@@ -29,6 +29,6 @@ scripts/env.sh
 *.unit.log
 
 /journeys
-staffy-core
+/staffy-core
 # Root-level playwright artifacts (accidental runs from the repo root).
 /test-results/
