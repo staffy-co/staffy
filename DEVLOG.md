@@ -6180,3 +6180,16 @@ done:
 next: CHECKPOINT 2 — PR story 7-3 (sha-pin головы в теле, прецедент pr_story_7_2.py) → CI ×3 поимённо (push-ран ветки + synchronize-ран PR + main-ран после merge) → sha-pinned merge (GitHub API, голова пином) → main ff-only локально → DEVLOG 312-checkpoint-2 + TBD-заполнение → удаление ветки ×3 (локально -d + push --delete + ls-remote-зонд) → работа worklog; Epic 7: 3/4
 владельцу: отозвать PAT после закрытия чата (retro-4-5)
 commit: 3dfb64786d9d52e5bc208d976323914d9eceac91
+
+---
+date: 2026-10-29
+task: 312-checkpoint-2-7-3
+role: main (Super Z, сессия web-d497a728)
+story: 7-3
+summary: CHECKPOINT 2 story 7-3 ЗАКРЫТ: PR #56 слит sha-pinned merge (merge-коммит 5534ddc52c0d389466c1435244d4abd923299288, голова ветки 35bbe780094b7c131916dcd3e431f8f6f2fb1c43 пином, merge_method merge; state closed, merged True — живой GET); main ff-only локально; CI ×4 поимённо ЗЕЛЁНЫЕ: push 40734071047 на 89bd2af (голова feat шага-05 БЕЗ маркера — урок 282) + push 40735836743 на 35bbe78 (PR-скрипт голова без маркера — активатор ранов) + synchronize 40735861354 PR #56 + main-ран 40737357681 на merge-коммите 5534ddc; удаление ветки ×3 (локально -d + push --delete + ls-remote-зонд); Epic 7: 3/4
+done:
+- Dev 01-05 слит целиком: протокольная машина MCP 2026-07-28 (stateless, stdlib, без SDK) за лестницей 3-1/7-2; гейт экспозиции fail-closed 4 факта (write-класс структурно невидим НА слое); путь вызова через контракт реестра 7-2 (пин id@version, strict-валидация вход/выход поимённо, ctx-бюджет, пин в content); rate/budget декларированы; аудит slog; проекция 1:1; OpenAPI +1 path + 8 схем + зеркала; drift-зона +internal/mcp; main.go BindMCP с ПУСТЫМ реестром AG-4; 0 SQL; 0 правок internal/tools
+- Урок merge-API: эндпоинт слияния — PUT (не POST) с явным Content-Type: application/json (POST отвечал 404 Not Found при mergeable: True — живой зонд зафиксировал)
+next: SM-фаза story 7-4 «Внешние MCP-серверы как класс Connector» (последний слот Epic 7, 4/4) — ПО СИГНАЛУ ВЛАДЕЛЬЦА (дисциплина чекпоинтов: изучение входов → спека → CHECKPOINT 1 предъявление → одобрение → Dev)
+владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/PR/merge/API-зонды сессии; передан открытым текстом в чате)
+commit: TBD
