@@ -6081,4 +6081,4 @@ done:
 - Полный цикл story 7-2 за одну сессию: CHECKPOINT 1 (флип 53f5097) → Dev 01-05 (37780e0/9791aad/1946c79/1d1a081/02ae5b8) → CHECKPOINT 2 (PR #55, merge 8619194); Epic 7: 2/4
 - next: удаление ветки ×3 (GitHub DELETE refs/heads + локально -d + update-ref -d при stale) с compare-проверкой behind/ahead_by=0; затем финал: ls-remote только main, RPO=0, check-continuity; следующий слот — SM-фаза story 7-3 «MCP-сервер поверхности реестра tools» по сигналу владельца
 владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/PR/merge/API сессии; передан открытым текстом в чате)
-commit: TBD
+commit: e8d9dee16657e70dc4c9b87b6902bff8e6bd09aa
