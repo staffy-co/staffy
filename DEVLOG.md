@@ -6139,4 +6139,4 @@ done:
 - Урок тестов (осознанный фикс): Result тела читается напрямую (не через обёртку result), «незарегистрированный» фейк обязан НЕ регистрироваться, dead-gate субтест требует зависимого контракта (самодостаточный не закрывается гейтом зависимости)
 next: Dev step-03 — транспорт полная матрица (415 / 413 / 400-сверки Mcp-Method/Mcp-Name/версии / 202 / 405 / лестница problem ДО материала / JSON-RPC мэппинг 200/400 / 429 + Retry-After) + OpenAPI +1 path POST /v1/tenants/{tenant_id}/mcp (x-staffy-principal-required; закрытая форма envelope; лестница 200/202/400/401/403/404/405/413/415/429) + mcp_contract_test.go зеркала (типы проекции ↔ tools.ToolFieldTypes, serverInfo ↔ info.version, версии ровно [2026-07-28], readOnlyHint) + регресс unit полным прогоном
 владельцу: отозвать PAT после закрытия чата (retro-4-5)
-commit: 
+commit: d17382e27419784754b3e818ecefe60c20b0d16c
