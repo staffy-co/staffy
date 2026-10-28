@@ -6223,3 +6223,21 @@ done:
 next: Dev шаги 01-05 спеки 7-4 (шаг-01 клиентская машина internal/mcpclient + карточка класса каталога + роутер connectorprobe + секреты проб MAC/ReadSeal → шаг-02 инвентарь+словарь externaltools+деривация+машина вызова → шаг-03 транспорт+OpenAPI → шаг-04 fixture-мир+journey z52 → шаг-05 drift+QA-closure epic-7 done 4/4) → CHECKPOINT 2 (PR → CI ×3 поимённо → sha-pinned merge → main ff-only → DEVLOG → удаление ветки ×3)
 владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/PR/merge/API-зонды сессии; передан открытым текстом в чате)
 commit: 61a5d5712c06c658a46afa1aaa550f8e98b328aa
+
+---
+date: 2026-10-29
+task: 315-dev-step-01-7-4
+role: main (Super Z, сессия web-d497a728)
+story: 7-4
+summary: Dev step-01 story 7-4 — клиентская протокольная машина internal/mcpclient (stateless-ревизия 2026-07-28, stdlib без SDK, словари-зеркала 7-3, строгий decode result XOR error/эхо id/когерентность версии, размерные бюджеты без усечения, фильтрация дескрипторов AD-11, credential-агностика) + карточка класса staffy-external-mcp-server@1.0.0 (business system, external-mcp, envs {sandbox,test} — AG-4 fail-closed на классе, ровно один секрет, capabilities ×5 полной семантики) + core-правки секрета проби (Verifier.Probe +secrets, VerifyCommand.Secrets в память, verifySeal MAC против активного seal через узкий ReadSeal ДО сети, 0 миграций) + composition-роутер connectorprobe (маршрут по RequiredAccountType; телефония побайтно неизменна — тест-пин; Build connectorprobe/1.0.0) + main.go верификатор-роутер
+done:
+- Wire-тесты mcpclient над httptest: матрица конверта (ни результата ни ошибки / оба / чужой jsonrpc / мусор), эхо id, нулевые/отсутствующие члены, чужие ревизии (список и _meta), бюджеты чтения (сверхбюджет = отказ целиком), не-200 статус, JSON-RPC ошибка (только код — сообщение недоверенного не пересылается AD-11), дедлайн = честный unknown, фильтрация vendorExtension
+- Роутер: BasicCheck формата (sandbox-ключ + URL-форма, без сети), гейт ProbeVerifiable, discover и discover+list раунды, honest-слова исходов с провенансом serverInfo, секрет не эхо (тест-пин)
+- MAC-матрица unit (app): отсутствие → «требует секрет»; несовпадение → «не совпадает с принятым подключением» ДО сети (evidence не пишется); совпадение → проба + evidence; ротация → старый ключ отказ, evidence stale, новый ключ возвращает verified
+- Интеграционный PG-контур: полный цикл с живым httptest MCP-сервером + RLS-транзакция ReadSeal (УРОК: первый вариант ReadSeal шёл мимо scoped-транзакции — RLS резал строки, «не найден»; исправлено на begin+set_config)
+- УРОК style: gofmt -w всего пакета создал ~1600 строк whitespace-churn в пробельных legacy-файлах — откат и повторное применение правок в родном стиле каждого файла (табы: api/catalog/catalog_test/main/fixture_server; пробелы: service/service_test/port/postgres/synthetic/synthetic_test/connector_test); дисциплина: gofmt только НОВЫХ файлов (4-1)
+- УРОК integration: UUID-суффиксы e201-e204 нового интеграционного теста коллидировали с TestCapabilityEvidenceLifecycle → интер-тестовая контаминация; уникальный диапазон e6xx
+- Полный живой прогон: build/vet OK; unit все пакеты OK; интеграция ×2 TZ (UTC 66.0s / Moscow 70.7s) OK; git diff --check OK
+next: step-02 — инвентарь + словарь internal/externaltools + деривация + проекция JSON Schema → платформенный словарь + машина вызова Calls + адаптер externaltoolsfacts
+владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API-зонды сессии; передан открытым текстом в чате)
+commit: 4575b50de48263b8dd36e369568e5ec393f57664
