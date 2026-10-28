@@ -6055,4 +6055,4 @@ done:
 - полный живой прогон: build/vet зелёные, unit 35 ok, contracts/openapi ok
 next: Dev step-05 — drift-CI (ci.yml +tools-база append-only GITHUB_ENV-паттерном 7-1; словарь вертикального зонда + фразы артефактов tools + зона +internal/tools) + СИМУЛЯЦИЯ PR внешнего автора (+tool-артефакт +запись индекса, 0 правок .go, полный сьют, откат) + финальный регресс всех контуров (build/vet, unit -count=1, интеграция ×2 TZ, journeys серийно) + спека done + sprint-status done (epic-7 in-progress 2/4) + deferred-work honest-границы + коммит feat БЕЗ маркера пропуска
 владельцу: отозвать PAT после закрытия чата (retro-4-5)
-commit: TBD
+commit: 1d1a081ac23606dd14ea90b39b5c62ab2be6de56
