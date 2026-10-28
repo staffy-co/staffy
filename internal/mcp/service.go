@@ -80,12 +80,13 @@ const (
 // Service is the MCP surface over the 7-2 registry: the ladder, the rate
 // window, the protocol pipeline and the method dispatch.
 type Service struct {
-	identity MembershipService
-	source   ToolSource
-	adapters AdapterRegistry
-	gate     DependencyGate
-	logger   *slog.Logger
-	window   *rateWindow
+	identity   MembershipService
+	source     ToolSource
+	adapters   AdapterRegistry
+	gate       DependencyGate
+	logger     *slog.Logger
+	window     *rateWindow
+	callBudget time.Duration
 }
 
 // New wires the surface ports. The adapter registry of the PRODUCTION
@@ -97,12 +98,13 @@ func New(identity MembershipService, source ToolSource, adapters AdapterRegistry
 		logger = slog.New(slog.NewTextHandler(discardWriter{}, nil))
 	}
 	return &Service{
-		identity: identity,
-		source:   source,
-		adapters: adapters,
-		gate:     gate,
-		logger:   logger,
-		window:   newRateWindow(defaultRateLimit, defaultRateWindow, systemClock{}),
+		identity:   identity,
+		source:     source,
+		adapters:   adapters,
+		gate:       gate,
+		logger:     logger,
+		window:     newRateWindow(defaultRateLimit, defaultRateWindow, systemClock{}),
+		callBudget: defaultCallBudget,
 	}
 }
 
@@ -110,6 +112,14 @@ func New(identity MembershipService, source ToolSource, adapters AdapterRegistry
 // journeys sets the low limit of the 429 leg; production never calls it).
 func (s *Service) WithRateWindow(limit int, window time.Duration, clock Clock) *Service {
 	s.window = newRateWindow(limit, window, clock)
+	return s
+}
+
+// WithCallBudget scripts the execution budget of one tool call (the
+// fixture world walks the exhausted-budget refusal; production never
+// calls it).
+func (s *Service) WithCallBudget(budget time.Duration) *Service {
+	s.callBudget = budget
 	return s
 }
 
@@ -181,7 +191,7 @@ func (s *Service) Handle(ctx context.Context, actor identityDomain.Principal, te
 	case MethodToolsList:
 		return s.toolsList(ctx, envelope, actor, tenantID)
 	case MethodToolsCall:
-		return s.toolsCall(ctx, envelope, actor, tenantID)
+		return s.toolsCall(ctx, envelope, actor, tenantID, claims)
 	default:
 		response := methodNotFoundResponse(envelope.ID, envelope.Method)
 		return Outcome{Status: httpStatusOK, Body: &response}, nil
@@ -302,6 +312,7 @@ func (discardWriter) Write(p []byte) (int, error) { return len(p), nil }
 // The protocol-layer statuses the service speaks (named once, so the
 // transport and the tests never disagree about the wire).
 const (
-	httpStatusOK       = 200
-	httpStatusAccepted = 202
+	httpStatusOK         = 200
+	httpStatusAccepted   = 202
+	httpStatusBadRequest = 400
 )
