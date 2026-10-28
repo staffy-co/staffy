@@ -6026,4 +6026,4 @@ done:
 - полный живой прогон: build/vet зелёные, unit 35 пакетов ok, 0 FAIL
 next: Dev step-03 — честный presence tool_schemas в Release Manifest: производное вычисление состояния при seal (4 ветви: пак без tools / tools not_implemented / fixture implemented → Present / sealed-история не пересчитывается AD-10); существующие release-тесты со статичной запиской обновляются осознанно; потребители манифеста не меняются (RuntimeComponentState структура неизменна)
 владельцу: отозвать PAT после закрытия чата (retro-4-5)
-commit: TBD
+commit: 9791aad251049fdc99a52da363da201f0ec22ecd
