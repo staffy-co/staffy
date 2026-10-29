@@ -31,7 +31,7 @@ Merge `{HEAD_SHA}` (sha-pinned head of the branch, verified with a live GET befo
 - SM (e49c841 + 4206e3b): спека первого среза (108 строк, I/O-матрица 25 кейсов; CI на голове — success)
 - CHECKPOINT 1 (61a5d57 + 0610ef5): одобрено «продолжайте»; флип ready-for-dev одним коммитом (урок 3-1)
 - step-01 (4575b50 + 6180204): клиентская машина mcpclient + карточка класса + роутер connectorprobe + секреты проб MAC (ReadSeal scoped-RLS, 0 миграций) + main.go — верификатор роутера
-- step-02 (03453db + f61fb9e): инвентарь probes + словарь externaltools {projection/derive/service/calls} + адаптер externaltoolsfacts + миграция 00003 (задокументированное отклонение)
+- step-02 (03453db + f61fb9e): инвентарь probes + словарь externaltools {{projection/derive/service/calls}} + адаптер externaltoolsfacts + миграция 00003 (задокументированное отклонение)
 - step-03 (7519dde + bc1cd01): транспорт словаря + страница read-only + OpenAPI + контракт-тест зеркал
 - step-04 (67280d7 + f25fdd5 + 8622ab7): fixture-мир + секреты VerifyCommand (API+форма) + journey z52 живьём до коммита; три урок-фикса фикстур (идемпотентность-зеркало LookupEvidence + transportIDs v7-mint; UUID-мина rune-конкатенации; supported-локатор двух карточек)
 - step-05 (f142090 + f3008e2): drift-зоны + QA-closure (спека done, sprint-status 7-4 done, **epic-7 done 4/4**, deferred-work +7) + стайл-коррекция whitespace-чурна (gofmt -w, кумулятивный дифф = только реальные изменения) — feat БЕЗ [skip ci], голова активирует CI-ран ветки (урок 282)
