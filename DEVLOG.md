@@ -6295,3 +6295,18 @@ done:
 next: step-05 — drift-зона (+mcpclient +externaltools, словарь фраз НЕ растёт) + QA-closure (спека done, sprint-status 7-4 done, epic-7 done 4/4, deferred-work) + финальный регресс + feat БЕЗ маркера
 владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API-зонды сессии; передан открытым текстом в чате)
 commit: 67280d71d81428cf0ad817a7c28ec4c3f48b3178
+
+---
+
+task: 319-dev-step-05-7-4
+role: main (Super Z, сессия web-d497a728)
+story: 7-4
+summary: Dev step-05 story 7-4 — drift-зона +mcpclient +externaltools (зонд 0 фраз, словарь НЕ растёт — 23 записи) + QA-closure (спека done, sprint-status 7-4 done, epic-7 done 4/4, deferred-work +7) + стайл-коррекция whitespace-чурна + финальный feat БЕЗ маркера (активатор CI, урок 282)
+done:
+- Drift: зоны расширены двумя платформенными пакетами осознанной правкой; зонд живым прогоном 0 фраз (словарь 23); вертикальные слова fixture-мира в mcpclient/externaltools не входят
+- УРОК whitespace-чурн: инструмент правки сессии нормализует отступы ЦЕЛОГО файла (Read рендерит табы пробелами — Edit пишет пробелы); после step-04 сверка raw-vs-ignore-all-space вскрыла ~1185 строк чурна в fixture_server.go (реальных +141/−10); фикс = gofmt -w трёх файлов (родной таб-стиль), кумулятивный дифф ветки против main снова только реальные изменения; правило на будущее: после каждой правки legacy-файла сверять git diff --ignore-all-space и при расхождении — gofmt -w
+- QA-closure: спека done + Spec Change Log closure (отклонение «0 SQL» миграцией 00003 задокументировано DEVLOG 316); sprint-status 7-4 done + epic-7 done (4/4: 7-1 каталог паков, 7-2 реестр tools, 7-3 MCP-сервер, 7-4 внешние MCP; retrospective — optional-слот); deferred-work +7 honest-границ
+- Финальный регресс: build/vet OK; unit 39 ok (-count=1); интеграция ×2 TZ живым PG (UTC 68.7s / Moscow 59.5s); journeys 57/57 серийно 4.5m; gofmt восстановленных файлов OK; diff-check OK
+next: CHECKPOINT 2 — push головы БЕЗ маркера → CI-ран поимённо → PR-скрипт по прецеденту 7-3 → PR → synchronize-ран → sha-pinned merge → main ff-only → main-ран → DEVLOG 320 → удаление ветки ×3 → финальные зонды → ЭПИК 7 ЗАКРЫТ (4/4)
+владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API-зонды сессии; передан открытым текстом в чате)
+commit: f142090270490921f6c60f15f1576c87aa28eb17
