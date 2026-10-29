@@ -6294,4 +6294,4 @@ done:
 - Прогоны живьём: journeys 57/57 серийно 4.6m; build/vet OK; unit 39 ok; интеграция ×2 TZ (UTC 62.2s / Moscow 68.0s); gofmt нового файла OK; diff-check OK
 next: step-05 — drift-зона (+mcpclient +externaltools, словарь фраз НЕ растёт) + QA-closure (спека done, sprint-status 7-4 done, epic-7 done 4/4, deferred-work) + финальный регресс + feat БЕЗ маркера
 владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API-зонды сессии; передан открытым текстом в чате)
-commit: TBD
+commit: 67280d71d81428cf0ad817a7c28ec4c3f48b3178
