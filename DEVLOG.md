@@ -6310,3 +6310,20 @@ done:
 next: CHECKPOINT 2 — push головы БЕЗ маркера → CI-ран поимённо → PR-скрипт по прецеденту 7-3 → PR → synchronize-ран → sha-pinned merge → main ff-only → main-ран → DEVLOG 320 → удаление ветки ×3 → финальные зонды → ЭПИК 7 ЗАКРЫТ (4/4)
 владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API-зонды сессии; передан открытым текстом в чате)
 commit: f142090270490921f6c60f15f1576c87aa28eb17
+
+---
+
+task: 320-checkpoint-2-7-4
+role: main (Super Z, сессия web-d497a728)
+story: 7-4
+summary: CHECKPOINT 2 story 7-4 — PR #57 sha-pinned merge (merge-коммит f522ff9d8706d3f39fc74d594ffb17253ab47b32, голова 987f53ae62240d92f23cac15b4b1f5e4d7880aab); CI ×3 поимённо зелёные ДО merge (push 40835213706 на f3008e22 + push 40836537229 + pull_request 40836606223 на 987f53ae); main-ран 40837806615 на merge-коммите — failure ×2 попытки МГНОВЕННО (2 сек, НОЛЬ шагов, логи отсутствуют) = исчерпание квоты Actions минут приватного репо (биллинг-владелец artemiosu; PAT-скоуп биллинг не читает); дерево merge-коммита ≡ дереву ветки (main не двигался с 12dc41d) — CI-доказательство merge = ×3 зелёных рана на идентичном дереве
+done:
+- CI валидация ветки: push 40835213706 на голове feat f3008e22 (финальный регресс шага-05) — completed/success поимённо
+- PR-скрипт scripts/pr_story_7_4.py закоммичен БЕЗ маркера (539130e — активатор ранов, урок 282; фикс экранирования f-string 987f53a) → push 40836537229 + pull_request 40836606223 на 987f53ae — оба completed/success
+- PR #57 создан (head 987f53ae, base main 12dc41d, sha-pin головы в теле, Epic 7: 4/4 в титуле); mergeable: True живым GET; sha-pinned merge PUT (урок 312: эндпоинт слияния — PUT с Content-Type application/json) → merged=True живым GET, merge-коммит f522ff9d
+- main ff-only локально → f522ff9d; ВЕТКА УДАЛЕНА ×3 (локально -d fully-merged + origin --delete + ls-remote-зонд: на remote ТОЛЬКО main)
+- BLOCKER main-ран: 40837806615 (push на f522ff9d) — failure; attempt 2 (07:50:32→07:50:34, 2 сек, ноль шагов — job даже checkout не выполнил; blob логов отсутствует); rerun API 201 принят, исход тот же; биллинг-API 403 PAT-скоупом; диагноз: квота Actions минут приватного репо исчерпана (все раны до 07:44 зелёные, все после — мгновенный отказ); ДЕЙСТВИЕ ВЛАДЕЛЬЦА: поднять spending limit / дождаться смены биллинг-цикла → re-run 40837806615 (ран остаётся на merge-коммите sha f522ff9d независимо от ветки); код-факты: дерево f522ff9d ≡ дереву 987f53ae (×3 зелёных), fallback-доказательство честно зафиксировано
+- Финальные зонды: дерево чистое; check-continuity OK; sprint-status 7-4 done + EPIC-7 DONE 4/4 (retrospective — optional); спека done; DEVLOG хвост 320; build/vet на main OK
+next: Эпик 7 ЗАКРЫТ (4/4: 7-1 каталог паков, 7-2 реестр tools, 7-3 MCP-сервер поверхности, 7-4 внешние MCP-серверы); next: epic-7-retrospective (optional-слот) или Epic 8 — ПО СИГНАЛУ ВЛАДЕЛЬЦА
+владельцу: (1) отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API/merge-зонды сессии; передан открытым текстом в чате); (2) РЕШИТЬ БЛОКЕР CI: квота Actions минут приватного репо — re-run 40837806615 после поднятия лимита/смены цикла (×3 зелёных рана на идентичном дереве уже являются CI-доказательством merge)
+commit: TBD
