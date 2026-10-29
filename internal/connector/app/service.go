@@ -385,12 +385,39 @@ func (s *Service) VerifyCapability(ctx context.Context, c api.VerifyCommand) (ap
         if !dec.ProbeVerifiable() {
                 return api.VerifyResult{}, connectorDomain.RuleError{Rule: "capability", Reason: "Эта capability не разрешена для read-only probe: проверка отклонена (fail-closed)."}
         }
+        // The external MCP class (Story 7-4) runs its probes AUTHENTICATED:
+        // the key material of the command is MAC-checked against the
+        // accepted seal BEFORE any network round (the unauthenticated round
+        // is impossible fail-closed); the key travels to the probe in memory
+        // only and is never logged or echoed (the 1-8 invariant verbatim).
+        secrets := c.Secrets
+        if def.RequiredAccountType == "external-mcp" {
+                if len(secrets) == 0 {
+                        return api.VerifyResult{}, connectorDomain.RuleError{Rule: "secret", Reason: "Проба этого класса требует секрет подключения: подайте ключ вместе с командой проверки — неаутентифицированный раунд невозможен (fail-closed)."}
+                }
+                if err := def.ValidateSecrets(secrets); err != nil {
+                        return api.VerifyResult{}, err
+                }
+                if !connection.SecretActive || !connection.SecretID.Valid() {
+                        return api.VerifyResult{}, connectorDomain.RuleError{Rule: "secret", Reason: "Активный запечатанный секрет не найден: повторите подключение секрета перед пробой."}
+                }
+                seal, found, err := s.repository.ReadSeal(ctx, scope, c.ConnectionID, connection.SecretID)
+                if err != nil {
+                        return api.VerifyResult{}, err
+                }
+                if !found {
+                        return api.VerifyResult{}, connectorDomain.RuleError{Rule: "secret", Reason: "Активный запечатанный секрет не найден: повторите подключение секрета перед пробой."}
+                }
+                if !verifySeal(seal.Key, secrets, seal.Sealed) {
+                        return api.VerifyResult{}, connectorDomain.RuleError{Rule: "secret", Reason: "Секрет не совпадает с принятым подключением (MAC-проверка seal): раунд не выполнялся — проверка отклонена до сети."}
+                }
+        }
         // The probe runs under the declared deadline; a timeout produces the
         // honest unknown outcome and is never retried blind.
         now := s.clock.Now().UTC()
         deadline := now.Add(time.Duration(dec.TimeoutMS) * time.Millisecond)
         probeCtx, cancel := context.WithTimeout(ctx, time.Duration(dec.TimeoutMS)*time.Millisecond)
-        probe := s.verifier.Probe(probeCtx, def, dec, connection.Environment, connection.Config)
+        probe := s.verifier.Probe(probeCtx, def, dec, connection.Environment, connection.Config, secrets)
         cancel()
         completed := s.clock.Now().UTC()
         if completed.Before(now) {
@@ -573,6 +600,19 @@ func sealSecret(key []byte, secrets map[string]string) (sealed []byte, hint stri
         }
         sealed = mac.Sum(nil)
         return sealed, hex.EncodeToString(sealed[:6]), nil
+}
+
+// verifySeal mirrors sealSecret over the submitted map: the MAC of the
+// seal key over the sorted name\0value\0 concatenation. The constant-time
+// equality of the computed and the stored MAC is the proof the submitted
+// secrets ARE the accepted ones — the plaintext never exists in storage and
+// never leaves this call (the write-only seal discipline of 1-8).
+func verifySeal(key []byte, secrets map[string]string, sealed []byte) bool {
+        computed, _, err := sealSecret(key, secrets)
+        if err != nil {
+                return false
+        }
+        return hmac.Equal(computed, sealed)
 }
 
 func cleanConfig(config map[string]string) map[string]string {

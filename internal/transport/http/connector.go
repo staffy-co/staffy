@@ -1,6 +1,7 @@
 package httptransport
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"io"
@@ -405,8 +406,18 @@ func (s *Server) verifyCapabilityAPI(w http.ResponseWriter, r *http.Request) {
 		s.connectorProblem(w, r, connectorDomain.ErrNotFound)
 		return
 	}
+	// The optional probe key of the external MCP class (Story 7-4): the
+	// secrets ride the command in memory only — the service MAC-checks them
+	// against the accepted seal BEFORE any network round (an empty body is
+	// the honest unauthenticated refusal of that class, never an error
+	// here).
+	secrets, err := decodeVerifySecrets(w, r)
+	if err != nil {
+		s.connectorProblem(w, r, err)
+		return
+	}
 	corr, _ := correlation.FromContext(r.Context())
-	result, err := service.VerifyCapability(r.Context(), connectorAPI.VerifyCommand{Actor: actor, TenantID: tenant, ConnectionID: connectionID, CorrelationID: corr, Capability: capabilityID, IdempotencyKey: r.Header.Get("Idempotency-Key")})
+	result, err := service.VerifyCapability(r.Context(), connectorAPI.VerifyCommand{Actor: actor, TenantID: tenant, ConnectionID: connectionID, CorrelationID: corr, Capability: capabilityID, IdempotencyKey: r.Header.Get("Idempotency-Key"), Secrets: secrets})
 	if err != nil {
 		s.connectorProblem(w, r, err)
 		return
@@ -772,8 +783,18 @@ func (s *Server) verifyCapabilityForm(w http.ResponseWriter, r *http.Request) {
 		s.connectorProblem(w, r, connectorDomain.ErrInvalid)
 		return
 	}
+	// The optional probe key of the external MCP class (Story 7-4): the
+	// same declared-field form discipline as the connect form — the value
+	// MAC-checks against the accepted seal before any network round and is
+	// never stored again.
+	secrets := map[string]string{}
+	for _, field := range r.Form["secret_field"] {
+		if value := r.FormValue("secret_" + field); value != "" {
+			secrets[field] = value
+		}
+	}
 	corr, _ := correlation.FromContext(r.Context())
-	result, err := service.VerifyCapability(r.Context(), connectorAPI.VerifyCommand{Actor: actor, TenantID: tenant, ConnectionID: connectionID, CorrelationID: corr, Capability: capabilityID, IdempotencyKey: r.FormValue("idempotency_key")})
+	result, err := service.VerifyCapability(r.Context(), connectorAPI.VerifyCommand{Actor: actor, TenantID: tenant, ConnectionID: connectionID, CorrelationID: corr, Capability: capabilityID, IdempotencyKey: r.FormValue("idempotency_key"), Secrets: secrets})
 	if err != nil {
 		redirectWithError(w, r, tenant, err)
 		return
@@ -809,4 +830,34 @@ func redirectWithError(w http.ResponseWriter, r *http.Request, tenant id.UUID, e
 	// value); it travels in a one-shot HttpOnly cookie instead of the URL.
 	setFlashError(w, tenant, message)
 	http.Redirect(w, r, "/app/tenants/"+tenant.String()+"/integrations", http.StatusSeeOther)
+}
+
+// decodeVerifySecrets reads the OPTIONAL secrets body of the verify
+// command: an absent or empty body answers nil (the classes without probe
+// keys verify exactly as before); a present body must be the closed
+// {"secrets": {...}} form under the declared transport budgets.
+func decodeVerifySecrets(w http.ResponseWriter, r *http.Request) (map[string]string, error) {
+	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 32<<10))
+	if err != nil {
+		return nil, connectorDomain.ErrInvalid
+	}
+	if len(bytes.TrimSpace(body)) == 0 {
+		return nil, nil
+	}
+	media, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil || media != "application/json" {
+		return nil, connectorDomain.ErrInvalid
+	}
+	var input struct {
+		Secrets map[string]string `json:"secrets"`
+	}
+	d := json.NewDecoder(bytes.NewReader(body))
+	d.DisallowUnknownFields()
+	if err = d.Decode(&input); err != nil {
+		return nil, connectorDomain.ErrInvalid
+	}
+	if err = d.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		return nil, connectorDomain.ErrInvalid
+	}
+	return input.Secrets, nil
 }

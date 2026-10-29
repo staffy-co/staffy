@@ -141,7 +141,7 @@ func probeDefinition() connectorDomain.ConnectorDefinition {
 
 func TestProbeVerifiesReadOnlyCapabilityAtDeliveredLevel(t *testing.T) {
 	v := Synthetic{}
-	result := v.Probe(context.Background(), probeDefinition(), probeDeclaration(), connectorDomain.EnvSandbox, map[string]string{"endpoint": "https://demo.sandbox.example", "api_key": "sandbox-secret-value"})
+	result := v.Probe(context.Background(), probeDefinition(), probeDeclaration(), connectorDomain.EnvSandbox, map[string]string{"endpoint": "https://demo.sandbox.example", "api_key": "sandbox-secret-value"}, nil)
 	if result.Outcome != connectorDomain.EvidenceVerified || result.DeliveryLevel != string(connectorDomain.DeliveryDelivered) {
 		t.Fatalf("result=%+v", result)
 	}
@@ -159,7 +159,7 @@ func TestProbeVerifiesReadOnlyCapabilityAtDeliveredLevel(t *testing.T) {
 
 func TestProbeTimeoutHostYieldsHonestUnknown(t *testing.T) {
 	v := Synthetic{}
-	result := v.Probe(context.Background(), probeDefinition(), probeDeclaration(), connectorDomain.EnvSandbox, map[string]string{"endpoint": "https://timeout.demo.sandbox.example"})
+	result := v.Probe(context.Background(), probeDefinition(), probeDeclaration(), connectorDomain.EnvSandbox, map[string]string{"endpoint": "https://timeout.demo.sandbox.example"}, nil)
 	if result.Outcome != connectorDomain.EvidenceUnknown || result.DeliveryLevel != string(connectorDomain.DeliveryUnknown) {
 		t.Fatalf("result=%+v", result)
 	}
@@ -172,7 +172,7 @@ func TestProbeExpiredContextYieldsUnknown(t *testing.T) {
 	v := Synthetic{}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	result := v.Probe(ctx, probeDefinition(), probeDeclaration(), connectorDomain.EnvSandbox, map[string]string{"endpoint": "https://demo.sandbox.example"})
+	result := v.Probe(ctx, probeDefinition(), probeDeclaration(), connectorDomain.EnvSandbox, map[string]string{"endpoint": "https://demo.sandbox.example"}, nil)
 	if result.Outcome != connectorDomain.EvidenceUnknown {
 		t.Fatalf("expired deadline must yield unknown: %+v", result)
 	}
@@ -180,7 +180,7 @@ func TestProbeExpiredContextYieldsUnknown(t *testing.T) {
 
 func TestProbeFailHostYieldsFailed(t *testing.T) {
 	v := Synthetic{}
-	result := v.Probe(context.Background(), probeDefinition(), probeDeclaration(), connectorDomain.EnvSandbox, map[string]string{"endpoint": "https://fail.demo.sandbox.example"})
+	result := v.Probe(context.Background(), probeDefinition(), probeDeclaration(), connectorDomain.EnvSandbox, map[string]string{"endpoint": "https://fail.demo.sandbox.example"}, nil)
 	if result.Outcome != connectorDomain.EvidenceFailed {
 		t.Fatalf("fail host must yield failed: %+v", result)
 	}
@@ -190,7 +190,7 @@ func TestProbeRefusesNonVerifiableCapabilities(t *testing.T) {
 	v := Synthetic{}
 	mutating := probeDeclaration()
 	mutating.Operation = connectorDomain.OperationCommand
-	result := v.Probe(context.Background(), probeDefinition(), mutating, connectorDomain.EnvSandbox, map[string]string{"endpoint": "https://demo.sandbox.example"})
+	result := v.Probe(context.Background(), probeDefinition(), mutating, connectorDomain.EnvSandbox, map[string]string{"endpoint": "https://demo.sandbox.example"}, nil)
 	if result.Outcome != connectorDomain.EvidenceFailed || !strings.Contains(result.RedactedResult, "Action Gateway") {
 		t.Fatalf("mutating capability probe must be refused: %+v", result)
 	}

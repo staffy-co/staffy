@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -12,6 +13,10 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/artemiosu/staffy/internal/adapters/connectorprobe"
+	"github.com/artemiosu/staffy/internal/adapters/externaltoolsfacts"
+	"github.com/artemiosu/staffy/internal/externaltools"
 	"time"
 
 	connectorAPI "github.com/artemiosu/staffy/internal/connector/api"
@@ -154,6 +159,24 @@ type idsFixture struct{}
 
 func (idsFixture) New(time.Time) (id.UUID, error) {
 	return id.MustParse("01994f64-6c00-7000-8000-000000000003"), nil
+}
+
+// transportIDs is the monotonic id generator of the transport surface of
+// the fixture world (the previewIDs precedent of the action preview
+// fixture: the REAL v7 mint of the journey clock). The fresh form keys and
+// the correlation material demand unique identities: the fixed idsFixture
+// made every verify form of every render carry the SAME key, and the
+// second capability form of the external MCP class walked into the
+// idempotency slot of the first — production form keys are unique per
+// render, and the fixture now mirrors that contract.
+type transportIDs struct {
+	mu sync.Mutex
+}
+
+func (t *transportIDs) New(now time.Time) (id.UUID, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return id.NewV7(now)
 }
 
 type employeeFixture struct {
@@ -368,16 +391,41 @@ var fixtureSecretID2 = id.MustParse("01994f64-6c00-7000-8000-000000000009")
 var fixtureEvidenceID = id.MustParse("01994f64-6c00-7000-8000-000000000008")
 
 // connectorFixture serves the integrations journey with the real binary
-// catalog and the real synthetic verifier, keeping state in memory only.
+// catalog and the real verifier ROUTER (Story 7-4: the external MCP class
+// runs its live MAC-authenticated probes through connectorprobe; the
+// classes of 1-8 keep the synthetic behavior), keeping state in memory
+// only. The seal logic mirrors the 1-8 application service — only the
+// persistence is doubled into the map (the connectorFixture precedent).
 type connectorFixture struct {
 	mu          sync.Mutex
 	connections map[id.UUID]connectorDomain.Connection
 	evidence    map[string]connectorDomain.CapabilityEvidence // key: connectionID + ":" + idempotency key
+	seals       map[id.UUID]fixtureSeal                       // key: secret id; the accepted MAC envelopes
 	next        int
 	sealSeq     int
 }
 
+// fixtureSeal is the in-memory seal envelope of one accepted secret.
+type fixtureSeal struct {
+	sealed []byte
+	key    []byte
+}
+
 var fixtureVerifier = verifier.Synthetic{}
+
+// fixtureRouter routes the verifier by the class marker of the catalog
+// definition — the production composition of the Story 7-4 root.
+var fixtureRouter = connectorprobe.New(verifier.Synthetic{})
+
+// verifierBuildFor answers the adapter-build anchor of the derivation for
+// one definition: the router build of the external class, the synthetic
+// build of the 1-8 classes.
+func verifierBuildFor(def connectorDomain.ConnectorDefinition) string {
+	if def.RequiredAccountType == "external-mcp" {
+		return connectorprobe.AdapterBuild
+	}
+	return fixtureVerifier.Build()
+}
 
 func (f *connectorFixture) Catalog(context.Context, domain.Principal, id.UUID) ([]connectorDomain.ConnectorDefinition, error) {
 	return connectorCatalog.List(), nil
@@ -405,7 +453,14 @@ func (f *connectorFixture) Create(_ context.Context, c connectorAPI.CreateComman
 	f.next++
 	connectionID := fixtureConnectionID
 	if f.next > 1 {
-		connectionID = id.MustParse("01994f64-6c00-7000-8000-0000000000" + string(rune('0'+f.next)) + "0")
+		// The Story 7-4 fix: the rune concatenation produced INVALID
+		// hex for the tenth connection onward (id.MustParse panicked
+		// per request — the full suite with the external class journey
+		// now creates ten connections). The decimal sequence keeps the
+		// historical identities of the first worlds byte-identical
+		// (020, 030 … 090) and stays a valid UUID forever (decimal
+		// digits are always valid hex).
+		connectionID = id.MustParse(fmt.Sprintf("01994f64-6c00-7000-8000-%012d", 10*f.next))
 	}
 	c2 := connectorDomain.Connection{
 		TenantID: tenantID, ConnectionID: connectionID, ConnectorID: def.ID, ConnectorVer: def.Version,
@@ -506,18 +561,31 @@ func (f *connectorFixture) check(c connectorAPI.ConnectCommand, rotate bool) (co
 		return connectorDomain.Connection{}, connectorDomain.RuleError{Rule: "secret", Reason: "Секрет уже принят. Для замены используйте ротацию."}
 	}
 	def, _ := connectorCatalog.Get(current.ConnectorID, current.ConnectorVer)
-	check := fixtureVerifier.BasicCheck(context.Background(), def, current.Environment, current.Config, c.Secrets)
+	check := fixtureRouter.BasicCheck(context.Background(), def, current.Environment, current.Config, c.Secrets)
 	current.Version++
 	current.AuthState = check.Authentication
 	current.Transport = check.Transport
 	if check.Authentication == connectorDomain.CheckVerified {
 		// Mirrors the real store: every accepted seal is a NEW secret id,
-		// so rotation honestly invalidates prior evidence anchors.
+		// so rotation honestly invalidates prior evidence anchors. The seal
+		// envelope mirrors sealSecret of the application service (the
+		// in-memory persistence is the only doubled part).
+		if rotate && current.SecretActive {
+			delete(f.seals, current.SecretID)
+		}
+		keyBytes := make([]byte, 32)
+		if _, err := rand.Read(keyBytes); err != nil {
+			return connectorDomain.Connection{}, err
+		}
 		f.sealSeq++
 		current.SecretID = id.MustParse(fmt.Sprintf("01994f64-6c00-7000-8000-%012d", 99+f.sealSeq))
 		if f.sealSeq == 1 {
 			current.SecretID = fixtureSecretID
 		}
+		if f.seals == nil {
+			f.seals = map[id.UUID]fixtureSeal{}
+		}
+		f.seals[current.SecretID] = fixtureSeal{sealed: fixtureSealSecret(keyBytes, c.Secrets), key: keyBytes}
 		current.SecretHint = "a1b2c3d4e5f6"
 		current.SecretActive = true
 	}
@@ -544,6 +612,7 @@ func (f *connectorFixture) Revoke(_ context.Context, c connectorAPI.RevokeComman
 	current.Version++
 	current.Status = connectorDomain.StatusRevoked
 	current.SecretActive = false
+	delete(f.seals, current.SecretID)
 	current.UpdatedAt = time.Now().UTC()
 	f.connections[c.ConnectionID] = current
 	return connectorAPI.RevokeResult{Connection: current}, nil
@@ -586,7 +655,14 @@ func (f *connectorFixture) VerifyCapability(_ context.Context, c connectorAPI.Ve
 		f.evidence = map[string]connectorDomain.CapabilityEvidence{}
 	}
 	slot := c.ConnectionID.String() + ":" + c.IdempotencyKey
-	if _, seen := f.evidence[slot]; seen {
+	if prior, seen := f.evidence[slot]; seen {
+		// The production mirror of LookupEvidence: the request hash
+		// of the store covers the capability — the same key replays
+		// only the SAME capability, and the same key naming another
+		// capability is the honest idempotency conflict (409).
+		if prior.Capability != dec.ID {
+			return connectorAPI.VerifyResult{}, connectorDomain.ErrIdempotencyConflict
+		}
 		state, err := f.capabilityStateLocked(current, def)
 		if err != nil {
 			return connectorAPI.VerifyResult{}, err
@@ -597,11 +673,33 @@ func (f *connectorFixture) VerifyCapability(_ context.Context, c connectorAPI.Ve
 			}
 		}
 	}
+	// The external MCP class (Story 7-4): the probes run AUTHENTICATED —
+	// the key material of the command is MAC-checked against the accepted
+	// seal BEFORE any network round (the missing and the mismatching key
+	// are honest refusals of the gate), then the ROUTER runs the live
+	// rounds through the client machine. The classes of 1-8 route to the
+	// synthetic verifier of the router with their keyless semantics
+	// unchanged.
+	if def.RequiredAccountType == "external-mcp" {
+		if len(c.Secrets) == 0 {
+			return connectorAPI.VerifyResult{}, connectorDomain.RuleError{Rule: "secret", Reason: "Проба этого класса требует секрет подключения: подайте ключ вместе с командой проверки — неаутентифицированный раунд невозможен (fail-closed)."}
+		}
+		if err := def.ValidateSecrets(c.Secrets); err != nil {
+			return connectorAPI.VerifyResult{}, err
+		}
+		seal, ok := f.seals[current.SecretID]
+		if !current.SecretActive || !ok {
+			return connectorAPI.VerifyResult{}, connectorDomain.RuleError{Rule: "secret", Reason: "Активный запечатанный секрет не найден: повторите подключение секрета перед пробой."}
+		}
+		if !fixtureVerifySeal(seal.key, c.Secrets, seal.sealed) {
+			return connectorAPI.VerifyResult{}, connectorDomain.RuleError{Rule: "secret", Reason: "Секрет не совпадает с принятым подключением (MAC-проверка seal): раунд не выполнялся — проверка отклонена до сети."}
+		}
+	}
+	probe := fixtureRouter.Probe(context.Background(), def, dec, current.Environment, current.Config, c.Secrets)
 	now := time.Now().UTC()
-	probe := fixtureVerifier.Probe(context.Background(), def, dec, current.Environment, current.Config)
 	row := connectorDomain.CapabilityEvidence{
 		TenantID: tenantID, EvidenceID: fixtureEvidenceID, ConnectionID: current.ConnectionID, SecretID: current.SecretID,
-		Environment: current.Environment, ContractVersion: current.ConnectorVer, AdapterBuild: fixtureVerifier.Build(),
+		Environment: current.Environment, ContractVersion: current.ConnectorVer, AdapterBuild: verifierBuildFor(def),
 		Capability: dec.ID, ProbeKind: connectorDomain.EvidenceProbeKind, ActorID: c.Actor.ID,
 		RequestedAt: now, DeadlineAt: now.Add(time.Duration(dec.TimeoutMS) * time.Millisecond), CompletedAt: now,
 		Outcome: probe.Outcome, DeliveryLevel: probe.DeliveryLevel,
@@ -705,8 +803,9 @@ func (f *connectorFixture) capabilityStateLocked(current connectorDomain.Connect
 		}
 	}
 	now := time.Now().UTC()
-	reports := connectorDomain.DeriveCapabilityStates(def, current, rows, fixtureVerifier.Build(), now)
-	return connectorAPI.CapabilityStateResult{Connection: current, ContractVersion: current.ConnectorVer, AdapterBuild: fixtureVerifier.Build(), Capabilities: reports}, nil
+	build := verifierBuildFor(def)
+	reports := connectorDomain.DeriveCapabilityStates(def, current, rows, build, now)
+	return connectorAPI.CapabilityStateResult{Connection: current, ContractVersion: current.ConnectorVer, AdapterBuild: build, Capabilities: reports}, nil
 }
 
 func (f *employeeFixture) Create(_ context.Context, _ employeeAPI.CreateCommand) (employeeAPI.CreateResult, error) {
@@ -940,7 +1039,7 @@ func (f *employeeFixture) RetireKnowledge(_ context.Context, c employeeAPI.Knowl
 
 func main() {
 	resolver := &resolverFixture{}
-	server, err := httptransport.New(identityFixture{}, resolver, idsFixture{}, journeyClock, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	server, err := httptransport.New(identityFixture{}, resolver, &transportIDs{}, journeyClock, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {
 		panic(err)
 	}
@@ -977,6 +1076,18 @@ func main() {
 	// the wire). Production wires the EMPTY adapter registry (AG-4).
 	mcpWorld := newMCPFixtureWorld()
 	server.BindMCP(mcpWorld.service)
+	// The Story 7.4 wiring: the external MCP fixture world — the scripted
+	// external server on the SAME listener (/fixture/external-mcp, the
+	// coherent revision 2026-07-28 with the honest toggles), the connector
+	// fixture with the REAL seal/verify MAC mirror and the ROUTER probes,
+	// and the dictionary surface over the fixture facts (the live ladder of
+	// the 7-2 precedent — the adapter pins the class card and the
+	// query.tools-list row at the wiring level).
+	externalFixture := newExternalMCPFixture()
+	// The Story 7.4 dictionary wiring: the REAL externaltools.Service over
+	// the fixture facts source and the fixture membership ladder (the
+	// toolsRegistry precedent of 7-2).
+	server.BindExternalTools(externaltools.New(toolsMembership{}, externaltoolsfacts.New(connectors)))
 	controls := newControlsFixture()
 	server.BindControls(controls)
 	// The Story 3-4 wiring: the preview world over the LIVE fixture fact
@@ -1359,6 +1470,26 @@ func main() {
 			return
 		}
 		pilotOutcome.reset()
+		w.WriteHeader(http.StatusNoContent)
+	})
+	// The fixture-only external MCP toggles (Story 7-4): the foreign
+	// revision, the oversized inventory and the leaky call answer of the
+	// scripted external server — the journey walks the honest refusal legs
+	// of the I/O matrix. Production never exposes them.
+	root.HandleFunc("POST /fixture/external-mcp", externalFixture.handle)
+	root.HandleFunc("POST /fixture/external-mcp-foreign-revision", func(w http.ResponseWriter, r *http.Request) {
+		r.ParseForm()
+		externalFixture.setForeignRevision(r.FormValue("enabled") == "1")
+		w.WriteHeader(http.StatusNoContent)
+	})
+	root.HandleFunc("POST /fixture/external-mcp-oversized", func(w http.ResponseWriter, r *http.Request) {
+		r.ParseForm()
+		externalFixture.setOversizedInventory(r.FormValue("enabled") == "1")
+		w.WriteHeader(http.StatusNoContent)
+	})
+	root.HandleFunc("POST /fixture/external-mcp-leaky", func(w http.ResponseWriter, r *http.Request) {
+		r.ParseForm()
+		externalFixture.setLeaky(r.FormValue("enabled") == "1")
 		w.WriteHeader(http.StatusNoContent)
 	})
 	// The fixture-only MCP dependency rotation switch (Story 7.3): the

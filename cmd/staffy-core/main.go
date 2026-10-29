@@ -19,6 +19,7 @@ import (
 	"github.com/artemiosu/staffy/internal/adapters/assurancesource"
 	"github.com/artemiosu/staffy/internal/adapters/authdev"
 	"github.com/artemiosu/staffy/internal/adapters/capabilityresolver"
+	"github.com/artemiosu/staffy/internal/adapters/connectorprobe"
 	"github.com/artemiosu/staffy/internal/adapters/connectorrefresolver"
 	"github.com/artemiosu/staffy/internal/adapters/controleffectiveresolver"
 	"github.com/artemiosu/staffy/internal/adapters/ingresssyn"
@@ -109,7 +110,15 @@ func run(logger *slog.Logger) error {
 		testTTS = &employeeApp.ESpeakNG{Binary: binary, DataParent: os.Getenv("STAFFY_DEV_ESPEAK_DATA_PATH"), LibraryPath: os.Getenv("STAFFY_DEV_ESPEAK_LIBRARY_PATH")}
 	}
 	employeeService := employeeApp.NewWithTestTTS(employeeStore.NewPostgres(pool), identityService, clock, ids, testTTS)
-	connectorService := connectorApp.New(connectorStore.NewPostgres(pool), identityService, connectorVerifier.Synthetic{}, clock, ids)
+	// The Story 7-4 wiring: the connector verifier is the composition
+	// ROUTER — the external MCP class (RequiredAccountType
+	// "external-mcp") runs its live MAC-authenticated probes through
+	// the client machine internal/mcpclient, every other class keeps
+	// the synthetic verifier of 1-8 (the behavior is byte-identical).
+	// The Build identity becomes connectorprobe/1.0.0: the telephony
+	// evidence of the earlier builds honestly reads as stale after the
+	// deploy — the operators re-probe (the 1-8 semantics).
+	connectorService := connectorApp.New(connectorStore.NewPostgres(pool), identityService, connectorprobe.New(connectorVerifier.Synthetic{}), clock, ids)
 	entitlementService := entitlementApp.New(entitlementStore.NewPostgres(pool), identityService, clock, ids)
 	// The release surface (Story 1-12) consumes connection facts through the
 	// narrow port; without it sealing and restoring honestly refuse.

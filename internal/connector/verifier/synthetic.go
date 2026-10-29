@@ -84,7 +84,9 @@ type ProbeResult = connectorAPI.ProbeResult
 // unknown), "fail." is an honest probe failure; anything else answers at the
 // "delivered" receipt level. A context deadline that already expired maps to
 // unknown as well: a possibly-effective request is never retried blind.
-func (v Synthetic) Probe(ctx context.Context, def connectorDomain.ConnectorDefinition, dec connectorDomain.CapabilityDeclaration, env connectorDomain.Environment, config map[string]string) ProbeResult {
+// The secrets parameter (Story 7-4) is deliberately ignored: the synthetic
+// formats never need key material — the telephony behavior is unchanged.
+func (v Synthetic) Probe(ctx context.Context, def connectorDomain.ConnectorDefinition, dec connectorDomain.CapabilityDeclaration, env connectorDomain.Environment, config map[string]string, _ map[string]string) ProbeResult {
         // Fail-closed guard: only completed, outbound, probe-allowed query
         // capabilities may ever be exercised here.
         if !dec.ProbeVerifiable() {

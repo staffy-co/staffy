@@ -91,7 +91,14 @@ func TestVerticalWordsAbsentFromCore(t *testing.T) {
 				// material travels through the ports), so the probe walks
 				// it with the same zero (the dictionary of phrases does
 				// NOT grow).
-				case "domain", "app", "port", "store", "tools", "mcp":
+				// The Story 7-4 zones: internal/mcpclient (the client
+				// protocol machine of the external servers) and
+				// internal/externaltools (the tenant-scoped external
+				// dictionary) are platform packages too — the vertical
+				// words of the fixture world (the tool names of the
+				// scripted server) never enter them, the projection and
+				// the wire dictionaries stay the only language.
+				case "domain", "app", "port", "store", "tools", "mcp", "mcpclient", "externaltools":
 				default:
 					return nil
 				}

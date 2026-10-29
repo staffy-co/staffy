@@ -6193,3 +6193,120 @@ done:
 next: SM-фаза story 7-4 «Внешние MCP-серверы как класс Connector» (последний слот Epic 7, 4/4) — ПО СИГНАЛУ ВЛАДЕЛЬЦА (дисциплина чекпоинтов: изучение входов → спека → CHECKPOINT 1 предъявление → одобрение → Dev)
 владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/PR/merge/API-зонды сессии; передан открытым текстом в чате)
 commit: ca5ceca6653c1c096bf9bdd0f41d3cf81cb53ac3
+
+---
+date: 2026-10-29
+task: 313-sm-7-4
+role: main (Super Z, сессия web-d497a728)
+story: 7-4
+summary: SM-фаза story 7-4 «Внешние MCP-серверы как класс Connector» (последний слот Epic 7, 4/4) — спека первого среза создана на ветке codex/story-7-4-external-mcp-connectors поверх main 12dc41d: класс «внешний MCP-сервер» как карточка каталога коннекторов (RequiredAccountType external-mcp, envs ровно sandbox/test — AG-4 fail-closed на классе; capabilities ×5 поимённо с полной операционной семантикой прецедента телефонии) + клиентская протокольная машина internal/mcpclient (stateless 2026-07-28, stdlib без SDK, discover/list/call, строгий decode недоверенных ответов, размерные бюджеты, фильтрация дескрипторов AD-11, credential-агностична — Authorization параметр вызывателя) + живые пробы класса с секретом ИЗ команды верификации (ключ в память, MAC-проверка против принятого seal через новый узкий ReadSeal — plaintext никогда не персистится, инвариант 1-8 дословно; несовпадение/отсутствие = честный отказ ДО сети; core-правки: Verifier.Probe +secrets, VerifyCommand.Secrets, verifySeal) + composition-роутер верификатора internal/adapters/connectorprobe (маршрут по RequiredAccountType; Build = connectorprobe/1.0.0 — прежние evidence stale по дизайну 1-8) + тенент-скоупед внешний словарь internal/externaltools (деривация-чистая-функция над ConnectionsFacts+evidence (якоря Applicable: ротация/конфиг/TTL-24ч/билд → исчезновение); инвентарь — фильтрованный JSON в redacted_result существующей строки evidence — 0 SQL; проекция JSON Schema → платформенный словарь типизации тотальна для подмножества, вне — поимённые честные отказы; readOnlyHint обязателен — AR-30; лестница 3-1/7-2; read-only страница+API+OpenAPI) + машина вызова externaltools.Calls credential-агностичная (strict вход/выход fail-closed; продакшн-вызывателей НОЛЬ — форма под Planner 8.3; HTTP-поверхности вызова НЕТ) — мутации внешней системы = заблокированное Connector capability за Action Gateway (машинально), write-инструмент не существует ни как запись словаря, ни как инструмент модели (AD-6/AD-7); 0 SQL-миграций; 0 правок internal/tools и internal/mcp
+done:
+- Входы живым чтением: epics.md Story 7.4 (AC ×4 + аннотация маркетплейсов: листинг = канал дистрибуции, не класс; критерии готовности к листингу) + Epic 7 Требования/Граница (реальные credentials внешних MCP — за AG-4; субстрат, не AG-3-доказательство); ARCHITECTURE-SPINE AD-5/AD-6/AD-7/AD-10/AD-11; субстрат 7-2 живым чтением (contract.go: ToolContract/ToolSchemaField/словарь типизации/AdapterStatus/Dependency); машина 7-3 живым чтением (ports.go: ToolSource/Adapter/DependencyGate-прецеденты composition-адаптеров; protocol/projection — пиннинг ревизии и проекция словаря типизации); машина коннекторов 1-8 живым чтением (catalog.go: единственное семейство staffy-synthetic-telephony — путь нового класса = definition+adapter; capability.go: DeriveCapabilityStates/Applicable-якоря/ActionGatewayBlock; app/service.go: connect/sealSecret/VerifyCapability; store: secret_seals)
+- КЛЮЧЕВОЙ архитектурный факт сессии (живое чтение sealSecret): seal = HMAC-SHA256(seal_key) над name\0value\0 — plaintext НЕ существует в хранении (write-only MAC, архитектура никогда не перечитывает секреты); вывод: живые аутентифицированные пробы БЕЗ persist plaintext — ключ приходит с командой верификации в память и MAC-проверяется против seal (verifySeal-зеркало); неаутентифицированный раунд невозможен fail-closed; persist-encrypted/KMS остаётся за AG-4 (источник ключа вызовов — будущий срез вызывателя)
+- Зонды: клиентского MCP в коде нет (rg internal/: mcpclient/externaltools отсутствуют — чистые новые зоны); api.Verifier.Probe сегодня БЕЗ секретов (только BasicCheck видит submitted values in memory — прецедент расширения того же интерфейса); CapabilityEvidenceSummary уже несёт redacted_request/redacted_result (словарь может потреблять инвентарь через ConnectionsFacts БЕЗ новых api-методов — 0 правок поверхности api.Service)
+- Спека 108 строк (status backlog, route employee, baseline 12dc41d, 7 контекстов); I/O-матрица 25 кейсов; шаги 01-05 (машина+класс+роутер+секреты → инвентарь+словарь+деривация+вызов → транспорт+OpenAPI → fixture+journey → drift+QA-closure с epic-7 → done 4/4); sprint-status 7-4 остаётся backlog до CHECKPOINT 1 (синхронно спеке)
+next: CHECKPOINT 1 — предъявление спеки владельцу финальным ответом; по явному «одобряю»/«продолжайте» на предъявление (52-sm): флип backlog → ready-for-dev синхронно одним коммитом (спека + sprint-status ключ 7-4-внешние-mcp-серверы-как-класс-connector; epic-7 остаётся in-progress — урок 3-1) → Dev шаги 01-05 → CHECKPOINT 2 (PR → CI ×3 поимённо → sha-pinned merge → main ff-only → DEVLOG → удаление ветки ×3; Epic 7: 4/4 → done)
+владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API-зонды сессии; передан открытым текстом в чате)
+commit: e49c841e0bbc2d4fdad485b6a2c32149f415c217
+
+---
+date: 2026-10-29
+task: 314-checkpoint-1-7-4
+role: main (Super Z, сессия web-d497a728)
+story: 7-4
+summary: CHECKPOINT 1 story 7-4 закрыт: одобрение владельца («продолжайте» на предъявление спеки финальным ответом SM-сессии 313-sm-7-4) — флип backlog → ready-for-dev синхронно одним коммитом (спека status + Spec Change Log запись закрытия + sprint-status.yaml ключ 7-4-внешние-mcp-серверы-как-класс-connector; epic-7 остаётся in-progress — урок 3-1); следующий шаг Dev 01-05
+done:
+- Спека 7-4: status → ready-for-dev + Spec Change Log запись закрытия CHECKPOINT 1
+- sprint-status.yaml: 7-4 → ready-for-dev; epic-7 in-progress НЕ тронут (урок 3-1)
+- Восстановление сессии после сброса контекста: сводка сброса была СТАЛОЙ (описывала фазу до закрытия 7-3); живые git-зонды установили истину (7-3 закрыта PR #56/merge 5534ddc, main 12dc41d; 7-4 SM завершён, ветка 4206e3b = origin, CI 40763762401 success; sprint-status 7-3 done, epic-7 3/4) — «расхождение источников → верь git» сработал повторно; сигнал владельца «продолжайте» + токен = одобрение CHECKPOINT 1 по контракту записи 313 (по «одобряю»/«продолжайте»: флип → Dev → CHECKPOINT 2)
+- Окружение поднято bootstrap.sh (go 1.27.1, node 24, PG 54329 PID жив); токен закэширован /tmp/.staffy_gh_token chmod 600
+next: Dev шаги 01-05 спеки 7-4 (шаг-01 клиентская машина internal/mcpclient + карточка класса каталога + роутер connectorprobe + секреты проб MAC/ReadSeal → шаг-02 инвентарь+словарь externaltools+деривация+машина вызова → шаг-03 транспорт+OpenAPI → шаг-04 fixture-мир+journey z52 → шаг-05 drift+QA-closure epic-7 done 4/4) → CHECKPOINT 2 (PR → CI ×3 поимённо → sha-pinned merge → main ff-only → DEVLOG → удаление ветки ×3)
+владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/PR/merge/API-зонды сессии; передан открытым текстом в чате)
+commit: 61a5d5712c06c658a46afa1aaa550f8e98b328aa
+
+---
+date: 2026-10-29
+task: 315-dev-step-01-7-4
+role: main (Super Z, сессия web-d497a728)
+story: 7-4
+summary: Dev step-01 story 7-4 — клиентская протокольная машина internal/mcpclient (stateless-ревизия 2026-07-28, stdlib без SDK, словари-зеркала 7-3, строгий decode result XOR error/эхо id/когерентность версии, размерные бюджеты без усечения, фильтрация дескрипторов AD-11, credential-агностика) + карточка класса staffy-external-mcp-server@1.0.0 (business system, external-mcp, envs {sandbox,test} — AG-4 fail-closed на классе, ровно один секрет, capabilities ×5 полной семантики) + core-правки секрета проби (Verifier.Probe +secrets, VerifyCommand.Secrets в память, verifySeal MAC против активного seal через узкий ReadSeal ДО сети, 0 миграций) + composition-роутер connectorprobe (маршрут по RequiredAccountType; телефония побайтно неизменна — тест-пин; Build connectorprobe/1.0.0) + main.go верификатор-роутер
+done:
+- Wire-тесты mcpclient над httptest: матрица конверта (ни результата ни ошибки / оба / чужой jsonrpc / мусор), эхо id, нулевые/отсутствующие члены, чужие ревизии (список и _meta), бюджеты чтения (сверхбюджет = отказ целиком), не-200 статус, JSON-RPC ошибка (только код — сообщение недоверенного не пересылается AD-11), дедлайн = честный unknown, фильтрация vendorExtension
+- Роутер: BasicCheck формата (sandbox-ключ + URL-форма, без сети), гейт ProbeVerifiable, discover и discover+list раунды, honest-слова исходов с провенансом serverInfo, секрет не эхо (тест-пин)
+- MAC-матрица unit (app): отсутствие → «требует секрет»; несовпадение → «не совпадает с принятым подключением» ДО сети (evidence не пишется); совпадение → проба + evidence; ротация → старый ключ отказ, evidence stale, новый ключ возвращает verified
+- Интеграционный PG-контур: полный цикл с живым httptest MCP-сервером + RLS-транзакция ReadSeal (УРОК: первый вариант ReadSeal шёл мимо scoped-транзакции — RLS резал строки, «не найден»; исправлено на begin+set_config)
+- УРОК style: gofmt -w всего пакета создал ~1600 строк whitespace-churn в пробельных legacy-файлах — откат и повторное применение правок в родном стиле каждого файла (табы: api/catalog/catalog_test/main/fixture_server; пробелы: service/service_test/port/postgres/synthetic/synthetic_test/connector_test); дисциплина: gofmt только НОВЫХ файлов (4-1)
+- УРОК integration: UUID-суффиксы e201-e204 нового интеграционного теста коллидировали с TestCapabilityEvidenceLifecycle → интер-тестовая контаминация; уникальный диапазон e6xx
+- Полный живой прогон: build/vet OK; unit все пакеты OK; интеграция ×2 TZ (UTC 66.0s / Moscow 70.7s) OK; git diff --check OK
+next: step-02 — инвентарь + словарь internal/externaltools + деривация + проекция JSON Schema → платформенный словарь + машина вызова Calls + адаптер externaltoolsfacts
+владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API-зонды сессии; передан открытым текстом в чате)
+commit: 4575b50de48263b8dd36e369568e5ec393f57664
+
+---
+date: 2026-10-29
+task: 316-dev-step-02-7-4
+role: main (Super Z, сессия web-d497a728)
+story: 7-4
+summary: Dev step-02 story 7-4 — MCP-проба tools-list несёт компактный фильтрованный JSON-инвентарь в redacted_result; internal/externaltools (порты + запись + тотальная проекция JSON Schema → словарь типизации + чистая деривация + словарь за лестницей + машина вызова credential/target-агностичная) + composition-адаптер externaltoolsfacts (пин карточки и capability на проводке; WireTransport над mcpclient)
+done:
+- Проекция-матрица юнит: подмножество тотально {string|integer|boolean + enum + целые границы + required}; отказы ПОИМЁННО: number дробный/object/array/anyOf/дробная граница/enum не строками/корень не object/выходная схема; без readOnlyHint = AR-30 отказ
+- Деривация юнит: admitted/rejected строки с провенансом {карточка@версия, server name/version, evidence id, checked/expires}; 4 stale-якоря → записи исчезают со словами; connection guards (draft/failed/revoked); honest empty; битый/чужой инвентарь — честные слова
+- Словарь за лестницей: 404 не-member / 403 словами скоупов ДО материала / два честных пути (integrations|configuration); изоляция scope (факты читаются скоупом тенента сессии)
+- Calls юнит: happy (пин→валидация→раунд→выход), TOCTOU-пин (stale→отказ до раунда; ghost-инструмент; недопущенная запись AR-30; неизвестное подключение), strict вход поимённо ×3, strict выход fail-closed ×4 («выход не переслан»), ошибки транспорта честно
+- МИГРАЦИЯ 00003 (ОТКЛОНЕНИЕ от Never «0 SQL-миграций»: спека требовала инвентарь в redacted_result существующей строки evidence, но CHECK 00002 ограничивает 300 символов — конфликт разрешён в пользу архитектурного интента: релаксация бюджета CHECK до 262144 [зеркало машинного бюджета чтения 256 КиБ], БЕЗ новых таблиц/колонок; форма схемы неизменна; зарегистрирована в TestMain — урок 3-3)
+- УРОК flake: fixedClock связывает CompletedAt обеих проб tools-list → тай-брейк latestEvidence по EvidenceID флипает (4/6 падений) — wallClock в интеграционном тесте; диагностика через временный дамп CapabilityState
+- УРОК python: s.replace без assert молча не применяет замену («wall clock wired» солгал) — assert in при каждой замене
+- Прогоны: build/vet OK; unit OK; интеграция ×2 TZ (UTC 58.8s / Moscow 69.1s) OK ×8 стабильных прогонов деривации; diff-check OK
+next: step-03 — транспорт tools_external.go + страница external_tools.html + OpenAPI +1 path + external_tools_contract_test.go (зеркала) + секреты VerifyCommand в форме/API
+владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API-зонды сессии; передан открытым текстом в чате)
+commit: 03453db61747613d30f330d143f7a5291f2655b2
+
+---
+date: 2026-10-29
+task: 317-dev-step-03-7-4
+role: main (Super Z, сессия web-d497a728)
+story: 7-4
+summary: Dev step-03 story 7-4 — транспортная матрица словаря внешних инструментов: tools_external.go (API + страница read-only за лестницей 3-1/7-2, фейк-инъекция) + external_tools.html (разделы/провенанс/honest-состояния/честные причины) + OpenAPI +1 path и три закрытые схемы + external_tools_contract_test.go (зеркала типизации и состояний)
+done:
+- Транспорт: малформед-путь 404 ПОСЛЕ резолвера (порядок лестницы — тест-пин); 403 словами скоупов ДО материала; 500 инфраструктуры; непривязанная поверхность 404
+- DTO: ExternalToolSectionView/EntryView/ProvenanceView — закрытые формы, схемы записей реюзят ToolSchemaFieldView (платформенный словарь типизации — зеркало дисциплины реестра 7-2)
+- Контракт-тест: типизация ↔ tools.ToolFieldTypes() поимённо; state ↔ [admitted,rejected]; environment ↔ [sandbox,test] (карта класса AG-4); status ↔ машина подключений; additionalProperties false; сводка обязана говорить деривацию/исчезновение/read-only/AR-30/Planner/скоупы
+- Страница: разделы по подключениям, провенанс записей, honest-причины отклонений и пустых разделов, честное пустое состояние тенента без подключений класса, НИ ОДНОЙ формы (строго read-only — тест-пин)
+- УРОК go-тест-фейк: errors.Is требует Unwrap — обёртка скоупов без Unwrap давала 500 вместо 403
+- Прогоны: build/vet OK; unit OK; интеграция ×2 TZ (UTC 69.0s / Moscow 58.9s) OK; diff-check OK
+next: step-04 — fixture-мир external-mcp (external_mcp_fixture.go + тумблеры foreign-revision/oversized/leaky + секреты VerifyCommand форма/API в транспорте) + journey z52 полный сценарий живьём ДО коммита
+владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API-зонды сессии; передан открытым текстом в чате)
+commit: 7519dde68f7e875ca1ff6cd59a2522225a2275b4
+
+---
+
+task: 318-dev-step-04-7-4
+role: main (Super Z, сессия web-d497a728)
+story: 7-4
+summary: Dev step-04 story 7-4 — fixture-мир внешнего MCP-класса + секреты VerifyCommand (API+форма) + journey z52 живьём 57/57: scripted внешний сервер на общем листенере с MAC-зеркалом seal-машины, живые аутентифицированные пробы формами, honest-отказы поимённо в evidence, словарь с провенансом и динамикой ротация→исчезновение→возврат
+done:
+- Секреты VerifyCommand: API decodeVerifySecrets (опциональное закрытое тело под бюджетом; пустое = nil — классы 1-8 без ключа неизменны) + форма secret_field/secret_<name>; ProbeSecret-флаг класса; поле ключа пробы в verify-форме со словами MAC-до-сети
+- Fixture: /fixture/external-mcp (ревизия 2026-07-28, матрица ×4 [проектабельный/number-вне-словаря/без readOnlyHint AR-30/мутация], тумблеры foreign/oversized/leaky, auth-гейт Bearer sandbox-); MAC-зеркало sealSecret/verifySeal; гейт ДО роутер-пробы (ревизия порядка против в-полёта черновика сессии — изъян пойман самопроверкой до коммита)
+- УРОК идемпотентность-фикстуры: idsFixture-КОНСТАНТА делала все verify-формы всех рендеров ОДНИМ ключом — вторая capability заходила в слот первой и реплеила чужой (unverified) отчёт; фикс = зеркало LookupEvidence продакшна (hash включает capability: другой capability = ErrIdempotencyConflict 409) + transportIDs реальным v7-mint (прецедент previewIDs) — форм-ключи уникальны per render как в продакшне
+- УРОК UUID-мина: rune-конкатенация ID соединений ('0'+next) давала INVALID hex с 10-го соединения → id.MustParse panic per-request; сьют 7-3 держал ровно ≤9, z52 стал десятым; фикс = decimal %012d (10*next): исторические идентичности 020..090 байт-в-байт, валидность навсегда
+- УРОК supported-карт: z-integrations strict-локатор падал на двух supported (телефония + внешний класс AdapterImplemented) — .first() по прецеденту candidate-строки; journeys не гнались в шагах 01-03 (спека требует живой прогон в step-04) — латентные регрессии всплыли только теперь
+- УРОК поле слов отказа: матрица обещает «probe failed с поимённой честной причиной» — поимённые слова живут в evidence.redacted_result (probeFailure несёт err.Error()), state_reason остаётся generic по доменному прецеденту 1-8 (DeriveCapabilityStates); тест переведён на честную поверхность
+- Прогоны живьём: journeys 57/57 серийно 4.6m; build/vet OK; unit 39 ok; интеграция ×2 TZ (UTC 62.2s / Moscow 68.0s); gofmt нового файла OK; diff-check OK
+next: step-05 — drift-зона (+mcpclient +externaltools, словарь фраз НЕ растёт) + QA-closure (спека done, sprint-status 7-4 done, epic-7 done 4/4, deferred-work) + финальный регресс + feat БЕЗ маркера
+владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API-зонды сессии; передан открытым текстом в чате)
+commit: 67280d71d81428cf0ad817a7c28ec4c3f48b3178
+
+---
+
+task: 319-dev-step-05-7-4
+role: main (Super Z, сессия web-d497a728)
+story: 7-4
+summary: Dev step-05 story 7-4 — drift-зона +mcpclient +externaltools (зонд 0 фраз, словарь НЕ растёт — 23 записи) + QA-closure (спека done, sprint-status 7-4 done, epic-7 done 4/4, deferred-work +7) + стайл-коррекция whitespace-чурна + финальный feat БЕЗ маркера (активатор CI, урок 282)
+done:
+- Drift: зоны расширены двумя платформенными пакетами осознанной правкой; зонд живым прогоном 0 фраз (словарь 23); вертикальные слова fixture-мира в mcpclient/externaltools не входят
+- УРОК whitespace-чурн: инструмент правки сессии нормализует отступы ЦЕЛОГО файла (Read рендерит табы пробелами — Edit пишет пробелы); после step-04 сверка raw-vs-ignore-all-space вскрыла ~1185 строк чурна в fixture_server.go (реальных +141/−10); фикс = gofmt -w трёх файлов (родной таб-стиль), кумулятивный дифф ветки против main снова только реальные изменения; правило на будущее: после каждой правки legacy-файла сверять git diff --ignore-all-space и при расхождении — gofmt -w
+- QA-closure: спека done + Spec Change Log closure (отклонение «0 SQL» миграцией 00003 задокументировано DEVLOG 316); sprint-status 7-4 done + epic-7 done (4/4: 7-1 каталог паков, 7-2 реестр tools, 7-3 MCP-сервер, 7-4 внешние MCP; retrospective — optional-слот); deferred-work +7 honest-границ
+- Финальный регресс: build/vet OK; unit 39 ok (-count=1); интеграция ×2 TZ живым PG (UTC 68.7s / Moscow 59.5s); journeys 57/57 серийно 4.5m; gofmt восстановленных файлов OK; diff-check OK
+next: CHECKPOINT 2 — push головы БЕЗ маркера → CI-ран поимённо → PR-скрипт по прецеденту 7-3 → PR → synchronize-ран → sha-pinned merge → main ff-only → main-ран → DEVLOG 320 → удаление ветки ×3 → финальные зонды → ЭПИК 7 ЗАКРЫТ (4/4)
+владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API-зонды сессии; передан открытым текстом в чате)
+commit: f142090270490921f6c60f15f1576c87aa28eb17
