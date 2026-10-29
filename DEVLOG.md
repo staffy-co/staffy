@@ -6277,3 +6277,21 @@ done:
 next: step-04 — fixture-мир external-mcp (external_mcp_fixture.go + тумблеры foreign-revision/oversized/leaky + секреты VerifyCommand форма/API в транспорте) + journey z52 полный сценарий живьём ДО коммита
 владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API-зонды сессии; передан открытым текстом в чате)
 commit: 7519dde68f7e875ca1ff6cd59a2522225a2275b4
+
+---
+
+task: 318-dev-step-04-7-4
+role: main (Super Z, сессия web-d497a728)
+story: 7-4
+summary: Dev step-04 story 7-4 — fixture-мир внешнего MCP-класса + секреты VerifyCommand (API+форма) + journey z52 живьём 57/57: scripted внешний сервер на общем листенере с MAC-зеркалом seal-машины, живые аутентифицированные пробы формами, honest-отказы поимённо в evidence, словарь с провенансом и динамикой ротация→исчезновение→возврат
+done:
+- Секреты VerifyCommand: API decodeVerifySecrets (опциональное закрытое тело под бюджетом; пустое = nil — классы 1-8 без ключа неизменны) + форма secret_field/secret_<name>; ProbeSecret-флаг класса; поле ключа пробы в verify-форме со словами MAC-до-сети
+- Fixture: /fixture/external-mcp (ревизия 2026-07-28, матрица ×4 [проектабельный/number-вне-словаря/без readOnlyHint AR-30/мутация], тумблеры foreign/oversized/leaky, auth-гейт Bearer sandbox-); MAC-зеркало sealSecret/verifySeal; гейт ДО роутер-пробы (ревизия порядка против в-полёта черновика сессии — изъян пойман самопроверкой до коммита)
+- УРОК идемпотентность-фикстуры: idsFixture-КОНСТАНТА делала все verify-формы всех рендеров ОДНИМ ключом — вторая capability заходила в слот первой и реплеила чужой (unverified) отчёт; фикс = зеркало LookupEvidence продакшна (hash включает capability: другой capability = ErrIdempotencyConflict 409) + transportIDs реальным v7-mint (прецедент previewIDs) — форм-ключи уникальны per render как в продакшне
+- УРОК UUID-мина: rune-конкатенация ID соединений ('0'+next) давала INVALID hex с 10-го соединения → id.MustParse panic per-request; сьют 7-3 держал ровно ≤9, z52 стал десятым; фикс = decimal %012d (10*next): исторические идентичности 020..090 байт-в-байт, валидность навсегда
+- УРОК supported-карт: z-integrations strict-локатор падал на двух supported (телефония + внешний класс AdapterImplemented) — .first() по прецеденту candidate-строки; journeys не гнались в шагах 01-03 (спека требует живой прогон в step-04) — латентные регрессии всплыли только теперь
+- УРОК поле слов отказа: матрица обещает «probe failed с поимённой честной причиной» — поимённые слова живут в evidence.redacted_result (probeFailure несёт err.Error()), state_reason остаётся generic по доменному прецеденту 1-8 (DeriveCapabilityStates); тест переведён на честную поверхность
+- Прогоны живьём: journeys 57/57 серийно 4.6m; build/vet OK; unit 39 ok; интеграция ×2 TZ (UTC 62.2s / Moscow 68.0s); gofmt нового файла OK; diff-check OK
+next: step-05 — drift-зона (+mcpclient +externaltools, словарь фраз НЕ растёт) + QA-closure (спека done, sprint-status 7-4 done, epic-7 done 4/4, deferred-work) + финальный регресс + feat БЕЗ маркера
+владельцу: отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API-зонды сессии; передан открытым текстом в чате)
+commit: TBD
