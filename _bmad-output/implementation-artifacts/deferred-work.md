@@ -358,3 +358,31 @@
 - source_spec: `spec-7-3-mcp-registry-surface.md`
   summary: Уточнение поимённой capability зависимости контракта (гейт сегодня на уровне подключения типа: verified ∃ ∧ failed/stale ∅ ∧ live) — контракт 7-2 не декларирует поле привязки capability (его нет); уточнение до поимённой capability — будущей версией артефакта контракта по спросу (Planner 8.3), осознанным расширением схемы.
   evidence: спека 7-3 Implementation Notes (гейт на уровне подключения честен; уточнение — будущей версией контракта); toolsdependency.go словарь слов состояний; перенесено Dev step-01 (2026-10-29).
+
+- source_spec: `spec-7-4-external-mcp-connectors.md`
+  summary: Живые внешние MCP-серверы и production-учётные данные — за AG-4: карта класса разрешает окружения ровно {sandbox, test} (production отсутствует fail-closed на классе); источник ключа для вызовов внешних инструментов — будущий AG-4-срез (KMS/вызыватель), машина Calls credential-агностична (Authorization — явный параметр вызывающего).
+  evidence: спека 7-4 Always (1) карта класса + Never (не персистить plaintext, не строить KMS); карточка каталога AllowedEnvironments; calls.go; перенесено Dev step-05 (2026-10-29).
+
+- source_spec: `spec-7-4-external-mcp-connectors.md`
+  summary: Клиентская OAuth 2.1 к внешним серверам — не вводится: срез несёт sandbox api_key (формат Bearer sandbox-…); формальная клиентская авторизация — deferred по реальному внешнему спросу.
+  evidence: спека 7-4 Never (не вводить клиентскую OAuth 2.1); mcpclient Authorization-параметр; перенесено Dev step-05 (2026-10-29).
+
+- source_spec: `spec-7-4-external-mcp-connectors.md`
+  summary: Мутации внешних систем через Action Gateway над внешним MCP — будущий срез по спросу: capability-семейство command.external-tool честно заблокировано ActionGatewayBlock машинально (не ревью); write-инструмент внешнего сервера не существует ни как запись словаря, ни как инструмент модели (AD-6/AD-7).
+  evidence: спека 7-4 Always (1) + Never; DeriveCapabilityStates ActionGatewayBlock; externaltools проецирует только readOnlyHint; перенесено Dev step-05 (2026-10-29).
+
+- source_spec: `spec-7-4-external-mcp-connectors.md`
+  summary: Карточки конкретных систем РФ/СНГ (Битрикс24/amoCRM/Мегаплан/1С/МойСклад/Telegram/WhatsApp) и маркетплейс-листинги — за AG-3-триггером (реальный спрос пилота/тенента); аннотация epics: листинг = канал дистрибуции поверх тех же контрактов, ядро не меняется (AD-1/AD-2); критерии готовности к листингу — в epics.md.
+  evidence: спека 7-4 Never + Problem (5); класс — единственный платформенный путь нового интеграционного класса; перенесено Dev step-05 (2026-10-29).
+
+- source_spec: `spec-7-4-external-mcp-connectors.md`
+  summary: Вызыватель внешних инструментов (Planner 8.3) — продакшн-вызывателей НОЛЬ: форма вызова закреплена машиной externaltools.Calls (пин записи из текущей деривации → strict вход → раунд → strict выход fail-closed), HTTP-поверхности вызова НЕТ; путь вызова доказан Go-контуром (wire-тесты + интеграционный PG).
+  evidence: спека 7-4 Always (8) + Never; calls.go; contract-тесты и интеграционный контур; перенесено Dev step-05 (2026-10-29).
+
+- source_spec: `spec-7-4-external-mcp-connectors.md`
+  summary: Entitlement-бюджеты проб/вызовов внешних инструментов — не подключены (зеркало 7-3): декларированные бюджеты capability (rate/size/ctx) честно работают; интеграция entitlement-машины 1-11 — по реальному спросу.
+  evidence: спека 7-4 Never (не подключать entitlement-бюджеты); карточка capability-бюджеты; probeResponseBudgetBytes; перенесено Dev step-05 (2026-10-29).
+
+- source_spec: `spec-7-4-external-mcp-connectors.md`
+  summary: Фоновые re-probe и автообновление внешнего словаря — не строятся (зеркало 7-3 «не заявлять ttlMs»): обновление словаря — ТОЛЬКО живая команда оператора (повторная проба); очередь фоновых обновлений — по спросу с durable-гроссбухом.
+  evidence: спека 7-4 Never (не строить очередь фоновых re-probe); деривация — чистая функция фактов; journey z52 повторная проба возвращает записи; перенесено Dev step-05 (2026-10-29).
