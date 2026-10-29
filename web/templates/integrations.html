@@ -65,8 +65,16 @@
 <span class="cap-reason">{{.Reason}}</span>
 {{if .BlockRequired}}<span class="cap-block">Проверка заблокирована: требуется {{.BlockRequired}}, гейт {{.BlockGate}}, ответственный: {{.BlockOwner}}. Независимые read-only возможности доступны для проверки.</span>{{end}}
 {{if .CanVerify}}
+{{$capabilityID := .ID}}
 <form method="post" action="/app/tenants/{{$.TenantID}}/connections/{{$conn.ConnectionID}}/capabilities/{{.ID}}/verify">
 <input type="hidden" name="idempotency_key" value="{{.VerifyKey}}">
+{{if $conn.ProbeSecret}}
+{{range $conn.SecretFields}}
+<input type="hidden" name="secret_field" value="{{.Name}}">
+<label for="verify-{{$capabilityID}}-{{.ElementID}}">{{.Label}} для пробы</label><input id="verify-{{$capabilityID}}-{{.ElementID}}" name="secret_{{.Name}}" type="password" autocomplete="new-password" required aria-describedby="verify-{{$capabilityID}}-{{.ElementID}}-hint">
+<p class="next-note" id="verify-{{$capabilityID}}-{{.ElementID}}-hint">Ключ MAC-проверяется против принятого seal до сетевого раунда и не сохраняется повторно.</p>
+{{end}}
+{{end}}
 <button class="primary cap-verify" type="submit">Проверить «{{.Title}}»</button>
 </form>
 {{end}}

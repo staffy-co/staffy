@@ -10,7 +10,11 @@ test('integrations catalog shows honest statuses and connects a synthetic accoun
   // Catalog: every card exposes its support status as text and unimplemented
   // adapters never offer a connect form.
   await expect(page.getByRole('heading', { name: 'Каталог Connector' })).toBeVisible();
-  await expect(page.locator('.connector-status').filter({ hasText: 'supported' })).toBeVisible();
+  // Two supported cards since Story 7-4: the synthetic telephony and the
+  // external MCP class (its client machine and probe are production code,
+  // not synthetic) — the .first() keeps the honest-status assertion of the
+  // telephony contour stable (the candidate line below does the same).
+  await expect(page.locator('.connector-status').filter({ hasText: 'supported' }).first()).toBeVisible();
   await expect(page.locator('.connector-status').filter({ hasText: 'candidate' }).first()).toBeVisible();
   await expect(page.locator('.connector-status').filter({ hasText: 'deferred' }).first()).toBeVisible();
   await expect(page.locator('.connector-status').filter({ hasText: 'unavailable' })).toBeVisible();

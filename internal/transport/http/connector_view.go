@@ -51,8 +51,12 @@ type connectionView struct {
 	ConfigFields  []fieldView
 	SecretFields  []fieldView
 	HasSecretForm bool
-	Capabilities  []capabilityView
-	FormKey       string
+	// ProbeSecret marks the external MCP class (Story 7-4): its verify
+	// forms carry the probe key — the MAC-checked material of the live
+	// rounds, never stored again.
+	ProbeSecret  bool
+	Capabilities []capabilityView
+	FormKey      string
 }
 
 // capabilityView is one derived capability report prepared for the card.
@@ -208,6 +212,7 @@ func prepareConnectionViews(connections []connectorDomain.Connection, defs []con
 			view.ConfigFields = fieldViews(prefix, def.ConfigSchema(), values)
 			view.SecretFields = fieldViews(prefix, def.SecretSchema(), nil)
 			view.HasSecretForm = len(view.SecretFields) > 0
+			view.ProbeSecret = def.RequiredAccountType == "external-mcp"
 		}
 		views = append(views, view)
 	}
