@@ -6326,4 +6326,4 @@ done:
 - Финальные зонды: дерево чистое; check-continuity OK; sprint-status 7-4 done + EPIC-7 DONE 4/4 (retrospective — optional); спека done; DEVLOG хвост 320; build/vet на main OK
 next: Эпик 7 ЗАКРЫТ (4/4: 7-1 каталог паков, 7-2 реестр tools, 7-3 MCP-сервер поверхности, 7-4 внешние MCP-серверы); next: epic-7-retrospective (optional-слот) или Epic 8 — ПО СИГНАЛУ ВЛАДЕЛЬЦА
 владельцу: (1) отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API/merge-зонды сессии; передан открытым текстом в чате); (2) РЕШИТЬ БЛОКЕР CI: квота Actions минут приватного репо — re-run 40837806615 после поднятия лимита/смены цикла (×3 зелёных рана на идентичном дереве уже являются CI-доказательством merge)
-commit: TBD
+commit: dd694d5c0d77d2acfe611a87642922b4089a69d1
