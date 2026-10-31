@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
-	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
-	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
+	casesAPI "github.com/staffy-co/staffy/internal/cases/api"
+	casesDomain "github.com/staffy-co/staffy/internal/cases/domain"
+	identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // TestWaitingUpdateMatrixRowsBySpec is the Story 2.16 step-04 matrix: the

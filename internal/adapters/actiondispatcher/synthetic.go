@@ -5,9 +5,9 @@ import (
 	"sync"
 	"time"
 
-	actionPort "github.com/artemiosu/staffy/internal/action/port"
-	"github.com/artemiosu/staffy/internal/connector/catalog"
-	"github.com/artemiosu/staffy/internal/platform/tenancy"
+	actionPort "github.com/staffy-co/staffy/internal/action/port"
+	"github.com/staffy-co/staffy/internal/connector/catalog"
+	"github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 // The capability identifier the synthetic mutation adapter serves the

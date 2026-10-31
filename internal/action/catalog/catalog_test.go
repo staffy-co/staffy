@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/artemiosu/staffy/internal/action/domain"
+	"github.com/staffy-co/staffy/internal/action/domain"
 )
 
 // fixtureDefinitions — два определения + две версии одного ID

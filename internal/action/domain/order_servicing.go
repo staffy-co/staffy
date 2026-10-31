@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // Module action, story 4.10 — the Order Servicing domain: the SAFE

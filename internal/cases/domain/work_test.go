@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 func workCurrent(state string, version int64) WorkItemCurrent {

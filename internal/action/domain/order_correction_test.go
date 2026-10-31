@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/action/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/action/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // Story 4.8 (step-01) — the order correction domain tests: the

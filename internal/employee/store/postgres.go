@@ -6,12 +6,12 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/artemiosu/staffy/internal/employee/domain"
-	"github.com/artemiosu/staffy/internal/employee/port"
-	"github.com/artemiosu/staffy/internal/platform/id"
-	"github.com/artemiosu/staffy/internal/platform/tenancy"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/staffy-co/staffy/internal/employee/domain"
+	"github.com/staffy-co/staffy/internal/employee/port"
+	"github.com/staffy-co/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 type Postgres struct{ pool *pgxpool.Pool }

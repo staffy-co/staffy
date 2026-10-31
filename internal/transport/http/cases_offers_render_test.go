@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
-	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
+	casesAPI "github.com/staffy-co/staffy/internal/cases/api"
+	casesDomain "github.com/staffy-co/staffy/internal/cases/domain"
 )
 
 // ---------------------------------------------------------------------------

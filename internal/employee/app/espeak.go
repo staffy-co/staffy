@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/employee/domain"
+	"github.com/staffy-co/staffy/internal/employee/domain"
 )
 
 const maxTestAudioBytes = 2 << 20

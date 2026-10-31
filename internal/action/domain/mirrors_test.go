@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/artemiosu/staffy/internal/action/domain"
-	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
-	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/action/domain"
+	casesDomain "github.com/staffy-co/staffy/internal/cases/domain"
+	identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
 )
 
 // The mirror contract of the action domain: the dictionaries that mirror

@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
-	casesPort "github.com/artemiosu/staffy/internal/cases/port"
+	casesDomain "github.com/staffy-co/staffy/internal/cases/domain"
+	casesPort "github.com/staffy-co/staffy/internal/cases/port"
 )
 
 // The synthetic contour matrix: the five deterministic scenarios of the

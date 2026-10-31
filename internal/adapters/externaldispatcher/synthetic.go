@@ -4,10 +4,10 @@ import (
 	"context"
 	"sync"
 
-	"github.com/artemiosu/staffy/internal/cases/domain"
-	casesPort "github.com/artemiosu/staffy/internal/cases/port"
-	"github.com/artemiosu/staffy/internal/connector/catalog"
-	"github.com/artemiosu/staffy/internal/platform/tenancy"
+	"github.com/staffy-co/staffy/internal/cases/domain"
+	casesPort "github.com/staffy-co/staffy/internal/cases/port"
+	"github.com/staffy-co/staffy/internal/connector/catalog"
+	"github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 // The capability identifier the synthetic dispatcher serves the send

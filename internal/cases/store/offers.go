@@ -5,12 +5,12 @@ import (
 	"errors"
 	"time"
 
-	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
-	casesPort "github.com/artemiosu/staffy/internal/cases/port"
-	"github.com/artemiosu/staffy/internal/platform/id"
-	"github.com/artemiosu/staffy/internal/platform/tenancy"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	casesDomain "github.com/staffy-co/staffy/internal/cases/domain"
+	casesPort "github.com/staffy-co/staffy/internal/cases/port"
+	"github.com/staffy-co/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 // ---------------------------------------------------------------------------
@@ -356,14 +356,14 @@ func (s *Postgres) execRecordClientSelection(ctx context.Context, tx pgx.Tx, ten
 		MaxVisibleVariants: p.ComparisonPolicy.MaxVisibleVariants,
 	}
 	selection := casesDomain.ClientSelectionDraft{
-		PositionKey:         p.Selection.PositionKey,
-		Offer:               supplierOfferInputOf(*chosen),
-		Quantity:            p.Selection.Quantity,
-		FitmentStatus:       casesDomain.FitmentStatusProven,
-		FitmentDigest:       p.Selection.FitmentDigestPin,
-		ProfileDigest:       p.Selection.ProfileDigestPin,
-		PartRequestDigest:   p.Selection.PartRequestDigestPin,
-		Now:                 now,
+		PositionKey:       p.Selection.PositionKey,
+		Offer:             supplierOfferInputOf(*chosen),
+		Quantity:          p.Selection.Quantity,
+		FitmentStatus:     casesDomain.FitmentStatusProven,
+		FitmentDigest:     p.Selection.FitmentDigestPin,
+		ProfileDigest:     p.Selection.ProfileDigestPin,
+		PartRequestDigest: p.Selection.PartRequestDigestPin,
+		Now:               now,
 	}
 	material, err := casesDomain.AssembleClientSelection(policy, selection)
 	if err != nil {

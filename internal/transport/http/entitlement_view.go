@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	entitlementAPI "github.com/artemiosu/staffy/internal/entitlement/api"
-	entitlementDomain "github.com/artemiosu/staffy/internal/entitlement/domain"
+	entitlementAPI "github.com/staffy-co/staffy/internal/entitlement/api"
+	entitlementDomain "github.com/staffy-co/staffy/internal/entitlement/domain"
 )
 
 // usageCategoryOptions lists the usage dictionary for the form selects.

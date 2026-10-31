@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/artemiosu/staffy/internal/tools"
+	"github.com/staffy-co/staffy/internal/tools"
 	"gopkg.in/yaml.v3"
 )
 

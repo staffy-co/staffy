@@ -9,11 +9,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/artemiosu/staffy/internal/adapters/toolssource"
-	identityAPI "github.com/artemiosu/staffy/internal/identity/api"
-	"github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/mcp"
-	"github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/adapters/toolssource"
+	identityAPI "github.com/staffy-co/staffy/internal/identity/api"
+	"github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/mcp"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // fakeMCPSurface is the transport fake of the MCP endpoint: it answers a

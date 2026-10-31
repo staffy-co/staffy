@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // ownershipBase builds the deterministic material of the ownership tests:

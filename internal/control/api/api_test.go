@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/control/domain"
+	"github.com/staffy-co/staffy/internal/control/domain"
 )
 
 // The View mappers keep the wire honest: the safe mode read, the

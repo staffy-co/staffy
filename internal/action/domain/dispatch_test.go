@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // The 3.6 step-01 unit matrix of the dispatch/receipt domain — the

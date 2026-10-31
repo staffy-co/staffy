@@ -10,12 +10,12 @@ import (
 	"strings"
 	"testing"
 
-	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
-	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
-	"github.com/artemiosu/staffy/internal/identity/api"
-	"github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/httpx"
-	"github.com/artemiosu/staffy/internal/platform/id"
+	casesAPI "github.com/staffy-co/staffy/internal/cases/api"
+	casesDomain "github.com/staffy-co/staffy/internal/cases/domain"
+	"github.com/staffy-co/staffy/internal/identity/api"
+	"github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/httpx"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 func casesFixtureID() id.UUID { return id.MustParse("01994f64-6c00-7000-8000-00000000c0de") }

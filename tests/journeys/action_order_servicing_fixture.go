@@ -6,14 +6,14 @@ import (
 	"sync"
 	"time"
 
-	actionAPI "github.com/artemiosu/staffy/internal/action/api"
-	actionApp "github.com/artemiosu/staffy/internal/action/app"
-	actionDomain "github.com/artemiosu/staffy/internal/action/domain"
-	actionPort "github.com/artemiosu/staffy/internal/action/port"
-	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
-	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
-	"github.com/artemiosu/staffy/internal/platform/tenancy"
+	actionAPI "github.com/staffy-co/staffy/internal/action/api"
+	actionApp "github.com/staffy-co/staffy/internal/action/app"
+	actionDomain "github.com/staffy-co/staffy/internal/action/domain"
+	actionPort "github.com/staffy-co/staffy/internal/action/port"
+	casesAPI "github.com/staffy-co/staffy/internal/cases/api"
+	identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 // Story 4.10 (step-04): the order servicing contour of the journeys

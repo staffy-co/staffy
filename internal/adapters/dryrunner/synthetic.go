@@ -4,8 +4,8 @@ import (
 	"context"
 	"sync"
 
-	"github.com/artemiosu/staffy/internal/action/domain"
-	actionPort "github.com/artemiosu/staffy/internal/action/port"
+	"github.com/staffy-co/staffy/internal/action/domain"
+	actionPort "github.com/staffy-co/staffy/internal/action/port"
 )
 
 // ---------------------------------------------------------------------------

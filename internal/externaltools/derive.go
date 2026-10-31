@@ -15,7 +15,7 @@ import (
 	"fmt"
 	"strings"
 
-	connectorDomain "github.com/artemiosu/staffy/internal/connector/domain"
+	connectorDomain "github.com/staffy-co/staffy/internal/connector/domain"
 )
 
 // The capability row the dictionary consumes (the wiring-level pin of the

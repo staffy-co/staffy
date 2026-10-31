@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	employeeDomain "github.com/artemiosu/staffy/internal/employee/domain"
-	"github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
+	employeeDomain "github.com/staffy-co/staffy/internal/employee/domain"
+	"github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 type CreateCommand struct {

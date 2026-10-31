@@ -10,7 +10,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // Errors of the release surface. Authorization failures of members surface

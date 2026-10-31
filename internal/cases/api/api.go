@@ -4,10 +4,10 @@ import (
 	"context"
 	"time"
 
-	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
-	casesPort "github.com/artemiosu/staffy/internal/cases/port"
-	"github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
+	casesDomain "github.com/staffy-co/staffy/internal/cases/domain"
+	casesPort "github.com/staffy-co/staffy/internal/cases/port"
+	"github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // Case contour scope levels (the readiness precedent): viewing the cases
@@ -159,7 +159,7 @@ type CaseView struct {
 	PartRequest PartPanelView `json:"part_request"`
 	// Fitment is the Story 4.4 section: the applicability panel (the
 	// read-time state ladder over the append-only evidence records).
-	Fitment FitmentPanelView `json:"fitment"`
+	Fitment    FitmentPanelView    `json:"fitment"`
 	Comparison ComparisonPanelView `json:"comparison"`
 	// The Story 2.11 section: the recorded communication preferences
 	// of the case — the CURRENT set (the read-time derivation), the
@@ -500,20 +500,20 @@ type WorkOutcome struct {
 	// command (the generated identifier, the monotonic number, the
 	// position and the canonical digest — «the exact version of the
 	// proof» for the contours 4.5..4.9).
-	FitmentEvidenceID  id.UUID `json:"fitment_evidence_id,omitempty"`
-	FitmentEvidenceNo  int64   `json:"fitment_evidence_no,omitempty"`
-	FitmentPositionKey string  `json:"fitment_position_key,omitempty"`
-	FitmentDigest      string  `json:"fitment_digest,omitempty"`
-	SupplierOfferID    id.UUID `json:"supplier_offer_id,omitempty"`
-	OfferPositionKey   string  `json:"offer_position_key,omitempty"`
-	SelectionSnapshotID id.UUID `json:"selection_snapshot_id,omitempty"`
-	SelectionPositionKey string `json:"selection_position_key,omitempty"`
-	SelectionDigest    string  `json:"selection_digest,omitempty"`
-	HandoffTurnRef     id.UUID `json:"handoff_turn_ref,omitempty"`
-	HandoffAssignee    id.UUID `json:"handoff_assignee,omitempty"`
-	HandoffBackup      id.UUID `json:"handoff_backup,omitempty"`
-	HandoffAckDeadline string  `json:"handoff_ack_deadline,omitempty"`
-	HandoffResult      string  `json:"handoff_result,omitempty"`
+	FitmentEvidenceID    id.UUID `json:"fitment_evidence_id,omitempty"`
+	FitmentEvidenceNo    int64   `json:"fitment_evidence_no,omitempty"`
+	FitmentPositionKey   string  `json:"fitment_position_key,omitempty"`
+	FitmentDigest        string  `json:"fitment_digest,omitempty"`
+	SupplierOfferID      id.UUID `json:"supplier_offer_id,omitempty"`
+	OfferPositionKey     string  `json:"offer_position_key,omitempty"`
+	SelectionSnapshotID  id.UUID `json:"selection_snapshot_id,omitempty"`
+	SelectionPositionKey string  `json:"selection_position_key,omitempty"`
+	SelectionDigest      string  `json:"selection_digest,omitempty"`
+	HandoffTurnRef       id.UUID `json:"handoff_turn_ref,omitempty"`
+	HandoffAssignee      id.UUID `json:"handoff_assignee,omitempty"`
+	HandoffBackup        id.UUID `json:"handoff_backup,omitempty"`
+	HandoffAckDeadline   string  `json:"handoff_ack_deadline,omitempty"`
+	HandoffResult        string  `json:"handoff_result,omitempty"`
 	// The Story 2.14 material: the request-material words of the summary
 	// record (the kind word of the single-word dictionary with the claim
 	// counter — the summary TEXT and the claims NEVER enter the stored

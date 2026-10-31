@@ -1,7 +1,7 @@
 package api
 
 import (
-	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
+	casesDomain "github.com/staffy-co/staffy/internal/cases/domain"
 )
 
 // ---------------------------------------------------------------------------

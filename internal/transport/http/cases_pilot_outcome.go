@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	actionAPI "github.com/artemiosu/staffy/internal/action/api"
-	actionDomain "github.com/artemiosu/staffy/internal/action/domain"
-	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
+	actionAPI "github.com/staffy-co/staffy/internal/action/api"
+	actionDomain "github.com/staffy-co/staffy/internal/action/domain"
+	identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // Story 4.11 (step-03): the «Исход обращения» panel of the case page and

@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
-	privacyDomain "github.com/artemiosu/staffy/internal/privacy/domain"
+	"github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
+	privacyDomain "github.com/staffy-co/staffy/internal/privacy/domain"
 )
 
 // Clock and IDGenerator follow the module conventions of identity/connector.
@@ -41,20 +41,20 @@ type MapEntryCommand struct {
 // PolicyCommand publishes a new append-only retention policy version bound
 // to exactly one artifact class.
 type PolicyCommand struct {
-	Actor             domain.Principal
-	TenantID          id.UUID
-	Class             privacyDomain.ArtifactClass
-	Purpose           string
-	LegalBasis        string
-	Source            string
-	TerminalEvent     string
-	ActiveUseDays     int
-	ArchiveDays       int
-	DeletionDays      int
-	BackupExpiryDays  int
+	Actor              domain.Principal
+	TenantID           id.UUID
+	Class              privacyDomain.ArtifactClass
+	Purpose            string
+	LegalBasis         string
+	Source             string
+	TerminalEvent      string
+	ActiveUseDays      int
+	ArchiveDays        int
+	DeletionDays       int
+	BackupExpiryDays   int
 	LegalHoldException string
-	OwnerNote         string
-	CorrelationID     id.UUID
+	OwnerNote          string
+	CorrelationID      id.UUID
 }
 
 // HoldCommand activates or releases a legal hold over a set of classes.
@@ -86,21 +86,21 @@ type DeletionResult struct {
 
 // ClassView is the derived per-class projection of the data map page.
 type ClassView struct {
-	Spec          privacyDomain.ClassSpec
-	Entry         *privacyDomain.DataMapEntry
-	Status        string // complete / incomplete / undocumented
-	Missing       []string
-	Policy        *privacyDomain.RetentionPolicy
-	Hold          privacyDomain.HoldState
-	ReferenceTime *time.Time
-	DeletionDueAt *time.Time
+	Spec           privacyDomain.ClassSpec
+	Entry          *privacyDomain.DataMapEntry
+	Status         string // complete / incomplete / undocumented
+	Missing        []string
+	Policy         *privacyDomain.RetentionPolicy
+	Hold           privacyDomain.HoldState
+	ReferenceTime  *time.Time
+	DeletionDueAt  *time.Time
 	MandatoryDueAt *time.Time
 }
 
 // DataViewResult is the whole data map page payload.
 type DataViewResult struct {
-	Classes   []ClassView
-	Receipts  []privacyDomain.Receipt
+	Classes    []ClassView
+	Receipts   []privacyDomain.Receipt
 	HoldEvents []privacyDomain.LegalHoldEvent
 }
 

@@ -4,10 +4,10 @@ import (
 	"context"
 	"time"
 
-	connectorDomain "github.com/artemiosu/staffy/internal/connector/domain"
-	"github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
-	"github.com/artemiosu/staffy/internal/platform/tenancy"
+	connectorDomain "github.com/staffy-co/staffy/internal/connector/domain"
+	"github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 type CreateCommand struct {
@@ -23,28 +23,28 @@ type CreateCommand struct {
 }
 
 type SaveCommand struct {
-	Actor                            domain.Principal
+	Actor                                 domain.Principal
 	TenantID, ConnectionID, CorrelationID id.UUID
-	ExpectedVersion                  int64
-	Config                           map[string]string
-	Label                            string
-	ChangeSummary                    string
+	ExpectedVersion                       int64
+	Config                                map[string]string
+	Label                                 string
+	ChangeSummary                         string
 }
 
 type ConnectCommand struct {
-	Actor                            domain.Principal
+	Actor                                 domain.Principal
 	TenantID, ConnectionID, CorrelationID id.UUID
-	ExpectedVersion                  int64
-	Secrets                          map[string]string
-	IdempotencyKey                   string
+	ExpectedVersion                       int64
+	Secrets                               map[string]string
+	IdempotencyKey                        string
 }
 
 type RevokeCommand struct {
-	Actor                            domain.Principal
+	Actor                                 domain.Principal
 	TenantID, ConnectionID, CorrelationID id.UUID
-	ExpectedVersion                  int64
-	Reason                           string
-	IdempotencyKey                   string
+	ExpectedVersion                       int64
+	Reason                                string
+	IdempotencyKey                        string
 }
 
 // VerifyCommand runs the safe read-only probe for one declared capability of
@@ -58,11 +58,11 @@ type RevokeCommand struct {
 // material is never persisted, never logged and never echoed (the 1-8
 // invariant).
 type VerifyCommand struct {
-	Actor                            domain.Principal
+	Actor                                 domain.Principal
 	TenantID, ConnectionID, CorrelationID id.UUID
-	Capability                       string
-	IdempotencyKey                   string
-	Secrets                          map[string]string
+	Capability                            string
+	IdempotencyKey                        string
+	Secrets                               map[string]string
 }
 
 type CreateResult struct {

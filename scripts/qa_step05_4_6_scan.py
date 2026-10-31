@@ -119,7 +119,7 @@ for word in ['лучший', 'выгодн', 'скидк', 'акци', 'самы
 # ноль модульных импортов (AD-2).
 order_imports = re.findall(r'"github\.com/artemiosu/staffy/[^"]+"', order_go)
 for imp in order_imports:
-    if imp.endswith('/action/domain') or imp == '"github.com/artemiosu/staffy"':
+    if imp.endswith('/action/domain') or imp == '"github.com/staffy-co/staffy"':
         continue
     failures.append(f'internal/action/domain/order.go: недопустимый импорт домена {imp}')
 

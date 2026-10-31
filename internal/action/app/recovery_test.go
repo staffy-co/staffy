@@ -7,16 +7,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/action/api"
-	"github.com/artemiosu/staffy/internal/action/domain"
-	"github.com/artemiosu/staffy/internal/action/port"
-	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
-	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
-	employeeAPI "github.com/artemiosu/staffy/internal/employee/api"
-	employeeDomain "github.com/artemiosu/staffy/internal/employee/domain"
-	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
-	"github.com/artemiosu/staffy/internal/platform/tenancy"
+	"github.com/staffy-co/staffy/internal/action/api"
+	"github.com/staffy-co/staffy/internal/action/domain"
+	"github.com/staffy-co/staffy/internal/action/port"
+	casesAPI "github.com/staffy-co/staffy/internal/cases/api"
+	casesDomain "github.com/staffy-co/staffy/internal/cases/domain"
+	employeeAPI "github.com/staffy-co/staffy/internal/employee/api"
+	employeeDomain "github.com/staffy-co/staffy/internal/employee/domain"
+	identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 // ---------------------------------------------------------------------------

@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/action/port"
-	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/action/port"
+	identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // ---------------------------------------------------------------------------

@@ -4,14 +4,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/artemiosu/staffy/internal/connector/domain"
+	"github.com/staffy-co/staffy/internal/connector/domain"
 )
 
 // The cross-module mirror of spec 4-1: the employee-domain pilot route
 // dictionary and the connector catalog declarations pin each other
 // (test-only import — no production dependency edge; the production read
 // path stays the narrow ConnectorFacts port).
-import employeeDomain "github.com/artemiosu/staffy/internal/employee/domain"
+import employeeDomain "github.com/staffy-co/staffy/internal/employee/domain"
 
 func TestCatalogListsEveryPublishedDefinition(t *testing.T) {
 	defs := List()

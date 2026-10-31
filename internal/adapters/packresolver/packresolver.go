@@ -1,8 +1,8 @@
 package packresolver
 
 import (
-	"github.com/artemiosu/staffy/internal/action/domain"
-	"github.com/artemiosu/staffy/internal/employee/packs"
+	"github.com/staffy-co/staffy/internal/action/domain"
+	"github.com/staffy-co/staffy/internal/employee/packs"
 )
 
 // Adapter resolves action PackRefs against the published employee Domain

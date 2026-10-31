@@ -10,16 +10,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/adapters/ingresssyn"
-	"github.com/artemiosu/staffy/internal/adapters/observationsyn"
-	"github.com/artemiosu/staffy/internal/adapters/verificationsyn"
-	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
-	casesApp "github.com/artemiosu/staffy/internal/cases/app"
-	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
-	casesStore "github.com/artemiosu/staffy/internal/cases/store"
-	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/staffy-co/staffy/internal/adapters/ingresssyn"
+	"github.com/staffy-co/staffy/internal/adapters/observationsyn"
+	"github.com/staffy-co/staffy/internal/adapters/verificationsyn"
+	casesAPI "github.com/staffy-co/staffy/internal/cases/api"
+	casesApp "github.com/staffy-co/staffy/internal/cases/app"
+	casesDomain "github.com/staffy-co/staffy/internal/cases/domain"
+	casesStore "github.com/staffy-co/staffy/internal/cases/store"
+	identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // The Story 2.7 matrix: the State/Authority Matrix v1 reads, the

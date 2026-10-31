@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	employeeAPI "github.com/artemiosu/staffy/internal/employee/api"
-	employeeDomain "github.com/artemiosu/staffy/internal/employee/domain"
+	employeeAPI "github.com/staffy-co/staffy/internal/employee/api"
+	employeeDomain "github.com/staffy-co/staffy/internal/employee/domain"
 )
 
 // profilePageView is the flattened, template-friendly projection of the

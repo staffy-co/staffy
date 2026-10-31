@@ -8,13 +8,13 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/employee/domain"
-	"github.com/artemiosu/staffy/internal/employee/packs"
-	"github.com/artemiosu/staffy/internal/employee/port"
-	"github.com/artemiosu/staffy/internal/platform/id"
-	"github.com/artemiosu/staffy/internal/platform/tenancy"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/staffy-co/staffy/internal/employee/domain"
+	"github.com/staffy-co/staffy/internal/employee/packs"
+	"github.com/staffy-co/staffy/internal/employee/port"
+	"github.com/staffy-co/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 const gateInstanceColumns = "tenant_id,employee_id,instance_id,definition_id,route_channel,route_direction,modality,state,approved_by,evidence_refs,evidence_hash,not_applicable_reason,tested_at,expiry_trigger,supersedes_instance_id,actor_id,recorded_at"

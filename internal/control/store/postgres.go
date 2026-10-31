@@ -8,12 +8,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/control/domain"
-	"github.com/artemiosu/staffy/internal/control/port"
-	"github.com/artemiosu/staffy/internal/platform/id"
-	"github.com/artemiosu/staffy/internal/platform/tenancy"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/staffy-co/staffy/internal/control/domain"
+	"github.com/staffy-co/staffy/internal/control/port"
+	"github.com/staffy-co/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 // Postgres is the control persistence: every table is tenant-scoped with

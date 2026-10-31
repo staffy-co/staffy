@@ -6,24 +6,24 @@ import (
 	"encoding/hex"
 	"strings"
 
-	"github.com/artemiosu/staffy/internal/employee/api"
-	"github.com/artemiosu/staffy/internal/employee/domain"
-	"github.com/artemiosu/staffy/internal/employee/packs"
-	"github.com/artemiosu/staffy/internal/employee/port"
-	identityAPI "github.com/artemiosu/staffy/internal/identity/api"
-	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
-	"github.com/artemiosu/staffy/internal/platform/tenancy"
+	"github.com/staffy-co/staffy/internal/employee/api"
+	"github.com/staffy-co/staffy/internal/employee/domain"
+	"github.com/staffy-co/staffy/internal/employee/packs"
+	"github.com/staffy-co/staffy/internal/employee/port"
+	identityAPI "github.com/staffy-co/staffy/internal/identity/api"
+	identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 type Service struct {
-	repository port.Repository
-	identity   identityAPI.MembershipService
-	clock      api.Clock
-	ids        api.IDGenerator
-	testTTS    port.TestTTS
-	connectors port.ConnectorFacts
-	entitlement EntitlementFactsSource
+	repository       port.Repository
+	identity         identityAPI.MembershipService
+	clock            api.Clock
+	ids              api.IDGenerator
+	testTTS          port.TestTTS
+	connectors       port.ConnectorFacts
+	entitlement      EntitlementFactsSource
 	entitlementFacts EntitlementAdmissionFacts
 }
 

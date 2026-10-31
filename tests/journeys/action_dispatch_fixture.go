@@ -6,11 +6,11 @@ import (
 	"strings"
 	"time"
 
-	actionDomain "github.com/artemiosu/staffy/internal/action/domain"
-	actionPort "github.com/artemiosu/staffy/internal/action/port"
-	"github.com/artemiosu/staffy/internal/adapters/actiondispatcher"
-	"github.com/artemiosu/staffy/internal/platform/id"
-	"github.com/artemiosu/staffy/internal/platform/tenancy"
+	actionDomain "github.com/staffy-co/staffy/internal/action/domain"
+	actionPort "github.com/staffy-co/staffy/internal/action/port"
+	"github.com/staffy-co/staffy/internal/adapters/actiondispatcher"
+	"github.com/staffy-co/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 // The Story 3.6 (step-03) fixture: the execution contour over the REAL app

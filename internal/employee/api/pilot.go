@@ -1,8 +1,8 @@
 package api
 
 import (
-	"github.com/artemiosu/staffy/internal/employee/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/employee/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // Pilot Admission Registry (spec 4-1): the wire shapes of the tenant-level

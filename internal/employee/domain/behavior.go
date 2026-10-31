@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // Behavior is declarative draft data. It is never interpolated into a system prompt.

@@ -255,9 +255,9 @@ else:
 if not domain_imports:
     failures.append('домен: import-блок не найден')
 for imp in domain_imports:
-    if imp == 'github.com/artemiosu/staffy/internal/platform/id':
+    if imp == 'github.com/staffy-co/staffy/internal/platform/id':
         continue
-    if imp.startswith('github.com/artemiosu/staffy/'):
+    if imp.startswith('github.com/staffy-co/staffy/'):
         failures.append(f'домен: чужой модульный импорт {imp} — AD-10')
     elif '/' in imp or '.' in imp.split('/')[0]:
         failures.append(f'домен: нестандартный импорт {imp} — AD-10')

@@ -16,8 +16,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/artemiosu/staffy/internal/employee/domain"
-	"github.com/artemiosu/staffy/internal/employee/packs"
+	"github.com/staffy-co/staffy/internal/employee/domain"
+	"github.com/staffy-co/staffy/internal/employee/packs"
 )
 
 // TestPackToolBindingArtifact: the 6.1.0 artifact carries exactly the

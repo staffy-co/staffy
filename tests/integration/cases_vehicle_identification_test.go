@@ -10,16 +10,16 @@ import (
 	"testing"
 	"time"
 
-	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
-	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
-	casesPort "github.com/artemiosu/staffy/internal/cases/port"
-	casesStore "github.com/artemiosu/staffy/internal/cases/store"
-	employeeAPI "github.com/artemiosu/staffy/internal/employee/api"
-	employeeDomain "github.com/artemiosu/staffy/internal/employee/domain"
-	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
-	"github.com/artemiosu/staffy/internal/platform/tenancy"
 	"github.com/jackc/pgx/v5/pgconn"
+	casesAPI "github.com/staffy-co/staffy/internal/cases/api"
+	casesDomain "github.com/staffy-co/staffy/internal/cases/domain"
+	casesPort "github.com/staffy-co/staffy/internal/cases/port"
+	casesStore "github.com/staffy-co/staffy/internal/cases/store"
+	employeeAPI "github.com/staffy-co/staffy/internal/employee/api"
+	employeeDomain "github.com/staffy-co/staffy/internal/employee/domain"
+	identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 // The Story 4.2 integration matrix: the vehicle identification over the

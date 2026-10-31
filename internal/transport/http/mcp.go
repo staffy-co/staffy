@@ -28,9 +28,9 @@ import (
 	"strconv"
 	"strings"
 
-	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/mcp"
-	"github.com/artemiosu/staffy/internal/platform/id"
+	identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/mcp"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // maxMCPBodyBytes is the declared body budget of the surface (256 KiB):

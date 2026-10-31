@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // Module action — story 3.8 slice 1 (step-01): the recovery-case domain

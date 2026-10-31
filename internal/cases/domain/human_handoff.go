@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // ---------------------------------------------------------------------------

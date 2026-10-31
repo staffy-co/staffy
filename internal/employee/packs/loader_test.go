@@ -9,7 +9,7 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/artemiosu/staffy/internal/employee/domain"
+	"github.com/staffy-co/staffy/internal/employee/domain"
 )
 
 // The rejection matrix of Story 7-1 step-02: every case builds an in-memory

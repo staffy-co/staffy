@@ -7,13 +7,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/control/api"
-	"github.com/artemiosu/staffy/internal/control/domain"
-	"github.com/artemiosu/staffy/internal/control/port"
-	identityAPI "github.com/artemiosu/staffy/internal/identity/api"
-	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
-	"github.com/artemiosu/staffy/internal/platform/tenancy"
+	"github.com/staffy-co/staffy/internal/control/api"
+	"github.com/staffy-co/staffy/internal/control/domain"
+	"github.com/staffy-co/staffy/internal/control/port"
+	identityAPI "github.com/staffy-co/staffy/internal/identity/api"
+	identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 // The step-02 unit matrix of the ControlService: the gate ladder BY NAME

@@ -12,16 +12,16 @@ import (
 	"testing"
 	"time"
 
-	actionAPI "github.com/artemiosu/staffy/internal/action/api"
-	actionApp "github.com/artemiosu/staffy/internal/action/app"
-	actionDomain "github.com/artemiosu/staffy/internal/action/domain"
-	actionPort "github.com/artemiosu/staffy/internal/action/port"
-	actionStore "github.com/artemiosu/staffy/internal/action/store"
-	"github.com/artemiosu/staffy/internal/adapters/capabilityresolver"
-	"github.com/artemiosu/staffy/internal/adapters/owningsystem"
-	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
-	"github.com/artemiosu/staffy/internal/platform/tenancy"
+	actionAPI "github.com/staffy-co/staffy/internal/action/api"
+	actionApp "github.com/staffy-co/staffy/internal/action/app"
+	actionDomain "github.com/staffy-co/staffy/internal/action/domain"
+	actionPort "github.com/staffy-co/staffy/internal/action/port"
+	actionStore "github.com/staffy-co/staffy/internal/action/store"
+	"github.com/staffy-co/staffy/internal/adapters/capabilityresolver"
+	"github.com/staffy-co/staffy/internal/adapters/owningsystem"
+	identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 // TestActionRecoveryStoreSmoke is the Story 3-8 step-02 STORE SMOKE over

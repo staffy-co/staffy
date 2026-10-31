@@ -4,8 +4,8 @@ import (
 	"strings"
 	"time"
 
-	privacyAPI "github.com/artemiosu/staffy/internal/privacy/api"
-	privacyDomain "github.com/artemiosu/staffy/internal/privacy/domain"
+	privacyAPI "github.com/staffy-co/staffy/internal/privacy/api"
+	privacyDomain "github.com/staffy-co/staffy/internal/privacy/domain"
 )
 
 // dataClassView is one class row of the data map page, prepared for the

@@ -10,12 +10,12 @@ import (
 	"testing"
 	"time"
 
-	employeeAPI "github.com/artemiosu/staffy/internal/employee/api"
-	employeeApp "github.com/artemiosu/staffy/internal/employee/app"
-	employeeDomain "github.com/artemiosu/staffy/internal/employee/domain"
-	employeeStore "github.com/artemiosu/staffy/internal/employee/store"
-	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
+	employeeAPI "github.com/staffy-co/staffy/internal/employee/api"
+	employeeApp "github.com/staffy-co/staffy/internal/employee/app"
+	employeeDomain "github.com/staffy-co/staffy/internal/employee/domain"
+	employeeStore "github.com/staffy-co/staffy/internal/employee/store"
+	identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 type employeeIDs struct{}

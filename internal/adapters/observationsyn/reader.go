@@ -19,8 +19,8 @@ import (
 	"time"
 	"unicode/utf8"
 
-	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
-	casesPort "github.com/artemiosu/staffy/internal/cases/port"
+	casesDomain "github.com/staffy-co/staffy/internal/cases/domain"
+	casesPort "github.com/staffy-co/staffy/internal/cases/port"
 )
 
 // The scenario words: the fixed dictionary of the synthetic contour — the

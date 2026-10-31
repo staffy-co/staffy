@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
-	"github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
+	casesDomain "github.com/staffy-co/staffy/internal/cases/domain"
+	"github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // ---------------------------------------------------------------------------
@@ -33,28 +33,28 @@ import (
 // server truth under the locks; the supersede of one supplier's record is
 // a NEW row with a NEW number — never an update.
 type RecordSupplierOfferCommand struct {
-	Actor            domain.Principal
-	CorrelationID    id.UUID
-	TenantID         id.UUID
-	CaseID           id.UUID
-	WorkItemID       id.UUID
-	PositionKey      string
-	SupplierID       string
-	SupplierName     string
-	Brand            string
-	Article          string
-	ClientPrice      float64
-	PurchasePrice    *float64
-	Currency         string
+	Actor             domain.Principal
+	CorrelationID     id.UUID
+	TenantID          id.UUID
+	CaseID            id.UUID
+	WorkItemID        id.UUID
+	PositionKey       string
+	SupplierID        string
+	SupplierName      string
+	Brand             string
+	Article           string
+	ClientPrice       float64
+	PurchasePrice     *float64
+	Currency          string
 	QuantityAvailable int
-	TermDays         *int
-	Conditions       string
-	SourceSystem     string
-	SourceRecordID   string
-	SourceVersion    string
-	SourceObservedAt time.Time
-	IdempotencyKey   string
-	Now              time.Time
+	TermDays          *int
+	Conditions        string
+	SourceSystem      string
+	SourceRecordID    string
+	SourceVersion     string
+	SourceObservedAt  time.Time
+	IdempotencyKey    string
+	Now               time.Time
 }
 
 // RecordClientSelectionCommand records ONE client selection as the
@@ -117,10 +117,10 @@ type SelectionSnapshotView = casesDomain.SelectionSnapshotView
 // the comparison derivation, the operator record material and the
 // recorded selection snapshots.
 type ComparisonPanelView struct {
-	SchemaDefined bool              `json:"schema_defined"`
-	Note          string            `json:"note,omitempty"`
-	Comparison    ComparisonView    `json:"comparison"`
-	Records       []OfferView       `json:"records"`
+	SchemaDefined bool                    `json:"schema_defined"`
+	Note          string                  `json:"note,omitempty"`
+	Comparison    ComparisonView          `json:"comparison"`
+	Records       []OfferView             `json:"records"`
 	Selections    []SelectionSnapshotView `json:"selections"`
 }
 

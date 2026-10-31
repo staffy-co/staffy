@@ -4,9 +4,9 @@ import (
 	"strconv"
 	"strings"
 
-	connectorAPI "github.com/artemiosu/staffy/internal/connector/api"
-	connectorDomain "github.com/artemiosu/staffy/internal/connector/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
+	connectorAPI "github.com/staffy-co/staffy/internal/connector/api"
+	connectorDomain "github.com/staffy-co/staffy/internal/connector/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // fieldView is one rendered form field with a stable, unique element id.

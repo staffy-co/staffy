@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // The Story 2.7 unit matrix: the authority matrix v1, the dictionaries, the

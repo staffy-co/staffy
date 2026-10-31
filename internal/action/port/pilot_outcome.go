@@ -3,9 +3,9 @@ package port
 import (
 	"context"
 
-	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
-	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
+	casesAPI "github.com/staffy-co/staffy/internal/cases/api"
+	identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // Story 4.11: the pilot outcome read contour. PilotCaseSource is the

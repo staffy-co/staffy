@@ -4,15 +4,15 @@ import (
 	"context"
 	"sync"
 
-	actionAPI "github.com/artemiosu/staffy/internal/action/api"
-	actionApp "github.com/artemiosu/staffy/internal/action/app"
-	actionCatalog "github.com/artemiosu/staffy/internal/action/catalog"
-	actionDomain "github.com/artemiosu/staffy/internal/action/domain"
-	"github.com/artemiosu/staffy/internal/adapters/capabilityresolver"
-	"github.com/artemiosu/staffy/internal/adapters/packresolver"
-	identityAPI "github.com/artemiosu/staffy/internal/identity/api"
-	"github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
+	actionAPI "github.com/staffy-co/staffy/internal/action/api"
+	actionApp "github.com/staffy-co/staffy/internal/action/app"
+	actionCatalog "github.com/staffy-co/staffy/internal/action/catalog"
+	actionDomain "github.com/staffy-co/staffy/internal/action/domain"
+	"github.com/staffy-co/staffy/internal/adapters/capabilityresolver"
+	"github.com/staffy-co/staffy/internal/adapters/packresolver"
+	identityAPI "github.com/staffy-co/staffy/internal/identity/api"
+	"github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // The Story 3.1 fixture: the read-only action catalog surface over the

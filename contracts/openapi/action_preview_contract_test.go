@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	actionDomain "github.com/artemiosu/staffy/internal/action/domain"
+	actionDomain "github.com/staffy-co/staffy/internal/action/domain"
 	"gopkg.in/yaml.v3"
 )
 

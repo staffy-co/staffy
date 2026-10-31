@@ -13,11 +13,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/control/api"
-	controlDomain "github.com/artemiosu/staffy/internal/control/domain"
-	identityAPI "github.com/artemiosu/staffy/internal/identity/api"
-	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/control/api"
+	controlDomain "github.com/staffy-co/staffy/internal/control/domain"
+	identityAPI "github.com/staffy-co/staffy/internal/identity/api"
+	identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // fakeControlService is the transport fake of the control surface: it

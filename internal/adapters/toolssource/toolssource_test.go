@@ -3,7 +3,7 @@ package toolssource
 import (
 	"testing"
 
-	"github.com/artemiosu/staffy/internal/tools"
+	"github.com/staffy-co/staffy/internal/tools"
 )
 
 // TestSourceServesTheEmbeddedRegistry: the production adapter serves the

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/platform/tenancy"
-	privacyDomain "github.com/artemiosu/staffy/internal/privacy/domain"
-	privacyPort "github.com/artemiosu/staffy/internal/privacy/port"
+	"github.com/staffy-co/staffy/internal/platform/tenancy"
+	privacyDomain "github.com/staffy-co/staffy/internal/privacy/domain"
+	privacyPort "github.com/staffy-co/staffy/internal/privacy/port"
 )
 
 // identityPurgeRepository is the narrow store capability the identity privacy
@@ -61,7 +61,7 @@ func (e identityPrivacyExecutor) ExecuteClassDeletion(ctx context.Context, scope
 	if active > 0 {
 		block := privacyDomain.OffboardingBlock
 		return privacyPort.ExecutorResult{
-			Outcome: privacyDomain.OutcomeUnsupported,
+			Outcome:       privacyDomain.OutcomeUnsupported,
 			AffectedCount: deleted,
 			Note: fmt.Sprintf("Истёкшие приглашения удалены: %d. Активные участники сохранены: %d — их удаление требует offboarding/DSAR-потока (будущий срез), ответственный: %s.",
 				deleted, active, block.Owner),
