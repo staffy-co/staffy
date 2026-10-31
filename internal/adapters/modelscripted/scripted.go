@@ -1,26 +1,33 @@
 package modelscripted
 
-// The scripted model adapter (Story 8-1): an explicitly fictional
-// model over the planner ModelPort — the honest test material of
-// PRODUCTION code, the verifier.Synthetic precedent of Story 1-8
-// applied to the model port. The adapter is configured with ONE
-// outcome word of the closed matrix; every Round produces exactly the
-// material of that outcome, deterministically, from the given context:
+// The scripted model adapter (Story 8-1; the material synthesis of
+// Story 8-2): an explicitly fictional model over the planner
+// ModelPort — the honest test material of PRODUCTION code, the
+// verifier.Synthetic precedent of Story 1-8 applied to the model
+// port. The adapter is configured with ONE outcome word of the closed
+// matrix; every Round produces exactly the material of that outcome,
+// deterministically, FROM THE ASSEMBLED ROUND MATERIAL (Story 8-2:
+// the adapter answers only what arrived in the material — the
+// completeness proof of the platform assembly):
 //
-//	valid               — a well-formed proposal that passes the whole
-//	                      validation matrix (mode mirrors the context
-//	                      mode, reply within the budget)
-//	malformed_undeclared — a proposal carrying an undeclared key
-//	malformed_type      — a proposal carrying a wrong field type
-//	foreign_version     — a proposal carrying a foreign schema version
-//	repairable          — round 1 malformed, round 2 valid (the repair
-//	                      cause switches the material)
-//	unrecoverable       — round 1 malformed, round 2 a foreign version
-//	adapter_error       — an honest adapter error
+//      valid               — a well-formed proposal that passes the whole
+//                            validation matrix (mode mirrors the material
+//                            mode, the §8.1 pin disclosure rides the reply
+//                            when the material demands it, reply within
+//                            the budget)
+//      malformed_undeclared — a proposal carrying an undeclared key
+//      malformed_type      — a proposal carrying a wrong field type
+//      foreign_version     — a proposal carrying a foreign schema version
+//      repairable          — round 1 malformed, round 2 valid (the repair
+//                            cause inside the material switches it)
+//      unrecoverable       — round 1 malformed, round 2 a foreign version
+//      adapter_error       — an honest adapter error
 //
 // main.go NEVER wires this adapter (zero production callers — the
 // caller of the planner arrives with Story 8.4). No credentials, no
-// network, no SDK: the standard library only.
+// network, no SDK: the standard library only. The adapter never sees
+// the Turn Context — the port carries the assembled material only
+// (AD-8 by construction).
 
 import (
 	"bytes"
@@ -82,65 +89,93 @@ func MustNew(outcome string) *Adapter {
 	return adapter
 }
 
-// Round produces the scripted material of the configured outcome. The
-// repair cause (non-empty on the machine's repair round) switches the
-// repairable scenario to its valid material; the unrecoverable
-// scenario changes its refusal shape but never becomes valid.
+// Round produces the scripted material of the configured outcome from
+// the assembled round material. The repair cause INSIDE the material
+// (non-empty on the machine's repair round) switches the repairable
+// scenario to its valid material; the unrecoverable scenario changes
+// its refusal shape but never becomes valid. A missing or unreadable
+// material is a named honest error — the adapter cannot synthesize
+// from nothing.
 func (a *Adapter) Round(_ context.Context, request planner.RoundRequest) (planner.RoundResult, error) {
+	material, err := decodeMaterial(request.Material)
+	if err != nil {
+		return planner.RoundResult{}, fmt.Errorf("scripted-модель: материал раунда отсутствует или нечитаем: %w", err)
+	}
 	switch a.outcome {
 	case OutcomeAdapterError:
 		return planner.RoundResult{}, errors.New("scripted-модель: раунд завершился ошибкой по конфигурации")
 	case OutcomeValid:
-		return planner.RoundResult{Raw: validMaterial(request.Context)}, nil
+		return planner.RoundResult{Raw: validMaterial(material)}, nil
 	case OutcomeMalformedUndeclared:
-		return planner.RoundResult{Raw: mutateMaterial(validMaterial(request.Context), map[string]any{"необъявленный_ключ": "материал вне формы"})}, nil
+		return planner.RoundResult{Raw: mutateMaterial(validMaterial(material), map[string]any{"необъявленный_ключ": "материал вне формы"})}, nil
 	case OutcomeMalformedType:
-		material := materialMap(validMaterial(request.Context))
-		reply, _ := material["reply"].(map[string]any)
+		broken := materialMap(validMaterial(material))
+		reply, _ := broken["reply"].(map[string]any)
 		reply["text"] = 5
-		return planner.RoundResult{Raw: mustJSON(material)}, nil
+		return planner.RoundResult{Raw: mustJSON(broken)}, nil
 	case OutcomeForeignVersion:
-		material := materialMap(validMaterial(request.Context))
-		material["schema_version"] = planner.ProposalSchemaVersion + 98
-		return planner.RoundResult{Raw: mustJSON(material)}, nil
+		foreign := materialMap(validMaterial(material))
+		foreign["schema_version"] = planner.ProposalSchemaVersion + 98
+		return planner.RoundResult{Raw: mustJSON(foreign)}, nil
 	case OutcomeRepairable:
-		if request.Repair == "" {
-			return planner.RoundResult{Raw: mutateMaterial(validMaterial(request.Context), map[string]any{"необъявленный_ключ": "материал вне формы"})}, nil
+		if material.Repair == "" {
+			return planner.RoundResult{Raw: mutateMaterial(validMaterial(material), map[string]any{"необъявленный_ключ": "материал вне формы"})}, nil
 		}
-		return planner.RoundResult{Raw: validMaterial(request.Context)}, nil
+		return planner.RoundResult{Raw: validMaterial(material)}, nil
 	case OutcomeUnrecoverable:
-		if request.Repair == "" {
-			return planner.RoundResult{Raw: mutateMaterial(validMaterial(request.Context), map[string]any{"необъявленный_ключ": "материал вне формы"})}, nil
+		if material.Repair == "" {
+			return planner.RoundResult{Raw: mutateMaterial(validMaterial(material), map[string]any{"необъявленный_ключ": "материал вне формы"})}, nil
 		}
-		material := materialMap(validMaterial(request.Context))
-		material["schema_version"] = planner.ProposalSchemaVersion + 98
-		return planner.RoundResult{Raw: mustJSON(material)}, nil
+		foreign := materialMap(validMaterial(material))
+		foreign["schema_version"] = planner.ProposalSchemaVersion + 98
+		return planner.RoundResult{Raw: mustJSON(foreign)}, nil
 	}
 	return planner.RoundResult{}, fmt.Errorf("scripted-модель: неизвестный исход %q", a.outcome)
 }
 
+// decodeMaterial reads the assembled round material bytes into the
+// typed platform form (the machine produced them — a plain decode; the
+// typing rules of the wire belong to the machine, not here).
+func decodeMaterial(raw []byte) (planner.RoundMaterial, error) {
+	var material planner.RoundMaterial
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	if err := decoder.Decode(&material); err != nil {
+		return planner.RoundMaterial{}, err
+	}
+	if material.AssemblyVersion == "" {
+		return planner.RoundMaterial{}, errors.New("материал без слова версии сборки — это не материал раунда")
+	}
+	return material, nil
+}
+
 // validMaterial synthesizes the proposal material that passes the
-// whole validation matrix of the given context: the mode mirrors the
-// context mode (the ladder rule), the reply stays inside the budget,
-// the action is the none kind and the lists are empty. The synthesis
-// derives from the CONTEXT — the same way a live adapter would build
-// from the material it was given, never from a canned answer.
-func validMaterial(context planner.TurnContext) []byte {
-	material := map[string]any{
+// whole validation matrix of the given round material: the mode
+// mirrors the MATERIAL mode (the assembly completeness — the ladder
+// rule), the §8.1 disclosure rides the reply when the material
+// demands it (the pin travels INTO the material and the model answers
+// it), the reply stays inside the budget, the action is the none kind
+// and the lists are empty. The synthesis derives from the MATERIAL —
+// never from a canned answer and never from a context it never saw.
+func validMaterial(material planner.RoundMaterial) []byte {
+	reply := "Синтетическая реплика scripted-модели: материал собран из материала раунда."
+	if material.AIDisclosureRequired {
+		reply = "Я — искусственный интеллект. " + reply
+	}
+	proposal := map[string]any{
 		"schema_version":  planner.ProposalSchemaVersion,
 		"intent":          planner.IntentRespond,
-		"mode":            context.Mode,
+		"mode":            material.Mode,
 		"safety":          planner.SafetyClear,
 		"fact_proposals":  []any{},
 		"contradictions":  []any{},
 		"read_requests":   []any{},
 		"questions":       []any{},
 		"proposed_action": map[string]any{"kind": planner.ActionKindNone},
-		"reply":           map[string]any{"text": "Синтетическая реплика scripted-модели: материал собран из контекста хода."},
+		"reply":           map[string]any{"text": reply},
 		"evidence_refs":   []any{},
 		"memory_patch":    []any{},
 	}
-	return mustJSON(material)
+	return mustJSON(proposal)
 }
 
 // mutateMaterial re-marshals the material through a map with optional

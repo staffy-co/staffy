@@ -16,7 +16,10 @@ package planner
 // AG-4; the FORM of the budgets does not change when the live adapter
 // arrives.
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // Budgets are the declared bounds of one planner turn: the round
 // ceiling (within the structural two of the machine), the per-round
@@ -57,4 +60,11 @@ func (b Budgets) Validate() *RuleError {
 		return rule("budget.cost_max", "потолок стоимости хода %d ниже стоимости одного раунда %d — ход минимум одного раунда обязан быть декларируем", b.MaxCostUnits, b.RoundCostUnits)
 	}
 	return nil
+}
+
+// compactBudgetsJSON marshals the declaration into the compact JSONB
+// the turn record carries (deterministic — the same budgets always
+// produce the same bytes).
+func compactBudgetsJSON(budgets Budgets) ([]byte, error) {
+	return json.Marshal(budgets)
 }

@@ -1,13 +1,18 @@
 package planner
 
-// The ports of the planner machine (Story 8-1): the model port and the
-// turn-recorder port. The ModelPort carries ONE operation — Round —
-// and NO credentials (the model credentials are the AG-4 boundary of
-// Epic 8: the parameterised adapter of Story 8-2 owns them; the port
-// form stays credential-free by construction). The adapter returns RAW
-// material; the decode and the validation are the MACHINE's
-// responsibility, never the adapter's — a future adapter cannot weaken
-// the contract by validating on its own side.
+// The ports of the planner machine: the model port and the
+// turn-recorder port (Story 8-1; the round material of Story 8-2).
+// The ModelPort carries ONE operation — Round — and NO credentials
+// (the model credentials are the AG-4 boundary of Epic 8: a live
+// adapter owns them as its parameterised side; the port form stays
+// credential-free by construction). The adapter receives the
+// assembled round MATERIAL — never the Turn Context (Story 8-2: the
+// evidence scoping of AD-8 is a construction, not an adapter
+// discipline — an adapter that never sees the context cannot assemble
+// an untracked prompt of its own). The adapter returns RAW material;
+// the decode and the validation are the MACHINE's responsibility,
+// never the adapter's — a future adapter cannot weaken the contract
+// by validating on its own side.
 
 import (
 	"context"
@@ -17,15 +22,14 @@ import (
 	"github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
-// RoundRequest is the material of one model round: the validated turn
-// context and, on the repair round, the named refusal cause of the
-// first round (the model learns WHY its material was refused — never
-// a silent fix). The same context travels both rounds.
+// RoundRequest is the material of one model round: the assembled,
+// versioned, deterministic round material bytes (the prompt assembly
+// of Story 8-2 — the platform form the machine produced from the
+// validated Turn Context). The named repair cause of the first round
+// travels INSIDE the material (the model learns WHY its material was
+// refused — never a silent fix); the adapter never sees the context.
 type RoundRequest struct {
-	Context TurnContext
-	// Repair is empty on round 1 and carries the named cause
-	// (rule: detail) on the repair round.
-	Repair string
+	Material []byte
 }
 
 // RoundResult is the raw material of the model: bytes the machine
@@ -49,7 +53,11 @@ type ModelPort interface {
 // (AD-10/AD-11): the ids of the context, the outcome word, the named
 // refusal cause (the final cause of a failed turn; the repaired cause
 // of a repaired turn), the fallback form that ended a failed turn, the
-// proposal schema version, the machine Build constant, the validated
+// proposal schema version, the machine Build constant, the assembly
+// version and the declared budgets (Story 8-2: the full provenance of
+// the turn — which assembly built the rounds and which bounds the
+// turn declared; the columns are NULL on the pre-8-2 history, the
+// honest absence — sealed records are never recomputed), the validated
 // proposal as compact JSONB (business material behind the tenant RLS —
 // the reply-string spirit of Story 2.12, never telemetry) and the
 // creation moment. A record is never updated: a new turn is a new
@@ -67,8 +75,14 @@ type TurnRecord struct {
 	FallbackForm   string
 	SchemaVersion  int
 	Build          string
-	Proposal       []byte
-	CreatedAt      time.Time
+	// AssemblyVersion is the assembly form version word that produced
+	// the rounds of this turn (empty on the pre-8-2 history).
+	AssemblyVersion string
+	// Budgets is the compact JSONB declaration of the turn budgets
+	// (nil on the pre-8-2 history).
+	Budgets   []byte
+	Proposal  []byte
+	CreatedAt time.Time
 }
 
 // TurnRecorder is the journal port of the machine: Record appends one
