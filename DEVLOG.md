@@ -6428,4 +6428,4 @@ done:
 - Продакшн-состояние после merge: internal/planner (формы+машина+словари+валидация+fallback+порт) + internal/adapters/modelscripted + migrations/planner/00001 + store/postgres — в main; продакшн-вызывателей НОЛЬ (main.go не подключает — вызыватель 8.4); RuntimeDictionary без флипов; 58+1=59 миграций каноническим TestMain-аплаером
 next: SM-фаза story 8-2 «Модельный адаптер» — ПО СИГНАЛУ ВЛАДЕЛЬЦА (epic-8 in-progress 1/6; 8-2 модельный адаптер/бюджеты раундов-времени-стоимости, 8-3 tool-раунды, 8-4 интеграция+вызыватель, 8-5 eval, 8-6 observability)
 владельцу: (1) отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API/merge-зонды сессии; передан открытым текстом в чате); (2) опционально: выплата gofmt-долга 14 legacy-файлов + регенерация graphify-графа при наличии CLI (унаследовано из 322)
-commit: TBD
+commit: 9d246ee282e0c40c95ae95d48c0fb55c8ac40f92
