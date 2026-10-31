@@ -6361,4 +6361,4 @@ done:
 - graphify-out/graph.json + снапшоты дат — производные артефакты со старыми путями нод; graphify CLI в песочнице отсутствует — регенерация `graphify update .` отложена до наличия тулзы (AGENTS.md graphify-секция: AST-only, без API-стоимости); go.sum не затронут (module path главного модуля не влияет на require-блоки)
 next: epic-7-retrospective (optional-слот) или Epic 8 — ПО СИГНАЛУ ВЛАДЕЛЬЦА
 владельцу: (1) отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API/merge-зонды сессии; передан открытым текстом в чате); (2) опционально: выплата gofmt-долга 14 файлов вне скоупа + регенерация graphify-графа при наличии CLI
-commit: TBD
+commit: 12176f73f50d0c66509bb6324653ee446a1e654d
