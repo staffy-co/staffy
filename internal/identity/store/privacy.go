@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/staffy-co/staffy/internal/platform/tenancy"
 	"github.com/jackc/pgx/v5"
+	"github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 // Story 1.10: identity-owned deletion support. The purge of expired

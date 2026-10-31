@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/staffy-co/staffy/internal/employee/domain"
 	"github.com/staffy-co/staffy/internal/platform/id"
 	"github.com/staffy-co/staffy/internal/platform/tenancy"
-	"github.com/jackc/pgx/v5"
 )
 
 // ListTenantAdmissions reads the whole admission history of the tenant

@@ -10,11 +10,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	casesAPI "github.com/staffy-co/staffy/internal/cases/api"
 	casesDomain "github.com/staffy-co/staffy/internal/cases/domain"
 	identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
 	"github.com/staffy-co/staffy/internal/platform/id"
-	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // objectionSeedSeq keeps every seeded objection row globally unique across

@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/staffy-co/staffy/internal/adapters/ingresssyn"
 	"github.com/staffy-co/staffy/internal/adapters/observationsyn"
 	"github.com/staffy-co/staffy/internal/adapters/verificationsyn"
@@ -19,7 +20,6 @@ import (
 	casesStore "github.com/staffy-co/staffy/internal/cases/store"
 	identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
 	"github.com/staffy-co/staffy/internal/platform/id"
-	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // The Story 2.7 matrix: the State/Authority Matrix v1 reads, the

@@ -61,7 +61,7 @@ func (e identityPrivacyExecutor) ExecuteClassDeletion(ctx context.Context, scope
 	if active > 0 {
 		block := privacyDomain.OffboardingBlock
 		return privacyPort.ExecutorResult{
-			Outcome: privacyDomain.OutcomeUnsupported,
+			Outcome:       privacyDomain.OutcomeUnsupported,
 			AffectedCount: deleted,
 			Note: fmt.Sprintf("Истёкшие приглашения удалены: %d. Активные участники сохранены: %d — их удаление требует offboarding/DSAR-потока (будущий срез), ответственный: %s.",
 				deleted, active, block.Owner),

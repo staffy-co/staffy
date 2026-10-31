@@ -436,10 +436,22 @@ func TestOffersMatrixRowsBySpec(t *testing.T) {
 		rule string
 		word string
 	}{
-		{"foreign currency", func(c *casesAPI.RecordSupplierOfferCommand) { c.Currency = "USD"; c.IdempotencyKey = "offer-refusal-currency" }, "offer_currency_out_of_dictionary", "Domain Policy пака"},
-		{"non-canonical key", func(c *casesAPI.RecordSupplierOfferCommand) { c.PositionKey = "wf 2b19"; c.IdempotencyKey = "offer-refusal-key" }, "offer_position_key_not_canonical", "канонизируйте"},
-		{"negative price", func(c *casesAPI.RecordSupplierOfferCommand) { c.ClientPrice = -1; c.IdempotencyKey = "offer-refusal-price" }, "offer_client_price_negative", "модель не рассчитывает"},
-		{"no source record id", func(c *casesAPI.RecordSupplierOfferCommand) { c.SourceRecordID = ""; c.IdempotencyKey = "offer-refusal-source" }, "offer_source_record_id_required", "трассируемость"},
+		{"foreign currency", func(c *casesAPI.RecordSupplierOfferCommand) {
+			c.Currency = "USD"
+			c.IdempotencyKey = "offer-refusal-currency"
+		}, "offer_currency_out_of_dictionary", "Domain Policy пака"},
+		{"non-canonical key", func(c *casesAPI.RecordSupplierOfferCommand) {
+			c.PositionKey = "wf 2b19"
+			c.IdempotencyKey = "offer-refusal-key"
+		}, "offer_position_key_not_canonical", "канонизируйте"},
+		{"negative price", func(c *casesAPI.RecordSupplierOfferCommand) {
+			c.ClientPrice = -1
+			c.IdempotencyKey = "offer-refusal-price"
+		}, "offer_client_price_negative", "модель не рассчитывает"},
+		{"no source record id", func(c *casesAPI.RecordSupplierOfferCommand) {
+			c.SourceRecordID = ""
+			c.IdempotencyKey = "offer-refusal-source"
+		}, "offer_source_record_id_required", "трассируемость"},
 	} {
 		command := casesAPI.RecordSupplierOfferCommand{
 			Actor: w.workActor(), TenantID: w.tenant, CaseID: caseID, WorkItemID: workItemID,

@@ -11,13 +11,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	casesAPI "github.com/staffy-co/staffy/internal/cases/api"
 	casesDomain "github.com/staffy-co/staffy/internal/cases/domain"
 	casesPort "github.com/staffy-co/staffy/internal/cases/port"
 	casesStore "github.com/staffy-co/staffy/internal/cases/store"
 	"github.com/staffy-co/staffy/internal/platform/id"
 	"github.com/staffy-co/staffy/internal/platform/tenancy"
-	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // The Story 2.16 step-02 probes: the migration 00016 invariants are

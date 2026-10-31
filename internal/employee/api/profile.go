@@ -68,24 +68,24 @@ type ThresholdDecisionView struct {
 // derived threshold states and the derived applicability. The profile is
 // rules and boundaries of work — never a traffic admission.
 type ProfileView struct {
-	EmployeeID     id.UUID                      `json:"employee_id"`
-	Draft          *domain.ProfileDraft         `json:"draft,omitempty"`
-	Readiness      []domain.ProfileRuleError    `json:"readiness"`
-	Approved       *domain.ProfileVersion       `json:"approved,omitempty"`
-	Applicability  domain.ProfileApplicability  `json:"applicability"`
-	RouteStates    []domain.RouteState          `json:"route_states"`
-	Matrix         []domain.MatrixCellState     `json:"matrix_coverage"`
-	Thresholds     []domain.ThresholdState      `json:"threshold_states"`
-	LatestManifest *domain.ManifestLink         `json:"latest_manifest,omitempty"`
-	CanManage      bool                         `json:"can_manage"`
-	ViewScope      string                       `json:"view_scope"`
+	EmployeeID     id.UUID                     `json:"employee_id"`
+	Draft          *domain.ProfileDraft        `json:"draft,omitempty"`
+	Readiness      []domain.ProfileRuleError   `json:"readiness"`
+	Approved       *domain.ProfileVersion      `json:"approved,omitempty"`
+	Applicability  domain.ProfileApplicability `json:"applicability"`
+	RouteStates    []domain.RouteState         `json:"route_states"`
+	Matrix         []domain.MatrixCellState    `json:"matrix_coverage"`
+	Thresholds     []domain.ThresholdState     `json:"threshold_states"`
+	LatestManifest *domain.ManifestLink        `json:"latest_manifest,omitempty"`
+	CanManage      bool                        `json:"can_manage"`
+	ViewScope      string                      `json:"view_scope"`
 }
 
 // ThresholdHistoryView is the append-only history of one gate's decisions.
 type ThresholdHistoryView struct {
-	EmployeeID  id.UUID                  `json:"employee_id"`
-	GateID      string                   `json:"gate_id"`
-	Decisions   []ThresholdDecisionView  `json:"decisions"`
+	EmployeeID id.UUID                 `json:"employee_id"`
+	GateID     string                  `json:"gate_id"`
+	Decisions  []ThresholdDecisionView `json:"decisions"`
 }
 
 // ProfileService is the application surface of Story 1-13.

@@ -7,12 +7,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/staffy-co/staffy/internal/identity/domain"
 	"github.com/staffy-co/staffy/internal/identity/port"
 	"github.com/staffy-co/staffy/internal/platform/id"
 	"github.com/staffy-co/staffy/internal/platform/tenancy"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 const createTenantOperation = "identity.create_tenant.v1"

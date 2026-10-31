@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	casesAPI "github.com/staffy-co/staffy/internal/cases/api"
 	casesDomain "github.com/staffy-co/staffy/internal/cases/domain"
 	casesPort "github.com/staffy-co/staffy/internal/cases/port"
@@ -17,7 +18,6 @@ import (
 	identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
 	"github.com/staffy-co/staffy/internal/platform/id"
 	"github.com/staffy-co/staffy/internal/platform/tenancy"
-	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // accommodationSeedSeq keeps every seeded accommodation-surface row

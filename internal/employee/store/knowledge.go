@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/jackc/pgx/v5"
 	"github.com/staffy-co/staffy/internal/employee/domain"
 	"github.com/staffy-co/staffy/internal/employee/port"
 	"github.com/staffy-co/staffy/internal/platform/id"
 	"github.com/staffy-co/staffy/internal/platform/tenancy"
-	"github.com/jackc/pgx/v5"
 )
 
 const knowledgeColumns = "tenant_id,employee_id,source_id,source_type,title,owner_name,provenance,origin_ref,ingest_reason,source_scope,priority,language,status,version,current_version,conflict_note,conflict_provenance,fresh_until,created_at,updated_at"

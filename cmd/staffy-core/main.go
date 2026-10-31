@@ -13,6 +13,8 @@ import (
 	"time"
 	_ "time/tzdata" // IANA zones without a system zone database (the profile window validator loads zones)
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	actionApp "github.com/staffy-co/staffy/internal/action/app"
 	actionCatalog "github.com/staffy-co/staffy/internal/action/catalog"
 	actionStore "github.com/staffy-co/staffy/internal/action/store"
@@ -48,8 +50,6 @@ import (
 	privacyPort "github.com/staffy-co/staffy/internal/privacy/port"
 	privacyStore "github.com/staffy-co/staffy/internal/privacy/store"
 	httptransport "github.com/staffy-co/staffy/internal/transport/http"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type systemClock struct{}

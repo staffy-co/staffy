@@ -7,12 +7,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	actionDomain "github.com/staffy-co/staffy/internal/action/domain"
 	actionPort "github.com/staffy-co/staffy/internal/action/port"
 	"github.com/staffy-co/staffy/internal/platform/id"
 	"github.com/staffy-co/staffy/internal/platform/tenancy"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // ---------------------------------------------------------------------------

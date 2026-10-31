@@ -184,7 +184,7 @@ func TestOrderStatusMatrixRowsBySpec(t *testing.T) {
 		if formed.Replay || formed.Fact.FactNo != 1 || formed.SourceWord != actionDomain.OrderStatusSupplierManagerSourceWord {
 			t.Fatalf("the formed record: %+v", formed)
 		}
-		if !formed.Fact.HappenedAt.Equal(orderNow.Add(30 * time.Minute)) || !formed.Fact.RecordedAt.Equal(orderNow.Add(31 * time.Minute)) {
+		if !formed.Fact.HappenedAt.Equal(orderNow.Add(30*time.Minute)) || !formed.Fact.RecordedAt.Equal(orderNow.Add(31*time.Minute)) {
 			t.Fatalf("the two times of the formed fact: %v / %v", formed.Fact.HappenedAt, formed.Fact.RecordedAt)
 		}
 		// The sent record of the SAME supplier order ID: the fact №2 —

@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	casesDomain "github.com/staffy-co/staffy/internal/cases/domain"
 	casesPort "github.com/staffy-co/staffy/internal/cases/port"
 	"github.com/staffy-co/staffy/internal/platform/id"
 	"github.com/staffy-co/staffy/internal/platform/tenancy"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // ---------------------------------------------------------------------------

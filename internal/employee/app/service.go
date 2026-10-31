@@ -17,13 +17,13 @@ import (
 )
 
 type Service struct {
-	repository port.Repository
-	identity   identityAPI.MembershipService
-	clock      api.Clock
-	ids        api.IDGenerator
-	testTTS    port.TestTTS
-	connectors port.ConnectorFacts
-	entitlement EntitlementFactsSource
+	repository       port.Repository
+	identity         identityAPI.MembershipService
+	clock            api.Clock
+	ids              api.IDGenerator
+	testTTS          port.TestTTS
+	connectors       port.ConnectorFacts
+	entitlement      EntitlementFactsSource
 	entitlementFacts EntitlementAdmissionFacts
 }
 

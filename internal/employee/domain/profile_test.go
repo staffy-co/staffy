@@ -486,33 +486,33 @@ func TestValidateThresholdDecisionAndDescription(t *testing.T) {
 }
 
 func TestValidateProfileContentRequiresPackReference(t *testing.T) {
-        facts := profileFacts()
-        facts.PackReferenced = false
-        // An empty product cannot show gaps: without the pack reference the
-        // completeness is vacuous and the approval must block honestly.
-        problems := ValidateProfileContent(validProfileContent(), facts)
-        found := false
-        for _, problem := range problems {
-                if problem.Section == "coverage_matrix" && problem.Field == "pack_reference" && problem.Kind == ProfileProblemMissing {
-                        found = true
-                }
-        }
-        if !found {
-                t.Fatalf("a packless manifest must block the approval honestly, got: %v", problems)
-        }
+	facts := profileFacts()
+	facts.PackReferenced = false
+	// An empty product cannot show gaps: without the pack reference the
+	// completeness is vacuous and the approval must block honestly.
+	problems := ValidateProfileContent(validProfileContent(), facts)
+	found := false
+	for _, problem := range problems {
+		if problem.Section == "coverage_matrix" && problem.Field == "pack_reference" && problem.Kind == ProfileProblemMissing {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("a packless manifest must block the approval honestly, got: %v", problems)
+	}
 }
 
 func TestValidateProfileContentRejectsModalityMismatch(t *testing.T) {
-        content := validProfileContent()
-        content.Matrix[0].Modality = ModalityText // phone route must carry voice
-        problems := ValidateProfileContent(content, profileFacts())
-        found := false
-        for _, problem := range problems {
-                if problem.Kind == ProfileProblemInvalid && contains(problem.Reason, "Modality") {
-                        found = true
-                }
-        }
-        if !found {
-                t.Fatalf("a modality that disagrees with the route channel must reject the save, got: %v", problems)
-        }
+	content := validProfileContent()
+	content.Matrix[0].Modality = ModalityText // phone route must carry voice
+	problems := ValidateProfileContent(content, profileFacts())
+	found := false
+	for _, problem := range problems {
+		if problem.Kind == ProfileProblemInvalid && contains(problem.Reason, "Modality") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("a modality that disagrees with the route channel must reject the save, got: %v", problems)
+	}
 }

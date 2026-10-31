@@ -1,13 +1,13 @@
 package port
 
 import (
-        "context"
-        "errors"
-        "time"
+	"context"
+	"errors"
+	"time"
 
-        "github.com/staffy-co/staffy/internal/action/domain"
-        "github.com/staffy-co/staffy/internal/platform/id"
-        "github.com/staffy-co/staffy/internal/platform/tenancy"
+	"github.com/staffy-co/staffy/internal/action/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 // Story 4.9: the supplier order fact ports. The facts are the HUMAN
@@ -22,12 +22,12 @@ import (
 // The store-contract errors of the fact contour (the honest vocabulary
 // of the repository boundary — the transport maps them).
 var (
-        // ErrOrderSupplierFactDuplicate is the honest replay signal of the
-        // idempotency BY KEY: the fact of the SAME full key (the
-        // operation, the kind, the supplier order ID) already exists — the
-        // repeated command replays the SAVED fact, never a second row
-        // (AC-9: the «webhook repeat» discipline without a webhook).
-        ErrOrderSupplierFactDuplicate = errors.New("факт заказа поставщику уже записан (идемпотентный повтор)")
+	// ErrOrderSupplierFactDuplicate is the honest replay signal of the
+	// idempotency BY KEY: the fact of the SAME full key (the
+	// operation, the kind, the supplier order ID) already exists — the
+	// repeated command replays the SAVED fact, never a second row
+	// (AC-9: the «webhook repeat» discipline without a webhook).
+	ErrOrderSupplierFactDuplicate = errors.New("факт заказа поставщику уже записан (идемпотентный повтор)")
 )
 
 // AppendOrderSupplierFactParams is the ONE append of the contour: the
@@ -41,15 +41,15 @@ var (
 // (persist-before-emit is STRUCTURAL: nothing is emitted anywhere —
 // the OQ-3 fence of the contour).
 type AppendOrderSupplierFactParams struct {
-        Scope           tenancy.Context
-        CaseID          id.UUID
-        WorkItemID      id.UUID
-        OperationID     id.UUID
-        Kind            string
-        SupplierOrderID string
-        HappenedAt      time.Time
-        ActorID         id.UUID
-        Now             time.Time
+	Scope           tenancy.Context
+	CaseID          id.UUID
+	WorkItemID      id.UUID
+	OperationID     id.UUID
+	Kind            string
+	SupplierOrderID string
+	HappenedAt      time.Time
+	ActorID         id.UUID
+	Now             time.Time
 }
 
 // OrderSupplierFactRepository is the persistence contract of the
@@ -59,20 +59,20 @@ type AppendOrderSupplierFactParams struct {
 // the per-case advisory lock; the UNIQUE full fact key backstops the
 // idempotency the lock already serializes.
 type OrderSupplierFactRepository interface {
-        // ReadCaseSupplierFacts reads every fact of one case ordered by the
-        // monotonic fact number (the projection material of the panel).
-        ReadCaseSupplierFacts(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]domain.OrderSupplierFact, error)
-        // ReadOperationSupplierFacts reads every fact anchored to one
-        // operation ordered by the monotonic fact number (the guard input
-        // of the sent-after-formed ladder).
-        ReadOperationSupplierFacts(ctx context.Context, scope tenancy.Context, operationID id.UUID) ([]domain.OrderSupplierFact, error)
-        // AppendOrderSupplierFact appends ONE fact under the per-case
-        // advisory lock: the monotonic fact_no derives under the lock (the
-        // ladder of the repeated records); the UNIQUE full fact key
-        // (tenant, case, operation, kind, supplier_order_id) backstops the
-        // IDEMPOTENCY BY KEY — the raced replay of the same command refuses
-        // with ErrOrderSupplierFactDuplicate and NEVER writes a second row
-        // (the app re-reads the saved fact and answers the honest replay
-        // outcome).
-        AppendOrderSupplierFact(ctx context.Context, p AppendOrderSupplierFactParams) (domain.OrderSupplierFact, error)
+	// ReadCaseSupplierFacts reads every fact of one case ordered by the
+	// monotonic fact number (the projection material of the panel).
+	ReadCaseSupplierFacts(ctx context.Context, scope tenancy.Context, caseID id.UUID) ([]domain.OrderSupplierFact, error)
+	// ReadOperationSupplierFacts reads every fact anchored to one
+	// operation ordered by the monotonic fact number (the guard input
+	// of the sent-after-formed ladder).
+	ReadOperationSupplierFacts(ctx context.Context, scope tenancy.Context, operationID id.UUID) ([]domain.OrderSupplierFact, error)
+	// AppendOrderSupplierFact appends ONE fact under the per-case
+	// advisory lock: the monotonic fact_no derives under the lock (the
+	// ladder of the repeated records); the UNIQUE full fact key
+	// (tenant, case, operation, kind, supplier_order_id) backstops the
+	// IDEMPOTENCY BY KEY — the raced replay of the same command refuses
+	// with ErrOrderSupplierFactDuplicate and NEVER writes a second row
+	// (the app re-reads the saved fact and answers the honest replay
+	// outcome).
+	AppendOrderSupplierFact(ctx context.Context, p AppendOrderSupplierFactParams) (domain.OrderSupplierFact, error)
 }

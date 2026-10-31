@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/staffy-co/staffy/internal/platform/tenancy"
-	privacyPort "github.com/staffy-co/staffy/internal/privacy/port"
 	privacyDomain "github.com/staffy-co/staffy/internal/privacy/domain"
+	privacyPort "github.com/staffy-co/staffy/internal/privacy/port"
 )
 
 // purgeRepository is the narrow store capability the privacy executor needs.

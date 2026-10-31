@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	observationsyn "github.com/staffy-co/staffy/internal/adapters/observationsyn"
 	casesAPI "github.com/staffy-co/staffy/internal/cases/api"
 	casesDomain "github.com/staffy-co/staffy/internal/cases/domain"
@@ -19,7 +20,6 @@ import (
 	identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
 	"github.com/staffy-co/staffy/internal/platform/id"
 	"github.com/staffy-co/staffy/internal/platform/tenancy"
-	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // commitmentSeedSeq keeps every seeded commitment-surface row globally
