@@ -9,6 +9,8 @@ package domain
 import (
 	"strings"
 	"testing"
+
+	"github.com/staffy-co/staffy/internal/planner"
 )
 
 // TestDeriveToolSchemasStateFourBranches: pack not pinned, pinned pack
@@ -81,7 +83,10 @@ func TestDeriveToolSchemasStateFourBranches(t *testing.T) {
 
 // TestBuildRuntimeStateUsesDerivedToolSchemas: the dictionary keeps the
 // fixed order and the eight components; the tool_schemas slot carries the
-// DERIVED state, every other component keeps the static gap note.
+// DERIVED state, the Story 8-2 components carry their honest presence
+// (prompt_assembly and runtime_build present with the platform version
+// words; model_route the specific honest gap behind AG-4), and the
+// not-yet-built components keep the static gap note.
 func TestBuildRuntimeStateUsesDerivedToolSchemas(t *testing.T) {
 	derived := DeriveToolSchemasState(PackRef{Status: RefPresent, ID: "auto-parts", Version: "6.1.0"}, []ToolBindingFact{
 		{ID: "auto-parts.vehicle-identification", Version: "1.0.0", AdapterStatus: "not_implemented"},
@@ -92,15 +97,40 @@ func TestBuildRuntimeStateUsesDerivedToolSchemas(t *testing.T) {
 	}
 	found := false
 	for _, component := range state {
-		if component.Component == "tool_schemas" {
+		switch component.Component {
+		case "tool_schemas":
 			found = true
 			if component.Note != derived.Note || component.Present != derived.Present {
 				t.Fatalf("tool_schemas не подставлен: %+v", component)
 			}
-			continue
-		}
-		if !strings.Contains(component.Note, "Поверхность компонента ещё не существует") {
-			t.Fatalf("прочий компонент обязан сохранить статичную записку gap: %+v", component)
+		case "prompt_assembly":
+			// Story 8-2: the assembly surface exists — present with the
+			// assembly version word.
+			if !component.Present || component.Ref != planner.AssemblyVersion {
+				t.Fatalf("prompt_assembly обязан быть present с версией сборки: %+v", component)
+			}
+			if !strings.Contains(component.Note, "Story 8.2") {
+				t.Fatalf("записка prompt_assembly обязана называть срез: %q", component.Note)
+			}
+		case "runtime_build":
+			// Story 8-2: the runtime identity exists — the composite word
+			// coherent with the journal records.
+			if !component.Present || component.Ref != planner.RuntimeBuildRef {
+				t.Fatalf("runtime_build обязан быть present с составным словом: %+v", component)
+			}
+		case "model_route":
+			// Story 8-2: the honest specific gap — the live route and the
+			// credentials stay behind AG-4.
+			if component.Present {
+				t.Fatalf("model_route обязан остаться честным gap до живого маршрута: %+v", component)
+			}
+			if !strings.Contains(component.Note, "AG-4") {
+				t.Fatalf("записка model_route обязана называть границу AG-4: %q", component.Note)
+			}
+		default:
+			if !strings.Contains(component.Note, "Поверхность компонента ещё не существует") {
+				t.Fatalf("прочий компонент обязан сохранить статичную записку gap: %+v", component)
+			}
 		}
 	}
 	if !found {

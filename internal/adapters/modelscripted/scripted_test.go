@@ -1,11 +1,13 @@
 package modelscripted
 
-// The scripted model matrix of Story 8-1 step-02: every outcome word
-// of the closed configuration dictionary produces exactly the material
-// of its scenario — deterministically, from the given context, with the
-// repair cause switching the repairable scenario and the configuration
-// refusing a word outside the matrix. The adapter is production code
-// with zero production callers (main.go never wires it).
+// The scripted model matrix of Story 8-1 step-02 (the material
+// synthesis of Story 8-2): every outcome word of the closed
+// configuration dictionary produces exactly the material of its
+// scenario — deterministically, from the assembled round material,
+// with the repair cause INSIDE the material switching the repairable
+// scenario and the configuration refusing a word outside the matrix.
+// The adapter is production code with zero production callers (main.go
+// never wires it).
 
 import (
 	"context"
@@ -15,8 +17,16 @@ import (
 	"github.com/staffy-co/staffy/internal/planner"
 )
 
-func fixtureContext() planner.TurnContext {
-	return planner.TurnContext{Mode: planner.ModeSafety}
+// fixtureMaterial assembles the round material of a turn context with
+// the given mode, disclosure pin and repair cause — the honest input
+// of the adapter since Story 8-2 (the material, never the context).
+func fixtureMaterial(mode string, disclosure bool, repair string) planner.RoundRequest {
+	material := planner.AssembleRoundMaterial(planner.TurnContext{Mode: mode, AIDisclosureRequired: disclosure}, repair)
+	raw, err := material.Bytes()
+	if err != nil {
+		panic("scripted-тест: материал обязан маршализоваться: " + err.Error())
+	}
+	return planner.RoundRequest{Material: raw}
 }
 
 func TestOutcomeDictionaryIsClosed(t *testing.T) {
@@ -115,7 +125,8 @@ func TestEveryOutcomeProducesItsScenario(t *testing.T) {
 			if err != nil {
 				t.Fatalf("конфигурация: %v", err)
 			}
-			result, err := adapter.Round(context.Background(), planner.RoundRequest{Context: fixtureContext(), Repair: testCase.repair})
+			request := fixtureMaterial(planner.ModeSafety, true, testCase.repair)
+			result, err := adapter.Round(context.Background(), request)
 			if testCase.expectError {
 				if err == nil {
 					t.Fatal("исход adapter_error обязан возвращать честную ошибку раунда")
@@ -136,15 +147,16 @@ func TestEveryOutcomeProducesItsScenario(t *testing.T) {
 func TestRepairableSwitchesOnTheRepairCause(t *testing.T) {
 	adapter := MustNew(OutcomeRepairable)
 	// Round 1 (no cause): the malformed material.
-	first, err := adapter.Round(context.Background(), planner.RoundRequest{Context: fixtureContext()})
+	first, err := adapter.Round(context.Background(), fixtureMaterial(planner.ModeSafety, true, ""))
 	if err != nil {
 		t.Fatalf("раунд 1: %v", err)
 	}
 	if _, refusal := planner.DecodeTurnProposal(first.Raw); refusal == nil {
 		t.Fatal("раунд 1 без причины обязан быть малформед-материалом")
 	}
-	// The repair round (with the named cause): the valid material.
-	second, err := adapter.Round(context.Background(), planner.RoundRequest{Context: fixtureContext(), Repair: "proposal.strict_decode: json: unknown field"})
+	// The repair round (the named cause INSIDE the material): the valid
+	// material.
+	second, err := adapter.Round(context.Background(), fixtureMaterial(planner.ModeSafety, true, "proposal.strict_decode: json: unknown field"))
 	if err != nil {
 		t.Fatalf("repair-раунд: %v", err)
 	}
@@ -153,10 +165,10 @@ func TestRepairableSwitchesOnTheRepairCause(t *testing.T) {
 	}
 }
 
-func TestValidMaterialMirrorsTheContextMode(t *testing.T) {
+func TestValidMaterialMirrorsTheMaterialMode(t *testing.T) {
 	adapter := MustNew(OutcomeValid)
 	for _, mode := range planner.ModeLadder {
-		result, err := adapter.Round(context.Background(), planner.RoundRequest{Context: planner.TurnContext{Mode: mode}})
+		result, err := adapter.Round(context.Background(), fixtureMaterial(mode, false, ""))
 		if err != nil {
 			t.Fatalf("режим %s: %v", mode, err)
 		}
@@ -165,7 +177,55 @@ func TestValidMaterialMirrorsTheContextMode(t *testing.T) {
 			t.Fatalf("режим %s: %v", mode, refusal)
 		}
 		if proposal.Mode != mode {
-			t.Fatalf("синтез обязан зеркалить режим контекста %s, получен %q — иначе лестница не прошла бы", mode, proposal.Mode)
+			t.Fatalf("синтез обязан зеркалить режим МАТЕРИАЛА %s, получен %q — иначе лестница не прошла бы", mode, proposal.Mode)
 		}
+	}
+}
+
+func TestValidMaterialDisclosesWhenThePinArrives(t *testing.T) {
+	adapter := MustNew(OutcomeValid)
+	// The §8.1 pin travels INTO the material and the scripted model
+	// answers it — the contract-side proof that the disclosure
+	// requirement reaches the model.
+	disclosed, err := adapter.Round(context.Background(), fixtureMaterial(planner.ModeSafety, true, ""))
+	if err != nil {
+		t.Fatalf("раунд с пином: %v", err)
+	}
+	proposal, refusal := planner.DecodeTurnProposal(disclosed.Raw)
+	if refusal != nil {
+		t.Fatalf("раунд с пином: %v", refusal)
+	}
+	if !strings.Contains(proposal.Reply.Text, "Я — искусственный интеллект") {
+		t.Fatalf("реплика обязана нести раскрытие ИИ, когда материал требует его, получено %q", proposal.Reply.Text)
+	}
+	// Without the pin the reply carries no disclosure — the pin is the
+	// only switch, never a canned behaviour.
+	plain, err := adapter.Round(context.Background(), fixtureMaterial(planner.ModeSafety, false, ""))
+	if err != nil {
+		t.Fatalf("раунд без пина: %v", err)
+	}
+	proposal, refusal = planner.DecodeTurnProposal(plain.Raw)
+	if refusal != nil {
+		t.Fatalf("раунд без пина: %v", refusal)
+	}
+	if strings.Contains(proposal.Reply.Text, "Я — искусственный интеллект") {
+		t.Fatalf("реплика без пина не обязана нести раскрытия, получено %q", proposal.Reply.Text)
+	}
+}
+
+func TestRoundRefusesMissingOrUnreadableMaterial(t *testing.T) {
+	adapter := MustNew(OutcomeValid)
+	if _, err := adapter.Round(context.Background(), planner.RoundRequest{}); err == nil {
+		t.Fatal("отсутствующий материал обязан давать поимённую ошибку — синтез из ничего невозможен")
+	} else if !strings.Contains(err.Error(), "материал раунда отсутствует или нечитаем") {
+		t.Fatalf("ошибка обязана быть поимённой, получено %v", err)
+	}
+	if _, err := adapter.Round(context.Background(), planner.RoundRequest{Material: []byte("не-json")}); err == nil {
+		t.Fatal("нечитаемый материал обязан давать поимённую ошибку")
+	}
+	// The word of the assembly version is the material's identity: a
+	// random JSON object without it is not round material.
+	if _, err := adapter.Round(context.Background(), planner.RoundRequest{Material: []byte("{}")}); err == nil {
+		t.Fatal("JSON без слова версии сборки — не материал раунда")
 	}
 }

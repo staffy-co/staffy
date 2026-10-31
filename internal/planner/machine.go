@@ -1,18 +1,22 @@
 package planner
 
-// The planner machine (Story 8-1): the protocol machine of one turn —
-// the AD-7 discipline as executable code. The flow is closed:
+// The planner machine (Story 8-1; the assembly step and the budgets
+// of Story 8-2): the protocol machine of one turn — the AD-7
+// discipline as executable code. The flow is closed:
 //
 //      strict decode of the context (BEFORE any model round — a refused
 //      context is not a turn: no round, no record)
-//        → round 1 over the model port
+//        → assembly of the versioned round material (Story 8-2: the
+//          platform prompt form — the model NEVER sees the context)
+//        → round 1 over the model port (the material bytes)
 //          → adapter error      = failed turn + approved fallback (no blind
-//                                 retry, no repair round)
+//                                 retry, no repair round; the budget
+//                                 exhaustion of the bounded adapter rides
+//                                 this same path — a named honest error)
 //          → strict decode + validation of the proposal
 //            → pass             = validated turn
-//            → named refusal    → EXACTLY ONE repair round (the model
-//                                 receives the named cause and the same
-//                                 context)
+//            → named refusal    → EXACTLY ONE repair round (the material
+//                                 of round 2 carries the named cause)
 //                                  → adapter error  = failed + fallback
 //                                  → pass           = repaired turn
 //                                  → second refusal = failed turn, persisted
@@ -20,9 +24,12 @@ package planner
 //                                    fallback — NEVER the model output
 //
 // The model rounds are structurally ≤ 2: the machine has no third
-// round to call. Every STARTED turn is journaled exactly once
-// (validated | repaired | failed); the Build constant travels with
-// every record.
+// round to call, and the declared budgets may only NARROW that
+// ceiling (never widen — the budget validation refuses anything
+// above two). Every STARTED turn is journaled exactly once
+// (validated | repaired | failed); the Build constant and the
+// assembly version travel with every record (the full turn
+// provenance of Story 8-2).
 
 import (
 	"context"
@@ -31,19 +38,31 @@ import (
 	"github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
-// Machine is the turn machine over the model port, the journal port
-// and the clock.
+// Machine is the turn machine over the model port, the journal port,
+// the clock and the declared turn budgets (carried compactly for the
+// journal: the enforcement is the bounded adapter's side).
 type Machine struct {
-	model  ModelPort
-	ledger TurnRecorder
-	clock  Clock
+	model       ModelPort
+	ledger      TurnRecorder
+	clock       Clock
+	budgetsJSON []byte
 }
 
-// NewMachine wires the machine. None of the ports may be nil — a
-// machine without a journal cannot exist (an unjournaled turn would be
-// a silent model round, the exact opposite of the AD-7 honesty).
-func NewMachine(model ModelPort, ledger TurnRecorder, clock Clock) *Machine {
-	return &Machine{model: model, ledger: ledger, clock: clock}
+// NewMachine wires the machine with the declared budgets of the turn.
+// None of the ports may be nil — a machine without a journal cannot
+// exist (an unjournaled turn would be a silent model round, the exact
+// opposite of the AD-7 honesty) — and the budgets must be valid:
+// an invalid budget declaration is a named construction refusal, never
+// a runtime surprise (the honest configuration failure).
+func NewMachine(model ModelPort, ledger TurnRecorder, clock Clock, budgets Budgets) (*Machine, error) {
+	if refusal := budgets.Validate(); refusal != nil {
+		return nil, refusal
+	}
+	budgetsJSON, err := compactBudgetsJSON(budgets)
+	if err != nil {
+		return nil, err
+	}
+	return &Machine{model: model, ledger: ledger, clock: clock, budgetsJSON: budgetsJSON}, nil
 }
 
 // RunResult is the honest outcome of one Run: either the context was
@@ -90,8 +109,13 @@ func (m *Machine) Run(ctx context.Context, scope tenancy.Context, rawContext []b
 		return RunResult{Started: false, Refusal: rule("context.tenant_scope", "тенент контекста не совпадает с тенентом вызова — материал чужого тенента не входит в ход (AD-11)")}, nil
 	}
 
-	// Round 1.
-	result, err := m.model.Round(ctx, RoundRequest{Context: context})
+	// Round 1: the assembly produces the versioned round material —
+	// the model NEVER sees the Turn Context (AD-8 by construction).
+	material, err := AssembleRoundMaterial(context, "").Bytes()
+	if err != nil {
+		return RunResult{}, err
+	}
+	result, err := m.model.Round(ctx, RoundRequest{Material: material})
 	if err != nil {
 		return m.finish(ctx, scope, context, 1, &RuleError{Rule: "planner.adapter_round", Detail: "ошибка модельного адаптера первого раунда: " + err.Error()}, nil, nil)
 	}
@@ -100,9 +124,13 @@ func (m *Machine) Run(ctx context.Context, scope tenancy.Context, rawContext []b
 		return m.finish(ctx, scope, context, 1, nil, nil, proposal)
 	}
 
-	// The repair round: exactly one, with the named cause and the same
-	// context.
-	result, err = m.model.Round(ctx, RoundRequest{Context: context, Repair: firstRefusal.Error()})
+	// The repair round: exactly one — the material of round 2 carries
+	// the named cause of the first refusal.
+	repairMaterial, err := AssembleRoundMaterial(context, firstRefusal.Error()).Bytes()
+	if err != nil {
+		return RunResult{}, err
+	}
+	result, err = m.model.Round(ctx, RoundRequest{Material: repairMaterial})
 	if err != nil {
 		return m.finish(ctx, scope, context, 2, &RuleError{Rule: "planner.adapter_round", Detail: "ошибка модельного адаптера repair-раунда: " + err.Error()}, nil, nil)
 	}
@@ -169,19 +197,21 @@ func (m *Machine) finish(ctx context.Context, scope tenancy.Context, context Tur
 		reason = refusal.Error()
 	}
 	record := TurnRecord{
-		TenantID:       scope.TenantID(),
-		TurnID:         context.TurnID,
-		CaseID:         context.CaseID,
-		ConversationID: context.ConversationID,
-		WorkItemID:     context.WorkItemID,
-		EmployeeID:     context.EmployeeID,
-		Outcome:        outcome,
-		RefusalReason:  reason,
-		FallbackForm:   fallback.Kind,
-		SchemaVersion:  ProposalSchemaVersion,
-		Build:          Build,
-		Proposal:       proposalJSON,
-		CreatedAt:      m.clock.Now(),
+		TenantID:        scope.TenantID(),
+		TurnID:          context.TurnID,
+		CaseID:          context.CaseID,
+		ConversationID:  context.ConversationID,
+		WorkItemID:      context.WorkItemID,
+		EmployeeID:      context.EmployeeID,
+		Outcome:         outcome,
+		RefusalReason:   reason,
+		FallbackForm:    fallback.Kind,
+		SchemaVersion:   ProposalSchemaVersion,
+		Build:           Build,
+		AssemblyVersion: AssemblyVersion,
+		Budgets:         m.budgetsJSON,
+		Proposal:        proposalJSON,
+		CreatedAt:       m.clock.Now(),
 	}
 	if err := m.ledger.Record(ctx, scope, record); err != nil {
 		// The honest conflict of the uniqueness surfaces to the caller:

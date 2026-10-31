@@ -105,7 +105,10 @@ func TestVerticalWordsAbsentFromCore(t *testing.T) {
 				// material of the production code, vertically clean) walk
 				// with the same zero. The planner/store subdir rides the
 				// existing "store" zone word.
-				case "domain", "app", "port", "store", "tools", "mcp", "mcpclient", "externaltools", "planner", "modelscripted":
+				// The Story 8-2 zone: internal/adapters/modelbounded (the
+				// bounded model adapter — the budget guard words are
+				// platform-honest, vertically clean) joins the same zero.
+				case "domain", "app", "port", "store", "tools", "mcp", "mcpclient", "externaltools", "planner", "modelscripted", "modelbounded":
 				default:
 					return nil
 				}

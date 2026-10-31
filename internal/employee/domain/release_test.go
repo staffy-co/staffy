@@ -163,12 +163,30 @@ func TestDeriveManifestStatusAlwaysIncompleteInThisSlice(t *testing.T) {
 	if len(content.Runtime) != 8 {
 		t.Fatalf("runtime dictionary must list all 8 components, got %d", len(content.Runtime))
 	}
+	// Story 8-2: prompt_assembly and runtime_build are honestly present
+	// (the versioned platform surfaces); the manifest still stays
+	// incomplete — model_route, policy_bundle, eval_set and
+	// autonomy_envelope remain honest gaps in this slice.
+	present := map[string]bool{}
 	for _, component := range content.Runtime {
 		if component.Present {
-			t.Fatalf("runtime component %q claimed present without a surface", component.Component)
+			present[component.Component] = true
+			if component.Ref == "" {
+				t.Fatalf("runtime component %q claimed present without a ref", component.Component)
+			}
 		}
 		if component.Owner == "" || component.Responsible == "" {
 			t.Fatalf("runtime gap %q must name the owner and the responsible", component.Component)
+		}
+	}
+	for _, required := range []string{"prompt_assembly", "runtime_build"} {
+		if !present[required] {
+			t.Fatalf("runtime component %q must be present since Story 8-2", required)
+		}
+	}
+	for _, stillGap := range []string{"model_route", "policy_bundle", "eval_set", "autonomy_envelope"} {
+		if present[stillGap] {
+			t.Fatalf("runtime component %q must stay an honest gap in this slice", stillGap)
 		}
 	}
 }

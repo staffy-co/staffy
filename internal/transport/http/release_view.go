@@ -43,7 +43,7 @@ func releaseRefStatusText(status string) string {
 // evidence, each with its owner.
 func releaseMissingDependencies() []dependencyRow {
 	return []dependencyRow{
-		{Dependency: "Runtime-компоненты (маршруты модели и медиа, сборка промптов, схемы инструментов, пакет политик, eval, сборка runtime, огибающая автономности)", Owner: "AI Runtime (Epic 2) · ответственный: Technical Lead"},
+		{Dependency: "Runtime-компоненты (маршруты модели и медиа, сборка промптов, схемы инструментов, пакет политик, eval, сборка runtime, огибающая автономности)", Owner: "AI Runtime (Epic 8) · ответственный: Technical Lead"},
 		{Dependency: "Утверждённый Operating Profile", Owner: "Story 1-13 (утверждение operating profile и правил измерения)"},
 		{Dependency: "Обязательные gate evidence и admission", Owner: "владельцы GATE-REGISTRY · допуск: Story 1-14"},
 	}
