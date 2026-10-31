@@ -65,7 +65,12 @@ test('release versions and manifest stay honest, immutable and accessible at 320
   await expect(digestBlock).toContainText(/^[0-9a-f]{64}$/);
   const runtimeTable = page.locator('table', { hasText: 'каждый отсутствующий' });
   await expect(runtimeTable.getByRole('row', { name: /model_route/ })).toContainText('отсутствует');
-  await expect(runtimeTable.getByRole('row', { name: /autonomy_envelope/ })).toContainText('AI Runtime (Epic 2)');
+  // The owner label substring survives epic-label evolution; the
+  // Story 8-2 present rows render live (the assembly and the runtime
+  // identity of the new seal).
+  await expect(runtimeTable.getByRole('row', { name: /autonomy_envelope/ })).toContainText('AI Runtime');
+  await expect(runtimeTable.getByRole('row', { name: /prompt_assembly/ })).toContainText('присутствует: assembly/1.0.0');
+  await expect(runtimeTable.getByRole('row', { name: /runtime_build/ })).toContainText('присутствует: planner/1.0.0+assembly/1.0.0');
   const dependencies = page.locator('ul.launch-plan').first();
   await expect(dependencies).toContainText('Operating Profile');
   await expect(dependencies).toContainText('GATE-REGISTRY');

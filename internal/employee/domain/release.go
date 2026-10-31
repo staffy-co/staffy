@@ -10,6 +10,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/staffy-co/staffy/internal/planner"
 	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
@@ -283,14 +284,14 @@ type RuntimeComponentSpec struct {
 
 // RuntimeDictionary is the fixed order of runtime components.
 var runtimeDictionary = []RuntimeComponentSpec{
-	{Component: "model_route", Title: "Маршрут модели (model route)", Owner: "AI Runtime (Epic 2)", Responsible: "Technical Lead"},
-	{Component: "media_route", Title: "Маршрут медиа (media route)", Owner: "AI Runtime (Epic 2)", Responsible: "Technical Lead"},
-	{Component: "prompt_assembly", Title: "Сборка промптов (prompt assembly)", Owner: "AI Runtime (Epic 2)", Responsible: "Technical Lead"},
-	{Component: "tool_schemas", Title: "Схемы инструментов (tool schemas)", Owner: "AI Runtime (Epic 2)", Responsible: "Technical Lead"},
-	{Component: "policy_bundle", Title: "Пакет политик (policy bundle)", Owner: "AI Runtime (Epic 2)", Responsible: "Technical Lead"},
-	{Component: "eval_set", Title: "Набор eval (eval set)", Owner: "AI Runtime (Epic 2)", Responsible: "Technical Lead"},
-	{Component: "runtime_build", Title: "Сборка runtime (runtime build)", Owner: "AI Runtime (Epic 2)", Responsible: "Technical Lead"},
-	{Component: "autonomy_envelope", Title: "Огибающая автономности (autonomy envelope)", Owner: "AI Runtime (Epic 2)", Responsible: "Technical Lead"},
+	{Component: "model_route", Title: "Маршрут модели (model route)", Owner: "AI Runtime (Epic 8)", Responsible: "Technical Lead"},
+	{Component: "media_route", Title: "Маршрут медиа (media route)", Owner: "AI Runtime (Epic 9)", Responsible: "Technical Lead"},
+	{Component: "prompt_assembly", Title: "Сборка промптов (prompt assembly)", Owner: "AI Runtime (Epic 8)", Responsible: "Technical Lead"},
+	{Component: "tool_schemas", Title: "Схемы инструментов (tool schemas)", Owner: "AI Runtime (Epic 8)", Responsible: "Technical Lead"},
+	{Component: "policy_bundle", Title: "Пакет политик (policy bundle)", Owner: "AI Runtime (Epic 8)", Responsible: "Technical Lead"},
+	{Component: "eval_set", Title: "Набор eval (eval set)", Owner: "AI Runtime (Epic 8)", Responsible: "Technical Lead"},
+	{Component: "runtime_build", Title: "Сборка runtime (runtime build)", Owner: "AI Runtime (Epic 8)", Responsible: "Technical Lead"},
+	{Component: "autonomy_envelope", Title: "Огибающая автономности (autonomy envelope)", Owner: "AI Runtime (Epic 8)", Responsible: "Technical Lead"},
 }
 
 // RuntimeDictionary returns the fixed runtime component dictionary in order.
@@ -331,15 +332,46 @@ type RuntimeComponentState struct {
 func BuildRuntimeState(toolSchemas RuntimeComponentState) []RuntimeComponentState {
 	out := make([]RuntimeComponentState, 0, len(runtimeDictionary))
 	for _, spec := range runtimeDictionary {
-		if spec.Component == "tool_schemas" {
+		switch spec.Component {
+		case "tool_schemas":
 			out = append(out, toolSchemas)
-			continue
+		case "prompt_assembly":
+			// Story 8-2: the versioned prompt assembly exists as platform
+			// code (the deterministic round material) — an honest present
+			// with the assembly version word as the ref (the tool_schemas
+			// precedent of 7-2: the surface exists, the production caller
+			// arrives with Story 8.4).
+			out = append(out, RuntimeComponentState{
+				Component: spec.Component, Present: true, Ref: planner.AssemblyVersion,
+				Owner: spec.Owner, Responsible: spec.Responsible,
+				Note: "Сборка промптов — версионируемая платформенная форма (Story 8.2): детерминированный материал раунда над Turn Context; продакшн-вызыватель — Story 8.4.",
+			})
+		case "runtime_build":
+			// Story 8-2: the runtime identity exists — the machine build
+			// plus the assembly version as one composite word, coherent
+			// with what every turn record of the journal carries.
+			out = append(out, RuntimeComponentState{
+				Component: spec.Component, Present: true, Ref: planner.RuntimeBuildRef,
+				Owner: spec.Owner, Responsible: spec.Responsible,
+				Note: "Идентичность рантайма — билд машины планировщика + версия сборки промптов (Story 8.2); каждая запись хода журнала несёт те же слова.",
+			})
+		case "model_route":
+			// Story 8-2: the honest specific gap — the bounded adapter and
+			// the route form are built; the LIVE route and the model
+			// credentials stay behind AG-4, and the first production route
+			// arrives with the caller of Story 8.4.
+			out = append(out, RuntimeComponentState{
+				Component: spec.Component, Present: false,
+				Owner: spec.Owner, Responsible: spec.Responsible,
+				Note: "Форма маршрута модели и ограниченный адаптер построены (Story 8.2); живой маршрут и model-credentials — за AG-4; первый продакшн-маршрут — с вызывателем Story 8.4.",
+			})
+		default:
+			out = append(out, RuntimeComponentState{
+				Component: spec.Component, Present: false,
+				Owner: spec.Owner, Responsible: spec.Responsible,
+				Note: "Поверхность компонента ещё не существует в системе: зафиксирован как явный gap; ответственный — " + spec.Responsible + ".",
+			})
 		}
-		out = append(out, RuntimeComponentState{
-			Component: spec.Component, Present: false,
-			Owner: spec.Owner, Responsible: spec.Responsible,
-			Note: "Поверхность компонента ещё не существует в системе: зафиксирован как явный gap; ответственный — " + spec.Responsible + ".",
-		})
 	}
 	return out
 }

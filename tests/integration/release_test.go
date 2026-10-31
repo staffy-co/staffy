@@ -202,9 +202,24 @@ func TestReleaseVersionFlowHonestImmutable(t *testing.T) {
 	if len(manifest.Content.Runtime) != 8 {
 		t.Fatalf("runtime components = %d", len(manifest.Content.Runtime))
 	}
+	// Story 8-2: prompt_assembly and runtime_build are honestly present
+	// with the platform version words; the manifest stays incomplete —
+	// the live route, the policy bundle, the eval set and the autonomy
+	// envelope remain honest gaps.
+	present := map[string]bool{}
 	for _, component := range manifest.Content.Runtime {
 		if component.Present {
-			t.Fatalf("runtime component %q claimed present", component.Component)
+			present[component.Component] = true
+		}
+	}
+	for _, required := range []string{"prompt_assembly", "runtime_build"} {
+		if !present[required] {
+			t.Fatalf("runtime component %q must be present since Story 8-2", required)
+		}
+	}
+	for _, stillGap := range []string{"model_route", "policy_bundle", "eval_set", "autonomy_envelope"} {
+		if present[stillGap] {
+			t.Fatalf("runtime component %q must stay an honest gap in this slice", stillGap)
 		}
 	}
 

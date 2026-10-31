@@ -402,7 +402,7 @@ func TestPlannerBoundedBudgetsFailTurnsHonestlyOverPostgres(t *testing.T) {
 
 func TestPlannerTurnLedgerPre82HistoryReadsAsHonestNULL(t *testing.T) {
 	ctx := context.Background()
-	fixture := newPlannerFixture(t, modelscripted.OutcomeValid, "f0")
+	fixture := newPlannerFixture(t, modelscripted.OutcomeValid, "fd")
 	turn := id.MustParse("01994f64-6c00-7000-8000-000000008b09")
 
 	// A pre-8-2 record: inserted through the ADMIN pool directly with
