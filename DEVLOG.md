@@ -6463,4 +6463,4 @@ done:
 - Дифф ветки от main: 8 коммитов, 18 файлов (+~1300 строк): 6 исходников planner + 5 тестов planner + 2 modelbounded + 2 modelscripted + 1 миграция + 1 стор + 3 integration + 1 TestMain + 3 employee domain + 1 transport + 1 drift + 1 journey + 2 артефакта + DEVLOG
 next: PR story 8-2 → sha-pinned merge → ветка удалена ×3 → TBD-fill этой записи на main; следующая единица — SM-фаза story 8-3 «Tool-раунды над реестром 7.2 и внешним словарём 7.4» ПО СИГНАЛУ ВЛАДЕЛЬЦА (epic-8 in-progress 2/6)
 владельцу: (1) отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API-зонды сессии; передан открытым текстом в чате); (2) опционально: выплата gofmt-долга 14 legacy-файлов + регенерация graphify-графа при наличии CLI (унаследовано из 322)
-commit: TBD
+commit: 75437db51a3d2b558d10e6cea46236eb08974a4e
