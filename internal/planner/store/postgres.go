@@ -57,8 +57,11 @@ func (s *Postgres) Record(ctx context.Context, scope tenancy.Context, record pla
 	defer func() { _ = tx.Rollback(ctx) }()
 	// The absent material is NULL (the honest SQL shape of absence):
 	// a validated turn carries no refusal cause and no fallback form,
-	// and the CHECK dictionaries evaluate NULL as absent.
-	var proposal, refusalReason, fallbackForm any
+	// and the CHECK dictionaries evaluate NULL as absent. The 8-2
+	// provenance columns ride the same discipline: a record without the
+	// assembly version or the budgets (the pre-8-2 history) is NULL,
+	// never an empty string.
+	var proposal, refusalReason, fallbackForm, assemblyVersion, budgets any
 	if len(record.Proposal) > 0 {
 		proposal = record.Proposal
 	}
@@ -68,12 +71,20 @@ func (s *Postgres) Record(ctx context.Context, scope tenancy.Context, record pla
 	if record.FallbackForm != "" {
 		fallbackForm = record.FallbackForm
 	}
+	if record.AssemblyVersion != "" {
+		assemblyVersion = record.AssemblyVersion
+	}
+	if len(record.Budgets) > 0 {
+		budgets = record.Budgets
+	}
 	_, err = tx.Exec(ctx, `insert into planner.turns (
-		tenant_id, turn_id, case_id, conversation_id, work_item_id, employee_id,
-		outcome, refusal_reason, fallback_form, schema_version, build, proposal, created_at
-	) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+                tenant_id, turn_id, case_id, conversation_id, work_item_id, employee_id,
+                outcome, refusal_reason, fallback_form, schema_version, build,
+                assembly_version, budgets, proposal, created_at
+        ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
 		record.TenantID, record.TurnID, record.CaseID, record.ConversationID, record.WorkItemID, record.EmployeeID,
-		record.Outcome, refusalReason, fallbackForm, record.SchemaVersion, record.Build, proposal, record.CreatedAt)
+		record.Outcome, refusalReason, fallbackForm, record.SchemaVersion, record.Build,
+		assemblyVersion, budgets, proposal, record.CreatedAt)
 	if err != nil {
 		if isUniqueViolation(err) {
 			return planner.ErrTurnConflict
@@ -93,13 +104,13 @@ func (s *Postgres) Turn(ctx context.Context, scope tenancy.Context, turnID id.UU
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	var record planner.TurnRecord
-	var refusalReason, fallbackForm *string
-	var proposal []byte
+	var refusalReason, fallbackForm, assemblyVersion *string
+	var proposal, budgets []byte
 	err = tx.QueryRow(ctx, `select tenant_id, turn_id, case_id, conversation_id, work_item_id, employee_id,
-		outcome, refusal_reason, fallback_form, schema_version, build, proposal, created_at
-		from planner.turns where tenant_id=$1 and turn_id=$2`, scope.TenantID(), turnID).
+                outcome, refusal_reason, fallback_form, schema_version, build, assembly_version, budgets, proposal, created_at
+                from planner.turns where tenant_id=$1 and turn_id=$2`, scope.TenantID(), turnID).
 		Scan(&record.TenantID, &record.TurnID, &record.CaseID, &record.ConversationID, &record.WorkItemID, &record.EmployeeID,
-			&record.Outcome, &refusalReason, &fallbackForm, &record.SchemaVersion, &record.Build, &proposal, &record.CreatedAt)
+			&record.Outcome, &refusalReason, &fallbackForm, &record.SchemaVersion, &record.Build, &assemblyVersion, &budgets, &proposal, &record.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return planner.TurnRecord{}, planner.ErrTurnNotFound
 	}
@@ -112,6 +123,10 @@ func (s *Postgres) Turn(ctx context.Context, scope tenancy.Context, turnID id.UU
 	if fallbackForm != nil {
 		record.FallbackForm = *fallbackForm
 	}
+	if assemblyVersion != nil {
+		record.AssemblyVersion = *assemblyVersion
+	}
+	record.Budgets = budgets
 	record.Proposal = proposal
 	return record, tx.Commit(ctx)
 }
