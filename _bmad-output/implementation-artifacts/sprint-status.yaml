@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-16-2026 16:47
-last_updated: 10-28-2026
+last_updated: 10-31-2026
 project: staffy
 project_key: NOKEY
 tracking_system: file-system
@@ -140,6 +140,12 @@ development_status:
   epic-7-retrospective: optional
 
   epic-8: backlog
+  8-1-контракт-хода-turn-context-turn-proposal: backlog
+  8-2-модельный-адаптер-бюджеты-раундов-времени-стоимости: backlog
+  8-3-tool-раунды-над-реестром-tools-и-внешним-словарём: backlog
+  8-4-интеграция-с-commitment-confirmation-action-proposal: backlog
+  8-5-разговорные-eval-runtime: backlog
+  8-6-observability-планировщика: backlog
   epic-8-retrospective: optional
 
   epic-9: backlog
