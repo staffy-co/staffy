@@ -36,6 +36,21 @@ const ProposalSchemaVersion = 1
 // the cases domain, MaxExternalCommitmentContentRunes).
 const ReplyBudgetRunes = 2000
 
+// AssemblyVersion is the version word of the round-material assembly
+// form (Story 8-2): the prompt assembly is versioned platform code,
+// and every turn record carries the word that produced its rounds —
+// the same discipline as the machine Build (a word change means the
+// records of the new word carry the new word; the prior records stay
+// as they are, append-only, AD-10).
+const AssemblyVersion = "assembly/1.0.0"
+
+// RuntimeBuildRef is the composite runtime identity word the Release
+// Manifest pins as runtime_build (AR-17): the machine Build and the
+// assembly version together — coherently with what a turn record
+// carries (Build + AssemblyVersion). The word is platform-clean: two
+// version identities joined by '+'.
+const RuntimeBuildRef = Build + "+" + AssemblyVersion
+
 // The intent dictionary of the slice: the communicative move the
 // proposal declares as its dominant intent. The union kind of the
 // proposed action carries the commitment/action/handoff axis; the
