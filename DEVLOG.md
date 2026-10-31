@@ -6344,3 +6344,21 @@ done:
 next: epic-7-retrospective (optional-слот) или Epic 8 — ПО СИГНАЛУ ВЛАДЕЛЬЦА (сигнал на старт не получен)
 владельцу: (1) отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — fetch/API/re-run зонды сессии; передан открытым текстом в чате); (2) опционально: переезд go.mod module path на github.com/staffy-co/staffy отдельным шагом (566 файлов, отложено осознанно)
 commit: 10359e1b7775f38f694b70683122fc614d2226fd
+
+---
+
+task: 322-infra-module-path-rename
+role: main (Super Z, сессия web-d497a728)
+story: infra (не-BMAD) — переезд module path по прямому сигналу владельца «проведите переезд»
+summary: Переезд go.mod module path github.com/artemiosu/staffy → github.com/staffy-co/staffy (deferred-work из 321 исполнен сигналом) — PR #58 sha-pinned merge (merge-коммит 1add6f766f06f65a65c6970dc3c35e8f8be421a5, голова 3556680da7d91d382842358142450604f8480235), CI ×4 поимённо зелёные: ×3 на ветке (push 41204885929 на 62e629c9 + push 41205556569 + pull_request 41205566274 на 3556680) + main-ран 41206227083 на merge-коммите 1add6f7 — completed/success (публичное репо: Actions-минуты свободны, полный прогон); дисциплина правил 56/57 AGENTS.md: .go-файлы вне whitelist прямого пуша → полный PR-цикл; не story-BMAD — спеки/sprint-status не тронуты
+done:
+- Объём переезда: go.mod module-строка + 528 .go (все внутренние импорты) + 6 qa_step05-сканеров (матчат module path исходников) = 535 файлов sed-заменой БЕЗ reformat — churn-нулевая (plain == ignore-all-space == 4558 строк диффа); residual-зонд: 0 вхождений старого path вне DEVLOG/_bmad-output/graphify-out (история append-only и производный граф не переписываются)
+- Коммиты ветки: a82fc46 refactor(module) чистый sed-переезд; 62e629c style(module) gofmt-выплата долга 120 тронутых файлов (re-sort импортов после artemiosu→staffy-co = 254 контентных строки + канонизация legacy-форматирования по правилу урока 319); 14 файлов вне скоупа переезда (offers/entitlement/privacy/tools domain) долг сохраняют — известный долг отдельным шагом по сигналу; 3556680 chore(pr) PR-скрипт БЕЗ маркера — активатор ранов (урок 282)
+- УРОК диагностики gofmt-чурна: после sed gofmt -l затребовал 134 файла; базлайн-зонд `git show HEAD:файл | gofmt -l` вскрыл PRE-EXISTING formatting debt (cases_view.go +2533/−2533 и др. не были gofmt-чистыми ДО переезда) — наивный gofmt -w подмешал бы 28К строк чужого долга в дифф переезда (549 файлов); фикс = сброс дерева и разделение на 2 честных коммита (переезд / выплата долга только тронутых файлов по пересечению списков)
+- УРОК окружения journeys: первый прогон упал browserType.launch «Executable doesn't exist» (~/.cache/ms-playwright снесён ресайклом песочницы; go-сервер стартовал, сборка/юнит/интеграция зелёные — падение НЕ кодовое) → npx playwright install chromium (114.3 MiB) → 57/57; диагноз по полному логу в файл, не по обрезанному tail
+- Регресс живым PG: build OK; vet OK; unit-суит зелёный (пакеты печатаются уже как github.com/staffy-co/staffy/…); интеграция ×2 TZ (UTC 68.2s / Moscow 68.5s); journeys 57/57 серийно 3.6m; gofmt 0 в скоупе
+- PR #58 (head 3556680 sha-pin в теле, base main bf7db69, 536 файлов +24380/−24309): mergeable True живым GET; sha-pinned merge PUT (урок 312) → merged=True живым GET, merge-коммит 1add6f7; деревья merge ≡ ветка (git diff пуст — main не двигался с bf7db69); main ff-only локально; ВЕТКА УДАЛЕНА ×3 (compare ahead_by=0 → DELETE ref 204 + git branch -d was 3556680 + prune; ls-remote: ТОЛЬКО main @ 1add6f7 — гигиена владельца действует)
+- graphify-out/graph.json + снапшоты дат — производные артефакты со старыми путями нод; graphify CLI в песочнице отсутствует — регенерация `graphify update .` отложена до наличия тулзы (AGENTS.md graphify-секция: AST-only, без API-стоимости); go.sum не затронут (module path главного модуля не влияет на require-блоки)
+next: epic-7-retrospective (optional-слот) или Epic 8 — ПО СИГНАЛУ ВЛАДЕЛЬЦА
+владельцу: (1) отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API/merge-зонды сессии; передан открытым текстом в чате); (2) опционально: выплата gofmt-долга 14 файлов вне скоупа + регенерация graphify-графа при наличии CLI
+commit: TBD
