@@ -140,7 +140,7 @@ development_status:
   epic-7-retrospective: optional
 
   epic-8: in-progress
-  8-1-контракт-хода-turn-context-turn-proposal: ready-for-dev
+  8-1-контракт-хода-turn-context-turn-proposal: done
   8-2-модельный-адаптер-бюджеты-раундов-времени-стоимости: backlog
   8-3-tool-раунды-над-реестром-tools-и-внешним-словарём: backlog
   8-4-интеграция-с-commitment-confirmation-action-proposal: backlog
