@@ -61,7 +61,7 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 	if os.Getenv("STAFFY_TEST_DATABASE_URL") != "" {
-		if _, err = adminPool.Exec(ctx, "drop schema if exists employee cascade; drop schema if exists identity cascade; drop schema if exists connector cascade; drop schema if exists privacy cascade; drop schema if exists entitlement cascade; drop schema if exists cases cascade; drop schema if exists control cascade; drop schema if exists action cascade; drop role if exists staffy_app"); err != nil {
+		if _, err = adminPool.Exec(ctx, "drop schema if exists employee cascade; drop schema if exists identity cascade; drop schema if exists connector cascade; drop schema if exists privacy cascade; drop schema if exists entitlement cascade; drop schema if exists cases cascade; drop schema if exists control cascade; drop schema if exists action cascade; drop schema if exists planner cascade; drop role if exists staffy_app"); err != nil {
 			panic(err)
 		}
 	}
@@ -549,6 +549,16 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 	if _, err = adminPool.Exec(ctx, strings.Split(string(actionOrderServicingRequestsMigration), "-- +goose Down")[0]); err != nil {
+		panic(err)
+	}
+	// Story 8-1: the planner turn ledger — the append-only journal of
+	// the turn contract (tenant RLS/FORCE; the runtime role holds
+	// SELECT and INSERT only).
+	plannerTurnLedgerMigration, err := os.ReadFile("../../migrations/planner/00001_turn_ledger.sql")
+	if err != nil {
+		panic(err)
+	}
+	if _, err = adminPool.Exec(ctx, strings.Split(string(plannerTurnLedgerMigration), "-- +goose Down")[0]); err != nil {
 		panic(err)
 	}
 	if _, err = adminPool.Exec(ctx, "alter role staffy_app login password 'staffy-runtime-test'"); err != nil {

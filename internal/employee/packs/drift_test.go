@@ -98,7 +98,14 @@ func TestVerticalWordsAbsentFromCore(t *testing.T) {
 				// words of the fixture world (the tool names of the
 				// scripted server) never enter them, the projection and
 				// the wire dictionaries stay the only language.
-				case "domain", "app", "port", "store", "tools", "mcp", "mcpclient", "externaltools":
+				// The Story 8-1 zones: internal/planner (the turn-contract
+				// machine — the platform dictionaries of the slice carry
+				// only platform words) and internal/adapters/modelscripted
+				// (the scripted model adapter — the honest synthetic
+				// material of the production code, vertically clean) walk
+				// with the same zero. The planner/store subdir rides the
+				// existing "store" zone word.
+				case "domain", "app", "port", "store", "tools", "mcp", "mcpclient", "externaltools", "planner", "modelscripted":
 				default:
 					return nil
 				}
