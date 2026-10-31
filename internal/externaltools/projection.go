@@ -16,7 +16,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/artemiosu/staffy/internal/tools"
+	"github.com/staffy-co/staffy/internal/tools"
 )
 
 // The typed words of the platform typing dictionary (the mirror of the

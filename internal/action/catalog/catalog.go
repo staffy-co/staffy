@@ -1,7 +1,7 @@
 package catalog
 
 import (
-	"github.com/artemiosu/staffy/internal/action/domain"
+	"github.com/staffy-co/staffy/internal/action/domain"
 )
 
 // definitions is the immutable binary catalog of Authorized Business Actions.

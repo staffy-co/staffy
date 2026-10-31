@@ -11,12 +11,12 @@ import (
 	"testing"
 	"time"
 
-	identityAPI "github.com/artemiosu/staffy/internal/identity/api"
-	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
+	identityAPI "github.com/staffy-co/staffy/internal/identity/api"
+	identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
 
-	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
-	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
+	casesAPI "github.com/staffy-co/staffy/internal/cases/api"
+	casesDomain "github.com/staffy-co/staffy/internal/cases/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // ownershipNow is the command clock of the Story 2.4 tests (the release

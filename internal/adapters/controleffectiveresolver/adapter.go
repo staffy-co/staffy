@@ -4,10 +4,10 @@ import (
 	"context"
 	"time"
 
-	casesPort "github.com/artemiosu/staffy/internal/cases/port"
-	controlDomain "github.com/artemiosu/staffy/internal/control/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
-	"github.com/artemiosu/staffy/internal/platform/tenancy"
+	casesPort "github.com/staffy-co/staffy/internal/cases/port"
+	controlDomain "github.com/staffy-co/staffy/internal/control/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 // Clock is the read-time clock of the effective computation (the window

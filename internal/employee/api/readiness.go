@@ -3,9 +3,9 @@ package api
 import (
         "context"
 
-        "github.com/artemiosu/staffy/internal/employee/domain"
-        identity "github.com/artemiosu/staffy/internal/identity/domain"
-        "github.com/artemiosu/staffy/internal/platform/id"
+        "github.com/staffy-co/staffy/internal/employee/domain"
+        identity "github.com/staffy-co/staffy/internal/identity/domain"
+        "github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // Readiness scope levels: managing the test & release surface (gate

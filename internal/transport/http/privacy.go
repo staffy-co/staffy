@@ -9,11 +9,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/correlation"
-	"github.com/artemiosu/staffy/internal/platform/id"
-	privacyAPI "github.com/artemiosu/staffy/internal/privacy/api"
-	privacyDomain "github.com/artemiosu/staffy/internal/privacy/domain"
+	"github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/correlation"
+	"github.com/staffy-co/staffy/internal/platform/id"
+	privacyAPI "github.com/staffy-co/staffy/internal/privacy/api"
+	privacyDomain "github.com/staffy-co/staffy/internal/privacy/domain"
 )
 
 func (s *Server) privacyService() privacyAPI.Service { return s.privacy }

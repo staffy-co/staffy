@@ -3,8 +3,8 @@ package port
 import (
 	"context"
 
-	"github.com/artemiosu/staffy/internal/platform/id"
-	"github.com/artemiosu/staffy/internal/platform/tenancy"
+	"github.com/staffy-co/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 // Story 4.6: the consumer-owned order version port. The dispatch ladder

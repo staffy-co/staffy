@@ -9,12 +9,12 @@ import (
 	"testing"
 	"time"
 
-	actionApp "github.com/artemiosu/staffy/internal/action/app"
-	actionDomain "github.com/artemiosu/staffy/internal/action/domain"
-	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
-	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
-	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
+	actionApp "github.com/staffy-co/staffy/internal/action/app"
+	actionDomain "github.com/staffy-co/staffy/internal/action/domain"
+	casesAPI "github.com/staffy-co/staffy/internal/cases/api"
+	casesDomain "github.com/staffy-co/staffy/internal/cases/domain"
+	identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // ---------------------------------------------------------------------------

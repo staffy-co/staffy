@@ -8,13 +8,13 @@ import (
         "testing"
         "time"
 
-        identityAPI "github.com/artemiosu/staffy/internal/identity/api"
-        identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-        "github.com/artemiosu/staffy/internal/platform/id"
-        "github.com/artemiosu/staffy/internal/platform/tenancy"
-        privacyAPI "github.com/artemiosu/staffy/internal/privacy/api"
-        privacyDomain "github.com/artemiosu/staffy/internal/privacy/domain"
-        "github.com/artemiosu/staffy/internal/privacy/port"
+        identityAPI "github.com/staffy-co/staffy/internal/identity/api"
+        identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
+        "github.com/staffy-co/staffy/internal/platform/id"
+        "github.com/staffy-co/staffy/internal/platform/tenancy"
+        privacyAPI "github.com/staffy-co/staffy/internal/privacy/api"
+        privacyDomain "github.com/staffy-co/staffy/internal/privacy/domain"
+        "github.com/staffy-co/staffy/internal/privacy/port"
 )
 
 type fixedClock struct{ now time.Time }

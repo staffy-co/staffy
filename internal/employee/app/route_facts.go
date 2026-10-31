@@ -5,14 +5,14 @@ import (
         "errors"
         "fmt"
 
-        casesPort "github.com/artemiosu/staffy/internal/cases/port"
-        "github.com/artemiosu/staffy/internal/employee/api"
-        "github.com/artemiosu/staffy/internal/employee/domain"
-        "github.com/artemiosu/staffy/internal/employee/packs"
-        employeePort "github.com/artemiosu/staffy/internal/employee/port"
-        entitlementDomain "github.com/artemiosu/staffy/internal/entitlement/domain"
-        "github.com/artemiosu/staffy/internal/platform/id"
-        "github.com/artemiosu/staffy/internal/platform/tenancy"
+        casesPort "github.com/staffy-co/staffy/internal/cases/port"
+        "github.com/staffy-co/staffy/internal/employee/api"
+        "github.com/staffy-co/staffy/internal/employee/domain"
+        "github.com/staffy-co/staffy/internal/employee/packs"
+        employeePort "github.com/staffy-co/staffy/internal/employee/port"
+        entitlementDomain "github.com/staffy-co/staffy/internal/entitlement/domain"
+        "github.com/staffy-co/staffy/internal/platform/id"
+        "github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 // EntitlementAdmissionFacts is the narrow caller-authority entitlement

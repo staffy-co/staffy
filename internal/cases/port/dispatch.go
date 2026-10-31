@@ -3,9 +3,9 @@ package port
 import (
 	"context"
 
-	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
-	"github.com/artemiosu/staffy/internal/platform/tenancy"
+	casesDomain "github.com/staffy-co/staffy/internal/cases/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 // ---------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 package packs
 
-import "github.com/artemiosu/staffy/internal/employee/domain"
+import "github.com/staffy-co/staffy/internal/employee/domain"
 
 // The catalog serves the published Domain Pack manifests from the artifact
 // registry (Story 7-1): JSON artifacts pinned by sha256 in the append-only

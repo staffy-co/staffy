@@ -10,14 +10,14 @@ import (
 	"testing"
 	"time"
 
-	actionAPI "github.com/artemiosu/staffy/internal/action/api"
-	actionApp "github.com/artemiosu/staffy/internal/action/app"
-	actionDomain "github.com/artemiosu/staffy/internal/action/domain"
-	actionStore "github.com/artemiosu/staffy/internal/action/store"
-	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
-	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
-	"github.com/artemiosu/staffy/internal/platform/tenancy"
+	actionAPI "github.com/staffy-co/staffy/internal/action/api"
+	actionApp "github.com/staffy-co/staffy/internal/action/app"
+	actionDomain "github.com/staffy-co/staffy/internal/action/domain"
+	actionStore "github.com/staffy-co/staffy/internal/action/store"
+	casesAPI "github.com/staffy-co/staffy/internal/cases/api"
+	identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 // ---------------------------------------------------------------------------

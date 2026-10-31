@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/control/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
-	"github.com/artemiosu/staffy/internal/platform/tenancy"
+	"github.com/staffy-co/staffy/internal/control/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 // The consumer-owned ports of the control module (step-02 of story 3-2).

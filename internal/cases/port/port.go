@@ -4,12 +4,12 @@ import (
         "context"
         "time"
 
-        casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
-        connectorAPI "github.com/artemiosu/staffy/internal/connector/api"
-        employeeAPI "github.com/artemiosu/staffy/internal/employee/api"
-        identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-        "github.com/artemiosu/staffy/internal/platform/id"
-        "github.com/artemiosu/staffy/internal/platform/tenancy"
+        casesDomain "github.com/staffy-co/staffy/internal/cases/domain"
+        connectorAPI "github.com/staffy-co/staffy/internal/connector/api"
+        employeeAPI "github.com/staffy-co/staffy/internal/employee/api"
+        identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
+        "github.com/staffy-co/staffy/internal/platform/id"
+        "github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 // SourceVerifier verifies the origin of an ingress delivery before any

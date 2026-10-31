@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // The Story 2.9 unit matrix: the dictionaries, the MaterialTerms v1

@@ -6,11 +6,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/artemiosu/staffy/internal/action/api"
-	"github.com/artemiosu/staffy/internal/action/domain"
-	"github.com/artemiosu/staffy/internal/action/port"
-	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/action/api"
+	"github.com/staffy-co/staffy/internal/action/domain"
+	"github.com/staffy-co/staffy/internal/action/port"
+	identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // The 3.9 step-02 unit matrix of the recovery action policy read — the

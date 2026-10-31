@@ -5,14 +5,14 @@ import (
 	"encoding/json"
 	"time"
 
-	connectorDomain "github.com/artemiosu/staffy/internal/connector/domain"
-	employeeAPI "github.com/artemiosu/staffy/internal/employee/api"
-	employeeDomain "github.com/artemiosu/staffy/internal/employee/domain"
-	"github.com/artemiosu/staffy/internal/employee/packs"
-	"github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
-	"github.com/artemiosu/staffy/internal/platform/tenancy"
-	"github.com/artemiosu/staffy/internal/tools"
+	connectorDomain "github.com/staffy-co/staffy/internal/connector/domain"
+	employeeAPI "github.com/staffy-co/staffy/internal/employee/api"
+	employeeDomain "github.com/staffy-co/staffy/internal/employee/domain"
+	"github.com/staffy-co/staffy/internal/employee/packs"
+	"github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/tenancy"
+	"github.com/staffy-co/staffy/internal/tools"
 )
 
 // releaseFixture is the in-memory release surface of the journey server:

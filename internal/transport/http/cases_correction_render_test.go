@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
+	casesDomain "github.com/staffy-co/staffy/internal/cases/domain"
 )
 
 // The Story 2.15 render smoke tests of the correction surface: the

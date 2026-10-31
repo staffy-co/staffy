@@ -7,10 +7,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/artemiosu/staffy/internal/employee/api"
-	"github.com/artemiosu/staffy/internal/employee/domain"
-	"github.com/artemiosu/staffy/internal/employee/ingest"
-	"github.com/artemiosu/staffy/internal/platform/correlation"
+	"github.com/staffy-co/staffy/internal/employee/api"
+	"github.com/staffy-co/staffy/internal/employee/domain"
+	"github.com/staffy-co/staffy/internal/employee/ingest"
+	"github.com/staffy-co/staffy/internal/platform/correlation"
 )
 
 func (s *Server) ingestKnowledgeAPI(w http.ResponseWriter, r *http.Request) {

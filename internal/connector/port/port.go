@@ -4,9 +4,9 @@ import (
         "context"
         "time"
 
-        connectorDomain "github.com/artemiosu/staffy/internal/connector/domain"
-        "github.com/artemiosu/staffy/internal/platform/id"
-        "github.com/artemiosu/staffy/internal/platform/tenancy"
+        connectorDomain "github.com/staffy-co/staffy/internal/connector/domain"
+        "github.com/staffy-co/staffy/internal/platform/id"
+        "github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 type CreateParams struct {

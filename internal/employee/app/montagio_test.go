@@ -8,12 +8,12 @@ import (
 	"testing"
 	"time"
 
-	connectorAPI "github.com/artemiosu/staffy/internal/connector/api"
-	connectorDomain "github.com/artemiosu/staffy/internal/connector/domain"
-	"github.com/artemiosu/staffy/internal/employee/api"
-	"github.com/artemiosu/staffy/internal/employee/domain"
-	"github.com/artemiosu/staffy/internal/employee/port"
-	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
+	connectorAPI "github.com/staffy-co/staffy/internal/connector/api"
+	connectorDomain "github.com/staffy-co/staffy/internal/connector/domain"
+	"github.com/staffy-co/staffy/internal/employee/api"
+	"github.com/staffy-co/staffy/internal/employee/domain"
+	"github.com/staffy-co/staffy/internal/employee/port"
+	identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
 )
 
 // TestMontagioAdmissionPerformsNoWrites pins the honesty core of spec 5-1:

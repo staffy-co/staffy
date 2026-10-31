@@ -5,9 +5,9 @@ import (
         "encoding/json"
         "errors"
 
-        entitlementDomain "github.com/artemiosu/staffy/internal/entitlement/domain"
-        "github.com/artemiosu/staffy/internal/entitlement/port"
-        "github.com/artemiosu/staffy/internal/platform/tenancy"
+        entitlementDomain "github.com/staffy-co/staffy/internal/entitlement/domain"
+        "github.com/staffy-co/staffy/internal/entitlement/port"
+        "github.com/staffy-co/staffy/internal/platform/tenancy"
         "github.com/jackc/pgx/v5"
         "github.com/jackc/pgx/v5/pgxpool"
 )

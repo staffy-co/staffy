@@ -4,9 +4,9 @@ import (
         "context"
         "time"
 
-        "github.com/artemiosu/staffy/internal/identity/domain"
-        "github.com/artemiosu/staffy/internal/platform/id"
-        entitlementDomain "github.com/artemiosu/staffy/internal/entitlement/domain"
+        "github.com/staffy-co/staffy/internal/identity/domain"
+        "github.com/staffy-co/staffy/internal/platform/id"
+        entitlementDomain "github.com/staffy-co/staffy/internal/entitlement/domain"
 )
 
 // Clock and IDGenerator follow the module conventions of identity/connector.

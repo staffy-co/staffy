@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	employeeAPI "github.com/artemiosu/staffy/internal/employee/api"
-	employeeDomain "github.com/artemiosu/staffy/internal/employee/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
+	employeeAPI "github.com/staffy-co/staffy/internal/employee/api"
+	employeeDomain "github.com/staffy-co/staffy/internal/employee/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // pilotPath builds the machine pilot admission path of the fixture tenant.

@@ -6,16 +6,16 @@ import (
         "sync"
         "time"
 
-        actionAPI "github.com/artemiosu/staffy/internal/action/api"
-        actionApp "github.com/artemiosu/staffy/internal/action/app"
-        actionDomain "github.com/artemiosu/staffy/internal/action/domain"
-        "github.com/artemiosu/staffy/internal/adapters/actiondispatcher"
-        casesAPI "github.com/artemiosu/staffy/internal/cases/api"
-        casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
-        entitlementAPI "github.com/artemiosu/staffy/internal/entitlement/api"
-        entitlementDomain "github.com/artemiosu/staffy/internal/entitlement/domain"
-        identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-        "github.com/artemiosu/staffy/internal/platform/id"
+        actionAPI "github.com/staffy-co/staffy/internal/action/api"
+        actionApp "github.com/staffy-co/staffy/internal/action/app"
+        actionDomain "github.com/staffy-co/staffy/internal/action/domain"
+        "github.com/staffy-co/staffy/internal/adapters/actiondispatcher"
+        casesAPI "github.com/staffy-co/staffy/internal/cases/api"
+        casesDomain "github.com/staffy-co/staffy/internal/cases/domain"
+        entitlementAPI "github.com/staffy-co/staffy/internal/entitlement/api"
+        entitlementDomain "github.com/staffy-co/staffy/internal/entitlement/domain"
+        identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
+        "github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // Story 4.11 (step-04): the pilot outcome contour of the journeys world

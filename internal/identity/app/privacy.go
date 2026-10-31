@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/platform/tenancy"
-	privacyDomain "github.com/artemiosu/staffy/internal/privacy/domain"
-	privacyPort "github.com/artemiosu/staffy/internal/privacy/port"
+	"github.com/staffy-co/staffy/internal/platform/tenancy"
+	privacyDomain "github.com/staffy-co/staffy/internal/privacy/domain"
+	privacyPort "github.com/staffy-co/staffy/internal/privacy/port"
 )
 
 // identityPurgeRepository is the narrow store capability the identity privacy

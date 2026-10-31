@@ -6,10 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/artemiosu/staffy/internal/action/domain"
-	identityAPI "github.com/artemiosu/staffy/internal/identity/api"
-	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/action/domain"
+	identityAPI "github.com/staffy-co/staffy/internal/identity/api"
+	identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 var (

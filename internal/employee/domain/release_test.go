@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 var releaseClock = time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)

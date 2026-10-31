@@ -135,7 +135,7 @@ for word in ['лучший', 'выгодн', 'скидк', 'акци', 'самы
 # идентификаторы).
 imports = re.findall(r'"github\.com/artemiosu/staffy/[^"]+"', domain_go)
 allowed = {
-    '"github.com/artemiosu/staffy/internal/platform/id"',
+    '"github.com/staffy-co/staffy/internal/platform/id"',
 }
 for imp in imports:
     if imp not in allowed:

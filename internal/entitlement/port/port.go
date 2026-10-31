@@ -4,8 +4,8 @@ import (
         "context"
         "time"
 
-        entitlementDomain "github.com/artemiosu/staffy/internal/entitlement/domain"
-        "github.com/artemiosu/staffy/internal/platform/tenancy"
+        entitlementDomain "github.com/staffy-co/staffy/internal/entitlement/domain"
+        "github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 // TermsParams carries one append-only terms version.

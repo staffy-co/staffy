@@ -6,12 +6,12 @@ import (
 	"strings"
 	"time"
 
-	actionAPI "github.com/artemiosu/staffy/internal/action/api"
-	actionDomain "github.com/artemiosu/staffy/internal/action/domain"
-	actionPort "github.com/artemiosu/staffy/internal/action/port"
-	"github.com/artemiosu/staffy/internal/adapters/reconciliationsyn"
-	"github.com/artemiosu/staffy/internal/platform/id"
-	"github.com/artemiosu/staffy/internal/platform/tenancy"
+	actionAPI "github.com/staffy-co/staffy/internal/action/api"
+	actionDomain "github.com/staffy-co/staffy/internal/action/domain"
+	actionPort "github.com/staffy-co/staffy/internal/action/port"
+	"github.com/staffy-co/staffy/internal/adapters/reconciliationsyn"
+	"github.com/staffy-co/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 // The Story 3.7 (step-03) fixture: the reconciliation contour over the

@@ -8,13 +8,13 @@ import (
         "testing"
         "time"
 
-        "github.com/artemiosu/staffy/internal/connector/api"
-        connectorDomain "github.com/artemiosu/staffy/internal/connector/domain"
-        "github.com/artemiosu/staffy/internal/connector/port"
-        identityAPI "github.com/artemiosu/staffy/internal/identity/api"
-        identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-        "github.com/artemiosu/staffy/internal/platform/id"
-        "github.com/artemiosu/staffy/internal/platform/tenancy"
+        "github.com/staffy-co/staffy/internal/connector/api"
+        connectorDomain "github.com/staffy-co/staffy/internal/connector/domain"
+        "github.com/staffy-co/staffy/internal/connector/port"
+        identityAPI "github.com/staffy-co/staffy/internal/identity/api"
+        identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
+        "github.com/staffy-co/staffy/internal/platform/id"
+        "github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 var (

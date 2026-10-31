@@ -11,8 +11,8 @@ import (
 	"context"
 	"fmt"
 
-	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
-	casesPort "github.com/artemiosu/staffy/internal/cases/port"
+	casesDomain "github.com/staffy-co/staffy/internal/cases/domain"
+	casesPort "github.com/staffy-co/staffy/internal/cases/port"
 )
 
 // Verifier implements the cases IdentityVerifier port. The synthetic

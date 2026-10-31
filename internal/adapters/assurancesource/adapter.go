@@ -3,10 +3,10 @@ package assurancesource
 import (
 	"context"
 
-	actionPort "github.com/artemiosu/staffy/internal/action/port"
-	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
-	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
+	actionPort "github.com/staffy-co/staffy/internal/action/port"
+	casesAPI "github.com/staffy-co/staffy/internal/cases/api"
+	identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // The Story 4.10 composition-root adapter over the cases API: the

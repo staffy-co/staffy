@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	connectorDomain "github.com/artemiosu/staffy/internal/connector/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
+	connectorDomain "github.com/staffy-co/staffy/internal/connector/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 const inventoryJSON = "\nИнвентарь: " + `{"server":{"name":"fixture-external","version":"1.0.0"},"tools":[{"name":"parts.lookup","title":"Поиск детали","description":"Читает каталог","readOnlyHint":true,"inputSchema":{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]},"outputSchema":{"type":"object","properties":{"found":{"type":"boolean"}},"required":["found"]}},{"name":"parts.mutate","title":"Мутация","description":"Меняет каталог","readOnlyHint":false,"inputSchema":{"type":"object","properties":{"x":{"type":"string"}}},"outputSchema":{"type":"object"}},{"name":"parts.search","title":"Поиск с дробью","description":"Число с дробью","readOnlyHint":true,"inputSchema":{"type":"object","properties":{"ratio":{"type":"number"}}},"outputSchema":{"type":"object"}}]}`

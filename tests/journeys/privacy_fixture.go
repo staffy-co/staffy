@@ -5,10 +5,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
-	privacyAPI "github.com/artemiosu/staffy/internal/privacy/api"
-	privacyDomain "github.com/artemiosu/staffy/internal/privacy/domain"
+	"github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
+	privacyAPI "github.com/staffy-co/staffy/internal/privacy/api"
+	privacyDomain "github.com/staffy-co/staffy/internal/privacy/domain"
 )
 
 // privacyFixture is the in-memory data perimeter for the journey server: the

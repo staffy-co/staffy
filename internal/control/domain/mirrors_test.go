@@ -4,9 +4,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/artemiosu/staffy/internal/action/domain"
-	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
-	controldomain "github.com/artemiosu/staffy/internal/control/domain"
+	"github.com/staffy-co/staffy/internal/action/domain"
+	casesDomain "github.com/staffy-co/staffy/internal/cases/domain"
+	controldomain "github.com/staffy-co/staffy/internal/control/domain"
 )
 
 // The mirror contract of the control domain: the dictionaries that mirror

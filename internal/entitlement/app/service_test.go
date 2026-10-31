@@ -6,13 +6,13 @@ import (
         "testing"
         "time"
 
-        identityAPI "github.com/artemiosu/staffy/internal/identity/api"
-        identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-        "github.com/artemiosu/staffy/internal/platform/id"
-        "github.com/artemiosu/staffy/internal/platform/tenancy"
-        entitlementAPI "github.com/artemiosu/staffy/internal/entitlement/api"
-        entitlementDomain "github.com/artemiosu/staffy/internal/entitlement/domain"
-        "github.com/artemiosu/staffy/internal/entitlement/port"
+        identityAPI "github.com/staffy-co/staffy/internal/identity/api"
+        identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
+        "github.com/staffy-co/staffy/internal/platform/id"
+        "github.com/staffy-co/staffy/internal/platform/tenancy"
+        entitlementAPI "github.com/staffy-co/staffy/internal/entitlement/api"
+        entitlementDomain "github.com/staffy-co/staffy/internal/entitlement/domain"
+        "github.com/staffy-co/staffy/internal/entitlement/port"
 )
 
 var testNow = time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)

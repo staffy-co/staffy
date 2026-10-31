@@ -6,10 +6,10 @@ import (
         "errors"
         "time"
 
-        privacyDomain "github.com/artemiosu/staffy/internal/privacy/domain"
-        "github.com/artemiosu/staffy/internal/privacy/port"
-        "github.com/artemiosu/staffy/internal/platform/id"
-        "github.com/artemiosu/staffy/internal/platform/tenancy"
+        privacyDomain "github.com/staffy-co/staffy/internal/privacy/domain"
+        "github.com/staffy-co/staffy/internal/privacy/port"
+        "github.com/staffy-co/staffy/internal/platform/id"
+        "github.com/staffy-co/staffy/internal/platform/tenancy"
         "github.com/jackc/pgx/v5"
         "github.com/jackc/pgx/v5/pgxpool"
 )

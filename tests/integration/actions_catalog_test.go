@@ -10,16 +10,16 @@ import (
 	"testing"
 	"time"
 
-	actionApp "github.com/artemiosu/staffy/internal/action/app"
-	actionCatalog "github.com/artemiosu/staffy/internal/action/catalog"
-	actionDomain "github.com/artemiosu/staffy/internal/action/domain"
-	"github.com/artemiosu/staffy/internal/adapters/capabilityresolver"
-	"github.com/artemiosu/staffy/internal/adapters/packresolver"
-	identityAPI "github.com/artemiosu/staffy/internal/identity/api"
-	identityApp "github.com/artemiosu/staffy/internal/identity/app"
-	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-	identityStore "github.com/artemiosu/staffy/internal/identity/store"
-	"github.com/artemiosu/staffy/internal/platform/id"
+	actionApp "github.com/staffy-co/staffy/internal/action/app"
+	actionCatalog "github.com/staffy-co/staffy/internal/action/catalog"
+	actionDomain "github.com/staffy-co/staffy/internal/action/domain"
+	"github.com/staffy-co/staffy/internal/adapters/capabilityresolver"
+	"github.com/staffy-co/staffy/internal/adapters/packresolver"
+	identityAPI "github.com/staffy-co/staffy/internal/identity/api"
+	identityApp "github.com/staffy-co/staffy/internal/identity/app"
+	identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
+	identityStore "github.com/staffy-co/staffy/internal/identity/store"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // actionScopeWords mirrors the app wrap of the honest 403 (the words of

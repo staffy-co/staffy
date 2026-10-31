@@ -3,7 +3,7 @@ package app
 import (
 	"bytes"
 	"context"
-	"github.com/artemiosu/staffy/internal/employee/domain"
+	"github.com/staffy-co/staffy/internal/employee/domain"
 	"os"
 	"testing"
 )

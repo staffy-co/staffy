@@ -5,14 +5,14 @@ import (
 	"errors"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/action/domain"
-	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
-	connectorAPI "github.com/artemiosu/staffy/internal/connector/api"
-	employeeAPI "github.com/artemiosu/staffy/internal/employee/api"
-	entitlementDomain "github.com/artemiosu/staffy/internal/entitlement/domain"
-	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
-	"github.com/artemiosu/staffy/internal/platform/tenancy"
+	"github.com/staffy-co/staffy/internal/action/domain"
+	casesAPI "github.com/staffy-co/staffy/internal/cases/api"
+	connectorAPI "github.com/staffy-co/staffy/internal/connector/api"
+	employeeAPI "github.com/staffy-co/staffy/internal/employee/api"
+	entitlementDomain "github.com/staffy-co/staffy/internal/entitlement/domain"
+	identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 // ---------------------------------------------------------------------------

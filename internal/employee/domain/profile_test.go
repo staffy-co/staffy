@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 var profileOwner = id.MustParse("01994f64-6c00-7000-8000-0000000000aa")

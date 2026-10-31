@@ -18,7 +18,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/artemiosu/staffy/internal/tools"
+	"github.com/staffy-co/staffy/internal/tools"
 )
 
 // decodeCallArguments strictly decodes the arguments member of the call

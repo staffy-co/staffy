@@ -3,7 +3,7 @@ package correlation
 import (
 	"context"
 
-	"github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 type contextKey struct{}

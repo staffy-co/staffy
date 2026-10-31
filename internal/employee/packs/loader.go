@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/artemiosu/staffy/internal/employee/domain"
-	"github.com/artemiosu/staffy/internal/tools"
+	"github.com/staffy-co/staffy/internal/employee/domain"
+	"github.com/staffy-co/staffy/internal/tools"
 )
 
 // The registry is the versioned artifact store of the published Domain

@@ -9,8 +9,8 @@ package toolssource
 // a copy, the published versions stay immutable).
 
 import (
-	"github.com/artemiosu/staffy/internal/mcp"
-	"github.com/artemiosu/staffy/internal/tools"
+	"github.com/staffy-co/staffy/internal/mcp"
+	"github.com/staffy-co/staffy/internal/tools"
 )
 
 // Source is the stateless production adapter over the embedded registry.

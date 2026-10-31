@@ -10,16 +10,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/adapters/connectorrefresolver"
-	controlAPI "github.com/artemiosu/staffy/internal/control/api"
-	controlApp "github.com/artemiosu/staffy/internal/control/app"
-	controlDomain "github.com/artemiosu/staffy/internal/control/domain"
-	controlStore "github.com/artemiosu/staffy/internal/control/store"
-	identityAPI "github.com/artemiosu/staffy/internal/identity/api"
-	identityApp "github.com/artemiosu/staffy/internal/identity/app"
-	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-	identityStore "github.com/artemiosu/staffy/internal/identity/store"
-	"github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/adapters/connectorrefresolver"
+	controlAPI "github.com/staffy-co/staffy/internal/control/api"
+	controlApp "github.com/staffy-co/staffy/internal/control/app"
+	controlDomain "github.com/staffy-co/staffy/internal/control/domain"
+	controlStore "github.com/staffy-co/staffy/internal/control/store"
+	identityAPI "github.com/staffy-co/staffy/internal/identity/api"
+	identityApp "github.com/staffy-co/staffy/internal/identity/app"
+	identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
+	identityStore "github.com/staffy-co/staffy/internal/identity/store"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // controlScopeWords mirrors the app wrap of the honest 403 (the words of

@@ -3,8 +3,8 @@ package domain_test
 import (
 	"testing"
 
-	"github.com/artemiosu/staffy/internal/employee/domain"
-	"github.com/artemiosu/staffy/internal/employee/packs"
+	"github.com/staffy-co/staffy/internal/employee/domain"
+	"github.com/staffy-co/staffy/internal/employee/packs"
 )
 
 func TestReferencePackVariantsAndImmutableCatalog(t *testing.T) {

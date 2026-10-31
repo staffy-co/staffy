@@ -17,7 +17,7 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/artemiosu/staffy/internal/tools"
+	"github.com/staffy-co/staffy/internal/tools"
 )
 
 // mapTools builds a resolver over explicit fixtures: id@version →

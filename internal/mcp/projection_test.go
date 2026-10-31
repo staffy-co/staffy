@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/artemiosu/staffy/internal/tools"
+	"github.com/staffy-co/staffy/internal/tools"
 )
 
 // projectionFixtureField builds one typed field of the projection probe.

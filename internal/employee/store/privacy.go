@@ -3,7 +3,7 @@ package store
 import (
 	"context"
 
-	"github.com/artemiosu/staffy/internal/platform/tenancy"
+	"github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 // Story 1.10: tenant-scoped purge methods backed by the SECURITY DEFINER

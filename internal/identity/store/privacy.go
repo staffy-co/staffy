@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/platform/tenancy"
+	"github.com/staffy-co/staffy/internal/platform/tenancy"
 	"github.com/jackc/pgx/v5"
 )
 

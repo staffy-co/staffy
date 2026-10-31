@@ -17,10 +17,10 @@ import (
 	"strings"
 	"testing"
 
-	connectorCatalog "github.com/artemiosu/staffy/internal/connector/catalog"
-	connectorDomain "github.com/artemiosu/staffy/internal/connector/domain"
-	"github.com/artemiosu/staffy/internal/connector/verifier"
-	"github.com/artemiosu/staffy/internal/mcpclient"
+	connectorCatalog "github.com/staffy-co/staffy/internal/connector/catalog"
+	connectorDomain "github.com/staffy-co/staffy/internal/connector/domain"
+	"github.com/staffy-co/staffy/internal/connector/verifier"
+	"github.com/staffy-co/staffy/internal/mcpclient"
 )
 
 // externalCard returns the live catalog card of the class (the production

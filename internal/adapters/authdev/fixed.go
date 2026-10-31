@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 var ErrDisabled = errors.New("development principal resolver is disabled")

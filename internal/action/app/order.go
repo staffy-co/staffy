@@ -7,12 +7,12 @@ import (
 	"strconv"
 	"unicode/utf8"
 
-	"github.com/artemiosu/staffy/internal/action/api"
-	actionCatalog "github.com/artemiosu/staffy/internal/action/catalog"
-	"github.com/artemiosu/staffy/internal/action/domain"
-	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
-	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/action/api"
+	actionCatalog "github.com/staffy-co/staffy/internal/action/catalog"
+	"github.com/staffy-co/staffy/internal/action/domain"
+	casesAPI "github.com/staffy-co/staffy/internal/cases/api"
+	casesDomain "github.com/staffy-co/staffy/internal/cases/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // Story 4.6 — the Order Commitment builder. The operator NEVER composes

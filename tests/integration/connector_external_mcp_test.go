@@ -23,17 +23,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/adapters/connectorprobe"
-	"github.com/artemiosu/staffy/internal/adapters/externaltoolsfacts"
-	connectorAPI "github.com/artemiosu/staffy/internal/connector/api"
-	connectorApp "github.com/artemiosu/staffy/internal/connector/app"
-	connectorDomain "github.com/artemiosu/staffy/internal/connector/domain"
-	connectorStore "github.com/artemiosu/staffy/internal/connector/store"
-	"github.com/artemiosu/staffy/internal/connector/verifier"
-	"github.com/artemiosu/staffy/internal/externaltools"
-	identityApp "github.com/artemiosu/staffy/internal/identity/app"
-	"github.com/artemiosu/staffy/internal/platform/id"
-	"github.com/artemiosu/staffy/internal/platform/tenancy"
+	"github.com/staffy-co/staffy/internal/adapters/connectorprobe"
+	"github.com/staffy-co/staffy/internal/adapters/externaltoolsfacts"
+	connectorAPI "github.com/staffy-co/staffy/internal/connector/api"
+	connectorApp "github.com/staffy-co/staffy/internal/connector/app"
+	connectorDomain "github.com/staffy-co/staffy/internal/connector/domain"
+	connectorStore "github.com/staffy-co/staffy/internal/connector/store"
+	"github.com/staffy-co/staffy/internal/connector/verifier"
+	"github.com/staffy-co/staffy/internal/externaltools"
+	identityApp "github.com/staffy-co/staffy/internal/identity/app"
+	"github.com/staffy-co/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 // externalMCPWire serves the coherent answers of the pinned revision

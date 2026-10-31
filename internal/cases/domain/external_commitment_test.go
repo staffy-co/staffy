@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // The Story 3.3 unit matrix: the dictionaries of the epic (the purposes,

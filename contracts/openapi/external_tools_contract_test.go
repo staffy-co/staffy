@@ -5,8 +5,8 @@ import (
         "strings"
         "testing"
 
-        "github.com/artemiosu/staffy/internal/externaltools"
-        "github.com/artemiosu/staffy/internal/tools"
+        "github.com/staffy-co/staffy/internal/externaltools"
+        "github.com/staffy-co/staffy/internal/tools"
         "gopkg.in/yaml.v3"
 )
 

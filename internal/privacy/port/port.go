@@ -4,9 +4,9 @@ import (
         "context"
         "time"
 
-        privacyDomain "github.com/artemiosu/staffy/internal/privacy/domain"
-        "github.com/artemiosu/staffy/internal/platform/id"
-        "github.com/artemiosu/staffy/internal/platform/tenancy"
+        privacyDomain "github.com/staffy-co/staffy/internal/privacy/domain"
+        "github.com/staffy-co/staffy/internal/platform/id"
+        "github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 // MapEntryParams carries one append-only data map version.

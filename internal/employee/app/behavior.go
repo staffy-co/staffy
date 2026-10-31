@@ -2,12 +2,12 @@ package app
 
 import (
 	"context"
-	"github.com/artemiosu/staffy/internal/employee/api"
-	"github.com/artemiosu/staffy/internal/employee/domain"
-	"github.com/artemiosu/staffy/internal/employee/packs"
-	"github.com/artemiosu/staffy/internal/employee/port"
-	identity "github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/employee/api"
+	"github.com/staffy-co/staffy/internal/employee/domain"
+	"github.com/staffy-co/staffy/internal/employee/packs"
+	"github.com/staffy-co/staffy/internal/employee/port"
+	identity "github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
 	"strings"
 )
 

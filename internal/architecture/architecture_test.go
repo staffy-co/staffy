@@ -35,23 +35,23 @@ func TestIdentityStoreHasNoIllegalImporters(t *testing.T) {
                 for _, imported := range parsed.Imports {
                         name := strings.Trim(imported.Path.Value, `"`)
                         rel, _ := filepath.Rel(root, path)
-                        if name == "github.com/artemiosu/staffy/internal/employee/store" && !inside(rel, filepath.Join("cmd", "staffy-core")) && !inside(rel, filepath.Join("internal", "employee")) {
+                        if name == "github.com/staffy-co/staffy/internal/employee/store" && !inside(rel, filepath.Join("cmd", "staffy-core")) && !inside(rel, filepath.Join("internal", "employee")) {
                                 t.Errorf("%s imports employee/store outside its owner or composition root", rel)
                         }
-                        if name == "github.com/artemiosu/staffy/internal/connector/store" && !inside(rel, filepath.Join("cmd", "staffy-core")) && !inside(rel, filepath.Join("internal", "connector")) {
+                        if name == "github.com/staffy-co/staffy/internal/connector/store" && !inside(rel, filepath.Join("cmd", "staffy-core")) && !inside(rel, filepath.Join("internal", "connector")) {
                                 t.Errorf("%s imports connector/store outside its owner or composition root", rel)
                         }
-                        if name == "github.com/artemiosu/staffy/internal/cases/store" && !inside(rel, filepath.Join("cmd", "staffy-core")) && !inside(rel, filepath.Join("internal", "cases")) {
+                        if name == "github.com/staffy-co/staffy/internal/cases/store" && !inside(rel, filepath.Join("cmd", "staffy-core")) && !inside(rel, filepath.Join("internal", "cases")) {
                                 t.Errorf("%s imports cases/store outside its owner or composition root", rel)
                         }
                         // DAG rule of the case contour (spec 2-1): privacy and
                         // entitlement are NOT in the case spine — their facts
                         // are relayed through the employee facade; a direct
                         // import would bypass the declared architecture.
-                        if inside(rel, filepath.Join("internal", "cases")) && (strings.HasPrefix(name, "github.com/artemiosu/staffy/internal/privacy") || strings.HasPrefix(name, "github.com/artemiosu/staffy/internal/entitlement")) {
+                        if inside(rel, filepath.Join("internal", "cases")) && (strings.HasPrefix(name, "github.com/staffy-co/staffy/internal/privacy") || strings.HasPrefix(name, "github.com/staffy-co/staffy/internal/entitlement")) {
                                 t.Errorf("%s imports %s: privacy/entitlement are not in the case DAG (relay via employee/api)", rel, name)
                         }
-                        if name != "github.com/artemiosu/staffy/internal/identity/store" {
+                        if name != "github.com/staffy-co/staffy/internal/identity/store" {
                                 continue
                         }
                         if !inside(rel, filepath.Join("cmd", "staffy-core")) && !inside(rel, filepath.Join("internal", "identity")) {

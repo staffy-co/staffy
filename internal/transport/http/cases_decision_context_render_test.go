@@ -7,9 +7,9 @@ import (
 	"testing"
 	"text/template"
 
-	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
-	"github.com/artemiosu/staffy/internal/identity/domain"
-	staffyweb "github.com/artemiosu/staffy/web"
+	casesDomain "github.com/staffy-co/staffy/internal/cases/domain"
+	"github.com/staffy-co/staffy/internal/identity/domain"
+	staffyweb "github.com/staffy-co/staffy/web"
 )
 
 // decisionContextRenderTemplates parses the case template with the

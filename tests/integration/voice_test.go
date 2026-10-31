@@ -10,12 +10,12 @@ import (
 	"testing"
 	"time"
 
-	employeeAPI "github.com/artemiosu/staffy/internal/employee/api"
-	employeeApp "github.com/artemiosu/staffy/internal/employee/app"
-	employeeDomain "github.com/artemiosu/staffy/internal/employee/domain"
-	employeeStore "github.com/artemiosu/staffy/internal/employee/store"
-	"github.com/artemiosu/staffy/internal/platform/id"
-	"github.com/artemiosu/staffy/internal/platform/tenancy"
+	employeeAPI "github.com/staffy-co/staffy/internal/employee/api"
+	employeeApp "github.com/staffy-co/staffy/internal/employee/app"
+	employeeDomain "github.com/staffy-co/staffy/internal/employee/domain"
+	employeeStore "github.com/staffy-co/staffy/internal/employee/store"
+	"github.com/staffy-co/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 func TestVoiceVersionsCASAuditRLSAndUnavailablePreview(t *testing.T) {

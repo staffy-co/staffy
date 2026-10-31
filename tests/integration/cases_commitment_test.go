@@ -11,14 +11,14 @@ import (
 	"testing"
 	"time"
 
-	observationsyn "github.com/artemiosu/staffy/internal/adapters/observationsyn"
-	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
-	casesDomain "github.com/artemiosu/staffy/internal/cases/domain"
-	casesPort "github.com/artemiosu/staffy/internal/cases/port"
-	casesStore "github.com/artemiosu/staffy/internal/cases/store"
-	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
-	"github.com/artemiosu/staffy/internal/platform/tenancy"
+	observationsyn "github.com/staffy-co/staffy/internal/adapters/observationsyn"
+	casesAPI "github.com/staffy-co/staffy/internal/cases/api"
+	casesDomain "github.com/staffy-co/staffy/internal/cases/domain"
+	casesPort "github.com/staffy-co/staffy/internal/cases/port"
+	casesStore "github.com/staffy-co/staffy/internal/cases/store"
+	identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/tenancy"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 

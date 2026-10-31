@@ -1,8 +1,8 @@
 package capabilityresolver
 
 import (
-	"github.com/artemiosu/staffy/internal/action/domain"
-	"github.com/artemiosu/staffy/internal/connector/catalog"
+	"github.com/staffy-co/staffy/internal/action/domain"
+	"github.com/staffy-co/staffy/internal/connector/catalog"
 )
 
 // Adapter resolves action CapabilityRefs against the published connector

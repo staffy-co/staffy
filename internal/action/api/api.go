@@ -3,9 +3,9 @@ package api
 import (
 	"context"
 
-	"github.com/artemiosu/staffy/internal/action/domain"
-	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/action/domain"
+	identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // ActionCatalogService is the read-only catalog surface of the action

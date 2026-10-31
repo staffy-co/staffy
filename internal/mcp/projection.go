@@ -14,7 +14,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/artemiosu/staffy/internal/tools"
+	"github.com/staffy-co/staffy/internal/tools"
 )
 
 // Tool is the MCP wire projection of one registry contract.

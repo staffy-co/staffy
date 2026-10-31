@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // The Story 2.6 unit matrix: the dictionaries, the dedup, the outcome

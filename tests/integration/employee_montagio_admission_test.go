@@ -62,12 +62,12 @@ import (
 	"testing"
 	"time"
 
-	employeeAPI "github.com/artemiosu/staffy/internal/employee/api"
-	employeeDomain "github.com/artemiosu/staffy/internal/employee/domain"
-	identityApp "github.com/artemiosu/staffy/internal/identity/app"
-	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-	identityStore "github.com/artemiosu/staffy/internal/identity/store"
-	"github.com/artemiosu/staffy/internal/platform/id"
+	employeeAPI "github.com/staffy-co/staffy/internal/employee/api"
+	employeeDomain "github.com/staffy-co/staffy/internal/employee/domain"
+	identityApp "github.com/staffy-co/staffy/internal/identity/app"
+	identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
+	identityStore "github.com/staffy-co/staffy/internal/identity/store"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // montagioRouteOf resolves one route of the live view.

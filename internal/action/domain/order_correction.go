@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // Module action, story 4.8 — the order correction domain: the Correction

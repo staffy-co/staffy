@@ -5,7 +5,7 @@ import (
         "strings"
         "testing"
 
-        connectorDomain "github.com/artemiosu/staffy/internal/connector/domain"
+        connectorDomain "github.com/staffy-co/staffy/internal/connector/domain"
 )
 
 func syntheticDefinition() connectorDomain.ConnectorDefinition {

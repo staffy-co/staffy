@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
-	connectorAPI "github.com/artemiosu/staffy/internal/connector/api"
-	connectorDomain "github.com/artemiosu/staffy/internal/connector/domain"
-	"github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
-	"github.com/artemiosu/staffy/internal/platform/tenancy"
+	connectorAPI "github.com/staffy-co/staffy/internal/connector/api"
+	connectorDomain "github.com/staffy-co/staffy/internal/connector/domain"
+	"github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 // factsFake scripts the live connection facts of one tenant.

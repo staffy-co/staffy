@@ -49,14 +49,14 @@ import (
         "testing"
         "time"
 
-        connectorAPI "github.com/artemiosu/staffy/internal/connector/api"
-        employeeAPI "github.com/artemiosu/staffy/internal/employee/api"
-        employeeDomain "github.com/artemiosu/staffy/internal/employee/domain"
-        identityApp "github.com/artemiosu/staffy/internal/identity/app"
-        identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-        identityStore "github.com/artemiosu/staffy/internal/identity/store"
-        "github.com/artemiosu/staffy/internal/platform/id"
-        "github.com/artemiosu/staffy/internal/platform/tenancy"
+        connectorAPI "github.com/staffy-co/staffy/internal/connector/api"
+        employeeAPI "github.com/staffy-co/staffy/internal/employee/api"
+        employeeDomain "github.com/staffy-co/staffy/internal/employee/domain"
+        identityApp "github.com/staffy-co/staffy/internal/identity/app"
+        identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
+        identityStore "github.com/staffy-co/staffy/internal/identity/store"
+        "github.com/staffy-co/staffy/internal/platform/id"
+        "github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 // pilotScopeOf builds the caller-authority scope of the world owner.

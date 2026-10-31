@@ -8,10 +8,10 @@ import (
         "strings"
         "time"
 
-        connectorDomain "github.com/artemiosu/staffy/internal/connector/domain"
-        "github.com/artemiosu/staffy/internal/connector/port"
-        "github.com/artemiosu/staffy/internal/platform/id"
-        "github.com/artemiosu/staffy/internal/platform/tenancy"
+        connectorDomain "github.com/staffy-co/staffy/internal/connector/domain"
+        "github.com/staffy-co/staffy/internal/connector/port"
+        "github.com/staffy-co/staffy/internal/platform/id"
+        "github.com/staffy-co/staffy/internal/platform/tenancy"
         "github.com/jackc/pgx/v5"
         "github.com/jackc/pgx/v5/pgxpool"
 )

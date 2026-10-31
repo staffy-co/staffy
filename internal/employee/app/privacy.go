@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/platform/tenancy"
-	privacyPort "github.com/artemiosu/staffy/internal/privacy/port"
-	privacyDomain "github.com/artemiosu/staffy/internal/privacy/domain"
+	"github.com/staffy-co/staffy/internal/platform/tenancy"
+	privacyPort "github.com/staffy-co/staffy/internal/privacy/port"
+	privacyDomain "github.com/staffy-co/staffy/internal/privacy/domain"
 )
 
 // purgeRepository is the narrow store capability the privacy executor needs.

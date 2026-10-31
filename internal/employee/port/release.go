@@ -4,10 +4,10 @@ import (
 	"context"
 	"time"
 
-	connectorAPI "github.com/artemiosu/staffy/internal/connector/api"
-	"github.com/artemiosu/staffy/internal/employee/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
-	"github.com/artemiosu/staffy/internal/platform/tenancy"
+	connectorAPI "github.com/staffy-co/staffy/internal/connector/api"
+	"github.com/staffy-co/staffy/internal/employee/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 // ConnectorFacts is the narrow read port to the connector module: the

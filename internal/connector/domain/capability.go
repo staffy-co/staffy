@@ -4,7 +4,7 @@ import (
         "fmt"
         "time"
 
-        "github.com/artemiosu/staffy/internal/platform/id"
+        "github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // Capability direction: which side initiates the operation.

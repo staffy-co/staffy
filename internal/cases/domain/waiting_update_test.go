@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // waitingDistinctID builds a distinct identifier of the unit matrix

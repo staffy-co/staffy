@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/externaltools"
-	"github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
-	"github.com/artemiosu/staffy/internal/tools"
+	"github.com/staffy-co/staffy/internal/externaltools"
+	"github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/tools"
 )
 
 // fakeExternalTools is the transport fake of the dictionary surface: it

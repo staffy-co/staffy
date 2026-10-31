@@ -13,12 +13,12 @@ import (
 	"testing"
 	"time"
 
-	actionAPI "github.com/artemiosu/staffy/internal/action/api"
-	actionDomain "github.com/artemiosu/staffy/internal/action/domain"
-	actionPort "github.com/artemiosu/staffy/internal/action/port"
-	"github.com/artemiosu/staffy/internal/identity/api"
-	"github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
+	actionAPI "github.com/staffy-co/staffy/internal/action/api"
+	actionDomain "github.com/staffy-co/staffy/internal/action/domain"
+	actionPort "github.com/staffy-co/staffy/internal/action/port"
+	"github.com/staffy-co/staffy/internal/identity/api"
+	"github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // ---------------------------------------------------------------------------

@@ -3,10 +3,10 @@ package controleffectiveresolver
 import (
 	"context"
 
-	actionPort "github.com/artemiosu/staffy/internal/action/port"
-	controlDomain "github.com/artemiosu/staffy/internal/control/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
-	"github.com/artemiosu/staffy/internal/platform/tenancy"
+	actionPort "github.com/staffy-co/staffy/internal/action/port"
+	controlDomain "github.com/staffy-co/staffy/internal/control/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 // RouteAdapter adapts the control store rows onto the action preparation

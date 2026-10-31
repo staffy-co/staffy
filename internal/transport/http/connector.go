@@ -11,11 +11,11 @@ import (
 	"strconv"
 	"strings"
 
-	connectorAPI "github.com/artemiosu/staffy/internal/connector/api"
-	connectorDomain "github.com/artemiosu/staffy/internal/connector/domain"
-	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/correlation"
-	"github.com/artemiosu/staffy/internal/platform/id"
+	connectorAPI "github.com/staffy-co/staffy/internal/connector/api"
+	connectorDomain "github.com/staffy-co/staffy/internal/connector/domain"
+	identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/correlation"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 func (s *Server) connectorService() connectorAPI.Service { return s.connector }

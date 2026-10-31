@@ -1,7 +1,7 @@
 package port
 
 import (
-	"github.com/artemiosu/staffy/internal/action/domain"
+	"github.com/staffy-co/staffy/internal/action/domain"
 )
 
 // The consumer-owned resolution ports of the action module. The action

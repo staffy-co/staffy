@@ -1,7 +1,7 @@
 package catalog
 
 import (
-	"github.com/artemiosu/staffy/internal/connector/domain"
+	"github.com/staffy-co/staffy/internal/connector/domain"
 )
 
 // definitions is the immutable binary catalog of published Connector definitions.

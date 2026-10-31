@@ -1,4 +1,4 @@
-module github.com/artemiosu/staffy
+module github.com/staffy-co/staffy
 
 go 1.27.1
 

@@ -8,15 +8,15 @@ import (
         "testing"
         "time"
 
-        "github.com/artemiosu/staffy/internal/employee/api"
-        "github.com/artemiosu/staffy/internal/employee/domain"
-        "github.com/artemiosu/staffy/internal/employee/port"
-        connectorAPI "github.com/artemiosu/staffy/internal/connector/api"
-        connectorDomain "github.com/artemiosu/staffy/internal/connector/domain"
-        identityAPI "github.com/artemiosu/staffy/internal/identity/api"
-        identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-        "github.com/artemiosu/staffy/internal/platform/id"
-        "github.com/artemiosu/staffy/internal/platform/tenancy"
+        "github.com/staffy-co/staffy/internal/employee/api"
+        "github.com/staffy-co/staffy/internal/employee/domain"
+        "github.com/staffy-co/staffy/internal/employee/port"
+        connectorAPI "github.com/staffy-co/staffy/internal/connector/api"
+        connectorDomain "github.com/staffy-co/staffy/internal/connector/domain"
+        identityAPI "github.com/staffy-co/staffy/internal/identity/api"
+        identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
+        "github.com/staffy-co/staffy/internal/platform/id"
+        "github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 var pilotTenant = id.MustParse("01994f64-6c00-7000-8000-000000000031")

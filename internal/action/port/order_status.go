@@ -5,9 +5,9 @@ import (
         "errors"
         "time"
 
-        "github.com/artemiosu/staffy/internal/action/domain"
-        "github.com/artemiosu/staffy/internal/platform/id"
-        "github.com/artemiosu/staffy/internal/platform/tenancy"
+        "github.com/staffy-co/staffy/internal/action/domain"
+        "github.com/staffy-co/staffy/internal/platform/id"
+        "github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 // Story 4.9: the supplier order fact ports. The facts are the HUMAN

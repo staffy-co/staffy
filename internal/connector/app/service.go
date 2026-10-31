@@ -9,14 +9,14 @@ import (
         "strings"
         "time"
 
-        "github.com/artemiosu/staffy/internal/connector/api"
-        "github.com/artemiosu/staffy/internal/connector/catalog"
-        connectorDomain "github.com/artemiosu/staffy/internal/connector/domain"
-        "github.com/artemiosu/staffy/internal/connector/port"
-        identityAPI "github.com/artemiosu/staffy/internal/identity/api"
-        identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-        "github.com/artemiosu/staffy/internal/platform/id"
-        "github.com/artemiosu/staffy/internal/platform/tenancy"
+        "github.com/staffy-co/staffy/internal/connector/api"
+        "github.com/staffy-co/staffy/internal/connector/catalog"
+        connectorDomain "github.com/staffy-co/staffy/internal/connector/domain"
+        "github.com/staffy-co/staffy/internal/connector/port"
+        identityAPI "github.com/staffy-co/staffy/internal/identity/api"
+        identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
+        "github.com/staffy-co/staffy/internal/platform/id"
+        "github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 // capabilityEvidenceTTL bounds how long one probe result proves anything.

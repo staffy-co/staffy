@@ -3,7 +3,7 @@ package domain
 import (
 	"time"
 
-	"github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // Module action, story 4.11 — the Pilot Business Outcome domain: the PURE

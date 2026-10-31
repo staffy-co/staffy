@@ -5,11 +5,11 @@ import (
 	"errors"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/action/domain"
-	casesAPI "github.com/artemiosu/staffy/internal/cases/api"
-	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
-	"github.com/artemiosu/staffy/internal/platform/tenancy"
+	"github.com/staffy-co/staffy/internal/action/domain"
+	casesAPI "github.com/staffy-co/staffy/internal/cases/api"
+	identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 // Story 4.10: the order servicing ports. The request is the RECORDED

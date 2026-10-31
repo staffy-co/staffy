@@ -6,14 +6,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/adapters/connectorrefresolver"
-	controlAPI "github.com/artemiosu/staffy/internal/control/api"
-	controlApp "github.com/artemiosu/staffy/internal/control/app"
-	controlDomain "github.com/artemiosu/staffy/internal/control/domain"
-	controlPort "github.com/artemiosu/staffy/internal/control/port"
-	identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/id"
-	"github.com/artemiosu/staffy/internal/platform/tenancy"
+	"github.com/staffy-co/staffy/internal/adapters/connectorrefresolver"
+	controlAPI "github.com/staffy-co/staffy/internal/control/api"
+	controlApp "github.com/staffy-co/staffy/internal/control/app"
+	controlDomain "github.com/staffy-co/staffy/internal/control/domain"
+	controlPort "github.com/staffy-co/staffy/internal/control/port"
+	identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 // The Story 3-2 fixture: the scoped control surface over the REAL app

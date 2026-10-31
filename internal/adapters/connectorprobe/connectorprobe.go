@@ -26,9 +26,9 @@ import (
 	"regexp"
 	"strings"
 
-	connectorAPI "github.com/artemiosu/staffy/internal/connector/api"
-	connectorDomain "github.com/artemiosu/staffy/internal/connector/domain"
-	"github.com/artemiosu/staffy/internal/mcpclient"
+	connectorAPI "github.com/staffy-co/staffy/internal/connector/api"
+	connectorDomain "github.com/staffy-co/staffy/internal/connector/domain"
+	"github.com/staffy-co/staffy/internal/mcpclient"
 )
 
 // AdapterBuild identifies the router build stored with every evidence row.

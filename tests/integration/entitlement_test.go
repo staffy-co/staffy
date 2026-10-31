@@ -9,15 +9,15 @@ import (
         "testing"
         "time"
 
-        "github.com/artemiosu/staffy/internal/identity/api"
-        identityApp "github.com/artemiosu/staffy/internal/identity/app"
-        identityDomain "github.com/artemiosu/staffy/internal/identity/domain"
-        identityStore "github.com/artemiosu/staffy/internal/identity/store"
-        "github.com/artemiosu/staffy/internal/platform/id"
-        entitlementAPI "github.com/artemiosu/staffy/internal/entitlement/api"
-        entitlementApp "github.com/artemiosu/staffy/internal/entitlement/app"
-        entitlementDomain "github.com/artemiosu/staffy/internal/entitlement/domain"
-        entitlementStore "github.com/artemiosu/staffy/internal/entitlement/store"
+        "github.com/staffy-co/staffy/internal/identity/api"
+        identityApp "github.com/staffy-co/staffy/internal/identity/app"
+        identityDomain "github.com/staffy-co/staffy/internal/identity/domain"
+        identityStore "github.com/staffy-co/staffy/internal/identity/store"
+        "github.com/staffy-co/staffy/internal/platform/id"
+        entitlementAPI "github.com/staffy-co/staffy/internal/entitlement/api"
+        entitlementApp "github.com/staffy-co/staffy/internal/entitlement/app"
+        entitlementDomain "github.com/staffy-co/staffy/internal/entitlement/domain"
+        entitlementStore "github.com/staffy-co/staffy/internal/entitlement/store"
 )
 
 // entitlementWorld assembles the entitlement service over the real store,

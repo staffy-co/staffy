@@ -3,9 +3,9 @@ package connectorrefresolver
 import (
 	"context"
 
-	"github.com/artemiosu/staffy/internal/connector/catalog"
-	controlPort "github.com/artemiosu/staffy/internal/control/port"
-	"github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/connector/catalog"
+	controlPort "github.com/staffy-co/staffy/internal/control/port"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // Adapter resolves connector scope refs against the published connector

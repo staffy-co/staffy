@@ -7,8 +7,8 @@ import (
         "strconv"
         "strings"
 
-        connectorAPI "github.com/artemiosu/staffy/internal/connector/api"
-        connectorDomain "github.com/artemiosu/staffy/internal/connector/domain"
+        connectorAPI "github.com/staffy-co/staffy/internal/connector/api"
+        connectorDomain "github.com/staffy-co/staffy/internal/connector/domain"
 )
 
 // AdapterBuild identifies the adapter binary that produced evidence rows.

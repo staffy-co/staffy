@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"strconv"
 
-	actionAPI "github.com/artemiosu/staffy/internal/action/api"
-	actionDomain "github.com/artemiosu/staffy/internal/action/domain"
-	actionPort "github.com/artemiosu/staffy/internal/action/port"
-	"github.com/artemiosu/staffy/internal/platform/id"
+	actionAPI "github.com/staffy-co/staffy/internal/action/api"
+	actionDomain "github.com/staffy-co/staffy/internal/action/domain"
+	actionPort "github.com/staffy-co/staffy/internal/action/port"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // ---------------------------------------------------------------------------

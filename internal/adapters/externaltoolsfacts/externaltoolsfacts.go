@@ -14,10 +14,10 @@ import (
 	"fmt"
 	"net/http"
 
-	connectorAPI "github.com/artemiosu/staffy/internal/connector/api"
-	"github.com/artemiosu/staffy/internal/externaltools"
-	"github.com/artemiosu/staffy/internal/mcpclient"
-	"github.com/artemiosu/staffy/internal/platform/tenancy"
+	connectorAPI "github.com/staffy-co/staffy/internal/connector/api"
+	"github.com/staffy-co/staffy/internal/externaltools"
+	"github.com/staffy-co/staffy/internal/mcpclient"
+	"github.com/staffy-co/staffy/internal/platform/tenancy"
 )
 
 // The wiring-level pins of the dictionary: the class card of the catalog

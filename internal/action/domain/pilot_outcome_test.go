@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/artemiosu/staffy/internal/platform/id"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // The Story 4.11 unit matrix of the Pilot Business Outcome domain: the

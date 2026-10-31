@@ -9,13 +9,13 @@ import (
         "testing"
         "time"
 
-        connectorAPI "github.com/artemiosu/staffy/internal/connector/api"
-        connectorApp "github.com/artemiosu/staffy/internal/connector/app"
-        connectorDomain "github.com/artemiosu/staffy/internal/connector/domain"
-        connectorStore "github.com/artemiosu/staffy/internal/connector/store"
-        "github.com/artemiosu/staffy/internal/connector/verifier"
-        identityApp "github.com/artemiosu/staffy/internal/identity/app"
-        "github.com/artemiosu/staffy/internal/platform/id"
+        connectorAPI "github.com/staffy-co/staffy/internal/connector/api"
+        connectorApp "github.com/staffy-co/staffy/internal/connector/app"
+        connectorDomain "github.com/staffy-co/staffy/internal/connector/domain"
+        connectorStore "github.com/staffy-co/staffy/internal/connector/store"
+        "github.com/staffy-co/staffy/internal/connector/verifier"
+        identityApp "github.com/staffy-co/staffy/internal/identity/app"
+        "github.com/staffy-co/staffy/internal/platform/id"
 )
 
 func connectorService(identity *identityApp.Service, ids employeeIDs) *connectorApp.Service {

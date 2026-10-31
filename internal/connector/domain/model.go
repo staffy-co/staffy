@@ -3,7 +3,7 @@ package domain
 import (
         "time"
 
-        "github.com/artemiosu/staffy/internal/platform/id"
+        "github.com/staffy-co/staffy/internal/platform/id"
 )
 
 // Connection states. The overall status never claims capability proof:

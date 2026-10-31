@@ -9,11 +9,11 @@ import (
 	"strconv"
 	"time"
 
-	entitlementAPI "github.com/artemiosu/staffy/internal/entitlement/api"
-	entitlementDomain "github.com/artemiosu/staffy/internal/entitlement/domain"
-	"github.com/artemiosu/staffy/internal/identity/domain"
-	"github.com/artemiosu/staffy/internal/platform/correlation"
-	"github.com/artemiosu/staffy/internal/platform/id"
+	entitlementAPI "github.com/staffy-co/staffy/internal/entitlement/api"
+	entitlementDomain "github.com/staffy-co/staffy/internal/entitlement/domain"
+	"github.com/staffy-co/staffy/internal/identity/domain"
+	"github.com/staffy-co/staffy/internal/platform/correlation"
+	"github.com/staffy-co/staffy/internal/platform/id"
 )
 
 func (s *Server) entitlementService() entitlementAPI.Service { return s.entitlement }
