@@ -6478,4 +6478,4 @@ done:
 - Продакшн-состояние после merge: internal/planner {assembly.go, budgets.go, эволюция port/machine/dictionaries/store} + internal/adapters/modelbounded + internal/adapters/modelscripted (синтез из материала) + migrations/planner/00002 (assembly_version/budgets, NULL истории) — в main; продакшн-вызывателей НОЛЬ (main.go не подключает — вызыватель 8.4); RuntimeDictionary: prompt_assembly/runtime_build present, model_route честный false (AG-4); 59+1=60 миграций каноническим TestMain-аплаером; journeys несут ассерты present-строк release-страницы
 next: SM-фаза story 8-3 «Tool-раунды над реестром 7.2 и внешним словарём 7.4» — ПО СИГНАЛУ ВЛАДЕЛЬЦА (epic-8 in-progress 2/6; 8-3 tool-раунды/externaltools.Calls/закрытие deferred-work 7-4, 8-4 интеграция+вызыватель, 8-5 eval, 8-6 observability)
 владельцу: (1) отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API/merge-зонды сессии; передан открытым текстом в чате); (2) опционально: выплата gofmt-долга 14 legacy-файлов + регенерация graphify-графа при наличии CLI (унаследовано из 322)
-commit: TBD
+commit: 7de8a4571a0e2aa3e2474d6bdf193a8a01ffed85
