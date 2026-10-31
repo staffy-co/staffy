@@ -9,7 +9,7 @@ import urllib.request
 
 TOKEN = os.environ["STAFFY_GH_TOKEN"]
 HEAD_SHA = sys.argv[1]
-API = "https://api.github.com/repos/artemiosu/staffy"
+API = "https://api.github.com/repos/staffy-co/staffy"
 
 body = f"""## Story 4.9 — Truthful order status of ABCP, 1C and the supplier (first slice: the Order Status Projection + the Supplier Order Fact Receipt)
 

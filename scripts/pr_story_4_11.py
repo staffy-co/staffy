@@ -9,7 +9,7 @@ import urllib.request
 
 TOKEN = os.environ.get("STAFFY_GH_TOKEN") or open("/tmp/.staffy_gh_token").read().strip()
 HEAD_SHA = sys.argv[1]
-API = "https://api.github.com/repos/artemiosu/staffy"
+API = "https://api.github.com/repos/staffy-co/staffy"
 
 body = f"""## Story 4.11 — Сквозной бизнес-результат пилота автозапчастей (первый срез: Исход обращения + Отчёт пилота — ЧИСТАЯ read-time деривация над живым материалом контура)
 

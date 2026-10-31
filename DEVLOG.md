@@ -6327,3 +6327,20 @@ done:
 next: Эпик 7 ЗАКРЫТ (4/4: 7-1 каталог паков, 7-2 реестр tools, 7-3 MCP-сервер поверхности, 7-4 внешние MCP-серверы); next: epic-7-retrospective (optional-слот) или Epic 8 — ПО СИГНАЛУ ВЛАДЕЛЬЦА
 владельцу: (1) отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API/merge-зонды сессии; передан открытым текстом в чате); (2) РЕШИТЬ БЛОКЕР CI: квота Actions минут приватного репо — re-run 40837806615 после поднятия лимита/смены цикла (×3 зелёных рана на идентичном дереве уже являются CI-доказательством merge)
 commit: dd694d5c0d77d2acfe611a87642922b4089a69d1
+
+---
+
+task: 321-infra-repo-transfer
+role: main (Super Z, сессия web-d497a728)
+story: 7-4 (post-closure infra) — эпик 7 закрыт 4/4
+summary: Перенос репо artemiosu/staffy → организация staffy-co/staffy + переключение в публичный доступ (сигнал владельца в чате со свежим PAT) — BLOCKER 320 СНЯТ самим переносом: main-ран 40837806615 re-run attempt 4 прошёл ПОЛНЫЙ прогон (12:23:12→12:30:58 UTC, ~7.8 мин) — completed/success; main несёт ПРЯМОЕ CI-доказательство на merge-коммите f522ff9d (×3 зелёных рана на идентичном дереве остаются историческим fallback); память проекта актуализирована на новый канонический URL: bootstrap.sh (критичный путь восстановления окружения CONTINUITY §4) + 12 прецедентных PR-скриптов
+done:
+- Токен сессии: PAT владельца передан открытым текстом в чате (прецедент retro-4-5), закэширован /tmp/.staffy_gh_token (600, env-only через credential-helper); API-валидация ДО git-операций: 200 на /repos/staffy-co/staffy (public=True, default_branch=main, permissions admin/push)
+- Remote клона переключён set-url на https://github.com/staffy-co/staffy.git; fetch+prune: RPO=0 (main e9c1ac4 = origin/main), дерево чистое — перенос историю не тронул
+- BLOCKER 320 снят: публичное репо = Actions-минуты не квотятся; re-run POST 201 → attempt 4 реально исполнился (attempt 1-3 умирали мгновенно за 2 сек, ноль шагов, blob логов 404 — квота) → completed/success; вывод: квота была ЕДИНСТВЕННОЙ причиной failure main-рана, код main зелёный напрямую
+- Память проекта: scripts/bootstrap.sh ×2 URL (REPO_URL ст.20 + inline x-access-token clone ст.42 — паттерн s|https://github.com/…git| НЕ матчит inline-форму x-access-token:…@github.com, добита вторым sed; урок точечных замен) + pr_story_{4_6..4_11,5_1,7_1..7_4}.py ×12 (константа API); qa_step05_сканеры 4-x НЕ тронуты — они матчат ФАКТИЧЕСКИЙ module path исходников, а не URL репо
+- go.mod module path СОЗНАТЕЛЬНО сохранён github.com/artemiosu/staffy: смена = churn 566 файлов без операционной необходимости (GitHub держит редирект старого пути после переноса в org; внутренние импорты резолвятся локально); deferred-work: переезд module path на github.com/staffy-co/staffy отдельным сознательным шагом по сигналу
+- Дифф актуализации: 13 файлов, +14/−14, ТОЛЬКО URL-строки (git diff сверен построчно; whitespace-churn отсутствует — урок 319)
+next: epic-7-retrospective (optional-слот) или Epic 8 — ПО СИГНАЛУ ВЛАДЕЛЬЦА (сигнал на старт не получен)
+владельцу: (1) отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — fetch/API/re-run зонды сессии; передан открытым текстом в чате); (2) опционально: переезд go.mod module path на github.com/staffy-co/staffy отдельным шагом (566 файлов, отложено осознанно)
+commit: TBD

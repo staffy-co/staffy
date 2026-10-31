@@ -9,7 +9,7 @@ import urllib.request
 
 TOKEN = os.environ["STAFFY_GH_TOKEN"]
 HEAD_SHA = sys.argv[1]
-API = "https://api.github.com/repos/artemiosu/staffy"
+API = "https://api.github.com/repos/staffy-co/staffy"
 
 body = f"""## Story 4.7 — Decision-ready order verification by the manager (first slice: Delegated Task over the committed receipt of 4-6)
 

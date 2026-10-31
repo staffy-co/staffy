@@ -17,7 +17,7 @@
 # ============================================================================
 set -euo pipefail
 
-REPO_URL="https://github.com/artemiosu/staffy.git"
+REPO_URL="https://github.com/staffy-co/staffy.git"
 REPO_DIR="${REPO_DIR:-${1:-/home/z/my-project/staffy}}"
 GO_DIR="${GO_DIR:-$HOME/.local/go}"
 GO_PIN="${GO_PIN:-1.27.1}"
@@ -39,7 +39,7 @@ if [ ! -d "$REPO_DIR/.git" ]; then
   if [ -n "${STAFFY_GH_TOKEN:-}" ]; then
     log "Клонирую репозиторий (по токену) → $REPO_DIR"
     mkdir -p "$(dirname "$REPO_DIR")"
-    git -c credential.helper= clone "https://x-access-token:${STAFFY_GH_TOKEN}@github.com/artemiosu/staffy.git" "$REPO_DIR"
+    git -c credential.helper= clone "https://x-access-token:${STAFFY_GH_TOKEN}@github.com/staffy-co/staffy.git" "$REPO_DIR"
   else
     die "репозиторий отсутствует в $REPO_DIR и нет STAFFY_GH_TOKEN — запроси токен у владельца (выдаётся в чате на сессию)"
   fi

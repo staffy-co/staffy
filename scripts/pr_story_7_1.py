@@ -9,7 +9,7 @@ import urllib.request
 
 TOKEN = os.environ.get("STAFFY_GH_TOKEN") or open("/tmp/.staffy_gh_token").read().strip()
 HEAD_SHA = sys.argv[1]
-API = "https://api.github.com/repos/artemiosu/staffy"
+API = "https://api.github.com/repos/staffy-co/staffy"
 
 body = f"""## Story 7.1 — Декларативный каталог Domain Pack (первый срез: вынос 7 манифестов в версионируемые JSON-артефакты registry/ + fail-closed загрузчик + байт-стабильная эквивалентность)
 

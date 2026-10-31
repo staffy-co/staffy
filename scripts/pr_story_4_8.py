@@ -9,7 +9,7 @@ import urllib.request
 
 TOKEN = os.environ["STAFFY_GH_TOKEN"]
 HEAD_SHA = sys.argv[1]
-API = "https://api.github.com/repos/artemiosu/staffy"
+API = "https://api.github.com/repos/staffy-co/staffy"
 
 body = f"""## Story 4.8 — Order correction before purchase (first slice: the Correction Work Item over the LAST CLOSED blocked decision of 4-7)
 
