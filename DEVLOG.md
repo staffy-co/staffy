@@ -6414,3 +6414,18 @@ done:
 next: PR story 8-1 → sha-pinned merge → ветка удалена ×3 → TBD-fill этой записи на main; следующая единица — SM-фаза story 8-2 «Модельный адаптер» ПО СИГНАЛУ ВЛАДЕЛЬЦА
 владельцу: (1) отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API/merge-зонды сессии; передан открытым текстом в чате); (2) опционально: выплата gofmt-долга 14 legacy-файлов + регенерация graphify-графа при наличии CLI (унаследовано из 322)
 commit: f3215b6bc32b16851acae4f7fcb6cfbf6fce0afa
+
+---
+
+date: 2026-10-31
+task: 326-merge-8-1
+role: main (Super Z, сессия web-d497a728)
+story: 8-1
+summary: PR #59 story 8-1 смержен sha-pinned PUT (урок 312): голова c5293ce00e81d8185f22bd667909285ce9239531, merge-коммит 21f3c3786e32861115270274d14fe10d50344e07, base b589eb2 — main принял первый срез «мозга» платформы (контракт хода); CI поимённо зелёный ×3: push 41214999746 + pull_request 41215008988 на голове ветки c5293ce + push 41215836779 на merge-коммите 21f3c37 — все completed/success; ветка codex/story-8-1-turn-contract удалена ×3 (compare ahead_by=0 → DELETE ref 204 → git branch -d was c5293ce → prune; ls-remote: ТОЛЬКО main @ 21f3c37 — гигиена владельца действует); локальный main ff-only до 21f3c37, RPO=0, дерево чистое
+done:
+- Прогон ветки до мержа: живой GET mergeable=True на голове c5293ce (base b589eb2 не двигался за время жизни ветки — деревья merge ≡ ветка)
+- Story 8-1 в sprint-status: done (epic-8 in-progress, 1/6); спека done + Spec Change Log closure; deferred-work +6 honest-границ; DEVLOG 325 заполнен на ветке (TBD-fill b1dbf41 — вошёл в merge)
+- Продакшн-состояние после merge: internal/planner (формы+машина+словари+валидация+fallback+порт) + internal/adapters/modelscripted + migrations/planner/00001 + store/postgres — в main; продакшн-вызывателей НОЛЬ (main.go не подключает — вызыватель 8.4); RuntimeDictionary без флипов; 58+1=59 миграций каноническим TestMain-аплаером
+next: SM-фаза story 8-2 «Модельный адаптер» — ПО СИГНАЛУ ВЛАДЕЛЬЦА (epic-8 in-progress 1/6; 8-2 модельный адаптер/бюджеты раундов-времени-стоимости, 8-3 tool-раунды, 8-4 интеграция+вызыватель, 8-5 eval, 8-6 observability)
+владельцу: (1) отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API/merge-зонды сессии; передан открытым текстом в чате); (2) опционально: выплата gofmt-долга 14 legacy-файлов + регенерация graphify-графа при наличии CLI (унаследовано из 322)
+commit: TBD
