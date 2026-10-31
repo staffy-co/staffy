@@ -6464,3 +6464,18 @@ done:
 next: PR story 8-2 → sha-pinned merge → ветка удалена ×3 → TBD-fill этой записи на main; следующая единица — SM-фаза story 8-3 «Tool-раунды над реестром 7.2 и внешним словарём 7.4» ПО СИГНАЛУ ВЛАДЕЛЬЦА (epic-8 in-progress 2/6)
 владельцу: (1) отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API-зонды сессии; передан открытым текстом в чате); (2) опционально: выплата gofmt-долга 14 legacy-файлов + регенерация graphify-графа при наличии CLI (унаследовано из 322)
 commit: 75437db51a3d2b558d10e6cea46236eb08974a4e
+
+---
+
+date: 2026-11-01
+task: 329-merge-8-2
+role: main (Super Z, сессия web-d497a728)
+story: 8-2
+summary: PR #60 story 8-2 смержен sha-pinned PUT (урок 312): голова 2c4811cf435ba19a2f129c40d6ee0c0b8f956577 (chore(pr) коммит PR-скрипта БЕЗ маркера — TBD-fill 513f3b7 с [skip ci] не пустил бы CI на голову; пин в теле PR обновлён живым PATCH), merge-коммит 778bd6ceb1ca33c1ab36e16776699ad35e5be69c, base 26ee9ad — main принял адаптерную сторону «мозга» платформы; CI поимённо зелёный ×3: push 41238319645 + pull_request 41238323558 на голове 2c4811c + push 41239008892 на merge-коммите 778bd6c — все completed/success; ветка codex/story-8-2-model-adapter удалена ×3 (compare ahead_by=0 → DELETE ref 204 → git branch -d was 2c4811c → prune; ls-remote: ТОЛЬКО main @ 778bd6c — гигиена владельца действует); локальный main ff-only до 778bd6c, RPO=0, дерево чистое
+done:
+- Прогон ветки до мержа: живой GET mergeable=True на голове 2c4811c (base 26ee9ad не двигался за время жизни ветки)
+- Story 8-2 в sprint-status: done (epic-8 in-progress, 2/6); спека done + Spec Change Log closure (2 задокументированных отклонения: transport 1 строка метки; media_route Epic 9); deferred-work: запись 8-1 о бюджетах/сборке закрыта заменой + 3 новые honest-границы; DEVLOG 328 заполнен на ветке (TBD-fill 513f3b7 — вошёл в merge)
+- Продакшн-состояние после merge: internal/planner {assembly.go, budgets.go, эволюция port/machine/dictionaries/store} + internal/adapters/modelbounded + internal/adapters/modelscripted (синтез из материала) + migrations/planner/00002 (assembly_version/budgets, NULL истории) — в main; продакшн-вызывателей НОЛЬ (main.go не подключает — вызыватель 8.4); RuntimeDictionary: prompt_assembly/runtime_build present, model_route честный false (AG-4); 59+1=60 миграций каноническим TestMain-аплаером; journeys несут ассерты present-строк release-страницы
+next: SM-фаза story 8-3 «Tool-раунды над реестром 7.2 и внешним словарём 7.4» — ПО СИГНАЛУ ВЛАДЕЛЬЦА (epic-8 in-progress 2/6; 8-3 tool-раунды/externaltools.Calls/закрытие deferred-work 7-4, 8-4 интеграция+вызыватель, 8-5 eval, 8-6 observability)
+владельцу: (1) отозвать PAT после закрытия чата (retro-4-5; токен ЖИВ — push/API/merge-зонды сессии; передан открытым текстом в чате); (2) опционально: выплата gofmt-долга 14 legacy-файлов + регенерация graphify-графа при наличии CLI (унаследовано из 322)
+commit: TBD
